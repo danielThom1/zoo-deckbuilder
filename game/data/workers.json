@@ -1,0 +1,106 @@
+{
+  "_note": "Valeurs provisoires. efficacite : multiplicateur par type de tâche (défaut = efficacite.defaut). vitesse en cases/seconde. Les ressources extraites sont exprimées en unités par minute à efficacité 1.0 (voir buildings.json > extraction).",
+
+  "regles": {
+    "_note_aura": "aura = bonus de productivité (extraction, construction, aménagement) donné aux AUTRES ouvriers dans le rayon (en cases). Les auras se cumulent.",
+    "taille_main": 5,
+    "cout_min_embauche": 3,
+    "salaire_par_niveau": 1,
+    "bonus_par_niveau": 0.1,
+    "actions_nuit": { "jour_min": 7, "par_nuit": 1, "cout_licenciement": 8, "cout_amelioration": 12, "_note": "À partir du milieu de partie, chaque nuit : licencier OU améliorer un ouvrier (choix parmi 3 améliorations), payant." },
+    "deploiement_gratuit": { "par_jour": 1, "rendement": 0.25, "_note": "Un ouvrier par jour peut être déployé sans salaire, avec un rendement de 25 % (évite les blocages sans argent)." },
+    "taille_deck_initial": 10,
+    "salaire_paye_au_deploiement": true,
+    "deploiement_en_cours_de_journee": true,
+    "xp_jours_par_niveau": 2,
+    "efficacite_lobbying_defaut": 0.25,
+    "niveau_max": 4,
+    "choix_ameliorations": 3,
+    "efficacite_manuelle_cadre": 0.6,
+    "modif_cout_par_trait_positif": 0.15,
+    "modif_cout_par_trait_negatif": -0.15
+  },
+
+  "generation_draft": {
+    "_note": "Pool du draft = cartes_par_joueur × nb_joueurs. Chaque carte tire sa catégorie selon ces probabilités (≈ 1 cadre et 2 qualifiés par joueur en moyenne).",
+    "cartes_par_joueur": 10,
+    "probabilites": { "peu_qualifie": 0.70, "qualifie": 0.20, "cadre": 0.10 }
+  },
+
+  "generation_traits": {
+    "_note": "Probabilités du nombre de traits tirés à la génération d'un ouvrier.",
+    "nb_positifs": { "0": 0.25, "1": 0.55, "2": 0.20 },
+    "nb_negatifs": { "0": 0.25, "1": 0.55, "2": 0.20 },
+    "exclusions": [["rapide", "lent"], ["costaud", "maladroit"], ["econome", "gourmand"], ["bon_eleve", "tetu"], ["charismatique", "rabat_joie"]]
+  },
+
+  "metiers": [
+    { "id": "manoeuvre",   "nom": "Manœuvre",          "categorie": "peu_qualifie", "cout": 0,  "salaire": 1, "vitesse": 1.0, "efficacite": { "defaut": 1.0 } },
+    { "id": "bucheron",    "nom": "Bûcheron",          "categorie": "peu_qualifie", "cout": 0,  "salaire": 1, "vitesse": 1.0, "efficacite": { "defaut": 0.9, "extraire_bois": 1.5 } },
+    { "id": "macon",       "nom": "Maçon",             "categorie": "peu_qualifie", "cout": 0,  "salaire": 1, "vitesse": 1.0, "efficacite": { "defaut": 0.9, "construire_pierre": 1.5 } },
+    { "id": "mineur",      "nom": "Mineur",            "categorie": "peu_qualifie", "cout": 0,  "salaire": 1, "vitesse": 0.9, "efficacite": { "defaut": 0.9, "extraire_pierre": 1.5, "extraire_or": 1.5 } },
+    { "id": "terrassier",  "nom": "Terrassier",        "categorie": "peu_qualifie", "cout": 0,  "salaire": 1, "vitesse": 1.0, "efficacite": { "defaut": 0.9, "amenager": 1.5 } },
+    { "id": "porteur",     "nom": "Porteur",           "categorie": "peu_qualifie", "cout": 0,  "salaire": 1, "vitesse": 1.4, "efficacite": { "defaut": 0.9 }, "capacite_portage": 2 },
+    { "id": "guichetier",  "nom": "Guichetier",        "categorie": "peu_qualifie", "cout": 0,  "salaire": 1, "vitesse": 1.0, "efficacite": { "defaut": 0.8, "guichet": 2.0 }, "capacite": "Au guichet de l'Entrée : fait entrer les visiteurs deux fois plus vite." },
+    { "id": "apprenti",    "nom": "Apprenti",          "categorie": "peu_qualifie", "cout": 0,  "salaire": 1, "vitesse": 1.0, "efficacite": { "defaut": 0.8 }, "xp_mult": 2.0 },
+
+    { "id": "charpentier", "nom": "Charpentier",       "categorie": "qualifie", "cout": 8,  "salaire": 2, "vitesse": 1.0, "efficacite": { "defaut": 1.0, "construire_bois": 1.8 } },
+    { "id": "paysagiste",  "nom": "Paysagiste",        "categorie": "qualifie", "cout": 9,  "salaire": 2, "vitesse": 1.0, "efficacite": { "defaut": 1.0, "amenager": 2.0 } },
+    { "id": "cantonnier",  "nom": "Cantonnier",        "categorie": "qualifie", "cout": 7,  "salaire": 2, "vitesse": 1.1, "efficacite": { "defaut": 1.0, "construire_route": 2.5 } },
+    { "id": "soigneur",    "nom": "Soigneur",          "categorie": "qualifie", "cout": 10, "salaire": 2, "vitesse": 1.0, "efficacite": { "defaut": 0.9, "construire_enclos": 1.6 }, "capacite": "Un enclos où il a travaillé dans la journée : +2 visiteurs la nuit" },
+
+    { "id": "drh",         "nom": "DRH",               "categorie": "cadre", "cout": 12, "salaire": 3, "vitesse": 1.0, "efficacite": { "defaut": 0.6 }, "capacite": "S'il a été déployé dans la journée, peut licencier 1 ouvrier la nuit (deck, main ou défausse)." },
+    { "id": "lobbyiste",   "nom": "Lobbyiste",         "categorie": "cadre", "cout": 12, "salaire": 3, "vitesse": 1.0, "efficacite": { "defaut": 0.6, "lobbying": 1.0 }, "capacite": "Lobbying : quitte la carte par l'accès route et rapporte +1 influence par minute tant qu'il est dehors." },
+    { "id": "marchand",    "nom": "Marchand",          "categorie": "cadre", "cout": 10, "salaire": 3, "vitesse": 1.0, "efficacite": { "defaut": 0.6 }, "capacite": "Au Camp : convertit bois/pierre en argent selon buildings.json > conversion." },
+    { "id": "vendeur",     "nom": "Vendeur de souvenirs","categorie": "cadre", "cout": 10, "salaire": 2, "vitesse": 1.0, "efficacite": { "defaut": 0.6 }, "capacite": "Boutique où il a travaillé : revenus souvenirs ×2 la nuit." },
+    { "id": "formateur",   "nom": "Formateur",         "categorie": "cadre", "cout": 14, "salaire": 3, "vitesse": 1.0, "efficacite": { "defaut": 0.6 }, "capacite": "Au Centre de formation : jusqu'à 3 ouvriers présents gagnent +0,5 jour d'XP par minute passée." },
+    { "id": "contremaitre","nom": "Contremaître",      "categorie": "cadre", "cout": 14, "salaire": 3, "vitesse": 1.0, "efficacite": { "defaut": 0.8 }, "aura": { "rayon": 3, "bonus": 0.25 }, "capacite": "Les autres ouvriers dans un rayon de 3 cases : +25 % de productivité." },
+    { "id": "architecte",  "nom": "Architecte",        "categorie": "cadre", "cout": 16, "salaire": 4, "vitesse": 1.0, "efficacite": { "defaut": 0.6 }, "capacite": "Un chantier qu'il supervise coûte 25 % de ressources en moins." }
+  ],
+
+  "traits_positifs": [
+    { "id": "costaud",       "nom": "Costaud",       "effet": { "construire": 1.25 } },
+    { "id": "rapide",        "nom": "Rapide",        "effet": { "vitesse": 1.3 } },
+    { "id": "endurant",      "nom": "Endurant",      "effet": { "defaut": 1.1 }, "texte": "+10 % sur toutes les tâches" },
+    { "id": "polyvalent",    "nom": "Polyvalent",    "effet": {}, "texte": "Efficacité hors spécialité au minimum 1.2" },
+    { "id": "bon_eleve",     "nom": "Bon élève",     "effet": { "xp": 1.5 } },
+    { "id": "econome",       "nom": "Économe",       "effet": { "salaire": -1 } },
+    { "id": "charismatique", "nom": "Charismatique", "effet": { "lobbying": 1.5 }, "aura": { "rayon": 3, "bonus": 0.15 }, "texte": "+15 % de productivité aux autres ouvriers dans un rayon de 3 cases ; lobbying ×1,5" },
+    { "id": "debrouillard",  "nom": "Débrouillard",  "effet": { "cout_ressources_chantier": 0.85 } },
+    { "id": "matinal",       "nom": "Matinal",       "effet": {}, "texte": "Commence la journée sur la case de son dernier chantier au lieu du Camp" },
+    { "id": "naturaliste",   "nom": "Naturaliste",   "effet": { "amenager": 1.3, "construire_enclos": 1.3 } }
+  ],
+
+  "traits_negatifs": [
+    { "id": "lent",          "nom": "Lent",          "effet": { "vitesse": 0.75 } },
+    { "id": "maladroit",     "nom": "Maladroit",     "effet": { "construire": 0.8 } },
+    { "id": "paresseux",     "nom": "Paresseux",     "effet": {}, "texte": "S'arrête 15 s toutes les 60 s de travail" },
+    { "id": "gourmand",      "nom": "Gourmand",      "effet": { "salaire": 1 } },
+    { "id": "rabat_joie",    "nom": "Rabat-joie",    "effet": {}, "aura": { "rayon": 1.5, "bonus": -0.10 }, "texte": "−10 % de productivité aux ouvriers adjacents" },
+    { "id": "col_blanc",     "nom": "Col blanc",     "effet": {}, "categories": ["cadre"], "texte": "Refuse tout travail manuel" },
+    { "id": "distrait",      "nom": "Distrait",      "effet": {}, "texte": "10 % de chance par minute d'abandonner sa tâche (redevient inactif)" },
+    { "id": "tetu",          "nom": "Têtu",          "effet": { "choix_ameliorations": 2 } },
+    { "id": "peureux",       "nom": "Peureux",       "effet": {}, "texte": "Refuse de travailler à moins de 2 cases d'un enclos de prédateur" },
+    { "id": "casanier",      "nom": "Casanier",      "effet": {}, "texte": "−30 % de vitesse à plus de 15 cases du Camp" }
+  ],
+
+  "ameliorations_generiques": [
+    { "id": "plus_rapide",   "nom": "Pied léger",      "effet": { "vitesse": 1.15 } },
+    { "id": "plus_efficace", "nom": "Expérience",      "effet": { "defaut": 1.15 } },
+    { "id": "specialite_up", "nom": "Maîtrise",        "effet": { "specialite": 1.25 } },
+    { "id": "guerison",      "nom": "Remise en question", "effet": {}, "texte": "Supprime un trait négatif" },
+    { "id": "nouveau_trait", "nom": "Révélation",      "effet": {}, "texte": "Gagne un trait positif aléatoire" },
+    { "id": "salaire_down",  "nom": "Fidélité",        "effet": { "salaire": -1 } },
+    { "id": "double_spe",    "nom": "Seconde spécialité", "effet": {}, "texte": "Choisit une 2e tâche à 1.4 d'efficacité" }
+  ],
+
+  "ameliorations_metier": {
+    "bucheron":   [{ "id": "scie_affutee", "texte": "Extraction de bois +25 % et capacité de portage +1" }],
+    "porteur":    [{ "id": "brouette", "texte": "Capacité de portage +2" }],
+    "drh":        [{ "id": "chasseur_tetes", "texte": "Une fois par nuit, réduit de 3 le coût d'une embauche" }],
+    "lobbyiste":  [{ "id": "reseau", "texte": "+1 influence supplémentaire par jour déployé" }],
+    "marchand":   [{ "id": "negociateur", "texte": "Taux de conversion +25 %" }],
+    "formateur":  [{ "id": "pedagogue", "texte": "Capacité du centre +2 ouvriers" }],
+    "paysagiste": [{ "id": "visionnaire", "texte": "Aménager une case adjacente à une case du même type est 2× plus rapide" }]
+  }
+}

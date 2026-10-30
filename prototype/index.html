@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Zoo Deckbuilder — Prototype</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header id="hud">
+    <div class="group">
+      <strong id="day">Jour 1</strong>
+      <span id="timer" class="mono">5:00</span>
+      <div id="timebar"><div id="timefill"></div></div>
+    </div>
+    <div class="group res">
+      <span title="Argent">💰 <b id="money">0</b></span>
+      <span title="Bois">🪵 <b id="bois">0</b></span>
+      <span title="Pierre">🪨 <b id="pierre">0</b></span>
+      <span title="Or">🥇 <b id="or">0</b></span>
+      <span title="Deck / défausse" class="muted">🂠 <b id="pile">0</b></span>
+    </div>
+    <div class="group">
+      <button data-speed="0" title="Espace">⏸</button>
+      <button data-speed="1" title="1">×1</button>
+      <button data-speed="2" title="2">×2</button>
+      <button data-speed="4" title="3">×4</button>
+      <button id="endday" title="Termine la journée tout de suite">Finir la journée</button>
+      <button id="sell" class="test" title="Remplace le Marchand en attendant qu'il existe">[test] Vendre le stock</button>
+    </div>
+  </header>
+
+  <main>
+    <div id="view">
+      <canvas id="canvas"></canvas>
+      <div id="status"></div>
+      <div id="toasts"></div>
+    </div>
+    <aside id="info"></aside>
+  </main>
+
+  <footer id="hand"></footer>
+
+  <div id="night" hidden>
+    <div class="panel">
+      <h2 id="night-title">Nuit</h2>
+      <div id="night-body"></div>
+      <button id="nextday" class="primary">Commencer le jour suivant</button>
+    </div>
+  </div>
+
+  <div id="help">
+    <b>Clic gauche</b> : sélectionner (glisser pour une zone, Maj pour ajouter) ·
+    <b>Clic droit</b> : déplacer / extraire (forêt = bois, roche = pierre) ·
+    <b>Molette</b> : zoom · <b>ZQSD / flèches / clic molette</b> : déplacer la vue ·
+    <b>Espace</b> : pause
+  </div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

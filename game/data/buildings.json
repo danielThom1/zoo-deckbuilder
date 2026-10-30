@@ -1,0 +1,119 @@
+{
+  "_note": "Valeurs provisoires. travail = points de travail (1 ouvrier à efficacité 1.0 produit 1 point/seconde). type_travail détermine quelle efficacité s'applique (construire_bois, construire_pierre, construire_route, construire_enclos).",
+
+  "carte": {
+    "taille": [64, 64],
+    "repartition_terrain": { "Prairie": 0.40, "Foret": 0.22, "Eau": 0.12, "Roche": 0.11, "Sable": 0.10, "Montagne": 0.05 },
+    "taille_motifs": 6,
+    "rivieres": 3,
+    "camp": "bas_centre",
+    "zone_depart": [13, 9],
+    "_note_acces": "Une route relie le camp au bord bas de la carte : c'est l'accès vers l'extérieur (lobbying).",
+    "mines_or": 2,
+    "vitesse_route_mult": 2.0
+  },
+
+  "terrains": {
+    "Prairie":  { "franchissable": true,  "vitesse": 1.0, "extractible": null },
+    "Foret":    { "franchissable": true,  "vitesse": 0.7, "extractible": "bois",   "epuisable": true, "stock": 25, "devient_si_epuise": "Prairie" },
+    "Eau":      { "franchissable": false, "vitesse": 0.0, "extractible": null, "_note": "Un pont (route sur Eau) la rend franchissable" },
+    "Roche":    { "franchissable": true,  "vitesse": 0.8, "extractible": "pierre", "epuisable": true, "stock": 40, "devient_si_epuise": "Sable" },
+    "Sable":    { "franchissable": true,  "vitesse": 0.85, "extractible": null },
+    "Montagne": { "franchissable": false, "vitesse": 0.0, "extractible": null },
+    "MineOr":   { "franchissable": true,  "vitesse": 1.0, "extractible": "or", "_note": "Nécessite le bâtiment Mine pour être exploitée" }
+  },
+
+  "extraction": {
+    "_note": "Unités par minute à efficacité 1.0, avant temps de transport. Un ouvrier porte 5 unités (porteur : +2 par amélioration), puis va déposer au Camp ou à l'Entrepôt le plus proche.",
+    "bois": 6,
+    "pierre": 4,
+    "or": 1.5,
+    "capacite_portage": 5
+  },
+
+  "conversion": {
+    "_note": "Marchand au Camp. Taux en argent par unité.",
+    "bois": 0.5,
+    "pierre": 0.8,
+    "or": 7
+  },
+
+  "regles_amenagement": { "metiers": ["paysagiste", "terrassier"], "_note": "Seuls ces métiers savent transformer une case de terrain en une autre." },
+
+  "amenagements": [
+    { "id": "defricher",   "nom": "Défricher",          "de": "Foret",   "vers": "Prairie", "travail": 20, "cout": {},              "bonus": { "bois": 3 } },
+    { "id": "planter",     "nom": "Planter une forêt",  "de": "Prairie", "vers": "Foret",   "travail": 40, "cout": { "argent": 2 } },
+    { "id": "creuser",     "nom": "Creuser un bassin",  "de": ["Prairie", "Sable"], "vers": "Eau", "travail": 50, "cout": { "pierre": 2 } },
+    { "id": "combler",     "nom": "Combler",            "de": "Eau",     "vers": "Prairie", "travail": 50, "cout": { "pierre": 3 } },
+    { "id": "rocailler",   "nom": "Poser des rochers",  "de": ["Prairie", "Sable"], "vers": "Roche", "travail": 35, "cout": { "pierre": 4 } },
+    { "id": "ensabler",    "nom": "Ensabler",           "de": "Prairie", "vers": "Sable",   "travail": 25, "cout": { "pierre": 1 } },
+    { "id": "engazonner",  "nom": "Engazonner",         "de": "Sable",   "vers": "Prairie", "travail": 30, "cout": { "argent": 1 } }
+  ],
+
+  "_note_construction": "Le coût est payé au placement du chantier (remboursé en entier si aucun travail n'a été fait, à moitié sinon). peinture = se place en glissant la souris. Les bâtiments ne bloquent pas encore le passage.",
+  "batiments": [
+    { "id": "camp",       "nom": "Camp de base",         "taille": [3, 3], "travail": 0,   "type_travail": null,               "cout": {},                         "effet": { "logement": 10, "stockage": true, "bureau": true }, "unique": true, "_note": "Placé au départ" },
+    { "id": "route",      "nom": "Route",                "taille": [1, 1], "travail": 8,   "type_travail": "construire_route", "cout": { "pierre": 1 },            "effet": { "vitesse": 2.0 }, "peinture": true },
+    { "id": "pont",       "nom": "Pont",                 "taille": [1, 1], "travail": 30,  "type_travail": "construire_bois",  "cout": { "bois": 4 },              "effet": { "vitesse": 2.0 }, "sur": "Eau", "peinture": true },
+    { "id": "maison",     "nom": "Maison d'ouvriers",    "taille": [2, 2], "travail": 90,  "type_travail": "construire_bois",  "cout": { "bois": 12, "pierre": 4 }, "effet": { "logement": 4 } },
+    { "id": "entrepot",   "nom": "Entrepôt",             "taille": [2, 2], "travail": 80,  "type_travail": "construire_bois",  "cout": { "bois": 10, "pierre": 6 }, "effet": { "stockage": true }, "hors_enceinte": true },
+    { "id": "mine",       "nom": "Mine d'or",            "taille": [2, 2], "travail": 150, "type_travail": "construire_pierre", "cout": { "bois": 10, "pierre": 15 }, "effet": { "permet_extraction": "or" }, "sur": "MineOr", "hors_enceinte": true, "_note": "Une mine par gisement (2 gisements par carte)." },
+    { "id": "cloture",    "nom": "Enceinte (segment)",   "taille": [1, 1], "travail": 6,   "type_travail": "construire_pierre", "cout": { "pierre": 1 },            "effet": { "enceinte": true }, "peinture": true },
+    { "id": "entree",     "nom": "Entrée du zoo",        "taille": [2, 1], "travail": 60,  "type_travail": "construire_pierre", "cout": { "pierre": 8, "bois": 4 }, "effet": { "entree_zoo": true }, "unique": true },
+    { "id": "enclos",     "nom": "Clôture d'enclos (segment)", "taille": [1, 1], "travail": 5, "type_travail": "construire_enclos", "cout": { "bois": 1 }, "effet": { "enclos": true }, "peinture": true, "_note": "Une zone fermée de clôtures d'enclos validée contre les exigences d'un contrat d'animal" },
+    { "id": "boutique",   "nom": "Boutique de souvenirs","taille": [2, 2], "travail": 70,  "type_travail": "construire_bois",  "cout": { "bois": 8, "pierre": 4, "argent": 5 }, "effet": { "souvenirs_par_visiteur": 0.6 }, "dans_enceinte": true },
+    { "id": "formation",  "nom": "Centre de formation",  "taille": [3, 2], "travail": 120, "type_travail": "construire_pierre", "cout": { "bois": 10, "pierre": 12, "argent": 10 }, "effet": { "capacite_formation": 3 } }
+  ],
+
+  "marche": {
+    "_note": "Marché de nuit commun aux joueurs. Chaque nuit : 1 ouvrier et 1 contrat maximum par joueur, dans l'ordre d'influence. Une carte non achetée est retirée au hasard chaque nuit pour faire tourner le marché.",
+    "ouvriers": 5,
+    "contrats": 4,
+    "contrats_par_nuit": 2,
+    "surcout_2e_contrat": 0.5,
+    "hausse_prix_par_animal": 0.15,
+    "prix_achat_materiaux": 2.0,
+    "_note_achat": "Le bois et la pierre s'achètent à tout moment de la journée, au double du prix de revente de base : l'argent (et donc l'or) se transforme en vitesse de construction.",
+    "_note_prix": "Prix en argent d'un contrat × (1 + 0,15 par animal déjà possédé ou en attente) ; le 2e contrat de la nuit coûte 50 % de plus.",
+    "categories": { "peu_qualifie": 0.35, "qualifie": 0.45, "cadre": 0.20 }
+  },
+
+  "ia": {
+    "_note": "IA simplifiée : elle ne joue pas encore les journées, mais elle gagne de l'influence et achète au marché.",
+    "influence_par_jour": [0.5, 3.0],
+    "proba_embauche": 0.7,
+    "proba_contrat": 0.6
+  },
+
+  "zoo": {
+    "_note": "Les visiteurs arrivent par l'Accès, marchent sur les routes (le camp sert de carrefour) jusqu'à l'Entrée, font la queue, entrent au débit du guichet, paient un billet (et des souvenirs si la boutique est tenue), restent un moment puis repartent. La réputation gagnée chaque nuit dépend du nombre moyen de visiteurs présents dans le zoo.",
+    "visiteurs_par_point_attractivite": 6,
+    "billet": 2.0,
+    "debit_guichet_par_minute": 24,
+    "duree_visite_s": 60,
+    "file_max": 20,
+    "vitesse_visiteur": 1.5,
+    "reputation_par_visiteur_moyen": 0.6,
+    "publicite": { "max": 0.6, "demi_influence": 15, "_note": "Visiteurs × (1 + max × influence / (influence + demi_influence))" },
+    "bonus_predateur": 2,
+    "bonus_soigneur": 2,
+    "mult_vendeur": 2.0,
+    "vente_sans_marchand": 0.5,
+    "condition_ouverture": "Enceinte fermée + Entrée + au moins 1 animal à l'intérieur + route de l'Accès à l'Entrée"
+  },
+
+
+  "partie": {
+    "duree_jour_s": 300,
+    "argent_depart": 30,
+    "stock_depart": { "bois": 15, "pierre": 15 },
+    "influence_visible": false,
+    "departage_influence": ["superficie_zoo", "aleatoire"],
+    "nourriture_avant_salaires": true,
+    "ordre_nourriture": "plus_cher_d_abord",
+    "achats_par_nuit": { "contrats": 1, "ouvriers": 1 },
+    "limite_contrats_detenus": null,
+    "objectif_reputation": 60,
+    "jour_max": 15
+  }
+}

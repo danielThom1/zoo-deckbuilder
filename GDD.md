@@ -1,0 +1,249 @@
+# Zoo Builder Deckbuilder — Document de Game Design (v0.2)
+
+> Statut : brouillon. Les chiffres sont **provisoires** et vivent dans `data/*.json` pour l'équilibrage.
+> Les points marqués ❓ sont des questions ouvertes.
+
+---
+
+## 1. Pitch
+
+Jeu de gestion vu du dessus, 1 à 4 joueurs (humain contre IA pour la v1). Chaque joueur dispose d'un **deck d'ouvriers** qu'il pioche chaque jour, les envoie extraire des ressources, aménager le terrain et construire, pour bâtir le **zoo le plus réputé**. La partie s'arrête quand un joueur atteint l'objectif de réputation.
+
+## 2. Piliers de design
+
+1. **Deckbuilding d'ouvriers** : on recrute, forme et licencie pour façonner un deck efficace.
+2. **Microgestion en temps réel** : la journée exige de réaffecter sans cesse ses ouvriers.
+3. **Puzzle de terrain** (inspiré d'*Harmonies*) : chaque animal exige une composition de terrain précise. Plus le terrain naturel convient, moins il faut d'aménagements.
+4. **Diversité** : la réputation récompense la variété des espèces et des biomes.
+
+## 3. Structure d'une partie
+
+- Durée cible : ~1 h, soit environ 12 jours.
+- **Carte** : générée aléatoirement à partir d'une graine, **identique pour tous les joueurs**. Chaque joueur joue sur sa propre copie.
+- **Fin de partie** : à la fin de la nuit où un joueur atteint **100 points de réputation** ❓ (valeur à équilibrer). Les autres joueurs terminent la même nuit.
+- Garde-fou : fin forcée au jour 18 ❓.
+- **Départage** : réputation, puis argent, puis nombre d'espèces.
+
+### 3.1 Mise en place
+1. Génération de la carte (graine commune).
+2. Chaque joueur reçoit un **Camp de base** (logement pour 10) avec 30 💰, **15 bois et 15 pierre** pour pouvoir construire des routes dès le début. Le camp est placé **en bas au centre** de la carte, au milieu d'une zone de départ toujours en Prairie (13×9 cases), et une **route d'accès** le relie au bord bas de la carte : c'est la porte vers l'extérieur.
+3. **Draft serpent** de 10 ouvriers :
+   - un pool visible de `nb_joueurs × 10` cartes ;
+   - chaque carte tire sa catégorie au hasard : **70 % peu qualifiés, 20 % qualifiés, 10 % cadres**. En moyenne, cela fait 1 cadre et 2 qualifiés par joueur (pour 2 joueurs : 20 cartes, dont ~2 cadres et ~4 qualifiés) ;
+   - ordre 1-2-3-4-4-3-2-1… jusqu'à 10 cartes chacun ;
+   - l'ordre du premier tour est aléatoire, puis il est fixé par l'influence.
+4. Le deck est mélangé et chaque joueur pioche 5 cartes.
+
+### 3.2 Le Jour (temps réel, 5 min)
+- La simulation tourne en ticks fixes (10 par seconde), indépendamment de l'affichage.
+- **Alimentation (début du jour, avant tout déploiement)** : la nourriture de chaque animal est payée automatiquement, en priorité sur les salaires. Les animaux les plus chers à nourrir sont servis en premier ❓. Un animal qui n'a pas pu être nourri **ne rapporte rien ce tour-ci** : son espèce n'est comptée ni dans la réputation ni dans les visiteurs de la nuit suivante.
+- **Déploiement** : les 5 cartes piochées sont en main. Pour déployer un ouvrier, le joueur doit **payer son salaire immédiatement**. S'il n'a pas assez d'argent, la carte reste en main. Le déploiement est possible **à tout moment de la journée** : l'argent gagné par le Marchand peut ainsi servir à déployer d'autres ouvriers en cours de journée.
+- L'ouvrier déployé apparaît au Camp de base.
+- Les cartes non déployées à la fin de la journée vont à la défausse, sans gagner d'XP.
+- Contrôles : **clic gauche** pour sélectionner (boîte de sélection possible), **clic droit** pour donner un ordre sur une case ou un bâtiment.
+- Les ouvriers suivent le plus court chemin (A*). Sur une route, la vitesse est **×2**.
+- Pause possible en solo, et accélération ×2 / ×4 ❓.
+- Tâches possibles : voir §5.
+- À la fin du jour, les ouvriers s'arrêtent où ils sont. **L'avancement des chantiers est conservé**, et n'importe quel ouvrier peut le reprendre.
+
+### 3.3 La Nuit (tour par tour, sans chrono)
+Ordre de résolution :
+1. **Revenus du zoo** : billetterie et souvenirs (§7), sans compter les animaux non nourris ce jour-là.
+2. **Montées de niveau** : un ouvrier qui a travaillé 2 jours depuis son dernier niveau gagne un niveau et le joueur choisit 1 amélioration parmi 3 (§6.4).
+3. **Licenciements** : uniquement si le DRH a été déployé ce jour-là (1 par DRH).
+4. **Ordre d'achat** déterminé par l'influence, du plus haut total au plus bas. Seul l'ordre est révélé, jamais les valeurs (§4). **En cas d'égalité**, le joueur dont le zoo a la plus grande superficie (cases à l'intérieur de l'enceinte) passe devant ; si l'égalité persiste, tirage au sort.
+5. **Marché des contrats** : chacun peut acheter **1 contrat** au maximum, dans l'ordre d'influence.
+6. **Marché des ouvriers** : chacun peut embaucher **1 ouvrier** au maximum, dans l'ordre d'influence. Les nouvelles recrues vont dans la **défausse**.
+7. **Vérification de fin de partie** : réputation calculée sans les animaux non nourris ce jour-là.
+8. Les marchés se renouvellent.
+9. Défausse de la main, puis pioche de 5 cartes. Quand le deck est vide, on mélange la défausse.
+
+> Les salaires et la nourriture ne sont plus payés la nuit : ils sont payés au début du jour suivant (§3.2), la nourriture en premier.
+
+## 4. Ressources
+
+| Ressource | Source | Usage |
+|---|---|---|
+| 💰 Argent | Marchand (conversion), billetterie, souvenirs | Embauches, contrats, salaires (au déploiement), nourriture des animaux |
+| 🪵 Bois | Forêts (**inépuisables** en v1) | Construction |
+| 🪨 Pierre | Cases de roche (**inépuisables** en v1) | Construction |
+| 🥇 Or | **Une seule mine d'or par carte** | Contrats d'animaux T3, ouvriers d'élite, améliorations |
+| 🎖️ Influence | Lobbying : l'ouvrier **sort de la carte** par la route d'accès | Ordre de passage au marché uniquement |
+
+- **Stockage** : le bois, la pierre et l'or extraits sont **portés** jusqu'au Camp ou à l'Entrepôt le plus proche (allers-retours automatiques). C'est ce qui crée l'intérêt des entrepôts et des routes. La construction puise ensuite dans le **stock global**, sans livraison au chantier en v1.
+- **Marchand** : convertit le bois et la pierre en argent à tout moment au cours du jour, s'il est déployé et présent au Camp. Les taux sont dans `buildings.json > conversion`.
+- **Influence** : elle **ne se remet pas à zéro** et **ne se dépense pas**. Elle est **cachée** : chaque joueur ne connaît que sa propre valeur et voit seulement l'ordre de passage révélé chaque nuit. Le dilemme est donc : faut-il continuer d'investir des ouvriers dans le lobbying sans savoir où en sont les autres ?
+- Le bois et la pierre ne s'épuisent pas en v1. On reverra ce point si l'abondance pose problème (le champ `epuisable` est déjà prévu dans les données).
+
+## 5. Tâches des ouvriers
+
+| Tâche | Où | Effet |
+|---|---|---|
+| Extraire | Forêt, roche, mine d'or | +X ressource par minute selon l'efficacité, puis transport |
+| Construire | Chantier (bâtiment, route, enclos) | +points de travail par seconde |
+| Aménager | Case de terrain | Transforme le terrain (§8) |
+| Lobbying | Hors carte, via la route d'accès | L'ouvrier marche jusqu'à la sortie et disparaît. Tant qu'il est dehors : +1 influence/min × efficacité (Lobbyiste 1.0, autres 0.25). Quand on le rappelle, il revient par la même sortie |
+| Vendre | Boutique de souvenirs | Multiplie les revenus de souvenirs de la nuit |
+| Commerce | Camp | Conversion de ressources en argent |
+| Former | Centre de formation | +XP pour les ouvriers qui s'y entraînent |
+
+- **Construction** (prototype Godot) : on choisit un bâtiment ou un aménagement dans le menu de gauche et on le place sur la carte. Les routes, clôtures et aménagements se placent en glissant la souris. Le coût est payé **au placement** : il est remboursé en entier si on annule avant tout travail, et à moitié ensuite. On envoie ensuite des ouvriers sur le chantier par clic droit, et l'avancement est conservé d'un jour à l'autre. Un ouvrier qui termine un chantier passe tout seul au chantier voisin du même type, dans un rayon de 10 cases (pratique pour une route). Pour l'instant, les bâtiments ne bloquent pas le passage.
+- **Effets de zone** : *Charismatique* donne +15 % de productivité aux autres ouvriers dans un rayon de 3 cases, le *Contremaître* +25 % dans un rayon de 3 cases, et *Rabat-joie* −10 % aux ouvriers adjacents. Les effets se cumulent et s'appliquent à l'extraction, à la construction et à l'aménagement.
+- Tout ouvrier peut faire un **travail manuel** (efficacité de base 1.0, ×1.5 dans sa spécialité), sauf s'il a le trait *Col blanc*.
+- Les **cadres** ont accès aux tâches spéciales et ont une faible efficacité manuelle (0.6).
+
+## 6. Ouvriers
+
+### 6.1 Catégories
+- **Peu qualifiés** (métiers de base) : Manœuvre, Bûcheron, Maçon, Mineur, Terrassier, Porteur, Apprenti. Les plus fréquents au draft. Salaire 1.
+- **Qualifiés** : Charpentier, Paysagiste, Cantonnier, Soigneur. Environ 2 par joueur au draft, puis au marché.
+- **Cadres** : DRH, Lobbyiste, Marchand, Vendeur, Formateur, Contremaître, Architecte. Rares au draft (≈ 1 par joueur), plus chers, avec des capacités uniques.
+- Le Carrier a été fusionné dans le Mineur (pierre et or).
+
+Liste complète : `data/workers.json`.
+
+### 6.2 Statistiques
+`vitesse` (cases/s), `efficacite` (par type de tâche), `salaire` (💰/nuit), `cout_embauche`.
+
+### 6.3 Traits
+- À la génération, un ouvrier reçoit **0 à 2 traits positifs** et **0 à 2 traits négatifs**, avec une distribution pondérée (voir `workers.json > generation_traits`).
+- Le coût d'embauche est ajusté : +15 % par trait positif et −15 % par trait négatif. Le joueur peut ainsi parier sur un ouvrier « défectueux » mais peu cher.
+
+### 6.4 Progression
+- Gain d'un niveau tous les **2 jours travaillés** (un jour où il a été pioché), avec un maximum au **niveau 4**.
+- À chaque niveau, choix d'une amélioration parmi 3, tirées dans le pool générique et dans le pool du métier.
+- Une amélioration peut **supprimer un trait négatif**.
+- Formateur et Centre de formation accélèrent l'XP.
+
+### 6.5 Logement
+- La taille totale du deck est limitée par la **capacité de logement** : 10 pour le Camp, +4 par Maison.
+- On ne peut pas embaucher au-delà, ce qui rend les maisons indispensables.
+
+### 6.6 Salaires
+- Le salaire est payé **au moment du déploiement** d'un ouvrier, et uniquement pour les ouvriers déployés.
+- Le salaire augmente de **+1 par niveau** au-delà du niveau 1 : un ouvrier expérimenté rapporte plus, mais coûte plus.
+- **Déploiement gratuit** (anti-blocage) : chaque jour, un ouvrier peut être déployé sans salaire, avec **25 % de rendement** (extraction, construction, aménagement, lobbying). Un joueur sans argent peut donc toujours produire un peu.
+- Un ouvrier mal payé peut donc rester en main, mais une carte non déployée est une journée perdue. Les ouvriers chers et inefficaces « bouchent » la main, ce qui garde au licenciement tout son intérêt.
+
+## 7. Le zoo et ses revenus
+
+- Le zoo **ouvre** quand il existe une **Enceinte fermée avec une Entrée** et **au moins un animal** dans un enclos à l'intérieur.
+- **Visiteurs par nuit** : `V = 20 × nb_especes × (1 + 0,1 × nb_biomes)` ❓
+- **Billetterie** : `V × 1 💰`
+- **Souvenirs** : `V × 0,3 💰` par boutique, ×2 si un Vendeur y a travaillé dans la journée.
+- Un petit zoo rapporte donc peu, et la croissance devient vite exponentielle. À surveiller.
+
+### 7.1 Implémentation (prototype Godot)
+- **Enceinte** : c'est la zone fermée par des segments d'enceinte terminés qui touche l'Entrée. La fermeture se teste en 4 directions, donc un coin ouvert ne crée pas de brèche. Le zoo est **ouvert** s'il y a une Entrée, une enceinte fermée et au moins un animal arrivé dont tout l'enclos est à l'intérieur.
+- **Visiteurs** = 20 × espèces nourries dans l'enceinte × (1 + 0,1 × biomes), +2 par prédateur, +2 par animal dont un **Soigneur** s'est occupé dans la journée. Exemple : 1 Zèbre donne 22 visiteurs.
+- **Billetterie** : 1 par visiteur. **Souvenirs** : 0,3 par visiteur et par boutique dans l'enceinte, ×2 si un **Vendeur** a tenu la boutique dans la journée.
+- **Vente du stock** : le bouton vend le bois et la pierre (l'or est conservé). Sans Marchand, le prix est divisé par deux ; avec un **Marchand** posté sur le camp, on obtient le plein tarif. Cela évite qu'une partie sans Marchand se retrouve bloquée sans argent.
+- **Postes fixes** (clic droit) : le Marchand sur le camp, le Vendeur sur une boutique, le Soigneur dans un enclos.
+
+### 7.3 Visiteurs, routes et réputation (v4 : remplace les revenus de nuit)
+- **Les visiteurs sont simulés pendant la journée.** Ils apparaissent à la case **Accès**, marchent **uniquement sur les routes** jusqu'à la case devant l'**Entrée** (le camp sert de carrefour, les ponts comptent comme des routes, une route en diagonale passe), puis font la queue. Sans route reliant l'Accès à l'Entrée, personne ne vient.
+- **Demande** (visiteurs par jour) = attractivité × 6 × publicité × événement × bonus de nuit.
+  - **Attractivité** : ce qu'on appelait avant la réputation. Ce sont les points des espèces nourries de l'enceinte, plus la diversité des biomes, les collections, +2 par prédateur et +2 par animal soigné.
+  - **Publicité** = 1 + 0,6 × influence / (influence + 15). Par exemple : influence 15 → +30 % ; influence 45 → +45 %. L'influence sert donc aussi à attirer plus de visiteurs.
+- **Guichet** : il fait entrer 24 visiteurs par minute × le rendement de l'ouvrier au poste. Le nouveau métier **Guichetier** (peu qualifié) va 2 fois plus vite. Plusieurs ouvriers au guichet additionnent leur débit. File de 20 visiteurs au maximum : au-delà, les visiteurs repartent.
+- **Recettes encaissées à l'entrée** : billet à **2**, plus **0,6** de souvenirs si la boutique est tenue à ce moment-là (×2 avec un Vendeur).
+- **Visite** : 60 secondes dans le zoo, puis départ.
+- **Réputation** : chaque nuit, on gagne **0,6 × le nombre moyen de visiteurs présents dans le zoo** pendant la journée. La réputation s'accumule. **Objectif : 60**, fin forcée au jour 15.
+
+### 7.2 Personnel, événements, bonus et milieu de partie (v3)
+- **Personnel obligatoire** : pas de billetterie sans quelqu'un au **guichet** (clic droit sur l'Entrée), pas de souvenirs sans quelqu'un à la **boutique**. N'importe quel ouvrier peut tenir ces postes, y compris un Col blanc ou un ouvrier déployé gratuitement, puisque la recette dépend de la présence et non du rendement. La recette est proportionnelle au temps de présence et devient pleine dès la moitié de la journée. Un Vendeur double les souvenirs.
+- **Événements aléatoires** (`data/events.json`) : chaque matin à partir du jour 2, 60 % de chance qu'un événement touche tous les zoos. Il y en a 10 : Pluie, Journaliste, Pénurie de bois, Ruée vers l'or, Canicule, Grève, Subvention, Tempête, Beau temps, Épidémie. Ils s'affichent dans une bannière pendant la journée.
+- **Bonus de nuit** : n+1 bonus sont offerts (n = nombre de joueurs) et choisis dans l'ordre d'influence. Ils sont actifs le lendemain : +30 % de bois, +30 % de pierre, +40 % d'or, +25 % de construction, +40 % d'aménagement, +20 % de vitesse, +50 % de lobbying, +20 % de visiteurs.
+- **Milieu de partie (à partir du jour 7)** : une action par nuit, au choix. **Améliorer** un ouvrier coûte 12 (choix entre 3 améliorations : Expérience, Maîtrise, Pied léger, Remise en question, Révélation, Fidélité). **Licencier** coûte 8. Le DRH garde son licenciement gratuit.
+- **Niveaux** : chaque niveau donne +10 % de rendement et +1 de salaire.
+- **Achat de matériaux** : bois et pierre s'achètent à tout moment de la journée, au double du prix de revente de base (1 le bois, 1,6 la pierre). L'argent, et donc l'or, se transforme en vitesse de construction.
+- **Durée** : objectif ramené à **70 de réputation**, fin forcée au **jour 15**, pour viser environ une heure de jeu.
+
+## 8. Terrain et aménagement (système type *Harmonies*)
+
+- Types de case : **Prairie, Forêt, Eau, Roche, Sable**, plus la **Montagne** (infranchissable, décor) et la **Mine d'or** (unique).
+- **Ressources épuisables** : une forêt contient 25 bois et devient une prairie une fois rasée ; une roche contient 40 pierres et devient du sable. L'or est inépuisable. L'ouvrier passe tout seul à la case voisine (rayon 10). Les ressources proches s'épuisent, ce qui rend utiles les **entrepôts** près des ressources lointaines.
+- **Hors de l'enceinte** : la mine d'or et l'entrepôt ne peuvent pas être construits dans l'enceinte du zoo.
+- **Or** : il se vend 7 l'unité, contre 0,5 pour le bois et 0,8 pour la pierre. Un mineur rapporte environ 3 fois plus en or qu'un bûcheron en bois. Une mine proche du camp devient une vraie stratégie.
+- **Motifs (v5, à la Harmonies)** : chaque animal demande une **forme précise de cases** à reproduire dans son enclos (rotations et miroirs autorisés), en plus d'une taille minimale. Les motifs font 3 cases pour les T1, 4 pour les T2, et 5 ou 6 pour les T3. Exemple, le Tigre : forêt, eau, forêt, roche, prairie disposées en « P ». Les cartes de contrat dessinent le motif. Quand on vise un enclos, le motif trouvé est encadré en jaune ; sinon, l'emplacement le plus proche est encadré en orange, avec le nombre de cases à aménager.
+- **Aménagement réservé** : seuls le **Paysagiste** (×2) et le **Terrassier** (×1,5) savent transformer une case en une autre. Chaque transformation prend du temps (20 à 50 points de travail).
+- **Démolition** : un bâtiment terminé (mur, clôture, route…) peut être démoli, sans remboursement. Cela sert à agrandir son parc.
+- Génération : des motifs de petite taille (zones de ~6 cases), des **lacs** et quelques **rivières**. Toute zone franchissable reste atteignable depuis le camp : là où l'eau ou la montagne isolerait une zone, un **gué** (case de sable) est créé.
+- L'aménagement transforme une case en une autre, pour un coût en temps et en ressources (`buildings.json > amenagements`).
+- Un **enclos** est une zone de N cases contiguës, entourée d'une clôture, qui doit respecter les **exigences de terrain** de l'animal. Exemple : *Lion, 6 cases dont ≥ 4 Prairie ou Sable et ≥ 1 Roche*.
+- Bien placer son zoo sur un terrain naturellement adapté fait gagner un temps précieux, d'où l'intérêt stratégique de la carte commune.
+
+## 9. Contrats d'animaux
+
+- Un **contrat** donne le droit d'accueillir une espèce. Il est acheté au marché et reste en main jusqu'à sa réalisation.
+- Pour le réaliser : construire un enclos conforme dans l'enceinte. L'animal arrive alors à la nuit suivante.
+- Paliers :
+  - **T1** : disponible dès le jour 1, coût modéré.
+  - **T2** : apparaît à partir du jour 4.
+  - **T3** : apparaît à partir du jour 8, coûte de l'or.
+- **Aucune limite** au nombre de contrats détenus en v1.
+- **Prix des contrats** (rééquilibrage) : jusqu'à **2 contrats par nuit**, le 2e coûtant 50 % de plus. Le prix en argent augmente aussi de **15 % par animal déjà possédé ou en attente**. L'or ne change pas. La réputation des animaux T3 a été baissée de 2 points.
+- **Marché de nuit** (prototype Godot) : 5 ouvriers (35 % peu qualifiés, 45 % qualifiés, 20 % cadres) et 4 contrats parmi les espèces disponibles ce jour-là. Chaque nuit, une carte restante de chaque rangée est retirée au hasard puis le marché est complété. Coût d'embauche : coût du métier ±15 % par trait (3 minimum). Comme le camp loge 10 ouvriers et que le draft en donne 10, **il faut construire une maison avant la première embauche**.
+- **IA (provisoire)** : elle ne joue pas encore les journées. Elle gagne 0,5 à 3 points d'influence par jour (cachés), passe au marché selon l'ordre d'influence et prend un ouvrier (70 % du temps) et un contrat (60 %).
+- **Installer un animal** : on choisit le contrat dans le menu de gauche, puis on clique à l'intérieur d'une zone **fermée par des clôtures d'enclos terminées**. Au survol, le jeu affiche la zone détectée et les exigences remplies ou non (taille, terrain). L'animal arrive la nuit suivante. Un enclos n'accueille qu'une espèce. La vérification « dans l'enceinte du zoo » viendra avec les revenus des visiteurs.
+- **Nourriture** : chaque animal coûte de l'argent au début de chaque jour (T1 = 2, T2 = 4, T3 = 6 depuis l'équilibrage ; c'était 1 / 2 / 3).
+- **Combien d'animaux ?** Il n'y a pas de maximum. Chaque enclos fermé accueille une espèce, et on peut créer autant d'enclos que la place le permet. Les limites viennent d'ailleurs : un contrat par nuit, chaque espèce une seule fois par joueur, les espèces disponibles au marché, et la place dans l'enceinte. Un animal non nourri ne compte pas ce tour-ci (§3.2).
+- Liste : `data/animals.json`.
+
+## 10. Réputation
+
+- Points par espèce, selon le palier : T1 = 4, T2 = 8, T3 = 14 ❓ (voir le JSON, par espèce).
+- **Bonus de diversité** (nombre de biomes distincts représentés) : 2 → +5, 3 → +12, 4 → +20, 5 → +30, 6 → +45.
+- Bonus de collection ❓ : 3 espèces du même biome → +5.
+
+## 11. IA (prototype Godot)
+
+- **Architecture** : `Match` porte l'horloge, le draft et le marché, qui sont partagés. Chaque joueur (`GameState`) a sa propre carte, générée avec la même graine. L'IA (`AIController`) n'utilise que les actions d'un joueur humain.
+- **Jour** : l'IA choisit au premier jour un emplacement d'enceinte proche du camp, aux murs constructibles. Elle place ensuite par priorité une maison (si le logement est plein), les enclos des contrats (aménagements puis clôtures, partagées entre enclos voisins), l'enceinte et l'entrée, la boutique, la mine d'or puis la route. Les ouvriers vont au chantier le plus adapté à leur spécialité, sinon à la ressource qui manque. Les postes fixes (Lobbyiste, Vendeur, Soigneur, Marchand en fin de journée) sont respectés.
+- **Emplacement du zoo (v5)** : l'IA choisit son emplacement **après son premier contrat** (ou au jour 3). Elle privilégie un terrain qui se prête déjà au motif de ses animaux, avec des murs constructibles et une entrée qu'une route peut rejoindre, sans s'éloigner du camp. Une part de hasard propre à chaque IA fait que toutes ne choisissent pas le même endroit.
+- **Taille du parc** : stratégies Petit parc (12×10), Moyen (16×13), Grand parc (22×16) et **Parc évolutif**. Ce dernier commence par un petit parc collé au mur de l'entrée d'un grand parc prévu. Dès que le petit parc tourne (jour 6 ou 2 animaux), il construit l'enceinte du grand parc puis démolit les anciens murs intérieurs.
+- **Trésorerie** : l'IA garde toujours de quoi payer une main complète et nourrir ses animaux. En dessous de ce seuil, elle passe en mode survie : aucun nouveau chantier, et la récolte est vendue le soir.
+- **Nuit** : licenciement de la carte la plus faible (si le DRH a travaillé), achat du contrat avec le meilleur rapport réputation (diversité comprise) / coût s'il rentre dans l'enceinte, embauche si une place de logement est libre.
+- **Stratégies** (réglages pour les simulations) : Équilibrée, Lobbying, Petits contrats, Gros contrats, Sans embauche, Économe. Les simulations se lancent avec `tests/balance_sim.gd` et écrivent un rapport dans `rapport_equilibrage.md`.
+- **Pas encore implémenté** : capacités du Formateur et de l'Architecte (l'IA les évite), choix des améliorations aux montées de niveau.
+
+## 11 bis. IA (plan initial)
+
+- IA à **règles et priorités** (utility AI) qui utilise exactement les mêmes commandes qu'un joueur.
+- Boucle de décision du jour : toutes les 2 s, pour chaque ouvrier inactif, elle évalue des tâches candidates (ressource manquante pour un chantier prioritaire, etc.).
+- Nuit : achats évalués sur une heuristique (biomes manquants, coût, faisabilité du terrain).
+- Niveaux de difficulté : multiplicateur d'efficacité et qualité des heuristiques.
+
+## 12. Architecture technique (recommandations)
+
+- **Moteur** : Godot 4.7 (2D vu du dessus). Le projet est dans `game/`, les données dans `game/data/`. Le prototype navigateur (`prototype/`) est conservé pour référence mais n'évolue plus.
+- **Simulation déterministe** à ticks fixes, séparée du rendu. Cela facilite l'IA, les tests, les rejeux et un futur multijoueur.
+- **Données** dans `data/*.json`, chargées au démarrage.
+- **Ordre de développement proposé** :
+  1. Carte, déplacements et extraction (1 joueur, 1 jour).
+  2. Cycle Jour/Nuit, deck, pioche et salaires.
+  3. Construction, aménagement et enclos.
+  4. Marchés, contrats et réputation.
+  5. IA.
+  6. Traits, niveaux et cadres.
+  7. Graphismes.
+
+## 13. Décisions prises (v0.2)
+
+| # | Sujet | Décision |
+|---|---|---|
+| 1 | Nourriture des animaux | Oui, coût en argent chaque nuit selon le palier |
+| 2 | Ressources pour construire | Stock global (livraison au chantier : à revoir plus tard) |
+| 3 | Salaires | Payés au déploiement, uniquement pour les ouvriers déployés. Sans argent, pas de déploiement |
+| 4 | Épuisement des ressources | Non en v1 (à revoir si besoin) |
+| 5 | Achats par nuit | 1 contrat + 1 ouvrier |
+| 6 | Limite de contrats | Aucune en v1 |
+| 7 | Taille de la carte | 64×64 |
+| 8 | Influence | Ne se dépense pas, cachée aux autres joueurs, seul l'ordre est révélé |
+| 9 | Animal non nourri | Nourriture payée au début du jour, avant les salaires. Un animal non nourri ne compte pas ce tour-ci (ni réputation, ni visiteurs) |
+| 10 | Égalité d'influence | Le zoo de plus grande superficie passe devant, puis tirage au sort |
+
+## 14. Questions ouvertes restantes
+
+1. Valeur exacte de l'objectif de réputation (100 proposé) : à fixer après les premiers tests.
+2. Ordre de service de la nourriture quand l'argent manque : les plus chers d'abord (proposé), ou choix du joueur ?

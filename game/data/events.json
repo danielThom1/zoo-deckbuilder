@@ -1,0 +1,157 @@
+{
+  "_note": "Un événement commun à tous les joueurs peut tomber chaque matin (à partir du jour 2). Les bonus de nuit : n+1 offerts (n = nombre de joueurs), choisis dans l'ordre d'influence, actifs le jour suivant.",
+  "proba_evenement": 0.6,
+  "evenements": [
+    {
+      "id": "pluie",
+      "nom": "Pluie battante",
+      "texte": "Déplacements 25 % plus lents aujourd'hui.",
+      "effets": {
+        "vitesse": 0.75
+      }
+    },
+    {
+      "id": "journaliste",
+      "nom": "Visite d'un journaliste",
+      "texte": "+30 % de visiteurs ce soir.",
+      "effets": {
+        "visiteurs": 1.3
+      }
+    },
+    {
+      "id": "penurie_bois",
+      "nom": "Pénurie de bois en ville",
+      "texte": "Le bois se vend deux fois plus cher aujourd'hui.",
+      "effets": {
+        "prix": {
+          "bois": 2.0
+        }
+      }
+    },
+    {
+      "id": "ruee_or",
+      "nom": "Ruée vers l'or",
+      "texte": "L'or se vend 50 % plus cher aujourd'hui.",
+      "effets": {
+        "prix": {
+          "or": 1.5
+        }
+      }
+    },
+    {
+      "id": "canicule",
+      "nom": "Canicule",
+      "texte": "Nourriture +50 % ce matin, visiteurs -20 % ce soir.",
+      "effets": {
+        "nourriture": 1.5,
+        "visiteurs": 0.8
+      }
+    },
+    {
+      "id": "greve",
+      "nom": "Grève des transports",
+      "texte": "Tous les salaires +1 aujourd'hui.",
+      "effets": {
+        "salaire": 1
+      }
+    },
+    {
+      "id": "subvention",
+      "nom": "Subvention municipale",
+      "texte": "Chaque zoo reçoit 15 d'argent.",
+      "effets": {
+        "argent": 15
+      }
+    },
+    {
+      "id": "tempete",
+      "nom": "Tempête de nuit",
+      "texte": "Les chantiers en cours ont perdu 30 % de leur avancement.",
+      "effets": {
+        "chantiers": 0.7
+      }
+    },
+    {
+      "id": "beau_temps",
+      "nom": "Grand beau temps",
+      "texte": "+15 % de productivité pour tous les ouvriers.",
+      "effets": {
+        "productivite": 1.15
+      }
+    },
+    {
+      "id": "epidemie",
+      "nom": "Épidémie",
+      "texte": "Un animal de chaque zoo est malade : il ne compte pas ce soir, sauf si un Soigneur s'en occupe.",
+      "effets": {
+        "epidemie": true
+      }
+    }
+  ],
+  "bonus_nuit": [
+    {
+      "id": "scies",
+      "nom": "Scies neuves",
+      "texte": "+30 % d'extraction de bois",
+      "effets": {
+        "extraire_bois": 1.3
+      }
+    },
+    {
+      "id": "pioches",
+      "nom": "Pioches renforcées",
+      "texte": "+30 % d'extraction de pierre",
+      "effets": {
+        "extraire_pierre": 1.3
+      }
+    },
+    {
+      "id": "lampes",
+      "nom": "Lampes de mineur",
+      "texte": "+40 % d'extraction d'or",
+      "effets": {
+        "extraire_or": 1.4
+      }
+    },
+    {
+      "id": "echafaudages",
+      "nom": "Échafaudages",
+      "texte": "+25 % de construction",
+      "effets": {
+        "construire": 1.25
+      }
+    },
+    {
+      "id": "engins",
+      "nom": "Engins de terrassement",
+      "texte": "+40 % d'aménagement du terrain",
+      "effets": {
+        "amenager": 1.4
+      }
+    },
+    {
+      "id": "brouettes",
+      "nom": "Brouettes",
+      "texte": "+20 % de vitesse de déplacement",
+      "effets": {
+        "vitesse": 1.2
+      }
+    },
+    {
+      "id": "carnet",
+      "nom": "Carnet d'adresses",
+      "texte": "+50 % de lobbying",
+      "effets": {
+        "lobbying": 1.5
+      }
+    },
+    {
+      "id": "affiches",
+      "nom": "Campagne d'affichage",
+      "texte": "+20 % de visiteurs le soir",
+      "effets": {
+        "visiteurs": 1.2
+      }
+    }
+  ]
+}
