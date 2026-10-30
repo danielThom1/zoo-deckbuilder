@@ -13,22 +13,19 @@ extends Node2D
 const TILE := 16.0
 const PX := 8  # pixels par case dans la texture du terrain
 
-var terrain_colors := {
-	GameMap.PRAIRIE: Color("7fae5a"), GameMap.FORET: Color("2f6b3a"), GameMap.EAU: Color("3b78b5"),
-	GameMap.ROCHE: Color("8a8a86"), GameMap.SABLE: Color("d9c48a"), GameMap.MONTAGNE: Color("5b5450"),
-	GameMap.MINE_OR: Color("d4a62a"),
-}
+var terrain_colors := UiTokens.TERRAINS.duplicate()
 var terrain_noms := {
 	GameMap.PRAIRIE: "Prairie", GameMap.FORET: "Forêt", GameMap.EAU: "Eau", GameMap.ROCHE: "Roche",
 	GameMap.SABLE: "Sable", GameMap.MONTAGNE: "Montagne", GameMap.MINE_OR: "Gisement d'or",
 }
-var category_colors := {"peu_qualifie": Color("cfcac0"), "qualifie": Color("7cb7ff"), "cadre": Color("e9b949")}
+var category_colors := {"peu_qualifie": UiTokens.CATEGORIES["peu_qualifie"]["couleur"], "qualifie": UiTokens.CATEGORIES["qualifie"]["couleur"],
+	"cadre": UiTokens.CATEGORIES["cadre"]["couleur"]}
 var category_noms := {"peu_qualifie": "Peu qualifié", "qualifie": "Qualifié", "cadre": "Cadre"}
 var res_noms := {"bois": "bois", "pierre": "pierre", "or": "or"}
 var building_colors := {
-	"route": Color("a08462"), "pont": Color("8a6a45"), "maison": Color("b5835a"), "entrepot": Color("7d6047"),
-	"mine": Color("4e3f33"), "cloture": Color("a8a49a"), "entree": Color("d8c08f"), "enclos": Color("8a5a2b"),
-	"boutique": Color("d46a6a"), "formation": Color("6a8fd4"),
+	"route": UiTokens.CHEMIN, "pont": Color("9A6A3E"), "maison": Color("D2553A"), "entrepot": Color("8C6A48"),
+	"mine": Color("5A4636"), "cloture": UiTokens.ENCEINTE, "entree": Color("E9D5A8"), "enclos": UiTokens.CLOTURE_ENCLOS,
+	"boutique": Color("E06A5A"), "formation": Color("3A6AE0"),
 }
 var building_short := {
 	"maison": "Maison", "entrepot": "Entrepôt", "mine": "Mine", "entree": "Entrée", "boutique": "Boutique", "formation": "Formation",
@@ -108,6 +105,20 @@ var draft_root: Control
 var draft_title: Label
 var draft_grid: GridContainer
 var draft_picks: RichTextLabel
+# Interface Émeraude
+var res_chips := {}  # clé -> [Label valeur, Label légende]
+var race_labels: Array = []
+var zoo_title: Label
+var unit_name: Label
+var unit_job: Label
+var unit_text: RichTextLabel
+var unit_portrait_box: Control
+var unit_portrait_for: Variant = null
+var pile_label: Label
+var medallion: Control
+var end_day_btn: Button
+var build_pages := {}
+var build_tabs := {}
 
 
 func _ready() -> void:
@@ -126,20 +137,26 @@ func _show_menu() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	var bg := ColorRect.new()
-	bg.color = Color("16181d")
+	bg.color = UiTokens.PANNEAU_BAS
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bg.theme = UiTokens.build_theme()
 	layer.add_child(bg)
-	var center := CenterContainer.new()
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	bg.add_child(center)
 	var v := VBoxContainer.new()
+	v.position = Vector2(96, 96)
 	v.add_theme_constant_override("separation", 14)
-	center.add_child(v)
+	bg.add_child(v)
 	var title := Label.new()
-	title.text = "Zoo Deckbuilder — prototype"
-	title.add_theme_font_size_override("font_size", 32)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.text = "ZOO\nDECKBUILDER"
+	title.add_theme_font_size_override("font_size", 46)
+	title.add_theme_color_override("font_color", UiTokens.OR)
 	v.add_child(title)
+	var tag := Label.new()
+	tag.text = "Recrutez, construisez, attirez les visiteurs."
+	tag.add_theme_color_override("font_color", UiTokens.TEXTE_SECONDAIRE)
+	v.add_child(tag)
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 60)
+	v.add_child(gap)
 	var seed_row := HBoxContainer.new()
 	v.add_child(seed_row)
 	var seed_lbl := Label.new()
@@ -149,14 +166,16 @@ func _show_menu() -> void:
 	seed_edit.custom_minimum_size = Vector2(160, 0)
 	seed_row.add_child(seed_edit)
 	var choices := [
-		["Jouer contre 3 IA", false, "Vous et 3 IA, draft serpent puis partie complète."],
-		["Regarder 4 IA jouer (accéléré)", true, "Partie entre 4 IA aux stratégies différentes, vitesse x8 par défaut.\nBoutons « Voir » en haut pour passer d'un zoo à l'autre."],
+		["Jouer contre l'IA", false, "Vous et 3 IA : draft serpent puis partie complète.", true],
+		["Regarder des IA jouer", true, "4 IA aux stratégies différentes, en accéléré (x8). Boutons « Voir » pour passer d'un zoo à l'autre.", false],
 	]
 	for c in choices:
 		var b := Button.new()
 		b.text = c[0]
-		b.custom_minimum_size = Vector2(420, 48)
+		b.custom_minimum_size = Vector2(380, 52)
 		b.add_theme_font_size_override("font_size", 18)
+		if c[3]:
+			b.theme_type_variation = "BoutonPrincipal"
 		b.tooltip_text = c[2]
 		b.pressed.connect(func():
 			if seed_edit.text.strip_edges().is_valid_int():
@@ -166,10 +185,9 @@ func _show_menu() -> void:
 		v.add_child(b)
 		var hint := Label.new()
 		hint.text = c[2]
-		hint.modulate = Color(1, 1, 1, 0.55)
+		hint.add_theme_color_override("font_color", UiTokens.TEXTE_SECONDAIRE)
 		hint.add_theme_font_size_override("font_size", 13)
 		v.add_child(hint)
-
 
 ## Stratégies des IA en mode spectateur (mêmes réglages que les simulations d'équilibrage).
 const WATCH_STRATEGIES := [
@@ -233,25 +251,50 @@ func _build_terrain() -> void:
 
 func _paint_tile(x: int, y: int) -> void:
 	var img := terrain_img
-	var t := game.map.get_t(x, y)
+	var m := game.map
+	var t := m.get_t(x, y)
 	var o := Vector2i(x * PX, y * PX)
-	img.fill_rect(Rect2i(o, Vector2i(PX, PX)), terrain_colors[t])
+	var base: Color = terrain_colors[t]
+	if t == GameMap.PRAIRIE and (x * 7 + y * 13) % 5 == 0:
+		base = UiTokens.PRAIRIE_VARIANTE
+	img.fill_rect(Rect2i(o, Vector2i(PX, PX)), base)
 	match t:
 		GameMap.FORET:
-			img.fill_rect(Rect2i(o + Vector2i(2, 1), Vector2i(4, 4)), Color("1f4f2a"))
-			img.fill_rect(Rect2i(o + Vector2i(3, 5), Vector2i(2, 2)), Color("4a3524"))
+			# Canopée en trois tons
+			img.fill_rect(Rect2i(o + Vector2i(0, 1), Vector2i(4, 4)), UiTokens.CANOPEE[0])
+			img.fill_rect(Rect2i(o + Vector2i(4, 3), Vector2i(4, 4)), UiTokens.CANOPEE[0])
+			img.fill_rect(Rect2i(o + Vector2i(1, 1), Vector2i(2, 2)), UiTokens.CANOPEE[2])
+			img.fill_rect(Rect2i(o + Vector2i(5, 3), Vector2i(2, 2)), UiTokens.CANOPEE[2])
 		GameMap.ROCHE:
-			img.fill_rect(Rect2i(o + Vector2i(1, 3), Vector2i(4, 3)), Color("6e6e6a"))
-			img.fill_rect(Rect2i(o + Vector2i(5, 1), Vector2i(2, 2)), Color("a3a39e"))
+			img.fill_rect(Rect2i(o + Vector2i(1, 3), Vector2i(4, 3)), Color("8E8A80"))
+			img.fill_rect(Rect2i(o + Vector2i(4, 1), Vector2i(3, 2)), Color("C8C2B4"))
 		GameMap.MONTAGNE:
 			for r in 6:
-				img.fill_rect(Rect2i(o + Vector2i(3 - r / 2, 1 + r), Vector2i(2 + r, 1)), Color("7a716b"))
+				img.fill_rect(Rect2i(o + Vector2i(3 - r / 2, 1 + r), Vector2i(2 + r, 1)), Color("6E604F"))
+			img.fill_rect(Rect2i(o + Vector2i(3, 1), Vector2i(2, 1)), Color("F4F4F0"))  # neige
 		GameMap.EAU:
+			# Berge plus claire au bord de l'eau, vaguelettes au large
+			for d in [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]:
+				var q: Vector2i = Vector2i(x, y) + d
+				if m.in_bounds(q.x, q.y) and m.get_t(q.x, q.y) != GameMap.EAU:
+					var edge := Rect2i(o, Vector2i(PX, 1))
+					if d.y == 1:
+						edge = Rect2i(o + Vector2i(0, PX - 1), Vector2i(PX, 1))
+					elif d.x == -1:
+						edge = Rect2i(o, Vector2i(1, PX))
+					elif d.x == 1:
+						edge = Rect2i(o + Vector2i(PX - 1, 0), Vector2i(1, PX))
+					img.fill_rect(edge, UiTokens.EAU_BERGE)
 			if (x + 2 * y) % 5 == 0:
-				img.fill_rect(Rect2i(o + Vector2i(1, 3), Vector2i(4, 1)), Color("5b93c9"))
+				img.fill_rect(Rect2i(o + Vector2i(2, 3), Vector2i(3, 1)), Color("6CC0F0"))
+		GameMap.SABLE:
+			if (x + y) % 2 == 0:
+				img.fill_rect(Rect2i(o + Vector2i(2, 2), Vector2i(1, 1)), Color("D8B860"))
+				img.fill_rect(Rect2i(o + Vector2i(5, 5), Vector2i(1, 1)), Color("D8B860"))
 		GameMap.MINE_OR:
-			img.fill_rect(Rect2i(o + Vector2i(2, 2), Vector2i(4, 4)), Color("f4d35e"))
-
+			img.fill_rect(Rect2i(o + Vector2i(1, 2), Vector2i(6, 4)), Color("6A5A48"))
+			img.fill_rect(Rect2i(o + Vector2i(2, 3), Vector2i(2, 2)), Color("FFE04A"))
+			img.fill_rect(Rect2i(o + Vector2i(5, 2), Vector2i(1, 1)), Color("FFE04A"))
 
 ## Redessine les cases modifiées par un aménagement.
 func _refresh_terrain() -> void:
@@ -290,7 +333,7 @@ func _draw() -> void:
 			_label("Projet : " + str(p["def"]["nom"]), (Vector2(ir.get_center()) + Vector2(0.5, 0)) * TILE, 9)
 	# Intérieur de l'enceinte du zoo
 	for t in game.zoo_status()["interior"]:
-		draw_rect(Rect2(Vector2(t) * TILE, Vector2(TILE, TILE)), Color(1, 0.9, 0.6, 0.07))
+		draw_rect(Rect2(Vector2(t) * TILE, Vector2(TILE, TILE)), Color(UiTokens.ALLEE_ZOO, 0.22))
 	# Visiteurs : sur la route, dans la file, dans le zoo
 	var vpath := game.visitor_path()
 	if not vpath.is_empty():
@@ -352,25 +395,32 @@ func _draw() -> void:
 			draw_circle(w.pos * TILE, float(a["rayon"]) * TILE, Color(col, 0.08))
 			draw_arc(w.pos * TILE, float(a["rayon"]) * TILE, 0, TAU, 48, col, 1.0)
 
-	# Ouvriers
-	var r := TILE * 0.36
+	# Ouvriers : écusson couleur de catégorie, liseré couleur du joueur, pastille d'état
+	var r := TILE * 0.42
+	var player_col: Color = UiTokens.JOUEURS[game.index % UiTokens.JOUEURS.size()]
 	for w in game.workers:
 		if w.offmap:
 			continue
 		var p := w.pos * TILE
 		if selected.has(w):
-			draw_arc(p, r + 3, 0, TAU, 24, Color.WHITE, 2.0)
-		draw_circle(p, r, _worker_color(w.card))
-		draw_arc(p, r, 0, TAU, 24, Color(0, 0, 0, 0.6), 1.0)
-		draw_string(font, p + Vector2(-r, r * 0.45), w.card.metier["nom"].left(1), HORIZONTAL_ALIGNMENT_CENTER, r * 2, 9, Color("111111"))
+			var pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 190.0)
+			draw_arc(p + Vector2(0, r * 0.9), r + 2 + pulse * 2, 0, TAU, 24, UiTokens.SELECTION, 2.0)
+		var shield := PackedVector2Array([p + Vector2(-r, -r), p + Vector2(r, -r), p + Vector2(r, r * 0.35), p + Vector2(0, r * 1.15), p + Vector2(-r, r * 0.35)])
+		draw_colored_polygon(shield, _worker_color(w.card))
+		shield.append(shield[0])
+		draw_polyline(shield, player_col, 1.5)
+		draw_string(font, p + Vector2(-r, r * 0.3), w.card.metier["nom"].left(1), HORIZONTAL_ALIGNMENT_CENTER, r * 2, 10, Color.WHITE)
+		if w.unpaid:
+			draw_string(font, p + Vector2(-r, -r - 1), "25%", HORIZONTAL_ALIGNMENT_CENTER, r * 2, 7, UiTokens.OR_CLAIR)
 		if w.carry > 0.0:
 			var cap := game.carry_capacity(w.card)
-			draw_rect(Rect2(p.x - r, p.y - r - 5, r * 2, 3), Color(0, 0, 0, 0.6))
-			draw_rect(Rect2(p.x - r, p.y - r - 5, r * 2 * w.carry / cap, 3), Color("c98b4a") if w.carry_type == "bois" else Color("cfd3da"))
+			draw_rect(Rect2(p.x - r, p.y + r * 1.25, r * 2, 2.5), Color(0, 0, 0, 0.6))
+			draw_rect(Rect2(p.x - r, p.y + r * 1.25, r * 2 * w.carry / cap, 2.5), UiTokens.RESSOURCES.get(w.carry_type, {"couleur": Color.WHITE})["couleur"])
 		if w.pause_left > 0.0:
-			_label("z", p + Vector2(r, -r), 10)
+			draw_circle(p + Vector2(r, -r), 3.0, Color("7A8A88"))
 		elif w.task.is_empty() and w.path.is_empty():
-			_label("?", p + Vector2(r, -r), 10)
+			draw_circle(p + Vector2(r, -r), 3.0, Color("E8B020"))
+			draw_string(font, p + Vector2(r - 3, -r + 3), "!", HORIZONTAL_ALIGNMENT_CENTER, 6, 7, Color("1E1406"))
 
 	# Rectangle de sélection
 	if drag_start != null:
@@ -398,10 +448,20 @@ func _draw() -> void:
 		var origin := _build_origin(hover)
 		var rect := game.footprint(build_choice["kind"], build_choice["def"], origin)
 		var ok := game.placement_error(build_choice["kind"], build_choice["def"], origin) == ""
-		var col := Color(0.4, 1, 0.4) if ok else Color(1, 0.35, 0.35)
 		var rr := Rect2(Vector2(rect.position) * TILE, Vector2(rect.size) * TILE)
-		draw_rect(rr, Color(col, 0.3))
-		draw_rect(rr, col, false, 1.5)
+		if ok:
+			draw_rect(rr, Color(UiTokens.SELECTION, 0.32))
+			draw_rect(rr, UiTokens.SELECTION, false, 1.5)
+		else:
+			# Invalide : contour orange + hachures (jamais la couleur seule)
+			draw_rect(rr, Color(UiTokens.DEFAUT, 0.18))
+			var k := -rr.size.y
+			while k < rr.size.x:
+				var a := rr.position + Vector2(maxf(k, 0.0), maxf(-k, 0.0))
+				var b := rr.position + Vector2(minf(k + rr.size.y, rr.size.x), minf(rr.size.x - k, rr.size.y))
+				draw_line(a, b, Color(UiTokens.DEFAUT, 0.8), 1.0)
+				k += 5.0
+			draw_rect(rr, UiTokens.DEFAUT, false, 1.5)
 	elif m.in_bounds(hover.x, hover.y):
 		draw_rect(Rect2(Vector2(hover) * TILE, Vector2(TILE, TILE)), Color(1, 1, 1, 0.8), false, 1.0)
 	if selected_site and game.sites.has(selected_site):
@@ -477,6 +537,10 @@ func _label(text: String, pos: Vector2, size: int) -> void:
 
 
 func _worker_color(card: GameState.Card) -> Color:
+	return UiTokens.CATEGORIES[card.metier["categorie"]]["couleur"]
+
+
+func _worker_color_old(card: GameState.Card) -> Color:
 	var cat: String = card.metier["categorie"]
 	if cat != "peu_qualifie":
 		return category_colors[cat]
@@ -776,14 +840,8 @@ func _nearest(terrain: int) -> Vector2i:
 
 # --- Interface ---------------------------------------------------------------
 
-func _panel_style(bg := Color("20232b"), border := Color("3a3f4c"), radius := 0) -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = bg
-	sb.border_color = border
-	sb.set_border_width_all(1)
-	sb.set_corner_radius_all(radius)
-	sb.set_content_margin_all(10)
-	return sb
+func _panel_style(bg := UiTokens.PANNEAU_MILIEU, border := UiTokens.OR, radius := 10) -> StyleBoxFlat:
+	return UiTokens.panel(bg, border, radius, 2 if bg.a > 0.9 else 1)
 
 
 func _build_ui() -> void:
@@ -1055,8 +1113,9 @@ func _build_ui() -> void:
 
 func _menu_title(parent: Control, text: String) -> void:
 	var l := Label.new()
-	l.text = text
-	l.add_theme_color_override("font_color", Color("e9b949"))
+	l.text = text.to_upper()
+	l.add_theme_color_override("font_color", UiTokens.OR)
+	l.add_theme_font_size_override("font_size", 14)
 	parent.add_child(l)
 
 
@@ -1093,7 +1152,7 @@ func _build_button(parent: Control, kind: String, def: Dictionary) -> void:
 
 func _overlay() -> Array:
 	var root := ColorRect.new()
-	root.color = Color(0, 0, 0, 0.72)
+	root.color = UiTokens.VOILE_NUIT
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_STOP
 	root.visible = false
@@ -1102,8 +1161,7 @@ func _overlay() -> Array:
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.add_child(center)
 	var panel := PanelContainer.new()
-	var style := _panel_style(Color("20232b"), Color("3a3f4c"), 12)
-	style.set_content_margin_all(20)
+	var style := UiTokens.panel(UiTokens.PANNEAU_MILIEU, UiTokens.OR, 12, 2, 20)
 	panel.add_theme_stylebox_override("panel", style)
 	center.add_child(panel)
 	var v := VBoxContainer.new()
@@ -1118,9 +1176,9 @@ func _traits_bbcode(card: GameState.Card) -> String:
 	var parts: Array[String] = []
 	for t in game.trait_defs(card):
 		var pos := game.is_positive(t["id"])
-		parts.append("[color=%s]%s %s[/color]" % ["#7fc97f" if pos else "#f08080", "+" if pos else "−", t["nom"]])
+		parts.append("[color=%s]%s %s[/color]" % ["#3A8AE8" if pos else "#E8782A", "● +" if pos else "■ −", t["nom"]])
 	for u in card.upgrade_names:
-		parts.append("[color=#7cb7ff]★ %s[/color]" % u)
+		parts.append("[color=#FFD45A]★ %s[/color]" % u)
 	return "  ".join(parts)
 
 
