@@ -77,6 +77,7 @@ var acc := 0.0
 var info_clock := 0.0
 var ai_timer := 0.0
 var hand_version := -1
+var images := {}  # chemin -> texture des illustrations (animaux, bâtiments), ou null si absente
 var facing := {}  # Worker -> [vue ("face", "profil", "dos"), miroir, dernière position]
 var toast_signature := ""
 var night_shown_for := -1
@@ -615,8 +616,25 @@ func _draw_site(s: GameState.Site) -> void:
 	_draw_pin(Vector2(r.get_center().x, r.position.y + 6), "ordre_construire", UiTokens.OR.darkened(0.25), 0.9)
 
 
-## Bâtiment terminé vu du dessus : ombre portée, toit à deux pans, faîtage, marqueur d'icône.
+## Illustration générée (tools/animaux.py, tools/batiments.py), mise en cache ; null si elle n'existe pas.
+func _image(chemin: String) -> Texture2D:
+	if not images.has(chemin):
+		images[chemin] = load(chemin) if ResourceLoader.exists(chemin) else null
+	return images[chemin]
+
+
+## Image de bâtiment : 32 unités par case, plus 14 au-dessus de l'emprise pour le volume (voir tools/batiments.py).
+func _draw_building_image(r: Rect2, tex: Texture2D) -> void:
+	var extra := TILE * 14.0 / 32.0
+	draw_texture_rect(tex, Rect2(r.position - Vector2(0, extra), r.size + Vector2(0, extra)), false)
+
+
+## Bâtiment terminé : son illustration, ou à défaut un toit à deux pans avec marqueur d'icône.
 func _draw_building(r: Rect2, id: String, color: Color) -> void:
+	var tex := _image("res://ui/batiments/%s.svg" % id)
+	if tex:
+		_draw_building_image(r, tex)
+		return
 	var b := r.grow(-1.5)
 	draw_rect(Rect2(b.position + Vector2(2.5, 3.0), b.size), Color(0, 0, 0, 0.28))
 	var half := b.size.y / 2.0
@@ -633,6 +651,10 @@ func _draw_building(r: Rect2, id: String, color: Color) -> void:
 
 ## Entrée du zoo : deux piliers et un portique.
 func _draw_gate(r: Rect2) -> void:
+	var tex := _image("res://ui/batiments/entree.svg")
+	if tex:
+		_draw_building_image(r, tex)
+		return
 	var b := r.grow(-2)
 	draw_rect(Rect2(b.position + Vector2(2, 3), b.size), Color(0, 0, 0, 0.2))
 	draw_rect(b, Color(UiTokens.ALLEE_ZOO, 0.9))
@@ -692,14 +714,24 @@ func _draw_bridge(t: Vector2i) -> void:
 func _draw_camp() -> void:
 	var m := game.map
 	var c := Rect2(Vector2(m.camp.position) * TILE, Vector2(m.camp.size) * TILE).grow(-1)
-	draw_rect(Rect2(c.position + Vector2(2, 3), c.size), Color(0, 0, 0, 0.22))
-	draw_rect(c, Color("C49A64"))
-	draw_rect(c.grow(-3), Color("D2AA72"))
-	draw_rect(c, Color("7A5434"), false, 1.5)
 	var level := 1
 	for s in game.sites:
 		if s.done and s.def_id() in ["camp_n2", "camp_n3"]:
 			level += 1
+	var tex := _image("res://ui/batiments/camp_%d.svg" % level)
+	if tex:
+		var full := Rect2(Vector2(m.camp.position) * TILE, Vector2(m.camp.size) * TILE)
+		_draw_building_image(full, tex)
+		var fire := full.position + Vector2(full.size.x / 2, full.size.y * 0.5)
+		var fl := 0.8 + 0.2 * sin(Time.get_ticks_msec() / 90.0)
+		draw_circle(fire, 2.8 * fl, Color("F08A20"))
+		draw_circle(fire, 1.5 * fl, Color("FFE07A"))
+		_label("Camp" + (" niv. %d" % level if level > 1 else ""), full.get_center() + Vector2(0, -full.size.y / 2 - 9), 10)
+		return
+	draw_rect(Rect2(c.position + Vector2(2, 3), c.size), Color(0, 0, 0, 0.22))
+	draw_rect(c, Color("C49A64"))
+	draw_rect(c.grow(-3), Color("D2AA72"))
+	draw_rect(c, Color("7A5434"), false, 1.5)
 	var tents := [[Vector2(0.27, 0.42), Color("E8DCC0")], [Vector2(0.73, 0.42), Color("D2553A")], [Vector2(0.27, 0.86), Color("3A6AE0")], [Vector2(0.73, 0.86), Color("18A88A")]]
 	for k in mini(level + 1, tents.size()):
 		_draw_tent(c.position + c.size * tents[k][0], c.size.x * 0.34, tents[k][1])
@@ -739,7 +771,10 @@ func _draw_animal(a: GameState.Animal, index: int, now: float) -> void:
 		draw_line(center - Vector2(5, 4), center + Vector2(5, 4), Color("5A3A22"), 1.0)
 	else:
 		var body := col.darkened(0.35)
-		for k in mini(2 + a.tiles.size() / 12, 3):
+		var tex := _image("res://ui/animaux/%s.svg" % a.def["id"])
+		var big := int(a.def["taille"]) >= 7
+		var count := (1 if big else 2) + (1 if a.tiles.size() >= 24 else 0) if tex else mini(2 + a.tiles.size() / 12, 3)
+		for k in count:
 			var clock := now / 6.0 + k * 0.37 + index * 0.21
 			var slot := int(clock)
 			var f := smoothstep(0.55, 1.0, clock - slot)
@@ -748,6 +783,15 @@ func _draw_animal(a: GameState.Animal, index: int, now: float) -> void:
 			var p1 := Vector2(a.tiles[(seed + (slot + 1) * 31) % a.tiles.size()])
 			var pos := (p0.lerp(p1, f) + Vector2(0.5, 0.5)) * TILE
 			var dir := -1.0 if p1.x < p0.x else 1.0
+			if tex:
+				# illustration du contrat, à l'échelle de l'espèce, retournée selon la marche, petit sautillement
+				var w := TILE * (1.3 + 0.09 * float(a.def["taille"]))
+				var h := w * 0.75
+				var bob := absf(sin(clock * TAU * 3.0)) * 0.8 if f > 0.0 and f < 1.0 else 0.0
+				draw_set_transform(pos + Vector2(0, TILE * 0.35 - bob), 0.0, Vector2(dir, 1.0))
+				draw_texture_rect(tex, Rect2(-w / 2, -h, w, h), false)
+				draw_set_transform(Vector2.ZERO)
+				continue
 			draw_set_transform(pos + Vector2(1, 2.5), 0.0, Vector2(1.5, 0.6))
 			draw_circle(Vector2.ZERO, 3.0, Color(0, 0, 0, 0.25))
 			draw_set_transform(pos, 0.0, Vector2(1.45, 1.0))
@@ -756,7 +800,8 @@ func _draw_animal(a: GameState.Animal, index: int, now: float) -> void:
 			draw_circle(pos + Vector2(dir * 4.2, -1.2), 1.9, body.lightened(0.15))
 	var biome := str(a.def["biome"]).to_lower()
 	var icon: String = UiTokens.BIOMES[biome]["icone"] if UiTokens.BIOMES.has(biome) else "ui_valide"
-	_draw_pin(center + Vector2(0, -2), icon, col.darkened(0.15))
+	if not a.arrived or _image("res://ui/animaux/%s.svg" % a.def["id"]) == null:
+		_draw_pin(center + Vector2(0, -2), icon, col.darkened(0.15))
 	var txt: String = a.def["nom"]
 	if not a.arrived:
 		txt += " (arrive cette nuit)"
@@ -3175,6 +3220,31 @@ func _draw_animal_hints() -> void:
 			draw_rect(Rect2(Vector2(t) * TILE + Vector2(2, 2), Vector2(TILE - 4, TILE - 4)), Color("7CF29A") if ok_t else UiTokens.DEFAUT, false, 1.5)
 
 
+## Illustration d'un animal sur un disque clair (lisible sur les fonds sombres des biomes), ou null.
+func _animal_picture(id: String, taille: Vector2) -> Control:
+	var tex := _image("res://ui/animaux/%s.svg" % id)
+	if tex == null:
+		return null
+	var box := Control.new()
+	box.custom_minimum_size = taille
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var halo := Panel.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(1, 1, 1, 0.16)
+	sb.set_corner_radius_all(int(taille.y))
+	halo.add_theme_stylebox_override("panel", sb)
+	halo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	Composants.placer(box, halo, Vector2(taille.x * 0.06, taille.y * 0.04), Vector2(taille.x * 0.88, taille.y * 0.92))
+	var tr := TextureRect.new()
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	tr.texture = tex
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	Composants.placer(box, tr, Vector2.ZERO, taille)
+	return box
+
+
 ## Fiche d'un animal installé : contrat, motif, nourriture, affinités.
 func _animal_info(a: GameState.Animal) -> void:
 	var d: Dictionary = a.def
@@ -3200,6 +3270,11 @@ func _animal_info(a: GameState.Animal) -> void:
 	if info_extra_for != a:
 		info_extra_for = a
 		_clear(info_extra)
+		var pic := _animal_picture(d["id"], Vector2(150, 112))
+		if pic:
+			var pc := CenterContainer.new()
+			pc.add_child(pic)
+			info_extra.add_child(pc)
 		info_extra.add_child(Composants.label("Motif d'enclos du contrat", "TexteSecondaire"))
 		var cc := CenterContainer.new()
 		cc.add_child(_pattern_view(d, 22.0))
@@ -3937,11 +4012,18 @@ func _contract_widget(def: Dictionary, button_text: String, err: String, cb: Cal
 	asb.content_margin_top = 8
 	asb.content_margin_bottom = 8
 	art.add_theme_stylebox_override("panel", asb)
-	art.custom_minimum_size.y = 70
+	art.custom_minimum_size.y = 84
 	v.add_child(art)
+	var arow := HBoxContainer.new()
+	arow.alignment = BoxContainer.ALIGNMENT_CENTER
+	arow.add_theme_constant_override("separation", 6)
+	art.add_child(arow)
+	var illus := _animal_picture(def["id"], Vector2(104, 78))
+	if illus:
+		arow.add_child(illus)
 	var cc := CenterContainer.new()
-	art.add_child(cc)
-	cc.add_child(_pattern_view(def, 18.0))
+	arow.add_child(cc)
+	cc.add_child(_pattern_view(def, 16.0 if illus else 18.0))
 	# Corps
 	var body := MarginContainer.new()
 	body.add_theme_constant_override("margin_left", 10)
