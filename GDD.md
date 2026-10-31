@@ -48,7 +48,13 @@ Jeu de gestion vu du dessus, 1 à 4 joueurs (humain contre IA pour la v1). Chaqu
 - À la fin du jour, les ouvriers s'arrêtent où ils sont. **L'avancement des chantiers est conservé**, et n'importe quel ouvrier peut le reprendre.
 
 ### 3.3 La Nuit (tour par tour, sans chrono)
-Ordre de résolution :
+**Lot N (31/10) : la nuit se joue en écrans successifs**, visibles de tous :
+1. **Contrats** (grand écran des contrats d'animaux), puis 2. **Ouvriers**, puis 3. **Cartes d'action** : à chaque étape, chacun passe à son tour dans l'ordre d'influence (jusqu'à 2 contrats, 1 embauche, 1 carte). On voit ce que prennent les autres joueurs, qu'on passe avant ou après eux : leurs achats restent affichés, grisés, sous une étiquette « Pris par … », et le journal les liste. Le tour passe seul après le dernier achat permis, ou avec « Passer ».
+4. **Bonus** : le premier en influence choisit le bonus du lendemain parmi 3 ; tout le monde voit le choix.
+5. **Équipe** : chacun, en parallèle, choisit ses montées de niveau, une amélioration ou un licenciement payant, et le licenciement offert par le DRH. Puis « Passer au jour suivant ».
+Le bilan de la journée reste affiché à gauche ; la réputation et le journal à droite.
+
+Ordre de résolution (avant le lot N, pour mémoire) :
 1. **Revenus du zoo** : billetterie et souvenirs (§7), sans compter les animaux non nourris ce jour-là.
 2. **Montées de niveau** : un ouvrier qui a travaillé 2 jours depuis son dernier niveau gagne un niveau et le joueur choisit 1 amélioration parmi 3 (§6.4).
 3. **Licenciements** : uniquement si le DRH a été déployé ce jour-là (1 par DRH).

@@ -11,6 +11,7 @@ extends Node2D
 ##   --shot=img.png  enregistre une capture puis quitte
 ##   --marche        ouvre l'aperçu du marché du soir (captures)
 ##   --pioche        ouvre la vue de la pioche et de la défausse
+##   --etape=nom     avec --endday : avance la nuit jusqu'à l'étape (contrats, ouvriers, cartes, bonus, equipe)
 ##   --contrat[=id]  ajoute un contrat (girafe…) et passe en mode installation d'animal (avec --autoplay --autozoo)
 ##   --cadre         ajoute un cadre à la main (bouton « Jouer »)
 ##   --un            avec --autoplay : un seul ouvrier sélectionné (panneau d'unité)
@@ -101,11 +102,14 @@ var status_label: Label
 var night_root: Control
 var night_title: Label
 var night_text: RichTextLabel
-var night_workers: HBoxContainer
-var night_contracts: HBoxContainer
+var night_workers: Container
+var night_contracts: Container
 var night_fire_box: Control
 var night_bonus_box: VBoxContainer
-var night_actions: HBoxContainer
+var night_actions: Container
+var night_pages := {}  # étape de la nuit -> page du centre
+var night_stage_title: Label
+var night_stage_note: Label
 var night_level_box: Control
 var night_level_rows: VBoxContainer
 var night_action_box: Control
@@ -470,7 +474,19 @@ func _draw() -> void:
 		var ring := Color(player_col, 0.9) if not selected.has(w) else UiTokens.SELECTION
 		var pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 190.0) if selected.has(w) else 0.0
 		draw_arc(p + Vector2(0, 6.4), 5.2 + pulse * 1.5, 0, TAU, 24, ring, 1.6 if selected.has(w) else 1.0, true)
-		PersoDessin.dessiner(self, p, game.perso_of(w.card), f[0], now + w.card.id * 0.37, moving and w.pause_left <= 0.0, f[1])
+		var work := {} if moving or w.pause_left > 0.0 else _work_anim(w)
+		var tw := now * 1.0 + w.card.id * 0.37
+		var body := p
+		if not work.is_empty():
+			# Au travail : tourné vers l'ouvrage, le corps suit le geste
+			var to: Vector2 = work["target"] - p
+			if to.length() > 1.0:
+				f[0] = "profil" if absf(to.x) >= absf(to.y) * 0.6 else ("face" if to.y > 0.0 else "dos")
+				f[1] = to.x < 0.0
+			body = p + Vector2(0, -absf(sin(tw * float(work["rythme"]))) * 0.9)
+		PersoDessin.dessiner(self, body, game.perso_of(w.card), f[0], tw, moving and w.pause_left <= 0.0, f[1])
+		if not work.is_empty():
+			_draw_work(work, body, tw, f[1])
 		# pastille du métier (couleur de catégorie) au-dessus de l'épaule
 		var bp := p + Vector2(-r - 0.5, -r * 0.9)
 		draw_circle(bp, 3.4, Color.WHITE)
@@ -601,6 +617,131 @@ func _draw_site(s: GameState.Site) -> void:
 	_dashed_rect(r.grow(-1), Color(1, 1, 1, 0.85))
 	_progress(r, ratio)
 	_draw_pin(Vector2(r.get_center().x, r.position.y + 6), "ordre_construire", UiTokens.OR.darkened(0.25), 0.9)
+
+
+## Geste de travail d'un ouvrier arrivé à son poste : {"outil", "target" (point visé, en pixels du monde), "rythme",
+## "res" (pour les particules)} ; vide s'il ne travaille pas.
+func _work_anim(w: GameState.Worker) -> Dictionary:
+	if w.task.is_empty() or not w.path.is_empty() or w.offmap:
+		return {}
+	var here := w.pos * TILE
+	match w.task.get("type", ""):
+		"extract":
+			if w.task.get("phase") != "working":
+				return {}
+			var res: String = w.task["res"]
+			var tg := (Vector2(w.task["target"]) + Vector2(0.5, 0.5)) * TILE
+			return {"outil": "hache" if res == "bois" else "pioche", "target": tg, "rythme": 7.0, "res": res}
+		"build":
+			var st: GameState.Site = w.task["site"]
+			if st.done or not game.work_tiles(st).has(w.tile()):
+				return {}
+			var c := (Vector2(st.rect.position) + Vector2(st.rect.size) / 2.0) * TILE
+			if w.card.traits.has("col_blanc"):
+				return {"outil": "plan", "target": c, "rythme": 2.0, "res": ""}
+			return {"outil": "pelle" if st.kind == "amenagement" else "marteau", "target": c, "rythme": 8.0,
+				"res": "terre" if st.kind == "amenagement" else "chantier"}
+		"clean":
+			return {"outil": "balai", "target": here + Vector2(6, 4), "rythme": 6.0, "res": "poussiere"}
+		"feed":
+			return {"outil": "seau", "target": here + Vector2(6, 2), "rythme": 3.0, "res": ""}
+		"station":
+			if w.tile() != w.task["tile"]:
+				return {}
+			match w.task["kind"]:
+				"care":
+					return {"outil": "soin", "target": here + Vector2(7, 0), "rythme": 2.5, "res": "coeur"}
+				"formation":
+					return {"outil": "livre", "target": here + Vector2(0, 6), "rythme": 1.5, "res": "etoile"}
+				_:
+					return {"outil": "caisse", "target": here + Vector2(0, 6), "rythme": 2.0, "res": "piece"}
+	return {}
+
+
+## Outil animé et particules du geste de travail (voir _work_anim).
+func _draw_work(work: Dictionary, p: Vector2, t: float, flip: bool) -> void:
+	var sx := -1.0 if flip else 1.0
+	var hand := p + Vector2(4.6 * sx, 1.2)
+	var tool: String = work["outil"]
+	var ph := sin(t * float(work["rythme"]))  # -1 : bras levé, +1 : coup porté
+	var bois := Color("9A6A36")
+	var ink := Color(0.12, 0.08, 0.05, 0.85)
+	match tool:
+		"hache", "pioche", "marteau", "pelle":
+			# Levé au-dessus de l'épaule, puis abattu vite devant soi (k au carré : le coup est sec)
+			var k := pow(ph * 0.5 + 0.5, 2.0)
+			var ang := lerpf(-0.5, 2.1, k) * sx
+			var dir := Vector2(sin(ang), -cos(ang))
+			var side := Vector2(-dir.y, dir.x) * sx
+			var length := 9.0 if tool != "marteau" else 7.0
+			var tip := hand + dir * length
+			draw_line(hand, tip, ink, 2.8, true)
+			draw_line(hand, tip, bois, 1.5, true)
+			match tool:
+				"hache":
+					var blade := PackedVector2Array([tip - dir * 3.4, tip + side * 3.2 - dir * 2.4, tip + side * 3.4 + dir * 0.8, tip])
+					draw_colored_polygon(blade, Color("D8DEE6"))
+					draw_polyline(blade + PackedVector2Array([blade[0]]), ink, 0.8, true)
+				"pioche":
+					draw_line(tip - side * 4.0 - dir * 0.6, tip + side * 4.0 - dir * 0.6, ink, 2.6, true)
+					draw_line(tip - side * 3.6 - dir * 0.6, tip + side * 3.6 - dir * 0.6, Color("B8C0CA"), 1.5, true)
+				"marteau":
+					draw_line(tip - side * 2.4, tip + side * 2.4, ink, 3.8, true)
+					draw_line(tip - side * 2.0, tip + side * 2.0, Color("6A6E76"), 2.6, true)
+				"pelle":
+					var sh := PackedVector2Array([tip - side * 2.0, tip + side * 2.0, tip + dir * 3.4 + side * 1.2, tip + dir * 3.4 - side * 1.2])
+					draw_colored_polygon(sh, Color("B8C0CA"))
+					draw_polyline(sh + PackedVector2Array([sh[0]]), ink, 0.8, true)
+			# Au moment du coup : copeaux, poussière ou éclats qui sautent au bout de l'outil
+			if k > 0.8:
+				var e := (k - 0.8) / 0.2
+				var col: Color = {"bois": Color("D8A85A"), "pierre": Color("D0CABC"), "or": Color("FFD84A"), "terre": Color("A07848"),
+					"chantier": Color("F0E4C8")}.get(work["res"], Color.WHITE)
+				var hit := tip + dir * 1.5
+				for n in 4:
+					var a := -PI / 2.0 + (n - 1.5) * 0.7
+					var q := hit + Vector2(cos(a), sin(a)) * (1.0 + 5.0 * e)
+					draw_circle(q, 1.0, Color(col, 1.0 - e * 0.6))
+				draw_arc(hit, 1.5 + 3.0 * e, 0, TAU, 12, Color(1, 1, 1, 0.5 * (1.0 - e)), 0.8)
+				if work["res"] == "or":
+					draw_line(hit + Vector2(-3, -2) * e, hit + Vector2(3, -5) * e, Color(1, 1, 0.7, 1.0 - e), 0.8)
+		"balai":
+			var sweep := ph * 0.6
+			var head := hand + Vector2(4.0 * sx + sweep * 2.0, 4.5)
+			draw_line(hand, head, bois, 1.1, true)
+			draw_line(head - Vector2(2.2, 0), head + Vector2(2.2, 0), Color("D8B860"), 1.8, true)
+			if absf(ph) > 0.7:
+				draw_circle(head + Vector2(-sweep * 4.0, 0.5), 1.4 * (absf(ph) - 0.6) * 2.0, Color(0.85, 0.8, 0.7, 0.45))
+		"seau":
+			var b := hand + Vector2(1.5 * sx, 2.0 + ph * 0.4)
+			draw_rect(Rect2(b - Vector2(1.6, 0), Vector2(3.2, 2.8)), Color("7A8A98"))
+			draw_arc(b + Vector2(0, -0.2), 1.6, PI, TAU, 8, Color("4A5664"), 0.6)
+		"plan":
+			draw_rect(Rect2(hand + Vector2(-1.0, -1.0), Vector2(3.6, 4.4)), Color("E8F0F8"))
+			draw_line(hand + Vector2(-0.4, 0.6), hand + Vector2(2.0, 0.6), Color("3A6AE0"), 0.5)
+			draw_line(hand + Vector2(-0.4, 2.0), hand + Vector2(1.6, 2.0), Color("3A6AE0"), 0.5)
+		"livre":
+			draw_rect(Rect2(hand + Vector2(-2.0, -0.5), Vector2(4.0, 3.0)), Color("3A6AE0"))
+			draw_line(hand + Vector2(0, -0.5), hand + Vector2(0, 2.5), Color("F4FAEE"), 0.5)
+	# Particules qui montent : cœurs (soins), étoiles (formation), pièces (guichet, boutique, marché)
+	if work["res"] in ["coeur", "etoile", "piece"]:
+		var cyc := fmod(t * 0.6, 1.0)
+		var q: Vector2 = p + Vector2(4.0 * sx, -7.0 - cyc * 7.0)
+		var a := 1.0 - cyc
+		match work["res"]:
+			"coeur":
+				draw_circle(q + Vector2(-0.8, 0), 1.0, Color(0.95, 0.35, 0.45, a))
+				draw_circle(q + Vector2(0.8, 0), 1.0, Color(0.95, 0.35, 0.45, a))
+				draw_colored_polygon(PackedVector2Array([q + Vector2(-1.8, 0.3), q + Vector2(1.8, 0.3), q + Vector2(0, 2.4)]), Color(0.95, 0.35, 0.45, a))
+			"etoile":
+				draw_circle(q, 0.9, Color(1, 0.85, 0.3, a))
+				draw_line(q - Vector2(2, 0), q + Vector2(2, 0), Color(1, 0.9, 0.5, a), 0.5)
+				draw_line(q - Vector2(0, 2), q + Vector2(0, 2), Color(1, 0.9, 0.5, a), 0.5)
+			"piece":
+				draw_set_transform(q, 0.0, Vector2(absf(cos(t * 5.0)) * 0.8 + 0.2, 1.0))
+				draw_circle(Vector2.ZERO, 1.6, Color(0.95, 0.75, 0.2, a))
+				draw_circle(Vector2.ZERO, 1.0, Color(1, 0.9, 0.5, a))
+				draw_set_transform(Vector2.ZERO)
 
 
 ## Illustration générée (tools/animaux.py, tools/batiments.py), mise en cache ; null si elle n'existe pas.
@@ -776,8 +917,19 @@ func _draw_tent(base: Vector2, w: float, col: Color) -> void:
 func _draw_animal(a: GameState.Animal, index: int, now: float) -> void:
 	var col: Color = biome_colors[a.def["biome"]]
 	if not a.park:
+		var inside := {}
 		for t in a.tiles:
-			draw_rect(Rect2(Vector2(t) * TILE, Vector2(TILE, TILE)), Color(col, 0.12))
+			inside[t] = true
+		for t in a.tiles:
+			var r := Rect2(Vector2(t) * TILE, Vector2(TILE, TILE))
+			draw_rect(r, Color(col, 0.12))
+			# herbe foulée et ombre le long des clôtures (côtés haut et gauche : l'ombre tombe vers le bas à droite)
+			if not inside.has(t + Vector2i(0, -1)):
+				draw_rect(Rect2(r.position, Vector2(TILE, 3.5)), Color(0, 0, 0, 0.12))
+			if not inside.has(t + Vector2i(-1, 0)):
+				draw_rect(Rect2(r.position, Vector2(2.5, TILE)), Color(0, 0, 0, 0.1))
+			if not inside.has(t + Vector2i(0, 1)):
+				draw_rect(Rect2(r.position + Vector2(0, TILE - 2.0), Vector2(TILE, 2.0)), Color(0.35, 0.25, 0.1, 0.12))
 	# Marqueur au centre de son motif (plusieurs animaux peuvent partager un enclos)
 	var anchor_tiles: Array = a.pattern_tiles if not a.pattern_tiles.is_empty() else a.tiles
 	var center := Vector2.ZERO
@@ -871,38 +1023,85 @@ func _draw_fence(s: GameState.Site, color: Color) -> void:
 	var c := (Vector2(p) + Vector2(0.5, 0.5)) * TILE
 	var wall := s.def_id() == "cloture"
 	var links := _wall_links()
+	var dirs: Array[Vector2i] = []
+	var reaches: Array[float] = []
 	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
 		var o := game.site_at(p + d)
 		if o == null or not o.done:
 			continue
 		var reach := 0.0
-		if o.def_id() == s.def_id():
+		if o.def_id() == s.def_id() or (wall and o.def_id() == "entree"):
 			reach = 0.5
 		elif not wall and o.def_id() in ["cloture", "entree"] and links.has(p):
 			reach = 1.0  # palissade accrochée au mur
-		if reach == 0.0:
-			continue
-		var e := c + Vector2(d) * TILE * reach
-		var side := Vector2(-d.y, d.x)
-		if wall:
-			draw_line(c + Vector2(1.2, 2.0), e + Vector2(1.2, 2.0), Color(0, 0, 0, 0.25), 4.4)
-			draw_line(c, e, Color("A79F8E"), 4.6)
-			draw_line(c + Vector2(0, -0.8), e + Vector2(0, -0.8), color, 3.0)
-			draw_line(c + Vector2(0, -1.6), e + Vector2(0, -1.6), Color("FFFFFF", 0.7), 0.8)
-		else:
-			draw_line(c + Vector2(1, 1.6), e + Vector2(1, 1.6), Color(0, 0, 0, 0.2), 3.0)
-			for off in [-1.3, 1.3]:
-				draw_line(c + side * off, e + side * off, color.darkened(0.3), 1.6)
-				draw_line(c + side * off + Vector2(0, -0.4), e + side * off + Vector2(0, -0.4), color.lightened(0.15), 0.8)
-			var mid := c.lerp(e, 0.5) if reach == 0.5 else c.lerp(e, 0.5)
-			draw_rect(Rect2(mid - Vector2(1.1, 1.1), Vector2(2.2, 2.2)), color.darkened(0.45))
+		if reach > 0.0:
+			dirs.append(d)
+			reaches.append(reach)
+	# Pilier ou poteau d'angle seulement là où le tracé tourne, s'arrête ou se divise
+	var straight := dirs.size() == 2 and dirs[0] + dirs[1] == Vector2i.ZERO
 	if wall:
-		draw_circle(c + Vector2(0.8, 1.2), 2.9, Color(0, 0, 0, 0.22))
-		draw_circle(c, 3.0, Color("A79F8E"))
-		draw_circle(c + Vector2(0, -0.6), 2.2, color)
+		_draw_wall(c, dirs, reaches, straight, color)
 	else:
-		draw_rect(Rect2(c - Vector2(1.9, 1.9), Vector2(3.8, 3.8)), color.darkened(0.45))
-		draw_rect(Rect2(c - Vector2(1.2, 1.9), Vector2(2.4, 1.2)), color.lightened(0.2))
+		_draw_palisade(c, dirs, reaches, straight, color)
+
+
+## Mur d'enceinte vu du dessus : pierres taillées en deux rangs décalés, teintes variées, ombre portée ;
+## piliers aux angles et aux extrémités.
+func _draw_wall(c: Vector2, dirs: Array[Vector2i], reaches: Array[float], straight: bool, color: Color) -> void:
+	var dark := Color("6E6656")
+	var face := Color("D6CDB8").lerp(color, 0.3)
+	for k in dirs.size():
+		var d := Vector2(dirs[k])
+		var e := c + d * TILE * reaches[k]
+		var side := Vector2(-d.y, d.x)
+		draw_line(c + Vector2(1.6, 2.6), e + Vector2(1.6, 2.6), Color(0, 0, 0, 0.26), 6.6)
+		draw_line(c, e, dark, 6.4)
+		# deux rangs de pierres de 4 px, décalés d'une demi-pierre
+		var length := TILE * reaches[k]
+		for row in 2:
+			var off := side * (1.45 if row == 0 else -1.45)
+			var x := -2.0 if row == 0 else 0.0
+			while x < length:
+				var a := maxf(x, 0.0) + 0.35
+				var b := minf(x + 4.0, length) - 0.35
+				if b > a:
+					var hsh := absi(int((c.x + d.x * a) * 13.0 + (c.y + d.y * a) * 7.0 + row * 5.0)) % 5
+					var tone := face.darkened(0.04 * hsh) if hsh % 2 == 0 else face.lightened(0.05 * hsh)
+					draw_line(c + d * a + off, c + d * b + off, tone, 2.5)
+				x += 4.0
+	if not straight:
+		var b := Rect2(c - Vector2(4.4, 4.8), Vector2(8.8, 8.8))
+		draw_rect(Rect2(b.position + Vector2(1.6, 2.4), b.size), Color(0, 0, 0, 0.28))
+		draw_rect(b, dark)
+		draw_rect(b.grow(-0.9), face)
+		draw_rect(b.grow(-2.4), face.lightened(0.18))
+		draw_rect(b.grow(-2.4), dark.lightened(0.2), false, 0.5)
+
+
+## Palissade d'enclos : deux lisses de bois avec reflet sur des poteaux ronds, ombre portée sur l'herbe.
+func _draw_palisade(c: Vector2, dirs: Array[Vector2i], reaches: Array[float], straight: bool, _color: Color) -> void:
+	var ink := Color("3E2814")
+	var wood := Color("B07A44")
+	var light := Color("E2B474")
+	var post := Color("7A4E2A")
+	for k in dirs.size():
+		var d := Vector2(dirs[k])
+		var e := c + d * TILE * reaches[k]
+		var side := Vector2(-d.y, d.x)
+		draw_line(c + Vector2(1.4, 2.6), e + Vector2(1.4, 2.6), Color(0, 0, 0, 0.22), 3.6)
+		var rails := [Vector2(0, -2.0), Vector2(0, 0.6)] if d.y == 0.0 else [side * -1.1, side * 1.1]
+		for off in rails:
+			draw_line(c + off, e + off, ink, 2.2, true)
+			draw_line(c + off, e + off, wood, 1.4, true)
+			draw_line(c + off + Vector2(0, -0.45), e + off + Vector2(0, -0.45), light, 0.5, true)
+	_post(c, ink, post, light, 1.9 if not straight else 1.4)
+
+
+func _post(q: Vector2, ink: Color, wood: Color, light: Color, r: float) -> void:
+	draw_circle(q + Vector2(1.0, 1.8), r, Color(0, 0, 0, 0.25))
+	draw_circle(q, r + 0.6, ink)
+	draw_circle(q, r, wood)
+	draw_circle(q + Vector2(-r * 0.35, -r * 0.35), r * 0.4, light)
 
 
 ## Palissades qui ferment un enclos en s'appuyant sur le mur de l'enceinte (animal installé ou réservé).
@@ -1209,12 +1408,14 @@ func _process(delta: float) -> void:
 		if ai_timer > 0.35:
 			ai_timer = 0.0
 			mt.pick_draft(mt.ai_choice())
-	# En mode spectateur, la nuit passe toute seule.
-	if spectator and mt.phase == "night" and not mt.game_over:
+	# La nuit, les IA jouent l'une après l'autre (on voit ce qu'elles prennent) ; en spectateur, la nuit passe seule.
+	if mt.phase == "night" and not mt.game_over:
 		night_clock += delta
-		if night_clock > (1.0 if speed >= 8.0 else 2.5):
+		var pause := 0.3 if speed >= 8.0 else (2.0 if mt.night_stage == "bonus" else 1.1)
+		if night_clock > pause:
 			night_clock = 0.0
-			mt.start_next_day()
+			if not mt.step_night() and spectator and mt.night_stage == "equipe":
+				mt.start_next_day()
 	acc += minf(delta, 0.1) * speed
 	while acc >= GameState.TICK:
 		game.tick(GameState.TICK)
@@ -1299,6 +1500,8 @@ func _auto_play() -> void:
 			game.deploy(card)
 	if args.has("endday"):
 		game.end_day()
+		if args.has("etape"):  # --etape=ouvriers : avance la nuit jusqu'à cette étape (captures)
+			mt.night_goto(args["etape"], game.index)
 	selected = ws.slice(0, 1 if args.has("un") else 2)
 
 
@@ -2663,9 +2866,7 @@ func _build_night_ui() -> void:
 	night_next.custom_minimum_size = Vector2(230, 44)
 	night_next.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	night_next.add_theme_font_size_override("font_size", 17)
-	night_next.pressed.connect(func():
-		game.start_next_day()
-		selected.clear())
+	night_next.pressed.connect(_on_night_next)
 	hb.add_child(night_next)
 	# Trois colonnes (gauche l 330, centre, droite l 322), chacune défile si besoin
 	var cols := [[20.0, 350.0], [372.0, -362.0], [-342.0, -20.0]]
@@ -2686,19 +2887,10 @@ func _build_night_ui() -> void:
 		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		sc.add_child(v)
 		boxes.append(v)
-	# Gauche : bilan, montées de niveau, améliorer ou licencier, licenciement du DRH
+	# Gauche : bilan de la journée
 	var p := _titled_panel(boxes[0], "BILAN DE LA JOURNÉE")
 	night_summary = p[1]
-	p = _titled_panel(boxes[0], "MONTÉES DE NIVEAU", "amélioration offerte")
-	night_level_box = p[0]
-	night_level_rows = p[1]
-	p = _titled_panel(boxes[0], "AMÉLIORER OU LICENCIER", "1 par nuit")
-	night_action_box = p[0]
-	night_action_flow = p[1]
-	p = _titled_panel(boxes[0], "LICENCIER", "DRH : gratuit ce soir")
-	night_fire_box = p[0]
-	night_fire = p[1]
-	# Centre : ordre d'influence, ouvriers, contrats, cartes d'action
+	# Centre : ordre d'influence (tour en cours), puis la page de l'étape de la nuit en grand
 	var inf := PanelContainer.new()
 	var ist := UiTokens.chip(Color(UiTokens.PANNEAU_BAS, 0.92), 22, 6)
 	ist.border_color = Color(UiTokens.OR, 0.6)
@@ -2710,25 +2902,47 @@ func _build_night_ui() -> void:
 	night_influence = HBoxContainer.new()
 	night_influence.add_theme_constant_override("separation", 8)
 	inf.add_child(night_influence)
-	night_money_lbl = _section_title(boxes[1], "OUVRIERS À EMBAUCHER")
-	night_workers = HBoxContainer.new()
-	night_workers.add_theme_constant_override("separation", 12)
-	boxes[1].add_child(night_workers)
-	night_contracts_note = _section_title(boxes[1], "CONTRATS D'ANIMAUX")
-	night_contracts = HBoxContainer.new()
-	night_contracts.add_theme_constant_override("separation", 12)
-	boxes[1].add_child(night_contracts)
-	var actions_note := _section_title(boxes[1], "CARTES D'ACTION")
+	night_stage_title = Composants.label("", "TitreEcran")
+	night_stage_title.add_theme_font_size_override("font_size", 28)
+	boxes[1].add_child(night_stage_title)
+	night_stage_note = Composants.label("", "TexteSecondaire")
+	night_stage_note.add_theme_font_size_override("font_size", 15)
+	night_stage_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	boxes[1].add_child(night_stage_note)
+	for st in Match.NIGHT_STAGES:
+		var page := VBoxContainer.new()
+		page.add_theme_constant_override("separation", 12)
+		boxes[1].add_child(page)
+		night_pages[st] = page
+	var flow := func(parent: Control) -> HFlowContainer:
+		var f := HFlowContainer.new()
+		f.add_theme_constant_override("h_separation", 14)
+		f.add_theme_constant_override("v_separation", 14)
+		parent.add_child(f)
+		return f
+	night_contracts_note = _section_title(night_pages["contrats"], "")
+	night_contracts = flow.call(night_pages["contrats"])
+	night_money_lbl = _section_title(night_pages["ouvriers"], "")
+	night_workers = flow.call(night_pages["ouvriers"])
+	var actions_note := _section_title(night_pages["cartes"], "")
 	actions_note.text = "1 achat par nuit · elles rejoignent votre deck"
-	night_actions = HBoxContainer.new()
-	night_actions.add_theme_constant_override("separation", 12)
-	boxes[1].add_child(night_actions)
-	# Droite : réputation, bonus de nuit, journal
+	night_actions = flow.call(night_pages["cartes"])
+	night_bonus_note = _section_title(night_pages["bonus"], "")
+	night_bonus_box = VBoxContainer.new()
+	night_bonus_box.add_theme_constant_override("separation", 10)
+	night_pages["bonus"].add_child(night_bonus_box)
+	p = _titled_panel(night_pages["equipe"], "MONTÉES DE NIVEAU", "amélioration offerte")
+	night_level_box = p[0]
+	night_level_rows = p[1]
+	p = _titled_panel(night_pages["equipe"], "AMÉLIORER OU LICENCIER", "1 par nuit")
+	night_action_box = p[0]
+	night_action_flow = p[1]
+	p = _titled_panel(night_pages["equipe"], "LICENCIER", "DRH : gratuit ce soir")
+	night_fire_box = p[0]
+	night_fire = p[1]
+	# Droite : réputation, journal
 	p = _titled_panel(boxes[2], "RÉPUTATION")
 	night_rep_rows = p[1]
-	p = _titled_panel(boxes[2], "BONUS DE NUIT")
-	night_bonus_box = p[1]
-	night_bonus_note = p[2]
 	p = _titled_panel(boxes[2], "JOURNAL DE LA NUIT")
 	night_text = RichTextLabel.new()
 	night_text.bbcode_enabled = true
@@ -2809,24 +3023,50 @@ func _rebuild_night() -> void:
 	var s: Dictionary = r["stats"]
 	var inc: Dictionary = r["income"]
 	night_title.text = "NUIT %d" % r["day"]
-	night_next.text = "Passer au jour %d  ›" % (r["day"] + 1)
-	night_next.disabled = mt.game_over
+	var stage := mt.night_stage
+	var buyer := mt.current_buyer()
+	var my_turn := buyer == game.index and not spectator
+	var leader := mt.influence_leader()
+	if stage == "equipe":
+		night_next.text = "Passer au jour %d  ›" % (r["day"] + 1)
+		night_next.disabled = mt.game_over or spectator
+	elif mt.market_stage():
+		night_next.text = "Passer  ›" if my_turn else "%s choisit…" % mt.names[buyer]
+		night_next.disabled = not my_turn
+	else:
+		var mine := leader == game.index and not spectator
+		night_next.text = "Garder le 1er bonus  ›" if mine and mt.bonus_choice.is_empty() else "%s choisit…" % mt.names[leader]
+		night_next.disabled = not mine or not mt.bonus_choice.is_empty()
 
 	# Étapes : faites (✓), en cours (or), à venir
 	_clear(night_steps)
-	var my_turn: bool = mt.night_turn < mt.night_order.size() and mt.night_order[mt.night_turn] == game.index
-	var steps := [["Revenus", true], ["Niveaux", game.level_choices.is_empty()], ["Bonus", not mt.bonus_choice.is_empty()],
-		["Marché" + (" · à vous" if my_turn else ""), game.bought_worker or mt.night_turn >= mt.night_order.size()],
-		["Améliorer / licencier", game.night_action_used], ["Jour %d" % (r["day"] + 1), false]]
-	var current_set := false
-	for k in steps.size():
-		var state := "fait" if steps[k][1] else ("a_venir" if current_set else "courant")
-		if state == "courant":
-			current_set = true
+	var step_names := {"contrats": "Contrats", "ouvriers": "Ouvriers", "cartes": "Cartes", "bonus": "Bonus", "equipe": "Équipe"}
+	var cur := Match.NIGHT_STAGES.find(stage)
+	for k in Match.NIGHT_STAGES.size() + 1:
+		var label: String = step_names[Match.NIGHT_STAGES[k]] if k < Match.NIGHT_STAGES.size() else "Jour %d" % (r["day"] + 1)
 		if k > 0:
-			var sep := Composants.label("—", "TexteSecondaire")
-			night_steps.add_child(sep)
-		night_steps.add_child(_step_pill(steps[k][0], state))
+			night_steps.add_child(Composants.label("—", "TexteSecondaire"))
+		night_steps.add_child(_step_pill(label, "fait" if k < cur else ("courant" if k == cur else "a_venir")))
+	for st in night_pages:
+		night_pages[st].visible = st == stage
+	var turn_text := "À vous de choisir." if my_turn else ("%s choisit…" % mt.names[buyer] if buyer >= 0 else "")
+	match stage:
+		"contrats":
+			night_stage_title.text = "CONTRATS D'ANIMAUX"
+			night_stage_note.text = "Chacun à son tour, dans l'ordre d'influence : jusqu'à 2 contrats (le 2e coûte 50 % de plus). " + turn_text
+		"ouvriers":
+			night_stage_title.text = "OUVRIERS À EMBAUCHER"
+			night_stage_note.text = "Chacun à son tour : 1 embauche au plus, si votre logement le permet. " + turn_text
+		"cartes":
+			night_stage_title.text = "CARTES D'ACTION"
+			night_stage_note.text = "Chacun à son tour : 1 carte au plus. " + turn_text
+		"bonus":
+			night_stage_title.text = "BONUS DE DEMAIN"
+			night_stage_note.text = "Le premier en influence (%s) choisit un bonus : il s'appliquera demain à tous les zoos." % mt.names[leader]
+		"equipe":
+			night_stage_title.text = "VOTRE ÉQUIPE"
+			night_stage_note.text = "Chacun de son côté : montées de niveau, une amélioration ou un licenciement payant, et le licenciement offert par le DRH." \
+				+ ("\nBonus de demain : %s (%s)" % [mt.bonus_choice.get("nom", "?"), mt.bonus_choice.get("texte", "")] if not mt.bonus_choice.is_empty() else "")
 
 	# Bilan de la journée
 	_clear(night_summary)
@@ -2877,15 +3117,16 @@ func _rebuild_night() -> void:
 		var pill := PanelContainer.new()
 		var mine := i == game.index
 		var ps := UiTokens.chip(UiTokens.OR if mine else Color(1, 1, 1, 0.06), 16, 4)
-		if k == mt.night_turn and not mine:
-			ps.border_color = UiTokens.SELECTION
-			ps.set_border_width_all(2)
+		if mt.market_stage() and k == mt.night_turn:
+			ps.border_color = UiTokens.SELECTION if not mine else Color.WHITE
+			ps.set_border_width_all(3)
 		pill.add_theme_stylebox_override("panel", ps)
 		var ph := HBoxContainer.new()
 		ph.add_theme_constant_override("separation", 6)
 		pill.add_child(ph)
 		ph.add_child(_rank_dot(k + 1, UiTokens.JOUEURS[i % UiTokens.JOUEURS.size()]))
-		var pn := Composants.label("%s · %.1f" % [mt.names[i], game.influence] if mine else "%s  ?" % mt.names[i])
+		var done_mark := "✓ " if mt.market_stage() and k < mt.night_turn else ""
+		var pn := Composants.label(done_mark + ("%s · %.1f" % [mt.names[i], game.influence] if mine else "%s  ?" % mt.names[i]))
 		pn.add_theme_font_override("font", UiTokens.police_corps(800))
 		pn.add_theme_font_size_override("font_size", 14)
 		pn.add_theme_color_override("font_color", UiTokens.BOUTON_TEXTE if mine else UiTokens.TEXTE)
@@ -2903,7 +3144,7 @@ func _rebuild_night() -> void:
 	night_chips["argent"]["valeur"].text = str(floori(game.money))
 	night_chips["logement"]["valeur"].text = "%d/%d" % [game.employees(), game.housing()]
 	night_chips["logement"]["valeur"].add_theme_color_override("font_color", UiTokens.NEGATIF if full else UiTokens.TEXTE)
-	night_money_lbl.text = "Logement plein : construisez une Maison d'ouvriers pour embaucher" if full \
+	night_money_lbl.text = "Logement plein : construisez une Maison d'ouvriers" if full \
 		else "Argent disponible : %d" % floori(game.money)
 	night_money_lbl.add_theme_color_override("font_color", UiTokens.NEGATIF if full else UiTokens.TEXTE_SECONDAIRE)
 	_clear(night_workers)
@@ -2919,12 +3160,17 @@ func _rebuild_night() -> void:
 		for b in w.find_children("*", "Button", true, false):
 			b.tooltip_text = err if err != "" else "Embaucher %s pour %d argent" % [card.nom, cost]
 		night_workers.add_child(w)
+	for t in _taken("ouvriers"):
+		night_workers.add_child(_taken_mark(_card_widget(t["objet"], "Pris · %s" % mt.names[t["joueur"]], true, Callable()), t["joueur"]))
 	_clear(night_contracts)
 	night_contracts_note.text = "%d contrats · 2 achats au plus · dans l'ordre d'influence" % game.market_contracts.size()
 	for def in game.market_contracts:
 		var err := game.contract_error(def)
 		night_contracts.add_child(_contract_widget(def, "Acheter · %s" % game.cost_text(game.contract_cost(def)),
 			"Mode spectateur" if spectator else err, game.buy_contract.bind(def)))
+	for t in _taken("contrats"):
+		night_contracts.add_child(_taken_mark(_contract_widget(t["objet"], "Pris · %s" % mt.names[t["joueur"]], "Pris par %s" % mt.names[t["joueur"]],
+			Callable()), t["joueur"]))
 	_clear(night_actions)
 	for card in mt.market_actions:
 		var aerr := game.action_error(card)
@@ -2932,6 +3178,8 @@ func _rebuild_night() -> void:
 		if aerr != "":
 			aw.tooltip_text = aerr + "\n" + aw.tooltip_text
 		night_actions.add_child(aw)
+	for t in _taken("cartes"):
+		night_actions.add_child(_taken_mark(_action_widget(t["objet"], "Pris · %s" % mt.names[t["joueur"]], true, Callable()), t["joueur"]))
 
 	# Réputation : classement, écart d'hier, barre vers l'objectif
 	_clear(night_rep_rows)
@@ -2985,7 +3233,6 @@ func _rebuild_night() -> void:
 
 	# Bonus de nuit : seul le premier en influence choisit, pour tous les zoos
 	_clear(night_bonus_box)
-	var leader := mt.influence_leader()
 	if not mt.bonus_choice.is_empty():
 		night_bonus_note.text = "choisi par %s" % mt.names[leader]
 	elif leader == game.index:
@@ -3005,7 +3252,8 @@ func _rebuild_night() -> void:
 		btn.add_theme_constant_override("h_separation", 10)
 		btn.add_theme_font_size_override("font_size", 13)
 		btn.focus_mode = Control.FOCUS_NONE
-		btn.custom_minimum_size = Vector2(290, 54)
+		btn.custom_minimum_size = Vector2(620, 64)
+		btn.add_theme_font_size_override("font_size", 16)
 		btn.tooltip_text = err
 		btn.disabled = spectator or err != ""
 		var normal := UiTokens.chip(Color(1, 1, 1, 0.05), 8, 8)
@@ -3102,6 +3350,41 @@ func _rebuild_night() -> void:
 	if game.employees() >= game.housing():
 		lines.append("[color=#FFB09A]Logement plein (%d / %d) : construisez une maison d'ouvriers pour embaucher.[/color]" % [game.employees(), game.housing()])
 	night_text.text = "\n".join(lines)
+
+
+## Bouton principal de la nuit : passer son tour au marché, garder le premier bonus, ou passer au jour suivant.
+func _on_night_next() -> void:
+	if mt.market_stage():
+		if mt.current_buyer() == game.index:
+			mt.pass_turn()
+	elif mt.night_stage == "bonus":
+		if mt.influence_leader() == game.index:
+			mt.confirm_bonus()
+	else:
+		game.start_next_day()
+		selected.clear()
+
+
+## Achats de cette étape de la nuit (tous les joueurs), dans l'ordre.
+func _taken(stage: String) -> Array:
+	return mt.night_taken.filter(func(t): return t["etape"] == stage)
+
+
+## Carte déjà prise : grisée, sous une étiquette « Pris par … » à la couleur de l'acheteur.
+func _taken_mark(w: Control, player: int) -> Control:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 4)
+	var tag := PanelContainer.new()
+	tag.add_theme_stylebox_override("panel", UiTokens.chip(UiTokens.JOUEURS[player % UiTokens.JOUEURS.size()], 10, 3))
+	var l := Composants.label("Pris par %s" % mt.names[player])
+	l.add_theme_font_override("font", UiTokens.police_corps(800))
+	l.add_theme_font_size_override("font_size", 13)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tag.add_child(l)
+	box.add_child(tag)
+	w.modulate = Color(1, 1, 1, 0.5)
+	box.add_child(w)
+	return box
 
 
 # --- Aide au placement d'un animal ---------------------------------------------
@@ -4150,7 +4433,8 @@ func _contract_widget(def: Dictionary, button_text: String, err: String, cb: Cal
 	btn.tooltip_text = err
 	btn.custom_minimum_size = Vector2(0, 34)
 	btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	btn.pressed.connect(cb)
+	if cb.is_valid():
+		btn.pressed.connect(cb)
 	inner.add_child(btn)
 	panel.tooltip_text = "%s (%s, palier %s)\n%s · %s\nEnclos : %s\nAttractivité %d · nourriture %d / jour\nCoût : %s%s" % [
 		def["nom"], biome_noms[biome], def["palier"], game.continent_name(def.get("continent", "")), game.type_name(def.get("type", "")),

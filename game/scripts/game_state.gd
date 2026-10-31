@@ -1438,6 +1438,8 @@ func hire_cost(card: Card) -> int:
 func hire_error(card: Card) -> String:
 	if phase != "night":
 		return "Le marché n'ouvre que la nuit"
+	if mt.night_stage != "ouvriers":
+		return "Embauche à l'étape Ouvriers"
 	if mt.current_buyer() != index:
 		return "Ce n'est pas votre tour au marché"
 	if bought_worker:
@@ -1456,7 +1458,10 @@ func hire(card: Card) -> bool:
 	market_workers.erase(card)
 	discard.append(card)
 	bought_worker = true
+	mt.record_purchase(index, card)
 	say("%s rejoint votre équipe (dans la défausse)." % card.nom)
+	if not mt.is_ai(index):
+		mt.pass_turn()  # une embauche par nuit : au suivant
 	mt.bump()
 	return true
 
@@ -1477,6 +1482,8 @@ func contract_cost(def: Dictionary) -> Dictionary:
 func contract_error(def: Dictionary) -> String:
 	if phase != "night":
 		return "Le marché n'ouvre que la nuit"
+	if mt.night_stage != "contrats":
+		return "Contrats à l'étape Contrats"
 	if mt.current_buyer() != index:
 		return "Ce n'est pas votre tour au marché"
 	if contracts_tonight >= int(data["buildings"]["marche"]["contrats_par_nuit"]):
@@ -1515,7 +1522,10 @@ func buy_contract(def: Dictionary) -> bool:
 	market_contracts.erase(def)
 	contracts.append(def)
 	contracts_tonight += 1
+	mt.record_purchase(index, def)
 	say("Contrat acheté : %s. Construisez-lui un enclos." % def["nom"])
+	if not mt.is_ai(index) and contracts_tonight >= int(data["buildings"]["marche"]["contrats_par_nuit"]):
+		mt.pass_turn()
 	mt.bump()
 	return true
 
@@ -1630,7 +1640,7 @@ func _task_target(w: Worker) -> Vector2i:
 
 ## Licenciement par le DRH (s'il a été déployé dans la journée).
 func fire(card: Card) -> bool:
-	if phase != "night" or drh_available <= 0:
+	if phase != "night" or drh_available <= 0 or mt.night_stage != "equipe":
 		return false
 	for pile in [deck, discard, hand]:
 		if pile.has(card):
@@ -1646,6 +1656,8 @@ func fire(card: Card) -> bool:
 func bonus_error(def: Dictionary) -> String:
 	if phase != "night":
 		return "Uniquement la nuit"
+	if mt.night_stage != "bonus":
+		return "Bonus à l'étape Bonus"
 	if mt.influence_leader() != index:
 		return "Seul le premier en influence choisit (%s)" % mt.names[mt.influence_leader()]
 	if not mt.bonus_choice.is_empty():
@@ -1659,6 +1671,8 @@ func pick_bonus(def: Dictionary) -> bool:
 	if bonus_error(def) != "":
 		return false
 	mt.bonus_choice = def
+	if not mt.is_ai(index):
+		mt.confirm_bonus()
 	mt.bump()
 	return true
 
@@ -1670,6 +1684,8 @@ func night_action_rules() -> Dictionary:
 func night_action_error(cost: int) -> String:
 	if phase != "night":
 		return "Uniquement la nuit"
+	if mt.night_stage != "equipe":
+		return "Améliorations et licenciements à la dernière étape de la nuit (Équipe)"
 	if day < int(night_action_rules()["jour_min"]):
 		return "Disponible à partir du jour %d" % int(night_action_rules()["jour_min"])
 	if night_action_used:
@@ -1833,6 +1849,8 @@ func action_cards() -> Array[Card]:
 func action_error(card: Card) -> String:
 	if phase != "night":
 		return "Le marché n'ouvre que la nuit"
+	if mt.night_stage != "cartes":
+		return "Cartes à l'étape Cartes"
 	if mt.current_buyer() != index:
 		return "Ce n'est pas votre tour au marché"
 	if bought_action:
@@ -1849,7 +1867,10 @@ func buy_action(card: Card) -> bool:
 	mt.market_actions.erase(card)
 	discard.append(card)
 	bought_action = true
+	mt.record_purchase(index, card)
 	say("Carte d'action achetée : %s (dans la défausse)." % card.action["nom"])
+	if not mt.is_ai(index):
+		mt.pass_turn()
 	mt.bump()
 	return true
 

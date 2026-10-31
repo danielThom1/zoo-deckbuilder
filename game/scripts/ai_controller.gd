@@ -315,8 +315,13 @@ func update(dt: float) -> void:
 
 # --- Nuit : marché ------------------------------------------------------------
 
-func on_night() -> void:
+## Étape Bonus : le premier en influence choisit (sans effet pour les autres).
+func on_night_bonus() -> void:
 	_pick_bonus()
+
+
+## Étape Équipe : montées de niveau, amélioration ou licenciement payant, licenciement par le DRH.
+func on_night_team() -> void:
 	_choose_level_upgrades()
 	_night_action()
 	# Licenciement de la carte la plus faible si le DRH a travaillé.
@@ -328,6 +333,20 @@ func on_night() -> void:
 		if worst and card_value(worst) < 0.0:
 			g.fire(worst)
 			mt.log.append("%s licencie %s (%s)." % [mt.names[g.index], worst.nom, worst.metier["nom"]])
+
+
+## Étapes de marché de la nuit, à son tour : contrats, puis ouvriers, puis cartes d'action.
+func on_night_stage(stage: String) -> void:
+	match stage:
+		"contrats":
+			_night_contracts()
+		"ouvriers":
+			_night_hire()
+		"cartes":
+			_night_buy_action()
+
+
+func _night_contracts() -> void:
 	# Contrats (jusqu'à 2 par nuit, le 2e plus cher)
 	for attempt in 2:
 		# Le premier contrat oriente le choix de l'emplacement du zoo ; les suivants attendent que l'enceinte avance.
@@ -357,7 +376,9 @@ func on_night() -> void:
 					best = def
 			if not best.is_empty() and g.buy_contract(best):
 				mt.log.append("%s achète le contrat %s." % [mt.names[g.index], best["nom"]])
-	# Embauche
+
+
+func _night_hire() -> void:
 	if strat["embauche"] and g.employees() < g.housing():
 		var best_card: GameState.Card = null
 		var best_v := 1.8
@@ -370,7 +391,10 @@ func on_night() -> void:
 				best_card = c
 		if best_card and g.hire(best_card):
 			mt.log.append("%s embauche %s (%s)." % [mt.names[g.index], best_card.nom, best_card.metier["nom"]])
-	# Carte d'action : une par nuit quand l'argent abonde, 4 au plus dans le deck (sinon elles diluent la main).
+
+
+## Carte d'action : une par nuit quand l'argent abonde, 4 au plus dans le deck (sinon elles diluent la main).
+func _night_buy_action() -> void:
 	if g.action_cards().size() < 4 and zoo_rect.size != Vector2i.ZERO:
 		var best_a: GameState.Card = null
 		for c in mt.market_actions:

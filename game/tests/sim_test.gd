@@ -213,11 +213,9 @@ func _init() -> void:
 	check(gk.hire_error(gk.market_workers[0]) != "", "logement plein (10/10) : embauche refusée sans maison")
 	house.work = house.travail()
 	gk._complete(house)
-	var before := gk.employees()
-	var recrue: GameState.Card = gk.market_workers[0]
-	var prix := gk.hire_cost(recrue)
-	check(gk.hire(recrue) and gk.employees() == before + 1 and gk.discard.has(recrue), "embauche : la recrue va dans la défausse (%d argent)" % prix)
-	check(not gk.hire(gk.market_workers[0]), "une seule embauche par nuit")
+	check(gk.mt.night_stage == "contrats", "la nuit commence par l'étape Contrats")
+	gk.mt.night_goto("contrats")
+	check(gk.hire_error(gk.market_workers[0]).begins_with("Embauche à l'étape"), "pas d'embauche pendant l'étape Contrats")
 	var zebre: Dictionary = data["animals"]["animaux"].filter(func(d): return d["id"] == "zebre")[0]
 	var lion: Dictionary = data["animals"]["animaux"].filter(func(d): return d["id"] == "lion")[0]
 	gk.market_contracts.append(zebre)
@@ -227,8 +225,18 @@ func _init() -> void:
 	var expected := roundi(base_price * (1.0 + 0.15 * 1) * 1.5)
 	check(int(gk.contract_cost(second).get("argent", 0)) == expected, "2e contrat : prix x1,15 (1 animal) x1,5 (2e de la nuit) = %d (base %d)" % [expected, base_price])
 	check(gk.buy_contract(second), "2e contrat de la nuit accepté")
-	check(gk.contract_error(gk.market_contracts[0]).begins_with("Déjà 2"), "3e contrat refusé")
+	check(gk.contract_error(gk.market_contracts[0]) != "", "3e contrat refusé (le tour passe après 2 contrats)")
+	check(gk.mt.night_taken.filter(func(t): return t["joueur"] == gk.index).size() == 2, "achats de la nuit visibles de tous")
 	gk.contracts.erase(second)
+	gk.mt.night_goto("ouvriers")
+	check(gk.mt.night_stage == "ouvriers" and gk.mt.current_buyer() == gk.index, "étape Ouvriers : à votre tour")
+	var before := gk.employees()
+	var recrue: GameState.Card = gk.market_workers[0]
+	var prix := gk.hire_cost(recrue)
+	check(gk.hire(recrue) and gk.employees() == before + 1 and gk.discard.has(recrue), "embauche : la recrue va dans la défausse (%d argent)" % prix)
+	check(not gk.hire(gk.market_workers[0]), "une seule embauche par nuit")
+	gk.mt.night_goto("equipe")
+	check(gk.mt.night_stage == "equipe", "dernière étape : Équipe")
 	gk.drh_available = 1
 	var licencie: GameState.Card = gk.all_employees()[0]
 	check(gk.fire(licencie) and not gk.all_employees().has(licencie), "licenciement par le DRH")
@@ -452,6 +460,8 @@ func _init() -> void:
 	mn.end_day()
 	check(mn.bonus_offer.size() == 3, "3 bonus proposés")
 	var leader := mn.influence_leader()
+	check(me.bonus_error(mn.bonus_offer[0]) != "", "pas de bonus avant l'étape Bonus")
+	mn.night_goto("bonus")
 	check(mn.players[1 - leader].bonus_error(mn.bonus_offer[0]) != "", "seul le premier en influence choisit le bonus")
 	var chosen_bonus: Dictionary = mn.bonus_choice
 	if leader == 0:
@@ -459,6 +469,7 @@ func _init() -> void:
 		chosen_bonus = mn.bonus_offer[1]
 	else:
 		check(not chosen_bonus.is_empty(), "l'IA, première en influence, a choisi : %s" % chosen_bonus.get("nom", "?"))
+	mn.night_goto("equipe")
 	check(me.night_action_error(12) != "", "pas d'amélioration avant le milieu de partie (%s)" % me.night_action_error(12))
 	mn.start_next_day()
 	check(me.day_bonus == chosen_bonus and mn.players[1].day_bonus == chosen_bonus, "le bonus choisi s'applique à tous le lendemain")
@@ -467,6 +478,8 @@ func _init() -> void:
 		mn.start_next_day()
 	mn.end_day()
 	me.money = 100.0
+	check(me.night_action_error(12) != "", "pas d'amélioration pendant les marchés")
+	mn.night_goto("equipe")
 	var target: GameState.Card = me.all_employees()[0]
 	var opts := me.upgrade_options(target)
 	check(opts.size() == 3, "3 améliorations proposées")
@@ -739,6 +752,7 @@ func _init() -> void:
 	d_solo.end_day()
 	check(is_equal_approx(d_me.stock["bois"], d_b0 + 2.0), "fin de journée : la charge des ouvriers est encaissée")
 	check(d_solo.market_actions.size() == int(data["buildings"]["marche"]["actions"]), "%d cartes d'action au marché de nuit" % d_solo.market_actions.size())
+	d_solo.night_goto("cartes")
 	var d_buy: GameState.Card = d_solo.market_actions[0]
 	check(d_me.buy_action(d_buy) and d_me.discard.has(d_buy) and d_me.action_cards().size() == 1, "carte d'action achetée : %s, dans la défausse" % d_buy.action["nom"])
 	check(not d_me.buy_action(d_solo.market_actions[0]), "une seule carte d'action par nuit")

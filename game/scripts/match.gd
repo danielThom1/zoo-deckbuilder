@@ -29,7 +29,11 @@ var market_workers: Array = []
 var market_contracts: Array = []
 var market_actions: Array = []  # cartes d'action proposées la nuit
 var night_order: Array[int] = []
-var night_turn := 0  # position dans night_order du joueur qui achète
+var night_turn := 0  # position dans night_order du joueur qui achète (étapes de marché)
+## Étapes de la nuit : trois marchés dans l'ordre d'influence, le bonus du premier, puis l'équipe (chacun en parallèle).
+const NIGHT_STAGES := ["contrats", "ouvriers", "cartes", "bonus", "equipe"]
+var night_stage := ""
+var night_taken: Array = []  # achats de la nuit, visibles de tous : {"etape", "joueur", "objet"}
 var log: Array[String] = []  # achats des IA de la nuit
 var current_event := {}  # événement du jour (commun à tous les joueurs)
 var bonus_offer: Array = []  # bonus de nuit proposés (3)
@@ -320,6 +324,8 @@ func end_day() -> void:
 		return false)
 	night_order.assign(order)
 	night_turn = 0
+	night_stage = NIGHT_STAGES[0]
+	night_taken.clear()
 	log.clear()
 	for p in players:
 		p.bought_worker = false
@@ -333,8 +339,6 @@ func end_day() -> void:
 	bonus_choice = {}
 	_check_game_over()
 	_record_history()
-	if not game_over:
-		_advance_night()
 	bump()
 
 
@@ -357,16 +361,92 @@ func _record_history() -> void:
 	history.append(row)
 
 
-## Les IA dont c'est le tour achètent, jusqu'au tour du joueur humain.
-func _advance_night() -> void:
-	while night_turn < night_order.size() and is_ai(night_order[night_turn]):
-		ais[night_order[night_turn]].on_night()
-		night_turn += 1
+func market_stage() -> bool:
+	return phase == "night" and night_stage in ["contrats", "ouvriers", "cartes"]
+
+
+## Joueur dont c'est le tour au marché de l'étape en cours (-1 hors des étapes de marché).
+func current_buyer() -> int:
+	if not market_stage() or night_turn >= night_order.size():
+		return -1
+	return night_order[night_turn]
+
+
+## Le joueur dont c'est le tour a fini ses achats de l'étape : au suivant, ou à l'étape suivante.
+func pass_turn() -> void:
+	if not market_stage():
+		return
+	night_turn += 1
+	if night_turn >= night_order.size():
+		night_turn = 0
+		_next_stage()
 	bump()
 
 
-func current_buyer() -> int:
-	return night_order[night_turn] if night_turn < night_order.size() else -1
+func _next_stage() -> void:
+	night_stage = NIGHT_STAGES[mini(NIGHT_STAGES.find(night_stage) + 1, NIGHT_STAGES.size() - 1)]
+	if night_stage == "bonus" and is_ai(influence_leader()):
+		ais[influence_leader()].on_night_bonus()
+	if night_stage == "equipe":
+		# Chacun gère son équipe en parallèle : les IA le font tout de suite.
+		for ai in ais:
+			if ai:
+				ai.on_night_team()
+	bump()
+
+
+## Fin de l'étape Bonus : le bonus choisi (ou le premier proposé) vaudra pour tous demain.
+func confirm_bonus() -> void:
+	if phase != "night" or night_stage != "bonus":
+		return
+	if bonus_choice.is_empty() and not bonus_offer.is_empty():
+		bonus_choice = bonus_offer[0]
+	_next_stage()
+
+
+func record_purchase(player: int, obj: Variant) -> void:
+	night_taken.append({"etape": night_stage, "joueur": player, "objet": obj})
+
+
+## Fait avancer la nuit d'un pas quand c'est à une IA d'agir : achats de l'IA dont c'est le tour, ou bonus déjà choisi
+## par une IA. Faux si c'est au joueur humain (ou à l'étape Équipe, que chacun termine seul).
+func step_night() -> bool:
+	if phase != "night" or game_over:
+		return false
+	if market_stage():
+		var i := current_buyer()
+		if i < 0 or not is_ai(i):
+			return false
+		ais[i].on_night_stage(night_stage)
+		pass_turn()
+		return true
+	if night_stage == "bonus" and is_ai(influence_leader()):
+		confirm_bonus()
+		return true
+	return false
+
+
+## Termine les étapes de la nuit d'un coup : les IA jouent, le joueur humain passe ce qui reste.
+func finish_night() -> void:
+	while phase == "night" and night_stage != "equipe" and not game_over:
+		if not step_night():
+			if market_stage():
+				pass_turn()
+			else:
+				confirm_bonus()
+
+
+## Tests : avance la nuit jusqu'à l'étape voulue, puis jusqu'au tour du joueur `who` (les autres jouent ou passent).
+func night_goto(stage: String, who := 0) -> void:
+	while phase == "night" and night_stage != stage and night_stage != "equipe":
+		if not step_night():
+			if market_stage():
+				pass_turn()
+			else:
+				confirm_bonus()
+	while market_stage() and current_buyer() != who:
+		if not step_night():
+			pass_turn()
 
 
 ## Le premier en influence cette nuit : lui seul choisit le bonus du lendemain.
@@ -377,10 +457,7 @@ func influence_leader() -> int:
 func start_next_day() -> void:
 	if phase != "night" or game_over:
 		return
-	# Le joueur humain a fini ses achats : les IA suivantes jouent à leur tour.
-	if night_turn < night_order.size() and not is_ai(night_order[night_turn]):
-		night_turn += 1
-	_advance_night()
+	finish_night()
 	# Bonus du lendemain, le même pour tous : celui du premier en influence, ou le premier proposé s'il n'a pas choisi.
 	if bonus_choice.is_empty() and not bonus_offer.is_empty():
 		bonus_choice = bonus_offer[0]
