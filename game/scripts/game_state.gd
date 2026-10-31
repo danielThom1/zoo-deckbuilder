@@ -445,6 +445,7 @@ func deploy(card: Card, free := false) -> bool:
 			say("Pas assez d'argent pour payer %s (%d)." % [card.nom, cost])
 			return false
 		money -= cost
+		day_stats["salaires"] += cost
 	card.deployed = true
 	var w := Worker.new()
 	w.card = card
@@ -1165,7 +1166,7 @@ func employees() -> int:
 # --- Fin de journée ----------------------------------------------------------
 
 func _reset_day_stats() -> void:
-	day_stats = {"bois": 0.0, "pierre": 0.0, "or": 0.0, "influence": 0.0}
+	day_stats = {"bois": 0.0, "pierre": 0.0, "or": 0.0, "influence": 0.0, "salaires": 0.0, "nourriture": 0.0}
 
 
 ## Raccourcis pour les tests et l'interface : la journée et la nuit sont gérées par la partie.
@@ -1809,6 +1810,7 @@ func _update_feed(w: Worker, dt: float) -> void:
 	if task["prep"] >= float(R["preparation_s"]):
 		task["prep"] -= float(R["preparation_s"])
 		money -= float(R["cout"])
+		day_stats["nourriture"] += float(R["cout"])
 		task["rations"] += 1
 
 

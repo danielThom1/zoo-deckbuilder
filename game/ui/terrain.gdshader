@@ -1,0 +1,198 @@
+shader_type canvas_item;
+// Terrain « Émeraude » vu du dessus, calculé au pixel près (aucun quadrillage visible).
+// carte : une case par texel, R = type de terrain × 32 / 255 (constantes de GameMap).
+// profondeur : R = distance au rivage des cases d'eau (0 sur la terre, 1 = 4 cases et plus).
+
+uniform sampler2D carte : filter_nearest;
+uniform sampler2D profondeur : filter_linear;
+uniform vec2 taille_carte = vec2(64.0, 64.0);
+
+const int PRAIRIE = 0;
+const int FORET = 1;
+const int EAU = 2;
+const int ROCHE = 3;
+const int SABLE = 4;
+const int MONTAGNE = 5;
+const int MINE_OR = 6;
+
+const vec3 HERBE_SOMBRE = vec3(0.384, 0.682, 0.204);   // 62AE34
+const vec3 HERBE_CLAIRE = vec3(0.553, 0.788, 0.290);   // 8DC94A
+const vec3 SOUS_BOIS = vec3(0.196, 0.431, 0.165);      // 326E2A
+const vec3 SABLE_C = vec3(0.949, 0.839, 0.518);        // F2D684
+const vec3 SABLE_GRAIN = vec3(0.847, 0.722, 0.376);    // D8B860
+const vec3 EAU_BORD = vec3(0.275, 0.800, 0.816);       // 46CCD0
+const vec3 EAU_FOND = vec3(0.118, 0.420, 0.769);       // 1E6BC4
+const vec3 GRAVIER = vec3(0.659, 0.635, 0.588);        // A8A296
+const vec3 MONT_SOMBRE = vec3(0.369, 0.314, 0.251);    // 5E5040
+const vec3 MONT_CLAIR = vec3(0.627, 0.565, 0.478);     // A0907A
+const vec3 NEIGE = vec3(0.957, 0.957, 0.941);
+const vec3 OR_PEPITE = vec3(1.0, 0.847, 0.290);
+const vec3 FEUILLE_SOMBRE = vec3(0.090, 0.310, 0.110);
+const vec3 FEUILLE_CLAIRE = vec3(0.420, 0.690, 0.250);
+const vec3 PIERRE_SOMBRE = vec3(0.450, 0.430, 0.400);
+const vec3 PIERRE_CLAIRE = vec3(0.880, 0.860, 0.820);
+
+float hash(vec2 p) {
+	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+vec2 hash2(vec2 p) {
+	return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453);
+}
+
+float noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	vec2 u = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+
+float fbm(vec2 p) {
+	float v = 0.0;
+	float a = 0.5;
+	for (int i = 0; i < 4; i++) {
+		v += a * noise(p);
+		p *= 2.03;
+		a *= 0.5;
+	}
+	return v;
+}
+
+int terrain(vec2 tile) {
+	ivec2 t = clamp(ivec2(tile), ivec2(0), ivec2(taille_carte) - 1);
+	return int(texelFetch(carte, t, 0).r * 255.0 / 32.0 + 0.5);
+}
+
+// Petits points ronds semés au hasard (densité = part des cellules occupées).
+float points(vec2 p, float densite, float rayon, float graine) {
+	vec2 c = floor(p);
+	if (hash(c + graine) > densite) {
+		return 0.0;
+	}
+	vec2 centre = 0.25 + 0.5 * hash2(c + graine);
+	float aa = fwidth(p.x);
+	return 1.0 - smoothstep(rayon - aa, rayon + aa, length(fract(p) - centre));
+}
+
+vec3 herbe(vec2 p) {
+	vec3 c = mix(HERBE_SOMBRE, HERBE_CLAIRE, smoothstep(0.32, 0.72, fbm(p * 0.35)));
+	c *= 0.95 + 0.1 * noise(p * 5.0);
+	// touffes d'herbe et petites fleurs
+	c = mix(c, c * 1.16, points(p * 6.0, 0.35, 0.2, 1.0) * 0.8);
+	c = mix(c, c * 0.88, points(p * 5.0 + 0.5, 0.25, 0.18, 4.0) * 0.7);
+	c = mix(c, vec3(1.0, 0.96, 0.8), points(p * 4.0, 0.03, 0.12, 9.0));
+	return c;
+}
+
+vec3 sol(int t, vec2 p, vec2 uv) {
+	if (t == FORET) {
+		return mix(SOUS_BOIS, HERBE_SOMBRE, 0.25 * noise(p * 3.0));
+	}
+	if (t == SABLE) {
+		vec3 c = SABLE_C * (0.95 + 0.07 * noise(p * 2.0));
+		c = mix(c, SABLE_GRAIN, points(p * 8.0, 0.4, 0.13, 2.0) * 0.6);
+		return mix(c, SABLE_GRAIN * 0.9, smoothstep(0.62, 0.7, noise(p * 1.4 + 3.0)) * 0.25);
+	}
+	if (t == EAU) {
+		float d = texture(profondeur, uv).r;
+		vec3 c = mix(EAU_BORD, EAU_FOND, smoothstep(0.08, 0.75, d));
+		// reflets qui dérivent lentement, écume le long du rivage
+		float vague = noise(vec2(p.x * 2.2 + TIME * 0.25, p.y * 5.5 - TIME * 0.1));
+		c = mix(c, vec3(0.85, 0.97, 1.0), smoothstep(0.78, 0.92, vague) * 0.35);
+		float ecume = smoothstep(0.16, 0.06, d) * (0.55 + 0.45 * sin(d * 70.0 - TIME * 1.6));
+		return mix(c, vec3(0.92, 1.0, 0.98), clamp(ecume, 0.0, 1.0) * 0.55);
+	}
+	if (t == ROCHE || t == MINE_OR) {
+		vec3 c = mix(herbe(p), GRAVIER, 0.55 + 0.3 * noise(p * 1.5));
+		c *= 0.92 + 0.12 * noise(p * 10.0);
+		if (t == MINE_OR) {
+			float h = hash(floor(p * 7.0));
+			c = mix(c, OR_PEPITE, step(0.82, h) * (0.6 + 0.4 * sin(TIME * 2.0 + h * 30.0)));
+		}
+		return c;
+	}
+	if (t == MONTAGNE) {
+		// Un pic triangulaire par case : versant éclairé à gauche, versant dans l'ombre à droite, sommet enneigé.
+		vec2 v = fract(p) - 0.5 - (hash2(floor(p)) - 0.5) * vec2(0.2, 0.1);
+		float h = 1.0 - (v.y + 0.38) / 0.8;               // 1 au sommet, 0 à la base
+		float largeur = (1.0 - h) * 0.55;
+		float aa = fwidth(p.x);
+		float dedans = (1.0 - smoothstep(largeur - aa, largeur + aa, abs(v.x))) * step(0.0, h) * step(h, 1.0);
+		vec3 rocaille = mix(MONT_SOMBRE, GRAVIER, 0.35 + 0.3 * noise(p * 4.0));
+		vec3 c = v.x < 0.0 ? MONT_CLAIR : MONT_SOMBRE * 1.1;
+		c *= 0.92 + 0.12 * noise(p * 10.0);
+		float neige = smoothstep(0.66, 0.7, h + 0.08 * (noise(vec2(v.x * 30.0, 1.0)) - 0.5));
+		c = mix(c, NEIGE * (v.x < 0.0 ? 1.0 : 0.8), neige);
+		// ombre portée du pic vers la droite
+		float ombre = (1.0 - smoothstep(largeur + 0.1, largeur + 0.12, v.x)) * step(0.0, v.x) * step(0.0, h) * step(h, 1.0);
+		rocaille *= 1.0 - 0.3 * ombre;
+		return mix(rocaille, c, dedans);
+	}
+	return herbe(p);
+}
+
+void fragment() {
+	vec2 p = UV * taille_carte;  // en cases
+	float aa = fwidth(p.x) * 1.5;
+	// Bords organiques : on lit le terrain à une position légèrement ondulée.
+	vec2 w = vec2(noise(p * 1.3) + 0.5 * noise(p * 2.9), noise(p * 1.3 + vec2(5.2, 1.3)) + 0.5 * noise(p * 2.9 + 7.7)) / 1.5 - 0.5;
+	vec2 q = p + w * 0.8;
+	int t = terrain(floor(q));
+	vec3 col = sol(t, p, q / taille_carte);
+
+	// Arbres (forêt) et rochers (roche, or) : objets ronds en relief, deux par case.
+	vec2 cellule = floor(p * 2.0);
+	float ombre = 0.0;
+	for (int oy = -1; oy <= 1; oy++) {
+		for (int ox = -1; ox <= 1; ox++) {
+			vec2 c = cellule + vec2(float(ox), float(oy));
+			vec2 centre = (c + 0.2 + 0.6 * hash2(c)) / 2.0;
+			int tc = terrain(floor(centre));
+			float r = 0.0;
+			if (tc == FORET && hash(c + 3.1) < 0.92) {
+				r = 0.3 + 0.13 * hash(c + 5.7);
+			} else if ((tc == ROCHE || tc == MINE_OR) && hash(c + 7.3) > 0.45) {
+				r = 0.14 + 0.1 * hash(c + 9.1);
+			}
+			if (r > 0.0) {
+				float d = length(p - centre - vec2(0.09, 0.13));
+				ombre = max(ombre, 1.0 - smoothstep(r - aa, r + aa * 2.0, d));
+			}
+		}
+	}
+	col *= 1.0 - 0.38 * ombre;
+	for (int oy = -1; oy <= 1; oy++) {
+		for (int ox = -1; ox <= 1; ox++) {
+			vec2 c = cellule + vec2(float(ox), float(oy));
+			vec2 centre = (c + 0.2 + 0.6 * hash2(c)) / 2.0;
+			int tc = terrain(floor(centre));
+			if (tc == FORET && hash(c + 3.1) < 0.92) {
+				float r = 0.3 + 0.13 * hash(c + 5.7);
+				vec2 v = (p - centre) / r;
+				float d = length(v);
+				float masque = 1.0 - smoothstep(1.0 - aa / r, 1.0, d);
+				if (masque > 0.0) {
+					// feuillage : lumière en haut à gauche, grain des feuilles, bord sombre
+					float lumiere = clamp(1.05 - length(v - vec2(-0.35, -0.45)) * 0.75, 0.0, 1.0);
+					vec3 teinte = mix(FEUILLE_SOMBRE, FEUILLE_CLAIRE, lumiere);
+					teinte *= 0.88 + 0.12 * hash(c + 11.0) + 0.14 * (noise(p * 16.0) - 0.5);
+					teinte = mix(teinte, FEUILLE_SOMBRE * 0.8, smoothstep(0.78, 1.0, d) * 0.6);
+					col = mix(col, teinte, masque);
+				}
+			} else if ((tc == ROCHE || tc == MINE_OR) && hash(c + 7.3) > 0.45) {
+				float r = 0.14 + 0.1 * hash(c + 9.1);
+				vec2 v = (p - centre) / r;
+				v.y *= 1.25;
+				float d = length(v);
+				float masque = 1.0 - smoothstep(1.0 - aa / r, 1.0, d);
+				if (masque > 0.0) {
+					float lumiere = clamp(1.0 - length(v - vec2(-0.3, -0.5)) * 0.7, 0.0, 1.0);
+					vec3 teinte = mix(PIERRE_SOMBRE, PIERRE_CLAIRE, lumiere);
+					teinte = mix(teinte, PIERRE_SOMBRE * 0.7, smoothstep(0.8, 1.0, d) * 0.7);
+					col = mix(col, teinte, masque);
+				}
+			}
+		}
+	}
+	COLOR = vec4(col, 1.0);
+}
