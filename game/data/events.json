@@ -1,6 +1,7 @@
 {
-  "_note": "Un événement commun à tous les joueurs peut tomber chaque matin (à partir du jour 2). Les bonus de nuit : n+1 offerts (n = nombre de joueurs), choisis dans l'ordre d'influence, actifs le jour suivant.",
+  "_note": "Un événement commun à tous les joueurs peut tomber chaque matin (à partir du jour 2). Les bonus de nuit : bonus_proposes offerts, le premier en influence en choisit un, actif le lendemain pour tous les joueurs.",
   "proba_evenement": 0.6,
+  "bonus_proposes": 3,
   "evenements": [
     {
       "id": "pluie",
@@ -151,6 +152,67 @@
       "texte": "+20 % de visiteurs le soir",
       "effets": {
         "visiteurs": 1.2
+      }
+    },
+    {
+      "id": "festival_oiseaux",
+      "nom": "Festival des oiseaux",
+      "texte": "Attractivité des animaux aériens ×1,5",
+      "effets": {
+        "attractivite_type": {
+          "aerien": 1.5
+        }
+      }
+    },
+    {
+      "id": "journee_ocean",
+      "nom": "Journée de l'océan",
+      "texte": "Attractivité des animaux aquatiques ×1,5",
+      "effets": {
+        "attractivite_type": {
+          "aquatique": 1.5
+        }
+      }
+    },
+    {
+      "id": "semaine_afrique",
+      "nom": "Semaine de l'Afrique",
+      "texte": "Attractivité des animaux d'Afrique ×1,4",
+      "effets": {
+        "attractivite_continent": {
+          "Afrique": 1.4
+        }
+      }
+    },
+    {
+      "id": "semaine_europe",
+      "nom": "Semaine de l'Europe",
+      "texte": "Attractivité des animaux d'Europe ×1,4",
+      "effets": {
+        "attractivite_continent": {
+          "Europe": 1.4
+        }
+      }
+    },
+    {
+      "id": "semaine_ameriques",
+      "nom": "Semaine des Amériques",
+      "texte": "Attractivité des animaux d'Amérique ×1,5",
+      "effets": {
+        "attractivite_continent": {
+          "Amerique": 1.5
+        }
+      }
+    },
+    {
+      "id": "semaine_asie_oceanie",
+      "nom": "Semaine Asie-Océanie",
+      "texte": "Attractivité des animaux d'Asie et d'Océanie ×1,5",
+      "effets": {
+        "attractivite_continent": {
+          "Asie": 1.5,
+          "Oceanie": 1.5
+        }
       }
     }
   ]

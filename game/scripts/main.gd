@@ -9,6 +9,7 @@ extends Node2D
 ##   --autoplay      déploie la main et donne des ordres (forêt, roche, lobbying)
 ##   --sim=60        avance la simulation de N secondes au démarrage
 ##   --shot=img.png  enregistre une capture puis quitte
+##   --marche        ouvre l'aperçu du marché du soir (captures)
 
 const TILE := 16.0
 const PX := 8  # pixels par case dans la texture du terrain
@@ -26,11 +27,12 @@ var building_colors := {
 	"route": UiTokens.CHEMIN, "pont": Color("9A6A3E"), "maison": Color("D2553A"), "entrepot": Color("8C6A48"),
 	"mine": Color("5A4636"), "cloture": UiTokens.ENCEINTE, "entree": Color("E9D5A8"), "enclos": UiTokens.CLOTURE_ENCLOS,
 	"boutique": Color("E06A5A"), "formation": Color("3A6AE0"), "cuisine": Color("D8A010"), "entretien": Color("7A8A88"),
-	"snack": Color("E8782A"), "kiosque": Color("8A4AD0"),
+	"snack": Color("E8782A"), "kiosque": Color("8A4AD0"), "camp_n2": Color("A0743C"), "camp_n3": Color("B8864A"),
 }
 var building_short := {
 	"maison": "Maison", "entrepot": "Entrepôt", "mine": "Mine", "entree": "Entrée", "boutique": "Boutique", "formation": "Formation",
 	"cuisine": "Cuisine", "entretien": "Entretien", "snack": "Snack", "kiosque": "Kiosque",
+	"camp_n2": "Camp niv. 2", "camp_n3": "Camp niv. 3",
 }
 
 var mt: Match
@@ -86,6 +88,7 @@ var night_workers: HBoxContainer
 var night_contracts: HBoxContainer
 var night_fire_box: VBoxContainer
 var night_bonus_box: HBoxContainer
+var night_actions: HBoxContainer
 var night_level_box: VBoxContainer
 var night_level_rows: VBoxContainer
 var night_action_box: VBoxContainer
@@ -105,6 +108,8 @@ var biome_colors := {
 }
 var biome_noms := {"Savane": "Savane", "Foret": "Forêt", "Jungle": "Jungle", "Aquatique": "Aquatique", "Montagne": "Montagne", "Desert": "Désert"}
 var terrain_req_noms := {"Prairie": "Prairie", "Foret": "Forêt", "Eau": "Eau", "Roche": "Roche", "Sable": "Sable", "PrairieOuSable": "Prairie ou sable"}
+var market_root: Control  # aperçu du marché du soir, consultable en journée
+var market_box: VBoxContainer
 var draft_root: Control
 var draft_title: Label
 var draft_order_lbl: RichTextLabel
@@ -226,6 +231,9 @@ func _start(watch: bool) -> void:
 			mt.pick_draft(mt.ai_choice())
 	if args.has("autoplay"):
 		_auto_play()
+	if args.has("marche"):
+		market_root.visible = true
+		_rebuild_market_preview()
 	_focus_zoo()
 	# --jours=N (spectateur) : avance la partie de N jours avant d'afficher (captures).
 	if spectator and args.has("jours"):
@@ -761,6 +769,7 @@ func _process(delta: float) -> void:
 		_rebuild_draft()
 		_rebuild_contracts()
 		_rebuild_night()
+		_rebuild_market_preview()
 		enc_cache_tile = Vector2i(-99, -99)
 		_update_info()
 	info_clock += delta
@@ -909,6 +918,15 @@ func _build_ui() -> void:
 	end_btn.pressed.connect(func(): game.end_day())
 	if not spectator:
 		hb.add_child(end_btn)
+	# Le marché du soir est tiré le matin : on peut le consulter en journée pour s'organiser (influence, argent).
+	var market_btn := Button.new()
+	market_btn.text = "Marché du soir"
+	market_btn.focus_mode = Control.FOCUS_NONE
+	market_btn.tooltip_text = "Ouvriers et contrats proposés cette nuit, dans l'ordre d'influence"
+	market_btn.pressed.connect(func():
+		market_root.visible = not market_root.visible
+		_rebuild_market_preview())
+	hb.add_child(market_btn)
 	sell_btn = Button.new()
 	sell_btn.text = "Vendre bois et pierre"
 	sell_btn.focus_mode = Control.FOCUS_NONE
@@ -1069,11 +1087,15 @@ func _build_ui() -> void:
 	night_workers = HBoxContainer.new()
 	night_workers.add_theme_constant_override("separation", 10)
 	nv.add_child(night_workers)
-	_menu_title(nv, "Contrats d'animaux (1 achat par nuit)")
+	_menu_title(nv, "Contrats d'animaux (jusqu'à 2 achats par nuit)")
 	night_contracts = HBoxContainer.new()
 	night_contracts.add_theme_constant_override("separation", 10)
 	nv.add_child(night_contracts)
-	_menu_title(nv, "Bonus pour demain (au choix, dans l'ordre d'influence)")
+	_menu_title(nv, "Cartes d'action (1 achat par nuit, elles vont dans votre deck)")
+	night_actions = HBoxContainer.new()
+	night_actions.add_theme_constant_override("separation", 10)
+	nv.add_child(night_actions)
+	_menu_title(nv, "Bonus de demain, pour tous les zoos (choisi par le premier en influence)")
 	night_bonus_box = HBoxContainer.new()
 	night_bonus_box.add_theme_constant_override("separation", 8)
 	nv.add_child(night_bonus_box)
@@ -1101,6 +1123,11 @@ func _build_ui() -> void:
 		game.start_next_day()
 		selected.clear())
 	outer.add_child(night_next)
+
+	# Aperçu du marché du soir (lecture seule, en journée)
+	var market := _overlay()
+	market_root = market[0]
+	market_box = market[1]
 
 	# Écran de draft
 	var draft := _overlay()
@@ -1168,6 +1195,51 @@ func _build_button(parent: Control, kind: String, def: Dictionary) -> void:
 			selected.clear())
 	parent.add_child(b)
 	build_buttons.append([b, kind, def])
+
+
+## Marché du soir vu en journée : les cartes qui seront proposées la nuit, pour décider de l'effort de lobbying.
+func _rebuild_market_preview() -> void:
+	if market_root == null or not market_root.visible:
+		return
+	if game.phase != "day":
+		market_root.visible = false
+		return
+	for c in market_box.get_children():
+		c.queue_free()
+	var title := Label.new()
+	title.text = "MARCHÉ DE CE SOIR"
+	title.theme_type_variation = "TitreEcran"
+	title.add_theme_font_size_override("font_size", 26)
+	market_box.add_child(title)
+	var info := RichTextLabel.new()
+	info.bbcode_enabled = true
+	info.fit_content = true
+	info.custom_minimum_size = Vector2(1060, 0)
+	var rank := mt.night_order.find(game.index)
+	info.text = "Cette nuit, on achète dans l'ordre d'influence (valeurs cachées) : 1 ouvrier et jusqu'à 2 contrats chacun, et le premier choisit le bonus de demain pour tous.\nVotre influence : [b]%.1f[/b]%s. Envoyez des ouvriers en lobbying (case Accès) pour passer devant." % [
+		game.influence, " · la nuit dernière, vous étiez [b]%de[/b] sur %d" % [rank + 1, mt.players.size()] if rank >= 0 else ""]
+	market_box.add_child(info)
+	var workers := HBoxContainer.new()
+	workers.add_theme_constant_override("separation", 10)
+	for card in mt.market_workers:
+		workers.add_child(_card_widget(card, "Embauche : %d" % game.hire_cost(card), true, func(): pass))
+	market_box.add_child(workers)
+	var contracts := HBoxContainer.new()
+	contracts.add_theme_constant_override("separation", 10)
+	for def in mt.market_contracts:
+		contracts.add_child(_contract_widget(def, "Prix ce soir : %s" % game.cost_text(game.contract_cost(def)), "Achat possible cette nuit", func(): pass))
+	market_box.add_child(contracts)
+	var actions := HBoxContainer.new()
+	actions.add_theme_constant_override("separation", 10)
+	for card in mt.market_actions:
+		actions.add_child(_action_widget(card, "Prix ce soir : %d" % int(card.action["cout"]), true, func(): pass))
+	market_box.add_child(actions)
+	var close := Button.new()
+	close.text = "Fermer"
+	close.theme_type_variation = "BoutonPrincipal"
+	close.focus_mode = Control.FOCUS_NONE
+	close.pressed.connect(func(): market_root.visible = false)
+	market_box.add_child(close)
 
 
 func _overlay() -> Array:
@@ -1284,16 +1356,54 @@ func _rebuild_hand() -> void:
 		hand_box.add_child(l)
 		return
 	for card in game.hand:
+		if card.is_action():
+			hand_box.add_child(_action_widget(card, "Jouée" if card.deployed else "Jouer",
+				spectator or card.deployed or game.phase != "day", game.play_action.bind(card)))
+			continue
 		var w := game.worker_of(card)
 		if not card.deployed:
-			var sal := game.salary(card)
+			var sal := 0 if game.prime_left > 0 else game.salary(card)
 			var free := ["Gratuit (rendement 25 %)", spectator or not game.free_deploy_available(), _on_deploy_free.bind(card),
 				"Un ouvrier par jour peut travailler sans salaire, à 25 % de son rendement."]
-			hand_box.add_child(_card_widget(card, "Déployer (%d)" % sal, spectator or game.money < sal, _on_deploy.bind(card), free))
+			hand_box.add_child(_card_widget(card, ("Déployer (Prime)" if game.prime_left > 0 else "Déployer (%d)" % sal),
+				spectator or game.money < sal, _on_deploy.bind(card), free))
 		elif w and w.offmap:
 			hand_box.add_child(_card_widget(card, "En lobbying : rappeler", false, _on_recall.bind(w)))
 		else:
 			hand_box.add_child(_card_widget(card, "Sélectionner", false, _on_focus.bind(w)))
+
+
+## Carte d'action (main, marché) : nom, effet, et un bouton (jouer, acheter…).
+func _action_widget(card: GameState.Card, button_text: String, disabled: bool, cb: Callable) -> Control:
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(196, 0)
+	panel.add_theme_stylebox_override("panel", UiTokens.panel(Color("3a2a12"), UiTokens.OR, 8, 2, 10))
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 4)
+	panel.add_child(v)
+	var kind := Label.new()
+	kind.text = "CARTE D'ACTION"
+	kind.add_theme_font_size_override("font_size", 11)
+	kind.add_theme_color_override("font_color", UiTokens.OR)
+	v.add_child(kind)
+	var nom := Label.new()
+	nom.text = card.action["nom"]
+	nom.theme_type_variation = "NomCarte"
+	nom.add_theme_font_size_override("font_size", 15)
+	v.add_child(nom)
+	var txt := Label.new()
+	txt.text = card.action["texte"]
+	txt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	txt.custom_minimum_size = Vector2(176, 0)
+	txt.add_theme_font_size_override("font_size", 12)
+	v.add_child(txt)
+	var b := Button.new()
+	b.text = button_text
+	b.disabled = disabled
+	b.focus_mode = Control.FOCUS_NONE
+	b.pressed.connect(cb)
+	v.add_child(b)
+	return panel
 
 
 func _on_deploy(card: GameState.Card) -> void:
@@ -1445,6 +1555,8 @@ func _update_info() -> void:
 			zoo_line += "Aujourd'hui : %d entrés, %d repartis (file pleine)\nRecettes : billets %d, souvenirs %d\n" % [z["admitted"], z["lost"], z["tickets"], z["souvenirs"]]
 			zoo_line += "Demande ≈ %d visiteurs/jour · guichet %d/min\n" % [roundi(z["demand_day"]), roundi(z["guichet_min"])]
 			var hungry := game.animals.filter(func(a): return a.arrived and not a.fed).size()
+			if game.affinity_bonus() > 0.0:
+				zoo_line += "Affinités de continent : réputation +%d %%\n" % roundi(game.affinity_bonus() * 100)
 			zoo_line += "Propreté %d %%%s · rations à livrer %d%s" % [roundi(game.proprete),
 				" [color=#ffb09a](visiteurs en baisse : Local d'entretien)[/color]" if game.cleanliness_mult() < 1.0 else "",
 				ceili(game.rations_needed()), " · [color=#ffb09a]%d animal(aux) affamé(s) : Cuisine des animaux ![/color]" % hungry if hungry > 0 else ""]
@@ -1591,7 +1703,8 @@ func _rebuild_night() -> void:
 	if inc["visitors"] > 0:
 		lines.append("[color=#7fc97f]Zoo : %d visiteurs entrés (%d repartis faute de place dans la file) · billets %d · souvenirs %d[/color]" % [
 			inc["visitors"], inc["lost"], inc["tickets"], inc["souvenirs"]])
-		lines.append("Fréquentation moyenne : %.1f visiteurs dans le zoo → [b]+%.1f de réputation[/b]" % [inc["avg_present"], inc["rep_gain"]])
+		lines.append("Fréquentation moyenne : %.1f visiteurs dans le zoo → [b]+%.1f de réputation[/b]%s" % [inc["avg_present"], inc["rep_gain"],
+			" (dont affinités de continent +%d %%)" % roundi(inc.get("affinity", 0.0) * 100) if inc.get("affinity", 0.0) > 0.0 else ""])
 	else:
 		lines.append("[color=#f08080]Aucun visiteur : %s[/color]" % inc["reason"])
 	lines.append("\nOrdre de passage au marché (selon l'influence, valeurs cachées) : [b]%s[/b]" % order)
@@ -1620,13 +1733,23 @@ func _rebuild_night() -> void:
 	for def in game.market_contracts:
 		var err := game.contract_error(def)
 		night_contracts.add_child(_contract_widget(def, "Acheter", err, game.buy_contract.bind(def)))
+	for c in night_actions.get_children():
+		c.queue_free()
+	for card in mt.market_actions:
+		var aerr := game.action_error(card)
+		var aw := _action_widget(card, "Acheter (%d)" % int(card.action["cout"]), spectator or aerr != "", game.buy_action.bind(card))
+		aw.tooltip_text = aerr
+		night_actions.add_child(aw)
 	# Bonus de nuit
 	for c in night_bonus_box.get_children():
 		c.queue_free()
+	var leader := mt.influence_leader()
 	for b in mt.bonus_offer:
 		var btn := Button.new()
-		var taker = mt.bonus_taken.get(b["id"])
-		btn.text = "%s\n%s" % [b["nom"], b["texte"]] + ("\n(%s)" % mt.names[taker] if taker != null else "")
+		var chosen: bool = mt.bonus_choice == b
+		btn.text = "%s\n%s" % [b["nom"], b["texte"]] + ("\n✔ choisi par %s" % mt.names[leader] if chosen else "")
+		if chosen:
+			btn.add_theme_color_override("font_disabled_color", UiTokens.SELECTION)
 		btn.disabled = spectator or game.bonus_error(b) != ""
 		btn.tooltip_text = game.bonus_error(b)
 		btn.focus_mode = Control.FOCUS_NONE
@@ -1790,8 +1913,13 @@ func _contract_widget(def: Dictionary, button_text: String, err: String, cb: Cal
 	info.custom_minimum_size = Vector2(230, 0)
 	info.add_theme_font_size_override("normal_font_size", 12)
 	info.mouse_filter = Control.MOUSE_FILTER_PASS
-	info.text = "Enclos : %s\nAttractivité [b]%d[/b] · nourriture %d / jour\nCoût : %s" % [
-		_requirements_text(def), int(def["reputation"]), game.food_cost(def), game.cost_text(game.contract_cost(def))]
+	var gold_missing := game.contract_gold_missing(def)
+	var same_continent := game.animals.filter(func(a): return a.def.get("continent", "") == def.get("continent", "")).size()
+	info.text = "[b]%s[/b] · %s%s\nEnclos : %s\nAttractivité [b]%d[/b] · nourriture %d / jour\nCoût : %s%s" % [
+		game.continent_name(def.get("continent", "")), game.type_name(def.get("type", "")),
+		" · [color=#7cf29a]affinité +5 %% (%d animal(aux) du même continent)[/color]" % same_continent if same_continent > 0 else "",
+		_requirements_text(def), int(def["reputation"]), game.food_cost(def), game.cost_text(game.contract_cost(def)),
+		"\n[color=#ffd45a]Or manquant (%d) acheté : %d argent au total[/color]" % [gold_missing, int(game.contract_payment(def)["argent"])] if gold_missing > 0 else ""]
 	v.add_child(_pattern_view(def))
 	v.add_child(info)
 	var btn := Button.new()

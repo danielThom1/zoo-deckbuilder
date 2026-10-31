@@ -435,12 +435,18 @@ func _init() -> void:
 		mn.pick_draft(mn.ai_choice())
 	var me: GameState = mn.players[0]
 	mn.end_day()
-	check(mn.bonus_offer.size() == 3, "3 bonus offerts pour 2 joueurs")
-	var free_bonus: Array = mn.bonus_offer.filter(func(b): return not mn.bonus_taken.has(b["id"]))
-	check(me.pick_bonus(free_bonus[0]), "bonus choisi : %s" % free_bonus[0]["nom"])
+	check(mn.bonus_offer.size() == 3, "3 bonus proposés")
+	var leader := mn.influence_leader()
+	check(mn.players[1 - leader].bonus_error(mn.bonus_offer[0]) != "", "seul le premier en influence choisit le bonus")
+	var chosen_bonus: Dictionary = mn.bonus_choice
+	if leader == 0:
+		check(me.pick_bonus(mn.bonus_offer[1]), "vous êtes premier : bonus choisi (%s)" % mn.bonus_offer[1]["nom"])
+		chosen_bonus = mn.bonus_offer[1]
+	else:
+		check(not chosen_bonus.is_empty(), "l'IA, première en influence, a choisi : %s" % chosen_bonus.get("nom", "?"))
 	check(me.night_action_error(12) != "", "pas d'amélioration avant le milieu de partie (%s)" % me.night_action_error(12))
 	mn.start_next_day()
-	check(me.day_bonus == free_bonus[0], "le bonus est actif le lendemain")
+	check(me.day_bonus == chosen_bonus and mn.players[1].day_bonus == chosen_bonus, "le bonus choisi s'applique à tous le lendemain")
 	while mn.day < 7:
 		mn.end_day()
 		mn.start_next_day()
@@ -626,6 +632,100 @@ func _init() -> void:
 	c_aw.task = {"type": "station", "kind": "snack", "obj": c_snack, "tile": c_in}
 	check(is_equal_approx(c_g.snack_mult(), 1.25), "Snack tenu : visites 25 % plus longues")
 	data["events"]["proba_evenement"] = c_proba
+
+	print("Lot D : évolution des cartes, cartes d'action, terrain :")
+	# Évolution : un Apprenti au niveau 3 choisit son nouveau métier
+	var d_g := _fresh_day(data, 6060)
+	var d_appr: GameState.Card = b_mk.call("apprenti", [])
+	d_appr.niveau = 3
+	var d_opts := d_g._upgrade_pool(d_appr)
+	check(not d_opts.is_empty() and d_opts.all(func(o): return o["id"] == "evolution"), "Apprenti niveau 3 : %d métiers au choix (%s)" % [
+		d_opts.size(), ", ".join(d_opts.map(func(o): return o["nom"]))])
+	d_g._apply_upgrade_effect(d_appr, d_opts[0])
+	check(d_appr.metier["id"] == d_opts[0]["metier"] and d_appr.niveau == 3, "l'Apprenti devient %s (niveau gardé)" % d_appr.metier["nom"])
+	# Cartes d'action jouées depuis la main
+	var d_defs: Dictionary = {}
+	for d_def in data["workers"]["cartes_action"]:
+		d_defs[d_def["id"]] = d_def
+	var d_emp0 := d_g.employees()
+	var d_sup := d_g.mt.make_action(d_defs["heures_sup"])
+	var d_liv := d_g.mt.make_action(d_defs["livraison"])
+	var d_prime := d_g.mt.make_action(d_defs["prime"])
+	var d_recr := d_g.mt.make_action(d_defs["recrutement"])
+	d_g.hand.append_array([d_sup, d_liv, d_prime, d_recr])
+	check(d_g.employees() == d_emp0, "les cartes d'action ne comptent pas dans le logement")
+	check(not d_g.deploy(d_sup), "une carte d'action ne se déploie pas")
+	var d_mult0 := d_g.task_mult("construire_bois")
+	check(d_g.play_action(d_sup) and is_equal_approx(d_g.task_mult("construire_bois"), d_mult0 * 1.25), "Heures sup : +25 % de productivité")
+	check(not d_g.play_action(d_sup), "une carte ne se joue qu'une fois par jour")
+	var d_bois0: float = d_g.stock["bois"]
+	check(d_g.play_action(d_liv) and is_equal_approx(d_g.stock["bois"], d_bois0 + 10.0), "Livraison : +10 bois")
+	var d_hand0 := d_g.hand.size()
+	check(d_g.play_action(d_recr) and d_g.hand.size() == d_hand0 + 2, "Recrutement express : 2 cartes de plus en main")
+	d_g.play_action(d_prime)
+	var d_worker: GameState.Card = d_g.hand.filter(func(c): return not c.is_action() and not c.deployed)[0]
+	var d_money0 := d_g.money
+	check(d_g.deploy(d_worker) and is_equal_approx(d_g.money, d_money0) and d_g.prime_left == 1, "Prime : ouvrier déployé sans salaire")
+	d_g.end_day()
+	check(not d_sup.deployed and d_g.discard.has(d_sup), "le soir, les cartes jouées retournent à la défausse, prêtes à resservir")
+	# Achat au marché (partie à un joueur : on achète toujours en premier)
+	var d_solo := Match.new(data, 6161, 1, 0)
+	while d_solo.phase == "draft":
+		d_solo.pick_draft(d_solo.ai_choice())
+	var d_me: GameState = d_solo.players[0]
+	d_me.money = 100.0
+	d_solo.end_day()
+	check(d_solo.market_actions.size() == int(data["buildings"]["marche"]["actions"]), "%d cartes d'action au marché de nuit" % d_solo.market_actions.size())
+	var d_buy: GameState.Card = d_solo.market_actions[0]
+	check(d_me.buy_action(d_buy) and d_me.discard.has(d_buy) and d_me.action_cards().size() == 1, "carte d'action achetée : %s, dans la défausse" % d_buy.action["nom"])
+	check(not d_me.buy_action(d_solo.market_actions[0]), "une seule carte d'action par nuit")
+	# Terrain : transformations en deux étapes (par la Prairie) pour l'IA
+	var d_ai: AIController = Match.new(data, 6262, 2, 0).ais[1]
+	check(d_ai._conversion_steps("Foret", "Eau") == 2 and d_ai._conversion_steps("Roche", "Sable") == 2 \
+		and d_ai._conversion_steps("Prairie", "Roche") == 1 and d_ai._conversion_steps("Eau", "Eau") == 0,
+		"aménagement en deux étapes : Forêt → Eau, Roche → Sable (Dérocher)")
+
+	print("Animaux (continent, type, affinités) et amélioration du camp :")
+	var e_all: Array = data["animals"]["animaux"]
+	check(e_all.all(func(d): return d.has("continent") and d.has("type")), "les %d animaux ont un continent et un type" % e_all.size())
+	check(e_all.filter(func(d): return d["type"] == "aerien").size() >= 5, "au moins 5 animaux aériens (bonus « oiseaux » utile)")
+	var e_proba = data["events"]["proba_evenement"]
+	data["events"]["proba_evenement"] = 0.0
+	var e_g := _fresh_day(data, 2027)
+	e_g.debug_build_zoo(Vector2i(4, 4))
+	e_g.end_day()
+	e_g.start_next_day()
+	check(is_zero_approx(e_g.affinity_bonus()), "un seul animal : pas d'affinité")
+	var e_inside: Array = e_g.zoo_status()["interior"].keys().filter(func(t): return e_g.animal_at(t) == null)
+	var e_def: Dictionary = e_all.filter(func(d): return d["continent"] == e_g.animals[0].def["continent"] and d["id"] != e_g.animals[0].def["id"])[0]
+	var e_a := GameState.Animal.new()
+	e_a.def = e_def
+	e_a.tiles.assign([e_inside[0]])
+	e_a.arrived = true
+	e_a.food = e_g.food_capacity(e_def)
+	e_g.animals.append(e_a)
+	e_g.version += 1
+	check(is_equal_approx(e_g.affinity_bonus(), 0.05), "2 animaux du même continent (%s) : réputation +5 %%" % e_g.continent_name(e_def["continent"]))
+	var e_att0 := e_g.attractiveness()
+	var e_bonus: Dictionary = data["events"]["bonus_nuit"].filter(func(b): return b["effets"].get("attractivite_continent", {}).has(e_def["continent"]))[0]
+	e_g.day_bonus = e_bonus
+	check(e_g.attractiveness() > e_att0, "%s : attractivité %d → %d" % [e_bonus["nom"], e_att0, e_g.attractiveness()])
+	e_g.day_bonus = {}
+	# Amélioration du camp : +1 carte en main, dans l'ordre des niveaux
+	var e_hand0 := e_g.hand_size()
+	e_g.stock["bois"] += 100.0
+	e_g.stock["pierre"] += 100.0
+	e_g.money += 100.0
+	check(e_g.placement_error("batiment", e_g.building_def("camp_n3"), e_g.map.camp.position).begins_with("Terminez d'abord"), "niveau 3 impossible avant le niveau 2")
+	var e_camp := e_g.place("batiment", e_g.building_def("camp_n2"), Vector2i(0, 0))
+	check(e_camp != null and e_camp.rect == e_g.map.camp, "amélioration posée sur le camp, où que l'on clique")
+	e_camp.work = e_camp.travail()
+	e_g._complete(e_camp)
+	check(e_g.hand_size() == e_hand0 + 1, "camp niveau 2 : %d cartes en main au lieu de %d" % [e_g.hand_size(), e_hand0])
+	e_g.end_day()
+	e_g.start_next_day()
+	check(e_g.hand.size() == e_hand0 + 1 or e_g.deck.is_empty(), "le lendemain, la main compte %d cartes" % e_g.hand.size())
+	data["events"]["proba_evenement"] = e_proba
 
 	print("IA :")
 	var mi := Match.new(data, 31, 2, -1)

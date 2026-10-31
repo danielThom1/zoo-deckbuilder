@@ -14,6 +14,8 @@ const STRATEGIES := [
 	{"nom": "Mine d'or", "mine_prioritaire": true},
 	{"nom": "Lobbying", "lobbyistes_max": 2},
 	{"nom": "Économe", "boutique": false, "mine": false},
+	{"nom": "Camp amélioré", "camp": 1},
+	{"nom": "Grand camp", "camp": 2},
 ]
 
 
@@ -105,9 +107,13 @@ func _play(gi: int, data: Dictionary, dt: float, detail: bool) -> Dictionary:
 			lines.append("  %s : %d espèces encore plaçables dans l'enceinte, %d plans en cours" % [picks[i]["nom"], feasible, m.ais[i].plans.size()])
 		for i in 4:
 			var p := m.players[i]
-			lines.append("  %s : zoo %s, entrée %s, %d chantiers ouverts, %d terminés, contrats %s, stock %s" % [
-				picks[i]["nom"], str(m.ais[i].zoo_rect), str(m.ais[i].entrance), p.sites.filter(func(s): return not s.done).size(),
-				p.sites.filter(func(s): return s.done).size(), str(p.contracts.map(func(d): return d["nom"])), str(p.stock)])
+			var ai: AIController = m.ais[i]
+			var walls := roundi(ai._walls_progress() * 100) if ai.zoo_rect.size != Vector2i.ZERO else -1
+			var plans: Array = p.contracts.map(func(d): return "%s:%s" % [d["nom"], "plan" if not ai._plan_enclosure(d).is_empty() else "SANS PLAN"])
+			lines.append("  ETAT|%s|rép %d|argent %d|animaux %d|murs %d %%|route %s|aménageur %s|zoo : %s|contrats %s|chantiers ouverts %d|stock %s" % [
+				picks[i]["nom"], p.reputation(), int(p.money), p.animals.size(), walls, "oui" if not p.visitor_path().is_empty() else "non",
+				"oui" if ai._has_landscaper() else "non", "ouvert" if p.zoo_status()["open"] else p.zoo_status()["reason"],
+				str(plans), p.sites.filter(func(s): return not s.done).size(), str(p.stock)])
 	var players := []
 	for i in 4:
 		var p := m.players[i]

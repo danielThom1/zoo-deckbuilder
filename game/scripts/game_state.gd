@@ -21,6 +21,10 @@ class Card:
 	var upgrades: Array = []  # effets des améliorations (vitesse, defaut, specialite, salaire, portage, capacite…)
 	var upgrade_names: Array[String] = []
 	var last_work_tile := Vector2i(-1, -1)  # dernière case de travail (trait Matinal)
+	var action := {}  # carte d'action (workers.json > cartes_action) : pas un ouvrier, elle se joue depuis la main
+
+	func is_action() -> bool:
+		return not action.is_empty()
 
 
 class Worker:
@@ -139,6 +143,9 @@ var sick_animal: Animal = null  # événement « Épidémie »
 var night_action_used := false
 var pending_upgrade := {}  # {"card": Card, "options": [...]} pendant le choix d'une amélioration
 var level_choices: Array = []  # [{"card": Card, "options": [...]}] : une amélioration gratuite à choisir par niveau gagné
+var action_fx := {}  # effets du jour des cartes d'action jouées (productivite, visiteurs)
+var prime_left := 0  # déploiements sans salaire offerts par la carte Prime aujourd'hui
+var bought_action := false  # carte d'action achetée cette nuit
 var _zoo_cache_version := -1
 var _zoo_cache := {}
 var _aura_cache: Array = []  # émetteurs d'aura du pas en cours (voir _tick_player)
@@ -225,10 +232,10 @@ func bonus_effects() -> Dictionary:
 	return day_bonus.get("effets", {})
 
 
-## Multiplicateur de productivité du jour pour une tâche (événement + bonus de nuit).
+## Multiplicateur de productivité du jour pour une tâche (événement + bonus de nuit + cartes d'action jouées).
 func task_mult(task: String) -> float:
 	var b := bonus_effects()
-	var m := float(event_effects().get("productivite", 1.0)) * float(b.get(task, 1.0))
+	var m := float(event_effects().get("productivite", 1.0)) * float(b.get(task, 1.0)) * float(action_fx.get("productivite", 1.0))
 	if task.begins_with("construire_"):
 		m *= float(b.get("construire", 1.0))
 	return m
@@ -380,8 +387,8 @@ func carry_capacity(card: Card) -> int:
 	return c
 
 
-func draw_hand() -> void:
-	var size := int(data["workers"]["regles"]["taille_main"])
+func draw_hand(extra := 0) -> void:
+	var size := hand_size() if extra == 0 else hand.size() + extra
 	while hand.size() < size:
 		if deck.is_empty():
 			if discard.is_empty():
@@ -393,6 +400,29 @@ func draw_hand() -> void:
 	version += 1
 
 
+## Joue une carte d'action de la main : son effet vaut pour la journée, la carte retourne à la défausse le soir.
+func play_action(card: Card) -> bool:
+	if phase != "day" or not card.is_action() or card.deployed or not hand.has(card):
+		return false
+	card.deployed = true  # jouée : elle reste en main jusqu'au soir
+	var fx: Dictionary = card.action["effet"]
+	for k in ["productivite", "visiteurs"]:
+		if fx.has(k):
+			action_fx[k] = float(action_fx.get(k, 1.0)) * float(fx[k])
+	for k in ["bois", "pierre"]:
+		if fx.has(k):
+			stock[k] += float(fx[k])
+	prime_left += int(fx.get("prime", 0))
+	if fx.has("pioche"):
+		draw_hand(int(fx["pioche"]))
+	if fx.has("xp"):
+		for w in workers:
+			gain_xp(w.card, float(fx["xp"]))
+	say("Carte jouée : %s. %s" % [card.action["nom"], card.action["texte"]])
+	version += 1
+	return true
+
+
 # --- Déploiement et ordres ---------------------------------------------------
 
 func say(text: String) -> void:
@@ -401,12 +431,14 @@ func say(text: String) -> void:
 
 ## Déploie une carte de la main. Gratuit : sans salaire mais à 25 % de rendement (un par jour).
 func deploy(card: Card, free := false) -> bool:
-	if phase != "day" or card.deployed:
+	if phase != "day" or card.deployed or card.is_action():
 		return false
 	if free:
 		if free_used_today:
 			return false
 		free_used_today = true
+	elif prime_left > 0:
+		prime_left -= 1  # carte Prime : pas de salaire, rendement plein
 	else:
 		var cost := salary(card)
 		if money < cost:
@@ -788,7 +820,18 @@ func _pay(cost: Dictionary, factor := 1.0) -> void:
 func footprint(kind: String, def: Dictionary, origin: Vector2i) -> Rect2i:
 	if kind == "amenagement":
 		return Rect2i(origin, Vector2i.ONE)
+	if def.get("sur", "") == "camp":
+		return map.camp  # amélioration du camp : toujours sur le camp, où que l'on clique
 	return Rect2i(origin, Vector2i(int(def["taille"][0]), int(def["taille"][1])))
+
+
+## Taille de la main : règle de base + 1 carte par amélioration du camp terminée.
+func hand_size() -> int:
+	var n := int(data["workers"]["regles"]["taille_main"])
+	for s in sites:
+		if s.done:
+			n += int(s.def.get("effet", {}).get("pioche", 0))
+	return n
 
 
 func site_at(t: Vector2i) -> Site:
@@ -805,6 +848,17 @@ func placement_error(kind: String, def: Dictionary, origin: Vector2i, check_cost
 		return "Construction possible uniquement de jour"
 	var r := footprint(kind, def, origin)
 	var id: String = def["id"]
+	# Amélioration du camp : sur le camp, une seule fois, dans l'ordre des niveaux.
+	if def.get("sur", "") == "camp":
+		if has_building(id):
+			return "Déjà construit"
+		if def.has("requiert") and not sites.any(func(s): return s.done and s.def_id() == def["requiert"]):
+			return "Terminez d'abord : %s" % building_def(def["requiert"])["nom"]
+		if sites.any(func(s): return not s.done and s.def.get("sur", "") == "camp"):
+			return "Une amélioration du camp est déjà en chantier"
+		if check_cost and not can_afford(def.get("cout", {})):
+			return "Pas assez de ressources (%s)" % cost_text(def.get("cout", {}))
+		return ""
 	for y in range(r.position.y, r.end.y):
 		for x in range(r.position.x, r.end.x):
 			if not map.in_bounds(x, y):
@@ -1103,8 +1157,9 @@ func housing() -> int:
 	return cap
 
 
+## Ouvriers employés (le logement les limite) ; les cartes d'action ne comptent pas.
 func employees() -> int:
-	return deck.size() + discard.size() + hand.size()
+	return all_employees().size()
 
 
 # --- Fin de journée ----------------------------------------------------------
@@ -1151,6 +1206,8 @@ func _end_day_player() -> void:
 	night_report = {"day": day, "stats": day_stats.duplicate(), "level_ups": level_ups, "deployed": workers.size(),
 		"arrivals": arrivals, "income": income}
 	workers.clear()
+	for c in hand:
+		c.deployed = false  # cartes d'action jouées comprises
 	discard.append_array(hand)
 	hand.clear()
 	version += 1
@@ -1166,6 +1223,8 @@ func _start_day_player() -> void:
 	night_bonus = {}
 	sick_animal = null
 	pending_upgrade = {}
+	action_fx = {}
+	prime_left = 0
 	# Améliorations de niveau non choisies pendant la nuit : la première proposée est appliquée.
 	while not level_choices.is_empty():
 		var lc: Dictionary = level_choices[0]
@@ -1243,15 +1302,35 @@ func contract_error(def: Dictionary) -> String:
 		return "Déjà %d contrats achetés cette nuit" % contracts_tonight
 	if has_species(def["id"]):
 		return "Vous avez déjà cette espèce"
-	if not can_afford(contract_cost(def)):
-		return "Pas assez de ressources"
+	if not can_afford(contract_payment(def)):
+		return "Pas assez d'argent (%d, or manquant compris)" % int(contract_payment(def)["argent"])
 	return ""
+
+
+## Ce que l'achat d'un contrat prélève : l'or du stock, puis l'or manquant acheté en argent au prix du marché
+## (double du prix de revente). L'argent de fin de partie ouvre ainsi les T3, la mine restant plus rentable.
+func contract_payment(def: Dictionary) -> Dictionary:
+	var cost := contract_cost(def)
+	var need_or := float(cost.get("or", 0))
+	var from_stock := minf(need_or, floorf(float(stock["or"])))
+	var pay := {"argent": float(cost.get("argent", 0)) + ceilf((need_or - from_stock) * buy_price("or"))}
+	if from_stock > 0.0:
+		pay["or"] = from_stock
+	return pay
+
+
+## Or manquant pour ce contrat (acheté en argent au moment de l'achat).
+func contract_gold_missing(def: Dictionary) -> int:
+	return int(float(contract_cost(def).get("or", 0)) - float(contract_payment(def).get("or", 0.0)))
 
 
 func buy_contract(def: Dictionary) -> bool:
 	if contract_error(def) != "" or not market_contracts.has(def):
 		return false
-	_pay(contract_cost(def))
+	var missing := contract_gold_missing(def)
+	_pay(contract_payment(def))
+	if missing > 0:
+		say("%d or acheté pour le contrat (%d argent)." % [missing, int(ceilf(missing * buy_price("or")))])
 	market_contracts.erase(def)
 	contracts.append(def)
 	contracts_tonight += 1
@@ -1278,24 +1357,23 @@ func fire(card: Card) -> bool:
 	return false
 
 
-## Choisit un bonus parmi ceux offerts cette nuit (dans l'ordre d'influence).
+## Bonus du lendemain : seul le premier en influence le choisit parmi ceux offerts, et il s'applique à tous.
 func bonus_error(def: Dictionary) -> String:
 	if phase != "night":
 		return "Uniquement la nuit"
-	if mt.current_buyer() != index:
-		return "Ce n'est pas votre tour"
-	if not night_bonus.is_empty():
-		return "Bonus déjà choisi"
-	if mt.bonus_taken.has(def["id"]):
-		return "Déjà pris par %s" % mt.names[mt.bonus_taken[def["id"]]]
+	if mt.influence_leader() != index:
+		return "Seul le premier en influence choisit (%s)" % mt.names[mt.influence_leader()]
+	if not mt.bonus_choice.is_empty():
+		return "Bonus déjà choisi : %s" % mt.bonus_choice["nom"]
+	if not mt.bonus_offer.has(def):
+		return "Bonus non proposé cette nuit"
 	return ""
 
 
 func pick_bonus(def: Dictionary) -> bool:
 	if bonus_error(def) != "":
 		return false
-	night_bonus = def
-	mt.bonus_taken[def["id"]] = index
+	mt.bonus_choice = def
 	mt.bump()
 	return true
 
@@ -1349,6 +1427,20 @@ const LIBELLES_TACHES := {
 ## Améliorations proposées à une carte : génériques utiles pour elle + celles de son métier, tirées au hasard.
 ## 3 au choix (Têtu : 2). « Seconde spécialité » désigne au tirage une tâche hors de son métier.
 func _upgrade_pool(card: Card) -> Array:
+	var n := int(data["workers"]["regles"]["choix_ameliorations"])
+	for t in trait_defs(card):
+		n = mini(n, int(t["effet"].get("choix_ameliorations", n)))
+	# Évolution (Apprenti, Manœuvre) : au niveau prévu, on choisit son nouveau métier au lieu d'une amélioration.
+	var evo: Dictionary = data["workers"].get("evolutions", {}).get(card.metier["id"], {})
+	if not evo.is_empty() and card.niveau == int(evo["niveau"]):
+		var choices: Array = evo["vers"].duplicate()
+		mt.shuffle(choices)
+		var evolutions := []
+		for id in choices.slice(0, n):
+			var m := metier_def(id)
+			evolutions.append({"id": "evolution", "nom": "Devenir %s" % m["nom"], "metier": id, "effet": {},
+				"texte": "%s (%s)" % [specialite_text(m), category_label(m["categorie"])]})
+		return evolutions
 	var has_neg := card.traits.any(func(t): return not is_positive(t))
 	var specs: Array = LIBELLES_TACHES.keys().filter(func(k): return not card.metier["efficacite"].has(k) \
 		and not card.upgrades.any(func(u): return u.get("seconde_specialite", "") == k))
@@ -1358,9 +1450,6 @@ func _upgrade_pool(card: Card) -> Array:
 	pool.append_array(data["workers"]["ameliorations_metier"].get(card.metier["id"], []).filter(func(u):
 		return not card.upgrade_names.has(u["nom"])))
 	mt.shuffle(pool)
-	var n := int(data["workers"]["regles"]["choix_ameliorations"])
-	for t in trait_defs(card):
-		n = mini(n, int(t["effet"].get("choix_ameliorations", n)))
 	var out := []
 	for u in pool.slice(0, n):
 		if u["id"] == "double_spe":
@@ -1371,9 +1460,33 @@ func _upgrade_pool(card: Card) -> Array:
 	return out
 
 
-## Applique l'effet d'une amélioration (sans coût) : guérison, nouveau trait, ou effet ajouté à la carte.
+func metier_def(id: String) -> Dictionary:
+	for m in data["workers"]["metiers"]:
+		if m["id"] == id:
+			return m
+	return {}
+
+
+func category_label(cat: String) -> String:
+	return {"peu_qualifie": "peu qualifié", "qualifie": "qualifié", "cadre": "cadre"}.get(cat, cat)
+
+
+## Spécialité d'un métier en clair (ex. « Construction en bois ×1,8 »), ou sa capacité.
+func specialite_text(m: Dictionary) -> String:
+	var noms := LIBELLES_TACHES.merged({"amenager": "Aménager", "nourrir": "Nourrir", "nettoyer": "Nettoyer", "animer": "Animer", "lobbying": "Lobbying"})
+	var parts: Array[String] = []
+	for k in m["efficacite"]:
+		if k != "defaut":
+			parts.append("%s ×%s" % [noms.get(k, k), str(m["efficacite"][k]).replace(".", ",")])
+	return ", ".join(parts) if not parts.is_empty() else str(m.get("capacite", "Polyvalent"))
+
+
+## Applique l'effet d'une amélioration (sans coût) : guérison, nouveau trait, évolution, ou effet ajouté à la carte.
 func _apply_upgrade_effect(card: Card, option: Dictionary) -> void:
 	match option["id"]:
+		"evolution":
+			card.metier = metier_def(option["metier"])
+			say("%s devient %s !" % [card.nom, card.metier["nom"]])
 		"guerison":
 			for t in card.traits:
 				if not is_positive(t):
@@ -1411,12 +1524,49 @@ func choose_level_upgrade(card: Card, option: Dictionary) -> bool:
 	return false
 
 
+## Tous les ouvriers du joueur (main, pioche, défausse), sans les cartes d'action.
 func all_employees() -> Array[Card]:
 	var out: Array[Card] = []
-	out.append_array(hand)
-	out.append_array(deck)
-	out.append_array(discard)
+	for pile in [hand, deck, discard]:
+		for c in pile:
+			if not c.is_action():
+				out.append(c)
 	return out
+
+
+## Cartes d'action possédées (main, pioche, défausse).
+func action_cards() -> Array[Card]:
+	var out: Array[Card] = []
+	for pile in [hand, deck, discard]:
+		for c in pile:
+			if c.is_action():
+				out.append(c)
+	return out
+
+
+## Achat d'une carte d'action au marché de nuit (1 par nuit, dans l'ordre d'influence) : elle va à la défausse.
+func action_error(card: Card) -> String:
+	if phase != "night":
+		return "Le marché n'ouvre que la nuit"
+	if mt.current_buyer() != index:
+		return "Ce n'est pas votre tour au marché"
+	if bought_action:
+		return "Déjà une carte d'action achetée cette nuit"
+	if money < float(card.action["cout"]):
+		return "Pas assez d'argent"
+	return ""
+
+
+func buy_action(card: Card) -> bool:
+	if action_error(card) != "" or not mt.market_actions.has(card):
+		return false
+	money -= float(card.action["cout"])
+	mt.market_actions.erase(card)
+	discard.append(card)
+	bought_action = true
+	say("Carte d'action achetée : %s (dans la défausse)." % card.action["nom"])
+	mt.bump()
+	return true
 
 
 # --- Enclos, animaux et réputation -------------------------------------------
@@ -1769,8 +1919,11 @@ func attractiveness(only = null) -> int:
 			extra += int(Z["bonus_soigneur"])
 	var total := extra + (kiosque_bonus() if not species.is_empty() else 0)
 	var biomes := {}
+	# Bonus de nuit favorisant un type d'animal ou un continent (Festival des oiseaux, Semaine de l'Afrique…)
+	var by_type: Dictionary = bonus_effects().get("attractivite_type", {})
+	var by_cont: Dictionary = bonus_effects().get("attractivite_continent", {})
 	for d in species.values():
-		total += int(d["reputation"])
+		total += roundi(float(d["reputation"]) * float(by_type.get(d.get("type", ""), 1.0)) * float(by_cont.get(d.get("continent", ""), 1.0)))
 		biomes[d["biome"]] = biomes.get(d["biome"], 0) + 1
 	var A: Dictionary = data["animals"]
 	total += int(A["bonus_diversite_biomes"].get(str(biomes.size()), 0))
@@ -1950,7 +2103,8 @@ func demand_rate() -> float:
 		return 0.0
 	var Z: Dictionary = data["buildings"]["zoo"]
 	var per_day := attractiveness(z["animals"]) * float(Z["visiteurs_par_point_attractivite"]) * publicity_mult() \
-		* float(event_effects().get("visiteurs", 1.0)) * float(bonus_effects().get("visiteurs", 1.0)) * cleanliness_mult()
+		* float(event_effects().get("visiteurs", 1.0)) * float(bonus_effects().get("visiteurs", 1.0)) * cleanliness_mult() \
+		* float(action_fx.get("visiteurs", 1.0))
 	return per_day / day_length
 
 
@@ -2111,15 +2265,40 @@ func _close_zoo_day() -> Dictionary:
 		_reset_visit()
 	var z := zoo_status()
 	var avg: float = visit["presence"] / day_length
-	var gain := avg * float(data["buildings"]["zoo"]["reputation_par_visiteur_moyen"])
+	var affinity := affinity_bonus()
+	var gain := avg * float(data["buildings"]["zoo"]["reputation_par_visiteur_moyen"]) * (1.0 + affinity)
 	rep_points += gain
 	var reason: String = z["reason"]
 	if z["open"] and visitor_path().is_empty():
 		reason = "Aucune route ne relie l'Accès à l'Entrée du zoo"
 	var out := {"open": z["open"], "reason": reason, "visitors": visit["admitted"], "lost": visit["lost"],
-		"tickets": roundi(visit["tickets"]), "souvenirs": roundi(visit["souvenirs"]), "avg_present": avg, "rep_gain": gain}
+		"tickets": roundi(visit["tickets"]), "souvenirs": roundi(visit["souvenirs"]), "avg_present": avg, "rep_gain": gain,
+		"affinity": affinity}
 	_reset_visit()
 	return out
+
+
+## Affinités entre animaux d'un même continent : +5 % de réputation par espèce au-delà de la première,
+## pour chaque continent (animaux arrivés et nourris dans l'enceinte).
+func affinity_bonus() -> float:
+	var per_cont := {}
+	for a in zoo_status().get("animals", []):
+		if a.arrived and a.fed:
+			var c: String = a.def.get("continent", "")
+			per_cont[c] = per_cont.get(c, 0) + 1
+	var bonus := 0.0
+	for c in per_cont:
+		bonus += maxi(0, per_cont[c] - 1) * float(data["animals"]["affinite_continent"]["par_espece"])
+	return bonus
+
+
+## Nom affiché d'un continent ou d'un type d'animal.
+func continent_name(c: String) -> String:
+	return str(data["animals"]["continents"].get(c, c))
+
+
+func type_name(t: String) -> String:
+	return str(data["animals"]["types"].get(t, t))
 
 
 ## État du zoo en direct (panneau d'information).

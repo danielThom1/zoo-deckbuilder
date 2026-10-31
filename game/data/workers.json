@@ -111,5 +111,21 @@
     "marchand":   [{ "id": "negociateur", "nom": "Négociateur", "effet": { "capacite": "negociateur" }, "texte": "Vente du stock +25 % quand il tient le comptoir" }],
     "formateur":  [{ "id": "pedagogue", "nom": "Pédagogue", "effet": { "capacite": "pedagogue" }, "texte": "Centre de formation : +2 places" }],
     "paysagiste": [{ "id": "visionnaire", "nom": "Visionnaire", "effet": { "capacite": "visionnaire" }, "texte": "Aménager à côté d'une case déjà du type voulu : 2× plus vite" }]
-  }
+  },
+
+  "_note_evolutions": "Évolution des cartes : en atteignant ce niveau, l'ouvrier choisit (parmi 3 tirés au hasard) le métier qu'il devient, au lieu d'une amélioration. Il garde ses traits, son niveau et ses améliorations.",
+  "evolutions": {
+    "apprenti":  { "niveau": 3, "vers": ["charpentier", "paysagiste", "cantonnier", "soigneur", "guichetier", "animalier"] },
+    "manoeuvre": { "niveau": 3, "vers": ["bucheron", "macon", "mineur", "terrassier", "porteur", "animalier", "agent_entretien"] }
+  },
+
+  "_note_actions": "Cartes d'action : achetées au marché de nuit (1 par nuit), elles vont dans la défausse puis dans la main comme les ouvriers. Jouer une carte (gratuit) applique son effet pour la journée ; elle retourne à la défausse le soir. Elles ne comptent pas dans le logement.",
+  "cartes_action": [
+    { "id": "heures_sup",       "nom": "Heures sup",          "cout": 8,  "effet": { "productivite": 1.25 }, "texte": "Aujourd'hui, tous vos ouvriers travaillent 25 % plus vite." },
+    { "id": "prime",            "nom": "Prime",               "cout": 6,  "effet": { "prime": 2 },           "texte": "Les 2 prochains ouvriers déployés aujourd'hui ne coûtent pas de salaire (rendement plein)." },
+    { "id": "portes_ouvertes",  "nom": "Portes ouvertes",     "cout": 10, "effet": { "visiteurs": 1.5 },     "texte": "Aujourd'hui, 50 % de visiteurs en plus." },
+    { "id": "livraison",        "nom": "Livraison",           "cout": 7,  "effet": { "bois": 10, "pierre": 10 }, "texte": "Reçoit immédiatement 10 bois et 10 pierre." },
+    { "id": "recrutement",      "nom": "Recrutement express", "cout": 6,  "effet": { "pioche": 2 },          "texte": "Piochez 2 cartes de plus aujourd'hui." },
+    { "id": "formation_express","nom": "Formation express",   "cout": 9,  "effet": { "xp": 1 },              "texte": "Chaque ouvrier déployé gagne 1 jour d'expérience." }
+  ]
 }

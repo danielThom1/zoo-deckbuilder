@@ -192,7 +192,7 @@ Je recommande de **prototyper 1 et 2 en premier** : ce sont eux qui transforment
 | A — Rythme | Vitesse, temps de construction, visiteurs (capacité, durée, groupes, courbe) | ✅ fait, avec la nourriture payée seulement une fois le zoo ouvert |
 | B — Cohérence | Formation et Formateur, Apprenti, Architecte, traits manquants, choix d'amélioration au niveau | ✅ fait |
 | C — Vie du zoo | Cuisine et nourrissage, entretien et usure, nouveaux métiers, bâtiments visiteurs | 🟡 en partie : nourrissage, propreté, snack, kiosque, Animalier, Agent d'entretien et Animateur sont faits. Restent l'usure, le Vétérinaire, les grands projets, l'amélioration des enclos et le bureau de communication |
-| D — Deckbuilding | Évolution des cartes, cartes d'action, capacités jouables des cadres | Gros, à concevoir ensemble avant de coder |
+| D — Deckbuilding | Évolution des cartes, cartes d'action, capacités jouables des cadres | 🟡 en partie : évolution (Apprenti, Manœuvre) et 6 cartes d'action au marché sont faites. Restent les capacités jouables des cadres, la fatigue, la carte gardée en main et les synergies d'équipe |
 | E — Graphismes | HUD 03, cartes en main, monde 2D restylé | Gros |
 
 Chaque lot se termine par `sim_test` et un `balance_sim` (maintenant parallélisé, environ 7 minutes pour 32 parties) pour mesurer l'effet.

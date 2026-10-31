@@ -117,9 +117,18 @@ Liste complète : `data/workers.json`.
 - Améliorations de métier : Scie affûtée (Bûcheron : bois +25 %, portage +1), Brouette (Porteur : portage +2), Chasseur de têtes (DRH : embauches −3), Réseau (Lobbyiste : +1 influence par soir déployé), Négociateur (Marchand : vente +25 %), Pédagogue (Formateur : +2 places), Visionnaire (Paysagiste : aménager à côté d'une case du type voulu ×2).
 - L'amélioration payante de milieu de partie (12, à partir du jour 7) reste disponible en plus.
 
+### 6.4 bis Deckbuilding (lot D)
+- **Évolution des cartes** : en atteignant le **niveau 3**, un **Apprenti** choisit le métier qualifié qu'il devient (3 tirés parmi Charpentier, Paysagiste, Cantonnier, Soigneur, Guichetier, Animalier), et un **Manœuvre** la spécialité qu'il prend (Bûcheron, Maçon, Mineur, Terrassier, Porteur, Animalier, Agent d'entretien). Ce choix remplace l'amélioration de ce niveau. Il garde ses traits, son niveau et ses améliorations.
+- **Cartes d'action** : 3 au marché de nuit (1 achat par nuit). Elles entrent dans le deck et se piochent **dans la même main de 5 que les ouvriers**, ce qui crée le choix entre déployer et jouer. Jouer une carte est gratuit et son effet vaut pour la journée ; la carte retourne à la défausse le soir. Elles ne comptent pas dans le logement. Liste : Heures sup (8, productivité +25 %), Prime (6, 2 déploiements sans salaire), Portes ouvertes (10, visiteurs +50 %), Livraison (7, +10 bois +10 pierre), Recrutement express (6, piocher 2), Formation express (9, +1 jour d'expérience aux ouvriers déployés).
+- **IA** : elle joue ses actions le matin (Formation express après avoir déployé) et en achète une quand l'argent abonde, 4 au plus dans son deck.
+
 ### 6.5 bis Capacités et traits (lot B : implémentés)
 - **Architecte** : un chantier où il a travaillé rembourse **25 % des ressources** à la fin. Même col blanc, il peut superviser (sans construire). **Débrouillard** : 15 %.
 - **Matinal** : commence la journée sur sa dernière case de travail. **Casanier** : −30 % de vitesse à plus de 15 cases du camp. **Peureux** : abandonne sa tâche à 2 cases ou moins d'un enclos de prédateur.
+
+### 6.4 ter Améliorations du camp (v6)
+- **Camp niveau 2** (25 bois, 20 pierre, 20 argent, 200 de travail) puis **niveau 3** (30 bois, 40 pierre, 60 argent, 350 de travail) : chacun donne **une carte de plus en main** chaque jour. Ils se construisent sur le camp, un à la fois et dans l'ordre.
+- Le coût est pensé pour un vrai dilemme : investir tôt (zoo retardé, mais plus d'ouvriers ou d'actions chaque jour), ou s'en passer. Les simulations comparent les stratégies « Camp amélioré » (niveau 2) et « Grand camp » (niveaux 2 et 3) aux autres.
 
 ### 6.5 Logement
 - La taille totale du deck est limitée par la **capacité de logement** : 10 pour le Camp, +4 par Maison.
@@ -171,7 +180,8 @@ Liste complète : `data/workers.json`.
 ### 7.2 Personnel, événements, bonus et milieu de partie (v3)
 - **Personnel obligatoire** : pas de billetterie sans quelqu'un au **guichet** (clic droit sur l'Entrée), pas de souvenirs sans quelqu'un à la **boutique**. N'importe quel ouvrier peut tenir ces postes, y compris un Col blanc ou un ouvrier déployé gratuitement, puisque la recette dépend de la présence et non du rendement. La recette est proportionnelle au temps de présence et devient pleine dès la moitié de la journée. Un Vendeur double les souvenirs.
 - **Événements aléatoires** (`data/events.json`) : chaque matin à partir du jour 2, 60 % de chance qu'un événement touche tous les zoos. Il y en a 10 : Pluie, Journaliste, Pénurie de bois, Ruée vers l'or, Canicule, Grève, Subvention, Tempête, Beau temps, Épidémie. Ils s'affichent dans une bannière pendant la journée.
-- **Bonus de nuit** : n+1 bonus sont offerts (n = nombre de joueurs) et choisis dans l'ordre d'influence. Ils sont actifs le lendemain : +30 % de bois, +30 % de pierre, +40 % d'or, +25 % de construction, +40 % d'aménagement, +20 % de vitesse, +50 % de lobbying, +20 % de visiteurs.
+- **Bonus de nuit (v6)** : 3 bonus sont proposés et **seul le premier en influence en choisit un**, qui s'applique **à tous les zoos** le lendemain. S'il ne choisit pas, le premier proposé s'applique. Liste : +30 % de bois, +30 % de pierre, +40 % d'or, +25 % de construction, +40 % d'aménagement, +20 % de vitesse, +50 % de lobbying, +20 % de visiteurs. L'influence devient un levier : orienter la journée de tous vers sa propre stratégie.
+- **Marché du soir visible en journée** : il est tiré le matin. Le bouton « Marché du soir » montre les ouvriers, contrats et cartes d'action de la nuit à venir, avec son influence et son rang de la veille, pour décider de l'effort de lobbying.
 - **Milieu de partie (à partir du jour 7)** : une action par nuit, au choix. **Améliorer** un ouvrier coûte 12 (choix entre 3 améliorations : Expérience, Maîtrise, Pied léger, Remise en question, Révélation, Fidélité). **Licencier** coûte 8. Le DRH garde son licenciement gratuit.
 - **Niveaux** : chaque niveau donne +10 % de rendement et +1 de salaire.
 - **Achat de matériaux** : bois et pierre s'achètent à tout moment de la journée, au double du prix de revente de base (1 le bois, 1,6 la pierre). L'argent, et donc l'or, se transforme en vitesse de construction.
@@ -184,7 +194,8 @@ Liste complète : `data/workers.json`.
 - **Hors de l'enceinte** : la mine d'or et l'entrepôt ne peuvent pas être construits dans l'enceinte du zoo.
 - **Or** : il se vend 7 l'unité, contre 0,5 pour le bois et 0,8 pour la pierre. Un mineur rapporte environ 3 fois plus en or qu'un bûcheron en bois. Une mine proche du camp devient une vraie stratégie.
 - **Motifs (v5, à la Harmonies)** : chaque animal demande une **forme précise de cases** à reproduire dans son enclos (rotations et miroirs autorisés), en plus d'une taille minimale. Les motifs font 3 cases pour les T1, 4 pour les T2, et 5 ou 6 pour les T3. Exemple, le Tigre : forêt, eau, forêt, roche, prairie disposées en « P ». Les cartes de contrat dessinent le motif. Quand on vise un enclos, le motif trouvé est encadré en jaune ; sinon, l'emplacement le plus proche est encadré en orange, avec le nombre de cases à aménager.
-- **Aménagement réservé** : seuls le **Paysagiste** (×2) et le **Terrassier** (×1,5) savent transformer une case en une autre. Chaque transformation prend du temps (20 à 50 points de travail).
+- **Aménagement réservé** : seuls le **Paysagiste** (×2) et le **Terrassier** (×1,5) savent transformer une case en une autre. Chaque transformation prend du temps (20 à 50 points de travail). Depuis la Prairie, on peut tout obtenir. La Forêt, l'Eau et (avec **Dérocher**, v6) la Roche redeviennent Prairie : n'importe quel terrain s'obtient donc en au plus deux étapes, et l'IA sait planifier ces deux étapes.
+- **T3** : ils apparaissent au marché à partir du **jour 7** (au lieu de 8). L'IA garde 3 or si elle a une mine, et, quand l'argent abonde, privilégie la réputation gagnée plutôt que le prix.
 - **Démolition** : un bâtiment terminé (mur, clôture, route…) peut être démoli, sans remboursement. Cela sert à agrandir son parc.
 - Génération : des motifs de petite taille (zones de ~6 cases), des **lacs** et quelques **rivières**. Toute zone franchissable reste atteignable depuis le camp : là où l'eau ou la montagne isolerait une zone, un **gué** (case de sable) est créé.
 - L'aménagement transforme une case en une autre, pour un coût en temps et en ressources (`buildings.json > amenagements`).
@@ -208,6 +219,12 @@ Liste complète : `data/workers.json`.
 - **Combien d'animaux ?** Il n'y a pas de maximum. Chaque enclos fermé accueille une espèce, et on peut créer autant d'enclos que la place le permet. Les limites viennent d'ailleurs : un contrat par nuit, chaque espèce une seule fois par joueur, les espèces disponibles au marché, et la place dans l'enceinte. Un animal non nourri ne compte pas ce tour-ci (§3.2).
 - Liste : `data/animals.json`.
 
+### 9.1 Origines et types (v6)
+- Chaque animal a un **continent d'origine** (Afrique, Europe, Asie, Amérique, Océanie) et un **type** (terrestre, aquatique, aérien). On compte 38 espèces, dont 3 oiseaux ajoutés : Vautour, Toucan, Aigle royal.
+- **Affinités** : la réputation gagnée chaque nuit augmente de **+5 % par espèce au-delà de la première venant du même continent**. Par exemple, 3 animaux d'Afrique et 2 d'Europe donnent +15 %.
+- **Bonus de nuit thématiques** (choisis par le premier en influence, pour tous) : Festival des oiseaux (aériens ×1,5), Journée de l'océan (aquatiques ×1,5), Semaine de l'Afrique (×1,4), de l'Europe (×1,4), des Amériques (×1,5), Asie-Océanie (×1,5), appliqués à l'attractivité des espèces concernées. Construire autour d'un continent ou d'un type devient une stratégie, et l'influence permet de la servir.
+- **Or des contrats** : l'or manquant pour un contrat s'achète en argent au moment de l'achat, au prix du marché (14 par or, le double du prix de revente). Les T3 coûtent environ 25 % d'argent de moins qu'avant (33 à 39, plus 2 à 3 or).
+
 ## 10. Réputation
 
 - Points par espèce, selon le palier : T1 = 4, T2 = 8, T3 = 14 ❓ (voir le JSON, par espèce).
@@ -223,6 +240,7 @@ Liste complète : `data/workers.json`.
 - **Trésorerie** : l'IA garde toujours de quoi payer une main complète et nourrir ses animaux. En dessous de ce seuil, elle passe en mode survie : aucun nouveau chantier, et la récolte est vendue le soir.
 - **Nuit** : licenciement de la carte la plus faible (si le DRH a travaillé), achat du contrat avec le meilleur rapport réputation (diversité comprise) / coût s'il rentre dans l'enceinte, embauche si une place de logement est libre.
 - **Stratégies** (réglages pour les simulations) : Équilibrée, Lobbying, Petits contrats, Gros contrats, Sans embauche, Économe. Les simulations se lancent avec `tests/balance_sim.gd` et écrivent un rapport dans `rapport_equilibrage.md`.
+- **Robustesse** : le guichet et la boutique ne sont tenus qu'une fois le zoo ouvert. L'ouvrier déployé gratuitement est un ouvrier manuel. Quand l'équipe est réduite (2 ouvriers ou moins) et le zoo fermé, les chantiers passent avant les soins. Un contrat sans plan d'enclos possible ne bloque plus l'achat d'un autre.
 - **Montées de niveau** : l'IA choisit d'abord de guérir un défaut, puis de renforcer sa spécialité, puis une amélioration de métier. Elle valorise l'Architecte, mais évite encore le Formateur, car elle ne construit pas de Centre de formation.
 
 ## 11 bis. IA (plan initial)

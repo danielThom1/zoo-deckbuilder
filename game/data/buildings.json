@@ -47,12 +47,15 @@
     { "id": "combler",     "nom": "Combler",            "de": "Eau",     "vers": "Prairie", "travail": 50, "cout": { "pierre": 3 } },
     { "id": "rocailler",   "nom": "Poser des rochers",  "de": ["Prairie", "Sable"], "vers": "Roche", "travail": 35, "cout": { "pierre": 4 } },
     { "id": "ensabler",    "nom": "Ensabler",           "de": "Prairie", "vers": "Sable",   "travail": 25, "cout": { "pierre": 1 } },
-    { "id": "engazonner",  "nom": "Engazonner",         "de": "Sable",   "vers": "Prairie", "travail": 30, "cout": { "argent": 1 } }
+    { "id": "engazonner",  "nom": "Engazonner",         "de": "Sable",   "vers": "Prairie", "travail": 30, "cout": { "argent": 1 } },
+    { "id": "derocher",    "nom": "Dérocher",           "de": "Roche",   "vers": "Prairie", "travail": 50, "cout": {},              "bonus": { "pierre": 3 } }
   ],
 
   "_note_construction": "Le coût est payé au placement du chantier (remboursé en entier si aucun travail n'a été fait, à moitié sinon). peinture = se place en glissant la souris. Les bâtiments ne bloquent pas encore le passage.",
   "batiments": [
     { "id": "camp",       "nom": "Camp de base",         "taille": [3, 3], "travail": 0,   "type_travail": null,               "cout": {},                         "effet": { "logement": 10, "stockage": true, "bureau": true }, "unique": true, "_note": "Placé au départ" },
+    { "id": "camp_n2",    "nom": "Agrandir le camp (niveau 2)", "taille": [3, 3], "travail": 200, "type_travail": "construire_bois", "cout": { "bois": 25, "pierre": 20, "argent": 20 }, "effet": { "pioche": 1 }, "sur": "camp", "unique": true, "_note_effet": "Se construit sur le camp (clic n'importe où). Une fois terminé : 1 carte de plus en main chaque jour." },
+    { "id": "camp_n3",    "nom": "Agrandir le camp (niveau 3)", "taille": [3, 3], "travail": 350, "type_travail": "construire_pierre", "cout": { "bois": 30, "pierre": 40, "argent": 60 }, "effet": { "pioche": 1 }, "sur": "camp", "unique": true, "requiert": "camp_n2", "_note_effet": "Après le niveau 2 : encore 1 carte de plus en main chaque jour." },
     { "id": "route",      "nom": "Route",                "taille": [1, 1], "travail": 8,   "type_travail": "construire_route", "cout": { "pierre": 1 },            "effet": { "vitesse": 2.0 }, "peinture": true },
     { "id": "pont",       "nom": "Pont",                 "taille": [1, 1], "travail": 45,  "type_travail": "construire_bois",  "cout": { "bois": 4 },              "effet": { "vitesse": 2.0 }, "sur": "Eau", "peinture": true },
     { "id": "maison",     "nom": "Maison d'ouvriers",    "taille": [2, 2], "travail": 180,  "type_travail": "construire_bois",  "cout": { "bois": 12, "pierre": 4 }, "effet": { "logement": 4 } },
@@ -73,6 +76,8 @@
     "_note": "Marché de nuit commun aux joueurs. Chaque nuit : 1 ouvrier et 1 contrat maximum par joueur, dans l'ordre d'influence. Une carte non achetée est retirée au hasard chaque nuit pour faire tourner le marché.",
     "ouvriers": 5,
     "contrats": 4,
+    "actions": 3,
+    "actions_par_nuit": 1,
     "contrats_par_nuit": 2,
     "surcout_2e_contrat": 0.5,
     "hausse_prix_par_animal": 0.15,

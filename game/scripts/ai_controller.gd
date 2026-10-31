@@ -16,6 +16,7 @@ const DEFAULT_STRATEGY := {
 	"mine": true,
 	"contrats_en_attente_max": 2,
 	"mine_prioritaire": false,  # construit une mine dès le jour 2 et vit de la vente d'or
+	"camp": 0,  # niveau d'amélioration du camp visé (0, 1 ou 2) : +1 carte en main par niveau
 	"taille_zoo": "moyen",  # petit, moyen, grand, ou evolutif (petit au départ, agrandi ensuite)
 }
 
@@ -106,17 +107,53 @@ func on_day_start() -> void:
 		_choose_zoo()
 	_index_resources()
 	lobby_today = 0
-	var hand := g.hand.duplicate()
+	# Cartes d'action : avant de déployer (Prime, Heures sup, Livraison, Recrutement ; Portes ouvertes si le zoo
+	# est ouvert), puis Formation express une fois les ouvriers sur la carte.
+	for pass_i in 2:
+		for c in g.hand.duplicate():
+			if c.is_action() and c.action["id"] != "formation_express" \
+				and (c.action["id"] != "portes_ouvertes" or g.zoo_status()["open"]):
+				g.play_action(c)
+	var hand := g.hand.filter(func(c): return not c.is_action())
 	hand.sort_custom(func(a, b): return card_value(a) > card_value(b))
 	for c in hand:
 		if g.money >= g.salary(c):
 			g.deploy(c)
-	# Le meilleur ouvrier restant part gratuitement (rendement réduit) plutôt que de rester en main.
+	# Le meilleur ouvrier restant part gratuitement (rendement réduit) plutôt que de rester en main. Un ouvrier
+	# manuel de préférence : sans argent, un cadre gratuit (lobbying, col blanc) ne ferait avancer aucun chantier.
+	var free_pick: GameState.Card = null
 	for c in hand:
-		if not c.deployed:
-			g.deploy(c, true)
-			break
+		if not c.deployed and (free_pick == null or _manual_value(c) > _manual_value(free_pick)):
+			free_pick = c
+	if free_pick:
+		g.deploy(free_pick, true)
+	for c in g.hand.duplicate():
+		if c.is_action() and c.action["id"] == "formation_express":
+			g.play_action(c)
 	think_clock = 0.0
+
+
+## Intérêt d'une carte d'action pour cette IA (0 : inutile pour l'instant).
+func _action_value(c: GameState.Card) -> float:
+	match c.action["id"]:
+		"heures_sup":
+			return 3.0
+		"portes_ouvertes":
+			return 3.0 if g.zoo_status()["open"] else 0.0
+		"livraison":
+			return 2.0 if _walls_progress() < 1.0 or not plans.is_empty() else 0.5
+		"prime":
+			return 2.0
+		"recrutement", "formation_express":
+			return 1.0
+	return 0.0
+
+
+func _manual_value(c: GameState.Card) -> float:
+	var v := card_value(c)
+	if c.metier["categorie"] == "cadre" or c.traits.has("col_blanc"):
+		v -= 3.0
+	return v
 
 
 ## Vend juste assez de stock (l'or d'abord, puis le bois, puis la pierre) pour atteindre `target` d'argent.
@@ -135,9 +172,17 @@ func _sell_for(target: float) -> void:
 	g.sell_stock(keep, ["bois", "pierre", "or"])
 
 
-## Aucun animal ni contrat, et une enceinte presque prête : le premier contrat est la priorité.
+## Aucun animal ni contrat réalisable, et une enceinte presque prête : le premier contrat est la priorité.
 func _needs_first_animal() -> bool:
-	return g.animals.is_empty() and g.contracts.is_empty() and (zoo_rect.size == Vector2i.ZERO or _walls_progress() >= 0.6)
+	return g.animals.is_empty() and _placeable_contracts() == 0 and (zoo_rect.size == Vector2i.ZERO or _walls_progress() >= 0.6)
+
+
+## Contrats détenus qui ont un plan d'enclos dans le parc (avant le choix du parc, tous comptent). Un contrat
+## irréalisable ne doit pas empêcher d'en acheter un autre.
+func _placeable_contracts() -> int:
+	if zoo_rect.size == Vector2i.ZERO:
+		return g.contracts.size()
+	return g.contracts.filter(func(d): return not _plan_enclosure(d).is_empty()).size()
 
 
 ## Argent minimum à garder : salaires d'une main complète + nourriture des animaux.
@@ -205,7 +250,7 @@ func on_night() -> void:
 		# Le premier contrat oriente le choix de l'emplacement du zoo ; les suivants attendent que l'enceinte avance.
 		var first := zoo_rect.size == Vector2i.ZERO and g.contracts.is_empty()
 		var zoo_ok := zoo_rect.size != Vector2i.ZERO and (_walls_progress() >= 0.6 or g.contracts.is_empty())
-		if g.contracts.size() < int(strat["contrats_en_attente_max"]) and (first or zoo_ok):
+		if _placeable_contracts() < int(strat["contrats_en_attente_max"]) and (first or zoo_ok):
 			var best: Dictionary = {}
 			var best_score := 0.0
 			for def in g.market_contracts:
@@ -221,7 +266,9 @@ func on_night() -> void:
 				if not _has_landscaper() and not _natural_fit(def):
 					continue
 				var tier := float(str(def["palier"]).substr(1).to_int())
-				var score := _rep_gain(def) * pow(tier, float(strat["preference_palier"]) - 1.0) / (cost + 10.0)
+				# Argent abondant (fin de partie) : la réputation gagnée compte plus que le prix, d'où les T2/T3.
+				var price_weight := 1.0 if cost * 3.0 > g.money - _cash_floor() else 0.3
+				var score := _rep_gain(def) * pow(tier, float(strat["preference_palier"]) - 1.0) / (cost * price_weight + 10.0)
 				if score > best_score:
 					best_score = score
 					best = def
@@ -240,6 +287,16 @@ func on_night() -> void:
 				best_card = c
 		if best_card and g.hire(best_card):
 			mt.log.append("%s embauche %s (%s)." % [mt.names[g.index], best_card.nom, best_card.metier["nom"]])
+	# Carte d'action : une par nuit quand l'argent abonde, 4 au plus dans le deck (sinon elles diluent la main).
+	if g.action_cards().size() < 4 and zoo_rect.size != Vector2i.ZERO:
+		var best_a: GameState.Card = null
+		for c in mt.market_actions:
+			if g.action_error(c) != "" or g.money - float(c.action["cout"]) < _cash_floor() + float(strat["reserve"]) + 20.0:
+				continue
+			if _action_value(c) > 0.0 and (best_a == null or _action_value(c) > _action_value(best_a)):
+				best_a = c
+		if best_a and g.buy_action(best_a):
+			mt.log.append("%s achète la carte %s." % [mt.names[g.index], best_a.action["nom"]])
 
 
 ## Part des murs de l'enceinte déjà terminés (0 à 1).
@@ -258,12 +315,28 @@ func _pick_bonus() -> void:
 		var sc := 0.0
 		var fx: Dictionary = b["effets"]
 		for k in fx:
-			sc += _bonus_weight(k) * (float(fx[k]) - 1.0)
+			if fx[k] is Dictionary:
+				sc += _animal_bonus_weight(k, fx[k])
+			else:
+				sc += _bonus_weight(k) * (float(fx[k]) - 1.0)
 		if sc > best_s:
 			best_s = sc
 			best = b
 	if not best.is_empty():
 		g.pick_bonus(best)
+
+
+## Bonus favorisant un type d'animal ou un continent : vaut la part d'attractivité gagnée par ses propres animaux
+## (comparable au bonus de visiteurs : +x % d'attractivité ≈ +x % de visiteurs).
+func _animal_bonus_weight(k: String, mults: Dictionary) -> float:
+	if not g.zoo_status()["open"]:
+		return 0.0
+	var field := "type" if k == "attractivite_type" else "continent"
+	var gained := 0.0
+	for a in g.animals:
+		if a.arrived:
+			gained += float(a.def["reputation"]) * (float(mults.get(a.def.get(field, ""), 1.0)) - 1.0)
+	return 6.0 * gained / maxf(1.0, float(g.attractiveness()))
 
 
 func _bonus_weight(k: String) -> float:
@@ -327,9 +400,10 @@ func _night_action() -> void:
 		mt.log.append("%s améliore %s (%s)." % [mt.names[g.index], best.nom, pick["nom"]])
 
 
+## Coût d'un contrat en argent : prix, or manquant acheté au marché, et or du stock compté à 4.
 func _money_cost(def: Dictionary) -> float:
-	var c: Dictionary = g.contract_cost(def)
-	return float(c.get("argent", 0)) + 4.0 * float(c.get("or", 0))
+	var p: Dictionary = g.contract_payment(def)
+	return float(p.get("argent", 0)) + 4.0 * float(p.get("or", 0))
 
 
 ## Réputation gagnée par une nouvelle espèce, bonus de diversité compris.
@@ -343,6 +417,10 @@ func _rep_gain(def: Dictionary) -> float:
 	if not biomes.has(def["biome"]):
 		var table: Dictionary = g.data["animals"]["bonus_diversite_biomes"]
 		gain += float(table.get(str(biomes.size() + 1), 0)) - float(table.get(str(biomes.size()), 0))
+	# Affinité : une espèce d'un continent déjà représenté ajoute 5 % à toute la réputation gagnée.
+	if g.animals.any(func(a): return a.def.get("continent", "") == def.get("continent", "")) \
+		or g.contracts.any(func(d): return d.get("continent", "") == def.get("continent", "")):
+		gain += float(g.data["animals"]["affinite_continent"]["par_espece"]) * maxf(10.0, float(g.attractiveness()))
 	return gain
 
 
@@ -465,9 +543,8 @@ func _pattern_fit_maps() -> Array:
 						if not m.in_bounds(px, py):
 							n = 99
 							break
-						var cur: String = GameMap.TERRAINS[m.get_t(px, py)]
-						if cur != c[2]:
-							n += 1 if conv_defs.has("%s>%s" % [cur, c[2]]) else 5
+						var steps := _conversion_steps(GameMap.TERRAINS[m.get_t(px, py)], c[2])
+						n += steps if steps >= 0 else 5
 					var i := y * m.w + x
 					best[i] = mini(best[i], n)
 		out.append({"def": def, "best": best})
@@ -605,7 +682,7 @@ func _compute_plan(def: Dictionary) -> Dictionary:
 					continue
 				# Moins d'aménagements, clôtures partagées et enclos tassés contre les murs : on garde de la place.
 				var wall_dist := mini(mini(x - inner.position.x, y - inner.position.y), mini(inner.end.x - outer.end.x, inner.end.y - outer.end.y))
-				var cost: float = conv.size() * 2.0 - shared * 0.6 + wall_dist * 0.4
+				var cost: float = _conv_cost(conv) * 2.0 - shared * 0.6 + wall_dist * 0.4
 				if cost < best_cost:
 					best_cost = cost
 					best = {"def": def, "interior": interior, "ring": _ring(outer), "conv": conv}
@@ -616,7 +693,37 @@ func _has_landscaper() -> bool:
 	return g.all_employees().any(func(c): return g.can_landscape(c))
 
 
-## Aménagements nécessaires (une transformation par case) pour obtenir le motif dans l'enclos, ou null.
+## Étapes pour transformer un terrain en un autre : 0 (déjà bon), 1 (directe), 2 (en passant par la Prairie,
+## par ex. Forêt -> Prairie -> Eau), ou -1 (impossible).
+func _conversion_steps(cur: String, target: String) -> int:
+	if cur == target:
+		return 0
+	if conv_defs.has("%s>%s" % [cur, target]):
+		return 1
+	if conv_defs.has(cur + ">Prairie") and conv_defs.has("Prairie>" + target):
+		return 2
+	return -1
+
+
+## Prochain aménagement à poser pour aller de `cur` vers `target` (direct, ou d'abord vers la Prairie), ou null.
+func _conversion_step(cur: String, target: String) -> Variant:
+	match _conversion_steps(cur, target):
+		1:
+			return conv_defs["%s>%s" % [cur, target]]
+		2:
+			return conv_defs[cur + ">Prairie"]
+	return null
+
+
+## Nombre total d'aménagements d'un plan (une transformation en deux étapes compte double).
+func _conv_cost(conv: Array) -> int:
+	var n := 0
+	for c in conv:
+		n += int(c[2])
+	return n
+
+
+## Aménagements nécessaires pour obtenir le motif dans l'enclos : [case, terrain visé, nombre d'étapes], ou null.
 ## On ne teste que les positions où l'orientation du motif tient entièrement dans l'enclos.
 func _pattern_conversions(def: Dictionary, interior: Rect2i) -> Variant:
 	var can := _has_landscaper()
@@ -637,14 +744,14 @@ func _pattern_conversions(def: Dictionary, interior: Rect2i) -> Variant:
 				for c in v:
 					var px: int = ax + c[0]
 					var py: int = ay + c[1]
-					var cur: String = GameMap.TERRAINS[m.get_t(px, py)]
-					if cur != c[2]:
-						var k := "%s>%s" % [cur, c[2]]
-						if not can or not conv_defs.has(k):
-							ok = false
-							break
-						conv.append([Vector2i(px, py), conv_defs[k]])
-				if ok and (best == null or conv.size() < best.size()):
+					var steps := _conversion_steps(GameMap.TERRAINS[m.get_t(px, py)], c[2])
+					if steps == 0:
+						continue
+					if not can or steps < 0:
+						ok = false
+						break
+					conv.append([Vector2i(px, py), str(c[2]), steps])
+				if ok and (best == null or _conv_cost(conv) < _conv_cost(best)):
 					best = conv
 					if conv.is_empty():
 						return best
@@ -696,6 +803,15 @@ func _wants() -> Array:
 		var spot := _spot_near_camp(g.building_def("maison"))
 		if spot.x >= 0:
 			out.append(["batiment", g.building_def("maison"), spot])
+	# 1 quater. Améliorations du camp (stratégies « Camp amélioré » et « Grand camp ») : +1 carte en main par niveau.
+	for lvl in [2, 3]:
+		if lvl - 1 > int(strat["camp"]) or day < 2:
+			break
+		var cid := "camp_n%d" % lvl
+		if not g.has_building(cid):
+			if g.placement_error("batiment", g.building_def(cid), g.map.camp.position, false) == "":
+				out.append(["batiment", g.building_def(cid), g.map.camp.position])
+			break
 	if zoo_rect.size == Vector2i.ZERO:
 		return out
 	# 1 ter. Route jusqu'à l'entrée : indispensable, les visiteurs n'arrivent que par la route.
@@ -745,8 +861,10 @@ func _wants() -> Array:
 	_ensure_plans()
 	for p in plans:
 		for c in p["conv"]:
-			if g.site_at(c[0]) == null and GameMap.TERRAINS[g.map.get_t(c[0].x, c[0].y)] != c[1]["vers"]:
-				out.append(["amenagement", c[1], c[0]])
+			# Étape suivante vers le terrain visé (une transformation en deux étapes passe par la Prairie)
+			var step = _conversion_step(GameMap.TERRAINS[g.map.get_t(c[0].x, c[0].y)], c[1])
+			if g.site_at(c[0]) == null and step != null:
+				out.append(["amenagement", step, c[0]])
 		for t in p["ring"]:
 			if g.site_at(t) == null:
 				out.append(["batiment", g.building_def("enclos"), t])
@@ -827,7 +945,8 @@ func _needs() -> Dictionary:
 		for k in cost:
 			if need.has(k):
 				need[k] += float(cost[k])
-	if float(strat["preference_palier"]) > 1.0 and g.day >= 6:
+	# Garder de l'or pour un T3 (2 à 3 or) plutôt que de tout vendre le soir.
+	if (float(strat["preference_palier"]) > 1.0 or g.mine_built) and g.day >= 5:
 		need["or"] += 3.0
 	return need
 
@@ -947,12 +1066,14 @@ func _assign(w: GameState.Worker) -> void:
 	if job == "lobbyiste" or w.card.traits.has("col_blanc"):
 		g.order([w], g.map.exit_tile)
 		return
+	# Équipe réduite (faute d'argent) et zoo fermé : les chantiers avant les soins, sinon le zoo n'ouvre jamais.
+	var survival: bool = g.workers.size() <= 2 and not g.zoo_status()["open"]
 	if job == "vendeur":
 		var shop := g.site_at(shop_rect.position)
 		if shop and shop.done and g.zoo_status()["open"]:
 			g.order([w], shop.rect.position)
 			return
-	if job == "soigneur":
+	if job == "soigneur" and not survival:
 		for a in g.animals:
 			if a.arrived and not g.cared_today.has(a):
 				g.order([w], a.tiles[0])
@@ -1040,13 +1161,15 @@ func _road_plan_to(front: Vector2i, park: Rect2i) -> Array[Vector2i]:
 func _staff_posts() -> void:
 	if g.animals.filter(func(a): return a.arrived).is_empty() and g.contracts.is_empty():
 		return
+	# Guichet et boutique seulement zoo ouvert : avant, personne ne vient, et ces ouvriers manqueraient aux chantiers.
+	var open: bool = g.zoo_status()["open"]
 	for s in g.sites:
-		if s.done and s.def_id() == "entree":
+		if s.done and s.def_id() == "entree" and open:
 			_ensure_post(s, "ticket")
 			# File qui s'allonge : un deuxième guichetier
 			if g.visitor_queue >= 10:
 				_ensure_post(s, "ticket", 2)
-		elif s.done and s.def_id() == "boutique":
+		elif s.done and s.def_id() == "boutique" and open:
 			_ensure_post(s, "shop")
 		elif s.done and s.def_id() == "cuisine" and g.food_due():
 			# Un nourrisseur pour 4 animaux (l'Animalier, puis le Soigneur, puis le moins utile ailleurs)

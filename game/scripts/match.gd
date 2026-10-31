@@ -30,12 +30,13 @@ var drafted: Array = []  # cartes prises, par joueur
 
 var market_workers: Array = []
 var market_contracts: Array = []
+var market_actions: Array = []  # cartes d'action proposées la nuit
 var night_order: Array[int] = []
 var night_turn := 0  # position dans night_order du joueur qui achète
 var log: Array[String] = []  # achats des IA de la nuit
 var current_event := {}  # événement du jour (commun à tous les joueurs)
-var bonus_offer: Array = []  # bonus de nuit proposés (n + 1)
-var bonus_taken := {}  # id du bonus -> index du joueur
+var bonus_offer: Array = []  # bonus de nuit proposés (3)
+var bonus_choice := {}  # bonus choisi par le premier en influence : actif le lendemain pour tous les joueurs
 var history: Array = []  # statistiques par jour et par joueur (simulations)
 
 
@@ -115,6 +116,16 @@ func make_card(categorie: String) -> GameState.Card:
 	var gen: Dictionary = W["generation_traits"]
 	_draw_traits(card, W["traits_positifs"], int(pick_weighted(gen["nb_positifs"])), gen["exclusions"])
 	_draw_traits(card, W["traits_negatifs"], int(pick_weighted(gen["nb_negatifs"])), gen["exclusions"])
+	return card
+
+
+## Carte d'action (workers.json > cartes_action) : une carte du deck qui n'est pas un ouvrier.
+func make_action(def: Dictionary) -> GameState.Card:
+	var card := GameState.Card.new()
+	card.id = next_card_id
+	next_card_id += 1
+	card.nom = def["nom"]
+	card.action = def
 	return card
 
 
@@ -292,12 +303,14 @@ func end_day() -> void:
 	log.clear()
 	for p in players:
 		p.bought_worker = false
+		p.bought_action = false
 		p.contracts_tonight = 0
 		p.night_action_used = false
+	# Bonus de nuit : seul le premier en influence choisit, et le bonus s'applique à tous le lendemain.
 	var pool: Array = data["events"]["bonus_nuit"].duplicate()
 	shuffle(pool)
-	bonus_offer = pool.slice(0, players.size() + 1)
-	bonus_taken.clear()
+	bonus_offer = pool.slice(0, int(data["events"].get("bonus_proposes", 3)))
+	bonus_choice = {}
 	_check_game_over()
 	_record_history()
 	if not game_over:
@@ -336,6 +349,11 @@ func current_buyer() -> int:
 	return night_order[night_turn] if night_turn < night_order.size() else -1
 
 
+## Le premier en influence cette nuit : lui seul choisit le bonus du lendemain.
+func influence_leader() -> int:
+	return night_order[0] if not night_order.is_empty() else -1
+
+
 func start_next_day() -> void:
 	if phase != "night" or game_over:
 		return
@@ -343,6 +361,11 @@ func start_next_day() -> void:
 	if night_turn < night_order.size() and not is_ai(night_order[night_turn]):
 		night_turn += 1
 	_advance_night()
+	# Bonus du lendemain, le même pour tous : celui du premier en influence, ou le premier proposé s'il n'a pas choisi.
+	if bonus_choice.is_empty() and not bonus_offer.is_empty():
+		bonus_choice = bonus_offer[0]
+	for p in players:
+		p.night_bonus = bonus_choice
 	day += 1
 	time = 0.0
 	_refresh_market(day, true)
@@ -391,8 +414,12 @@ func _refresh_market(for_day: int, rotate: bool) -> void:
 			market_workers.remove_at(rng.randi_range(0, market_workers.size() - 1))
 		if not market_contracts.is_empty():
 			market_contracts.remove_at(rng.randi_range(0, market_contracts.size() - 1))
+		if not market_actions.is_empty():
+			market_actions.remove_at(rng.randi_range(0, market_actions.size() - 1))
 	while market_workers.size() < int(m["ouvriers"]):
 		market_workers.append(make_card(pick_weighted(m["categories"])))
+	while market_actions.size() < int(m.get("actions", 0)):
+		market_actions.append(make_action(pick(data["workers"]["cartes_action"])))
 	var in_market := {}
 	for d in market_contracts:
 		in_market[d["id"]] = true
