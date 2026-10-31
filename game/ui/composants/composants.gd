@@ -23,6 +23,7 @@ const ICONES_BATIMENTS := {
 	"boutique": "batiment_boutique", "formation": "batiment_formation", "cuisine": "ressource_nourriture",
 	"entretien": "ordre_amenager", "snack": "ressource_billetterie", "kiosque": "ressource_reputation",
 	"camp_n2": "ui_ameliorer", "camp_n3": "ui_ameliorer", "planter": "terrain_planter_foret", "creuser": "terrain_bassin",
+	"grand_arbre": "terrain_planter_foret", "rocher_obs": "biome_montagne", "bassin_profond": "terrain_bassin", "abri_chaud": "batiment_maison",
 }
 
 
@@ -350,6 +351,9 @@ static func carte_ouvrier(d: Dictionary, etat := "normale", taille := "main", bo
 	elif boutons.size() >= 2:
 		carte.add_child(_bouton_carte(boutons[0], Vector2(8, by), Vector2(t.x - 62, 30)))
 		carte.add_child(_bouton_carte(boutons[1], Vector2(t.x - 50, by), Vector2(42, 30)))
+	if boutons.size() >= 3:
+		# Cadre : « Jouer » son action, en pilule sur le bas du portrait
+		carte.add_child(_bouton_carte(boutons[2], Vector2(t.x - 66, hp - 28), Vector2(60, 26)))
 
 	if not bandeau.is_empty():
 		carte.add_child(pastille_texte(bandeau[0], bandeau[1], t.x, hp - 24))
@@ -379,6 +383,8 @@ static func _bouton_carte(spec: Array, pos: Vector2, taille: Vector2) -> Button:
 	b.disabled = spec[2]
 	if spec.size() > 3 and spec[3] is Callable and spec[3].is_valid():
 		b.pressed.connect(spec[3])
+	if spec.size() > 4:
+		b.tooltip_text = spec[4]
 	b.position = pos
 	b.size = taille
 	return b

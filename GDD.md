@@ -124,6 +124,17 @@ Liste complète : `data/workers.json`.
 - **Agence d'intérim** (bâtiment unique, 12 bois 6 pierre) : en journée, une fois par jour, on peut **remplacer un ouvrier sur le terrain** par une carte de sa pioche ou de sa défausse. Le remplaçant arrive à sa place, garde sa charge et reprend sa tâche ; l'ouvrier remplacé part à la défausse, sans expérience pour la journée. Coût : 4 de frais + le salaire du remplaçant (celui du remplacé n'est pas rendu). Bouton « Remplacer (Agence d'intérim) » dans le panneau de l'ouvrier sélectionné.
 - **IA** : elle joue ses actions le matin (Formation express après avoir déployé) et en achète une quand l'argent abonde, 4 au plus dans son deck.
 
+- **Cadres jouables (lot M)** : un cadre en main se **déploie** (son travail) **ou se joue** (bouton « Jouer » sur la carte) pour un effet immédiat. Joué, il ne travaille pas ce jour-là, ne coûte pas de salaire et part à la défausse (il reste dans le deck). Pas de carte gardée pour l'instant (un bâtiment pourra la débloquer).
+  - Architecte, *Plan d'urgence* : tous vos ouvriers construisent 50 % plus vite aujourd'hui (Heures sup reste +40 % sur tout le travail).
+  - Contremaître, *Cadence* : les défauts de vos ouvriers n'ont aucun effet aujourd'hui.
+  - Marchand, *Négoce* : vend tout le stock de bois ou de pierre (au choix) à 140 %, même sans Marché.
+  - DRH, *Mutation* : licenciez une carte de votre main, puis piochez-en 2.
+  - Lobbyiste, *Coup de fil* : annule pour vous l'événement négatif du jour (Pluie, Canicule, Grève, Tempête) ; sinon +3 d'influence.
+  - Vendeur de souvenirs, *Braderie* : la boutique rapporte ×2 aujourd'hui, même sans vendeur posté.
+  - Formateur, *Cours du soir* : chaque ouvrier déployé aujourd'hui gagne 1 jour d'expérience de plus ce soir.
+  - Animateur, *Grand spectacle* : +10 d'attractivité aujourd'hui, même sans Kiosque.
+  - L'IA joue un cadre quand la situation s'y prête (4 chantiers ouverts pour l'Architecte, événement négatif pour le Lobbyiste, gros stock pour le Marchand, etc.).
+
 ### 6.5 bis Capacités et traits (lot B : implémentés)
 - **Architecte** : un chantier où il a travaillé rembourse **25 % des ressources** à la fin. Même col blanc, il peut superviser (sans construire). **Débrouillard** : 15 %.
 - **Matinal** : commence la journée sur sa dernière case de travail. **Casanier** : −30 % de vitesse à plus de 15 cases du camp. **Peureux** : abandonne sa tâche à 2 cases ou moins d'un enclos de prédateur.
@@ -226,6 +237,12 @@ Liste complète : `data/workers.json`.
 - **Nourriture** : chaque animal coûte de l'argent au début de chaque jour (T1 = 2, T2 = 4, T3 = 6 depuis l'équilibrage ; c'était 1 / 2 / 3).
 - **Combien d'animaux ?** Il n'y a pas de maximum. Un enclos peut accueillir **plusieurs espèces** si sa surface couvre la somme de leurs tailles et si chaque motif tient sur des cases que n'utilisent pas les autres (un prédateur reste seul). Un animal ne vit **jamais sans clôture** : cliquer dans le parc libre de l'enceinte (hors enclos et hors bâtiments) pose en chantier le plus petit enclos rectangulaire autour de la case où son motif existe, en reprenant les clôtures d'enclos et le mur de l'enceinte, et y réserve l'animal (il faut le bois des segments). Une zone fermée par des clôtures d'enclos **encore en chantier** est un enclos prévu : l'animal y est réservé (« Enclos en chantier » dans les contrats, annulable) et ne s'installe qu'une fois les clôtures terminées ; il arrive la nuit suivante. Le bouton de l'enclos proposé pose les clôtures et réserve l'animal d'un coup. Les limites viennent d'ailleurs : un contrat par nuit, chaque espèce une seule fois par joueur, les espèces disponibles au marché, et la place dans l'enceinte. Un animal non nourri ne compte pas ce tour-ci (§3.2).
 - Liste : `data/animals.json`.
+
+### 9.0 Motifs et aménagements d'enclos (lot M)
+- **Motifs tournables** : un motif se pose dans n'importe laquelle de ses 8 orientations (4 rotations, et leur miroir).
+- **Motifs plus grands et mixtes** : palier 1, 4 à 5 cases sur 2 terrains ; palier 2, 7 à 9 cases sur 2 ou 3 terrains ; palier 3, 12 cases sur 3 ou 4 terrains. Les tailles d'enclos suivent (6, 8 à 10, 13 à 15 cases). Le Paysagiste et le Terrassier deviennent nécessaires pour la plupart des espèces.
+- **Aménagements d'enclos requis** (onglet Zoo, 1 case, à poser dans un enclos clôturé ou en chantier, hors du motif) : **Grand arbre** (8 bois : Girafe, Ours brun, Jaguar, Panda roux, Gorille), **Rocher d'observation** (8 pierre : Lion, Loup, Lynx, Phoque, Aigle royal, Panthère des neiges), **Bassin profond** (6 pierre : Éléphant, Rhinocéros, Tapir, Tigre, Manchot, Hippopotame), **Abri chauffé** (4 bois, 4 pierre : Crocodile, Dragon de Komodo). Le palier 1, le Yak, le Dromadaire et l'Addax n'en demandent pas. Un aménagement en chantier réserve l'animal, qui arrive la nuit suivant la fin des travaux. L'enclos proposé (bouton ou clic dans le parc) pose aussi l'aménagement requis.
+- **Voisinage** : +2 d'attractivité par animal voisin du même continent, dans un autre enclos à 2 cases au plus (de part et d'autre d'une clôture). Indiqué dans la fiche de l'animal.
 
 ### 9.1 Origines et types (v6)
 - Chaque animal a un **continent d'origine** (Afrique, Europe, Asie, Amérique, Océanie) et un **type** (terrestre, aquatique, aérien). On compte 38 espèces, dont 3 oiseaux ajoutés : Vautour, Toucan, Aigle royal.

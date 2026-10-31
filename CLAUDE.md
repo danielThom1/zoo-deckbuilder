@@ -63,6 +63,13 @@ Jeu de gestion vu du dessus : deckbuilding d'ouvriers + construction d'un zoo. P
 - **Lot L (31/10)** :
   - Plus d'animal en liberté pour le joueur : `install_animal` dans le parc libre appelle `_install_with_fences` → `enclosure_site(def, around)` (plus petit rectangle contenant la case où le motif existe, clôtures et mur réutilisés) puis `place_enclosure` et réservation. La proposition d'enclos de `main.gd` utilise `game.enclosure_site(def)`. `enclosure_at` renvoie toujours `park` (anciens animaux, aide au placement).
   - Nouveau menu principal (Claude Design) : `game/scripts/menu_principal.gd` (`MenuPrincipal`, signal `lancer(spectateur, graine, adversaires)`), carte de la graine en fond, choix de 1 à 3 IA (`--joueurs`). Polices via `UiTokens`.
+- **Lot M (31/10)** :
+  - Cadres jouables : `metiers[].jouer` dans `workers.json` (nom, texte, effet, `cible` main/ressource), `cadre_action`, `cadre_error`, `play_cadre` (effets dans `action_fx` : construction, sans_defauts, boutiques, attractivite, xp_soir, sans_evenement ; `event_is_negative`). Bouton « Jouer » en pilule sur le portrait (3e bouton de `Composants.carte_ouvrier`), choix dans `_on_play_cadre`. IA : `_play_cadres()` avant les déploiements.
+  - Motifs : 38 espèces redessinées (`animals.json`, générées par un script : grilles P/F/E/R/S), tailles relevées. Rotations et miroirs existaient déjà (`pattern_variants`).
+  - Aménagements d'enclos : bâtiments `grand_arbre`, `rocher_obs`, `bassin_profond`, `abri_chaud` (`effet.decor`, onglet Zoo, dessinés par `_draw_decor`), champ `decor` des animaux. `decor_site`, `decor_waiting`, `is_decor` ; le motif évite ces cases (`free_enclosure_tiles`) ; réservation tant qu'ils sont en chantier ; `enclosure_site` choisit une case `decor_tile`, `place_enclosure` la pose, `enclosure_cost`. IA : `_place_decor`.
+  - Voisinage : `continent_neighbours(a)` (cache `_near_tiles` par version), `voisinage_continent` dans `animals.json`, compté dans `attractiveness`.
+  - Captures : `--cadre` (cadre en main), `--contrat=girafe`.
+  - Comparé à la version précédente sur 2 parties (graines 7 et 11) : pas de régression de l'IA. Les IA bloquées à 0 l'étaient déjà (argent et stock à zéro) : à traiter avec l'équilibrage.
 - **Équilibrage repoussé** à la fin des fonctionnalités (demande du 31/10) : ne lancer que `sim_test` et des captures d'ici là.
 - Pièges Godot rencontrés : une erreur de script en `--headless` **bloque** le processus (le débogueur attend) au lieu de quitter : lancer les tests avec `timeout 240 godot …` ; `TextureRect` → régler `expand_mode` **avant** `texture`/`size` (sinon taille native 96 px) ; `FontVariation.variation_opentype` attend la clé `name_to_tag("wght")`, pas la chaîne `"wght"`.
 
@@ -79,7 +86,7 @@ Note : le jeu est en 2D vu du dessus (`main.gd` dessine la carte, `game/ui/terra
 `docs/propositions_ameliorations.md` (30/10/2026) : récapitulatif des métiers (avec ce qui est réellement codé), écart avec les maquettes, propositions chiffrées (rythme, visiteurs, entretien des animaux, formation, fin de partie, deckbuilding) et ordre des lots A à E. À valider avec l'utilisateur avant de coder un lot.
 
 ## Prochaines étapes suggérées
-1. Fonctionnalités restantes des lots C et D (usure, Vétérinaire, grands projets, cadres jouables, fatigue, carte gardée, synergies).
+1. Fonctionnalités restantes des lots C et D (usure, grands projets, fatigue, carte gardée via un bâtiment, synergies). Idées de pose d'animaux non retenues pour l'instant : terrain qui s'use, prédateur à côté de ses proies, variantes de motif par contrat.
 2. Équilibrage complet avec `balance_sim` une fois tout en place.
 3. Garder le double codage couleur + forme partout ; vérifier avec la check-list §9 du HANDOFF.
 

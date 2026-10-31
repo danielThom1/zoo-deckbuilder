@@ -227,6 +227,8 @@ func make_card(categorie: String) -> Card:
 
 
 func trait_defs(card: Card) -> Array:
+	if action_fx.has("sans_defauts"):  # Contremaître joué (Cadence)
+		return card.traits.filter(func(id): return is_positive(id)).map(func(id): return traits_by_id[id])
 	return card.traits.map(func(id): return traits_by_id[id])
 
 
@@ -237,7 +239,16 @@ func is_positive(trait_id: String) -> bool:
 # --- Modificateurs : événement du jour et bonus de nuit ----------------------
 
 func event_effects() -> Dictionary:
+	if action_fx.has("sans_evenement"):  # Lobbyiste joué (Coup de fil)
+		return {}
 	return mt.current_event.get("effets", {}) if mt else {}
+
+
+## Événement du jour défavorable (Pluie, Canicule, Grève, Tempête…) : ce qu'un Coup de fil peut annuler.
+func event_is_negative() -> bool:
+	var e: Dictionary = mt.current_event.get("effets", {}) if mt else {}
+	return float(e.get("vitesse", 1.0)) < 1.0 or float(e.get("visiteurs", 1.0)) < 1.0 or float(e.get("productivite", 1.0)) < 1.0 \
+		or float(e.get("nourriture", 1.0)) > 1.0 or int(e.get("salaire", 0)) > 0 or float(e.get("chantiers", 1.0)) < 1.0
 
 
 func bonus_effects() -> Dictionary:
@@ -249,7 +260,7 @@ func task_mult(task: String) -> float:
 	var b := bonus_effects()
 	var m := float(event_effects().get("productivite", 1.0)) * float(b.get(task, 1.0)) * float(action_fx.get("productivite", 1.0))
 	if task.begins_with("construire_"):
-		m *= float(b.get("construire", 1.0))
+		m *= float(b.get("construire", 1.0)) * float(action_fx.get("construction", 1.0))
 	return m
 
 
@@ -445,6 +456,75 @@ func play_action(card: Card, target: Card = null, option := {}) -> bool:
 		pending_upgrade = {}
 	say("Carte jouée : %s. %s" % [card.action["nom"], card.action["texte"]] if not card.action.get("cible", false) \
 		else "Carte jouée : %s." % card.action["nom"])
+	version += 1
+	return true
+
+
+## Action d'un cadre (workers.json > metiers > jouer) : {} si la carte n'en a pas.
+func cadre_action(card: Card) -> Dictionary:
+	return {} if card.is_action() else card.metier.get("jouer", {})
+
+
+## Pourquoi ce cadre ne peut pas être joué maintenant ("" s'il le peut). target : carte de la main (DRH),
+## option : ressource à vendre (Marchand).
+func cadre_error(card: Card, target: Card = null, option := "") -> String:
+	var A := cadre_action(card)
+	if A.is_empty():
+		return "Ce métier n'a pas d'action"
+	if phase != "day":
+		return "Seulement de jour"
+	if not hand.has(card) or card.deployed:
+		return "Déjà sur le terrain"
+	match A.get("cible", ""):
+		"main":
+			if target == null or target == card or not hand.has(target) or target.deployed or target.is_action():
+				return "Choisissez un ouvrier de votre main"
+			if employees() <= 2:
+				return "Pas assez d'ouvriers"
+		"ressource":
+			if not option in ["bois", "pierre"] or stock.get(option, 0.0) < 1.0:
+				return "Rien à vendre"
+	return ""
+
+
+## Joue un cadre de la main pour son action : il ne travaille pas aujourd'hui (pas de salaire) et part à la défausse.
+func play_cadre(card: Card, target: Card = null, option := "") -> bool:
+	if cadre_error(card, target, option) != "":
+		return false
+	var A := cadre_action(card)
+	var fx: Dictionary = A["effet"]
+	var extra := ""
+	hand.erase(card)
+	discard.append(card)
+	for k in ["construction", "boutiques"]:
+		if fx.has(k):
+			action_fx[k] = maxf(float(action_fx.get(k, 1.0)), float(fx[k]))
+	for k in ["sans_defauts"]:
+		if fx.has(k):
+			action_fx[k] = true
+	if fx.has("attractivite"):
+		action_fx["attractivite"] = int(action_fx.get("attractivite", 0)) + int(fx["attractivite"])
+	if fx.has("xp_soir"):
+		action_fx["xp_soir"] = float(action_fx.get("xp_soir", 0.0)) + float(fx["xp_soir"])
+	if fx.has("vente"):
+		var units := floorf(stock[option])
+		var gain := floorf(units * float(data["buildings"]["conversion"][option]) * float(fx["vente"]) \
+			* float(event_effects().get("prix", {}).get(option, 1.0)))
+		stock[option] -= units
+		money += gain
+		extra = " %d %s vendus pour %d." % [int(units), option, int(gain)]
+	if fx.has("annule_evenement"):
+		if event_is_negative():
+			action_fx["sans_evenement"] = true
+			extra = " L'événement « %s » ne vous touche plus aujourd'hui." % mt.current_event.get("nom", "")
+		else:
+			influence += float(fx["influence"])
+			extra = " Pas d'événement à annuler : +%d d'influence." % int(fx["influence"])
+	if fx.has("licencier_main"):
+		hand.erase(target)
+		extra = " %s a été licencié." % target.nom
+		draw_hand(int(fx.get("pioche", 0)))
+	say("%s joue %s.%s" % [card.nom, A["nom"], extra if extra != "" else " " + A["texte"]])
 	version += 1
 	return true
 
@@ -971,6 +1051,10 @@ func placement_error(kind: String, def: Dictionary, origin: Vector2i, check_cost
 			return "La mine doit couvrir un gisement d'or"
 		if def.get("unique", false) and has_building(id):
 			return "Bâtiment unique, déjà placé"
+		if def.get("effet", {}).has("decor"):
+			var denc := enclosure_at(r.position)
+			if not denc["closed"] or denc.get("park", false):
+				return "À placer dans un enclos (clôturé ou en chantier)"
 		if def.get("hors_enceinte", false):
 			var interior: Dictionary = zoo_status()["interior"]
 			for y in range(r.position.y, r.end.y):
@@ -1020,7 +1104,7 @@ func _remove_site(s: Site) -> void:
 	for t in _tiles(s.rect):
 		occupancy.erase(t)
 	version += 1
-	if s.def_id() == "enclos":
+	if s.def_id() == "enclos" or s.def.get("effet", {}).has("decor"):
 		_check_pending_installs()
 
 
@@ -1127,7 +1211,7 @@ func _train(w: Worker, dt: float) -> void:
 
 func _complete(s: Site) -> void:
 	s.done = true
-	if s.def_id() == "enclos":
+	if s.def_id() == "enclos" or s.def.get("effet", {}).has("decor"):
 		_check_pending_installs()
 	var p := s.rect.position
 	# Architecte / Débrouillard : une partie des ressources payées est remboursée.
@@ -1288,7 +1372,7 @@ func _end_day_player() -> void:
 		_unload(w)  # la charge portée est encaissée le soir
 		var card := w.card
 		card.jours_travailles += 1
-		gain_xp(card, 1.0)
+		gain_xp(card, 1.0 + float(action_fx.get("xp_soir", 0.0)))  # Formateur joué (Cours du soir)
 		# Réseau (Lobbyiste) : +1 influence chaque soir où il a été déployé.
 		if has_capacity(card, "reseau"):
 			influence += 1.0
@@ -1834,7 +1918,7 @@ func _planned_enclosure(t: Vector2i) -> Dictionary:
 func _check_pending_installs() -> void:
 	for r in pending_installs.duplicate():
 		var enc := enclosure_at(r["tile"])
-		if enc.get("planned", false):
+		if enc.get("planned", false) or (enc["closed"] and decor_waiting(r["def"], enc)):
 			continue
 		pending_installs.erase(r)
 		contracts.append(r["def"])
@@ -1896,7 +1980,7 @@ func free_enclosure_tiles(enc: Dictionary) -> Array:
 		if a.key == key:
 			for p in a.pattern_tiles:
 				used[p] = true
-	return enc["tiles"].filter(func(p): return not used.has(p))
+	return enc["tiles"].filter(func(p): return not used.has(p) and not is_decor(p))
 
 
 ## Les murs de l'enceinte peuvent servir de côté à un enclos : la zone doit alors toucher au moins une
@@ -2031,7 +2115,33 @@ func animal_error(def: Dictionary, enc: Dictionary) -> String:
 	var ps := pattern_status(def, free_enclosure_tiles(enc))
 	if not ps["found"]:
 		return "Motif absent" if ps["missing"] >= 99 else "Motif absent (au mieux, %d case(s) à aménager)" % ps["missing"]
+	var decor: String = def.get("decor", "")
+	if decor != "" and decor_site(enc, decor) == null:
+		return "Il faut un %s dans l'enclos (onglet Zoo)" % building_def(decor)["nom"]
 	return ""
+
+
+## Aménagement d'enclos (Grand arbre, Rocher d'observation…) posé dans l'enclos, terminé ou en chantier ; null sinon.
+func decor_site(enc: Dictionary, decor: String) -> Site:
+	for p in enc.get("tiles", []):
+		var s := site_at(p)
+		if s and s.def_id() == decor:
+			return s
+	return null
+
+
+## L'aménagement requis est posé mais pas encore terminé : l'animal attend (réservé).
+func decor_waiting(def: Dictionary, enc: Dictionary) -> bool:
+	var decor: String = def.get("decor", "")
+	if decor == "":
+		return false
+	var s := decor_site(enc, decor)
+	return s != null and not s.done
+
+
+func is_decor(t: Vector2i) -> bool:
+	var s := site_at(t)
+	return s != null and s.def.get("effet", {}).has("decor")
 
 
 func install_animal(def: Dictionary, t: Vector2i) -> String:
@@ -2041,10 +2151,10 @@ func install_animal(def: Dictionary, t: Vector2i) -> String:
 	var err := animal_error(def, enc)
 	if err != "":
 		return err
-	if enc.get("planned", false):
+	if enc.get("planned", false) or decor_waiting(def, enc):
 		contracts.erase(def)
 		pending_installs.append({"def": def, "tile": t})
-		say("%s : enclos réservé. L'animal arrivera la nuit suivant la fin des clôtures." % def["nom"])
+		say("%s : enclos réservé. L'animal arrivera la nuit suivant la fin des chantiers de l'enclos." % def["nom"])
 		version += 1
 		return ""
 	var a := Animal.new()
@@ -2070,11 +2180,10 @@ func _install_with_fences(def: Dictionary, t: Vector2i) -> String:
 		return "Pas de place pour un enclos autour de cette case"
 	if site["missing"] > 0:
 		return "Motif absent autour de cette case (%d case(s) à aménager)" % site["missing"]
-	var n: int = site["new"].size()
-	var cout: Dictionary = building_def("enclos").get("cout", {})
-	for k in cout:
-		if stock.get(k, 0.0) < float(cout[k]) * n:
-			return "Il faut %d %s pour clôturer cet enclos (%d segments)" % [int(cout[k]) * n, k, n]
+	var total := enclosure_cost(site)
+	if not can_afford(total):
+		return "Il faut %s pour cet enclos (%d segments de clôture%s)" % [cost_text(total), site["new"].size(),
+			" et un " + building_def(site["decor"])["nom"] if site.has("decor") else ""]
 	place_enclosure(site)
 	var spot: Vector2i = site["pattern"][0]
 	var enc := enclosure_at(spot)
@@ -2120,10 +2229,11 @@ func enclosure_site(def: Dictionary, around := Vector2i(-1, -1)) -> Dictionary:
 				and (is_fence(p) or _is_fence_site(p) or placement_error("batiment", fence_def, p, false) == ""))
 		return ring_cache[p]
 	var sizes: Array[Vector2i] = []
-	for w in range(2, 6):
-		for h in range(2, 6):
+	for w in range(2, 7):
+		for h in range(2, 7):
 			if w * h >= need and w * h <= need + 6:
 				sizes.append(Vector2i(w, h))
+	var decor: String = def.get("decor", "")
 	sizes.sort_custom(func(a, b): return a.x * a.y < b.x * b.y or (a.x * a.y == b.x * b.y and absi(a.x - a.y) < absi(b.x - b.y)))
 	var best := {}
 	var best_score := INF
@@ -2175,20 +2285,47 @@ func enclosure_site(def: Dictionary, around := Vector2i(-1, -1)) -> Dictionary:
 				var ps := pattern_status(def, inner)
 				if ps["missing"] >= 99:
 					continue
+				var decor_tile := Vector2i(-1, -1)
+				if decor != "":
+					for p in inner:
+						if not ps["tiles"].has(p) and not map.get_t(p.x, p.y) in [GameMap.EAU, GameMap.MONTAGNE, GameMap.MINE_OR] \
+							and not map.road[map.idx(p.x, p.y)]:
+							decor_tile = p
+							break
+					if decor_tile.x < 0:
+						continue
 				var score: float = ps["missing"] * 100.0 + fresh.size() + sz.x * sz.y * 0.5
 				if score < best_score:
 					best_score = score
 					best = {"rect": r, "ring": ring, "new": fresh, "pattern": ps["tiles"], "missing": ps["missing"], "area": sz.x * sz.y}
+					if decor != "":
+						best["decor"] = decor
+						best["decor_tile"] = decor_tile
 	return best
 
 
-## Pose en chantier les clôtures d'un enclos trouvé par enclosure_site. Renvoie le nombre de segments posés.
+## Coût d'un enclos trouvé par enclosure_site : segments de clôture neufs et aménagement requis.
+func enclosure_cost(site: Dictionary) -> Dictionary:
+	var total := {}
+	var parts := [[building_def("enclos"), site["new"].size()]]
+	if site.has("decor"):
+		parts.append([building_def(site["decor"]), 1])
+	for part in parts:
+		for k in part[0].get("cout", {}):
+			total[k] = float(total.get(k, 0.0)) + float(part[0]["cout"][k]) * part[1]
+	return total
+
+
+## Pose en chantier les clôtures d'un enclos trouvé par enclosure_site, puis son aménagement requis.
+## Renvoie le nombre de segments posés.
 func place_enclosure(site: Dictionary) -> int:
 	var fence_def := building_def("enclos")
 	var placed := 0
 	for p in site["new"]:
 		if place("batiment", fence_def, p) != null:
 			placed += 1
+	if site.has("decor"):
+		place("batiment", building_def(site["decor"]), site["decor_tile"])
 	return placed
 
 
@@ -2445,7 +2582,7 @@ func attractiveness(only = null) -> int:
 			extra += int(Z["bonus_predateur"])
 		if cared_today.has(a):
 			extra += int(Z["bonus_soigneur"])
-	var total := extra + (kiosque_bonus() if not species.is_empty() else 0)
+	var total := extra + (kiosque_bonus() + int(action_fx.get("attractivite", 0)) if not species.is_empty() else 0)
 	var biomes := {}
 	# Bonus de nuit favorisant un type d'animal ou un continent (Festival des oiseaux, Semaine de l'Afrique…)
 	var by_type: Dictionary = bonus_effects().get("attractivite_type", {})
@@ -2455,10 +2592,48 @@ func attractiveness(only = null) -> int:
 		biomes[d["biome"]] = biomes.get(d["biome"], 0) + 1
 	var A: Dictionary = data["animals"]
 	total += int(A["bonus_diversite_biomes"].get(str(biomes.size()), 0))
+	# Voisinage : +2 par animal voisin du même continent (enclos différents, de part et d'autre d'une clôture)
+	var counted: Array = (animals if only == null else only).filter(func(a): return a.arrived and a.fed and not a.sick)
+	for a in counted:
+		total += int(A.get("voisinage_continent", {}).get("points", 0)) * continent_neighbours(a, counted).size()
 	for b in biomes:
 		if biomes[b] >= int(A["bonus_collection"]["especes_meme_biome"]):
 			total += int(A["bonus_collection"]["points"])
 	return total
+
+
+## Animaux voisins de a venant du même continent : dans un autre enclos, à `distance` cases au plus (Tchebychev).
+## among : animaux pris en compte (par défaut, tous ceux arrivés).
+func continent_neighbours(a: Animal, among = null) -> Array:
+	if a.park:
+		return []
+	var near := _near_tiles(a)
+	var out := []
+	for b in (animals.filter(func(o): return o.arrived) if among == null else among):
+		if b == a or b.park or b.key == a.key or b.def.get("continent", "") != a.def.get("continent", ""):
+			continue
+		if b.tiles.any(func(t): return near.has(t)):
+			out.append(b)
+	return out
+
+
+var _near_version := -1
+var _near := {}
+
+
+func _near_tiles(a: Animal) -> Dictionary:
+	if _near_version != version:
+		_near_version = version
+		_near = {}
+	if not _near.has(a):
+		var dist := int(data["animals"].get("voisinage_continent", {}).get("distance", 2))
+		var out := {}
+		for t in a.tiles:
+			for dy in range(-dist, dist + 1):
+				for dx in range(-dist, dist + 1):
+					out[t + Vector2i(dx, dy)] = true
+		_near[a] = out
+	return _near[a]
 
 
 ## Publicité : les campagnes terminées attirent plus de visiteurs, avec un rendement décroissant.
@@ -2745,7 +2920,7 @@ func _shop_mult() -> float:
 	for w in workers:
 		if w.task.get("kind") == "shop" and w.path.is_empty() and w.tile() == w.task["tile"] and interior.has(w.task["obj"].rect.position):
 			best = maxf(best, float(data["buildings"]["zoo"]["mult_vendeur"]) if w.card.metier["id"] == "vendeur" else 1.0)
-	return best
+	return maxf(best, float(action_fx.get("boutiques", 0.0)))  # Vendeur joué (Braderie)
 
 
 ## Visiteurs simultanés maximum : cases intérieures de l'enceinte / cases_par_visiteur.
@@ -2972,6 +3147,8 @@ func debug_build_zoo(o: Vector2i) -> void:
 			s.work = s.travail()
 			_complete(s)
 	var zebre: Dictionary = data["animals"]["animaux"].filter(func(d): return d["id"] == "zebre")[0]
+	map.set_t(o.x + 4, o.y + 3, GameMap.SABLE)  # motif du Zèbre : PPP / P.S
+	_terrain_updated(Vector2i(o.x + 4, o.y + 3))
 	contracts.append(zebre)
 	install_animal(zebre, Vector2i(o.x + 2, o.y + 2))
 	# Route de l'Accès jusque devant l'Entrée

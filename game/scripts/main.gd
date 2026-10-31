@@ -11,7 +11,8 @@ extends Node2D
 ##   --shot=img.png  enregistre une capture puis quitte
 ##   --marche        ouvre l'aperçu du marché du soir (captures)
 ##   --pioche        ouvre la vue de la pioche et de la défausse
-##   --contrat       ajoute un contrat et passe en mode installation d'animal (avec --autoplay --autozoo)
+##   --contrat[=id]  ajoute un contrat (girafe…) et passe en mode installation d'animal (avec --autoplay --autozoo)
+##   --cadre         ajoute un cadre à la main (bouton « Jouer »)
 ##   --un            avec --autoplay : un seul ouvrier sélectionné (panneau d'unité)
 ##   --zoom=2.5      zoom de la caméra (captures de détail)
 ##   --jours=N       spectateur : avance de N jours avant d'afficher
@@ -32,11 +33,13 @@ var building_colors := {
 	"mine": Color("5A4636"), "cloture": UiTokens.ENCEINTE, "entree": Color("E9D5A8"), "enclos": UiTokens.CLOTURE_ENCLOS,
 	"boutique": Color("E06A5A"), "formation": Color("3A6AE0"), "cuisine": Color("D8A010"), "entretien": Color("7A8A88"),
 	"snack": Color("E8782A"), "kiosque": Color("8A4AD0"), "comptoir": Color("D8A010"), "agence": Color("4A7AC8"), "camp_n2": Color("A0743C"), "camp_n3": Color("B8864A"),
+	"grand_arbre": Color("2E7A2C"), "rocher_obs": Color("8E8A80"), "bassin_profond": Color("2B86D2"), "abri_chaud": Color("C0703A"),
 }
 var building_short := {
 	"maison": "Maison", "entrepot": "Entrepôt", "comptoir": "Marché", "agence": "Intérim", "mine": "Mine", "entree": "Entrée", "boutique": "Boutique", "formation": "Formation",
 	"cuisine": "Cuisine", "entretien": "Entretien", "snack": "Snack", "kiosque": "Kiosque",
 	"camp_n2": "Camp niv. 2", "camp_n3": "Camp niv. 3",
+	"grand_arbre": "Grand arbre", "rocher_obs": "Rocher", "bassin_profond": "Bassin profond", "abri_chaud": "Abri chauffé",
 }
 
 var mt: Match
@@ -252,9 +255,14 @@ func _start(watch: bool) -> void:
 		_auto_play()
 	# --contrat : ajoute un contrat de palier 1 et passe en mode installation (captures de l'aide au placement)
 	if args.has("contrat"):
-		var cdef: Dictionary = game.data["animals"]["animaux"].filter(func(d): return d["palier"] == "T1" and d["id"] != "zebre")[0]
+		var cid: String = args["contrat"]
+		var cdef: Dictionary = game.data["animals"]["animaux"].filter(func(d): return d["id"] == cid if cid != "" else (d["palier"] == "T1" and d["id"] != "zebre"))[0]
 		game.contracts.append(cdef)
 		_set_build({"kind": "animal", "def": cdef})
+	# --cadre : ajoute un cadre à la main (captures du bouton « Jouer »)
+	if args.has("cadre"):
+		game.hand.append(game.make_card("cadre"))
+		game.version += 1
 	if args.has("pioche"):
 		_open_pile()
 	if args.has("marche"):
@@ -566,6 +574,8 @@ func _draw_site(s: GameState.Site) -> void:
 				_draw_fence(s, color)
 			"entree":
 				_draw_gate(r)
+			"grand_arbre", "rocher_obs", "bassin_profond", "abri_chaud":
+				_draw_decor(r, id)
 			_:
 				_draw_building(r, id, color)
 		if building_short.has(id) and r.has_point(_screen_to_world(get_viewport().get_mouse_position())):
@@ -624,6 +634,39 @@ func _draw_building(r: Rect2, id: String, color: Color) -> void:
 	draw_line(b.position + Vector2(0, half), b.position + Vector2(b.size.x, half), color.lightened(0.4), 1.5)
 	draw_rect(b, color.darkened(0.5), false, 1.0)
 	_draw_pin(Vector2(b.get_center().x, b.position.y + half), Composants.icone_batiment(id), color)
+
+
+## Aménagements d'enclos : grand arbre, rocher d'observation, bassin profond, abri chauffé (vus du dessus).
+func _draw_decor(r: Rect2, id: String) -> void:
+	var c := r.get_center()
+	match id:
+		"grand_arbre":
+			draw_circle(c + Vector2(2.5, 3.5), 9.0, Color(0, 0, 0, 0.25))
+			draw_rect(Rect2(c + Vector2(-1.2, 1), Vector2(2.4, 6)), Color("6A4426"))
+			for k in [[Vector2(-3, -1), 6.5], [Vector2(3, -2), 6.0], [Vector2(0, -5), 6.5], [Vector2(0, 0), 7.0]]:
+				draw_circle(c + k[0], k[1], Color("2E6A2A"))
+			for k in [[Vector2(-3, -3), 3.5], [Vector2(2, -6), 3.0], [Vector2(1, -1), 3.2]]:
+				draw_circle(c + k[0], k[1], Color("5AA040"))
+		"rocher_obs":
+			draw_circle(c + Vector2(2, 3), 8.0, Color(0, 0, 0, 0.25))
+			draw_colored_polygon(PackedVector2Array([c + Vector2(-8, 5), c + Vector2(-6, -4), c + Vector2(0, -8), c + Vector2(7, -3),
+				c + Vector2(8, 5)]), Color("8E8A80"))
+			draw_colored_polygon(PackedVector2Array([c + Vector2(-6, -4), c + Vector2(0, -8), c + Vector2(7, -3), c + Vector2(0, -1)]), Color("C8C2B4"))
+			draw_line(c + Vector2(-8, 5), c + Vector2(8, 5), Color("5E5A52"), 1.2)
+		"bassin_profond":
+			draw_circle(c + Vector2(1, 1.5), 8.5, Color("7A7468"))
+			draw_circle(c, 8.0, Color("B8B0A0"))
+			draw_circle(c, 6.4, Color("1E6AB0"))
+			draw_circle(c + Vector2(-1.5, -1.5), 3.6, Color("3A9AE0"))
+			var t := Time.get_ticks_msec() / 700.0
+			draw_arc(c, 2.0 + fmod(t, 1.0) * 4.0, 0, TAU, 20, Color(1, 1, 1, 0.5 * (1.0 - fmod(t, 1.0))), 0.8)
+		"abri_chaud":
+			var b := r.grow(-3)
+			draw_rect(Rect2(b.position + Vector2(2, 3), b.size), Color(0, 0, 0, 0.25))
+			draw_rect(b, Color("A85A30"))
+			draw_rect(Rect2(b.position, Vector2(b.size.x, b.size.y / 2)), Color("C8783E"))
+			draw_line(b.position + Vector2(0, b.size.y / 2), b.position + Vector2(b.size.x, b.size.y / 2), Color("E8A060"), 1.2)
+			draw_circle(b.get_center() + Vector2(0, 4), 1.6, Color("FFC040"))
 
 
 ## Entrée du zoo : deux piliers et un portique.
@@ -1516,7 +1559,7 @@ func _build_ui() -> void:
 	var group := ButtonGroup.new()
 	var pages := {
 		"Bâtiments": ["route", "pont", "maison", "entrepot", "comptoir", "agence", "mine", "formation", "camp_n2", "camp_n3"],
-		"Zoo": ["cloture", "entree", "enclos", "boutique", "cuisine", "entretien", "snack", "kiosque"],
+		"Zoo": ["cloture", "entree", "enclos", "grand_arbre", "rocher_obs", "bassin_profond", "abri_chaud", "boutique", "cuisine", "entretien", "snack", "kiosque"],
 		"Terrain": [],
 	}
 	for tab_name in pages:
@@ -1947,7 +1990,13 @@ func _rebuild_hand() -> void:
 			var main_btn := ["Prime" if game.prime_left > 0 else ("Manque %d" % ceili(sal - game.money) if short else "Déployer"),
 				"BoutonPrincipal", spectator or short, _on_deploy.bind(card)]
 			var free_btn := ["25" + Composants.NBSP + "%", "BoutonSecondaire", spectator or not game.free_deploy_available(), _on_deploy_free.bind(card)]
-			widget = Composants.carte_ouvrier(d, "non_abordable" if short else "normale", "main", [main_btn, free_btn])
+			var btns := [main_btn, free_btn]
+			var A := game.cadre_action(card)
+			if not A.is_empty():
+				btns.append(["Jouer", "BoutonOrdre", spectator or game.phase != "day", _on_play_cadre.bind(card),
+					"%s : %s
+Le cadre ne travaille pas aujourd'hui (pas de salaire) et part à la défausse." % [A["nom"], A["texte"]]])
+			widget = Composants.carte_ouvrier(d, "non_abordable" if short else "normale", "main", btns)
 		elif w and w.offmap:
 			widget = Composants.carte_ouvrier(d, "hors_carte", "main", [["Rappeler", "BoutonSecondaire", spectator, _on_recall.bind(w)]],
 				["LOBBYING", Color("6A3AB0")], _on_focus.bind(w))
@@ -3131,7 +3180,8 @@ func _update_proposal_box(def: Dictionary, interior: Dictionary) -> void:
 	proposal_pattern.add_child(_pattern_view(def, 20.0))
 	var ok := animal_hints.filter(func(h): return h["ok"] and not h["park"]).size()
 	var near := animal_hints.filter(func(h): return not h["ok"]).size()
-	var lines: Array[String] = ["[b]%s[/b] · il faut %d cases et ce motif" % [def["nom"], int(def["taille"])]]
+	var lines: Array[String] = ["[b]%s[/b] · il faut %d cases et ce motif (tourné ou retourné, au choix)%s" % [def["nom"], int(def["taille"]),
+		", plus un [b]%s[/b] dans l'enclos" % game.building_def(def["decor"])["nom"] if def.has("decor") else ""]]
 	proposal_btn.visible = false
 	if interior.is_empty():
 		lines.append("[color=#FFB09A]Fermez d'abord l'enceinte du zoo avec son entrée : les animaux vivent à l'intérieur.[/color]")
@@ -3144,8 +3194,10 @@ func _update_proposal_box(def: Dictionary, interior: Dictionary) -> void:
 		if enclosure_proposal["missing"] == 0:
 			lines.append("Ou cliquez ailleurs dans le parc : l'enclos se pose en chantier autour de la case cliquée.")
 		proposal_btn.visible = n > 0
-		proposal_btn.text = ("Construire l'enclos et réserver l'animal · %d bois" if enclosure_proposal["missing"] == 0 else "Construire cet enclos · %d bois") % n
-		proposal_btn.disabled = game.stock["bois"] < n or game.phase != "day"
+		var cost := game.enclosure_cost(enclosure_proposal)
+		proposal_btn.visible = n > 0 or enclosure_proposal.has("decor")
+		proposal_btn.text = ("Construire l'enclos et réserver l'animal · %s" if enclosure_proposal["missing"] == 0 else "Construire cet enclos · %s") % game.cost_text(cost)
+		proposal_btn.disabled = not game.can_afford(cost) or game.phase != "day"
 		proposal_btn.tooltip_text = "Pose %d segments de clôture d'enclos (1 bois chacun) en chantier. Envoyez des ouvriers (clic droit) : l'animal, réservé, arrive la nuit suivant la fin des clôtures." % n
 	elif near > 0:
 		lines.append("[color=#FFD45A]Aucun enclos ne convient tel quel : les cases orange sont à aménager (onglet Terrain).[/color]")
@@ -3162,6 +3214,7 @@ func _build_proposal() -> void:
 	var placed := game.place_enclosure(enclosure_proposal)
 	game.say("Enclos proposé : %d clôture(s) en chantier. Envoyez des ouvriers (clic droit dessus)." % placed)
 	enclosure_proposal["new"] = enclosure_proposal["new"].filter(func(t): return game.site_at(t) == null)
+	enclosure_proposal.erase("decor")
 	# Motif déjà présent : l'animal est réservé dans l'enclos en chantier et arrivera une fois les clôtures finies.
 	if enclosure_proposal["new"].is_empty() and enclosure_proposal["missing"] == 0 and build_choice.get("kind") == "animal":
 		var err := game.install_animal(build_choice["def"], enclosure_proposal["pattern"][0])
@@ -3190,6 +3243,10 @@ func _draw_animal_hints() -> void:
 			var rr := Rect2(Vector2(t) * TILE, Vector2(TILE, TILE)).grow(-3)
 			if enclosure_proposal["new"].has(t):
 				_dashed_rect(rr, UiTokens.SELECTION)
+		if enclosure_proposal.has("decor"):
+			var dr := Rect2(Vector2(enclosure_proposal["decor_tile"]) * TILE, Vector2(TILE, TILE)).grow(-3)
+			_dashed_rect(dr, UiTokens.SELECTION)
+			_draw_pin(dr.get_center() + Vector2(0, 2), Composants.icone_batiment(enclosure_proposal["decor"]), building_colors[enclosure_proposal["decor"]])
 		for t in enclosure_proposal["pattern"]:
 			var ok_t: bool = enclosure_proposal["missing"] == 0
 			draw_rect(Rect2(Vector2(t) * TILE + Vector2(2, 2), Vector2(TILE - 4, TILE - 4)), Color("7CF29A") if ok_t else UiTokens.DEFAUT, false, 1.5)
@@ -3237,6 +3294,12 @@ func _animal_info(a: GameState.Animal) -> void:
 	var same := game.animals.filter(func(o): return o != a and o.arrived and o.def.get("continent", "") == d.get("continent", "")).size()
 	if same > 0:
 		lines.append("[color=#FFD45A]Affinité : %d autre(s) animal(aux) d'%s dans le zoo[/color]" % [same, game.continent_name(d.get("continent", ""))])
+	var nb := game.continent_neighbours(a)
+	if not nb.is_empty():
+		lines.append("[color=#FFD45A]Voisins d'%s : %s (+%d d'attractivité)[/color]" % [game.continent_name(d.get("continent", "")),
+			", ".join(nb.map(func(o): return o.def["nom"])), nb.size() * int(game.data["animals"]["voisinage_continent"]["points"])])
+	if d.has("decor"):
+		lines.append("Aménagement requis : %s" % game.building_def(d["decor"])["nom"])
 	var mates := game.shared_type_count(a)
 	if mates > 0:
 		lines.append("[color=#FFD45A]Enclos partagé : %d autre(s) animal(aux) %s ici (+%d %% de réputation)[/color]" % [
@@ -3375,6 +3438,35 @@ func _picker_row(card: GameState.Card, button_text: String, err: String, cb: Cal
 	b.pressed.connect(cb)
 	row.add_child(b)
 	return row
+
+
+## Cadre joué : effet immédiat, ou choix d'une carte de la main (DRH) ou d'une ressource (Marchand).
+func _on_play_cadre(card: GameState.Card) -> void:
+	var A := game.cadre_action(card)
+	match A.get("cible", ""):
+		"main":
+			var rows := []
+			for c in game.hand:
+				if c == card or c.is_action():
+					continue
+				rows.append([c, "Licencier", game.cadre_error(card, c), func():
+					game.play_cadre(card, c)
+					_close_picker()])
+			_open_picker(A["nom"].to_upper(), A["texte"], rows)
+		"ressource":
+			_open_picker(A["nom"].to_upper(), A["texte"], [])
+			for res in ["bois", "pierre"]:
+				var n := floori(game.stock[res])
+				var gain := floori(n * float(game.data["buildings"]["conversion"][res]) * float(A["effet"]["vente"]))
+				var b := Composants.bouton("Vendre %d %s · +%d" % [n, res, gain], "BoutonPrincipal")
+				b.disabled = game.cadre_error(card, null, res) != ""
+				b.pressed.connect(func():
+					game.play_cadre(card, null, res)
+					_close_picker())
+				picker_box.add_child(b)
+				picker_box.move_child(b, picker_box.get_child_count() - 2)
+		_:
+			game.play_cadre(card)
 
 
 ## Rupture de contrat : l'ouvrier à licencier. Promotion : l'ouvrier, puis son amélioration.
@@ -3877,7 +3969,8 @@ func _req_name(key: String) -> String:
 
 func _requirements_text(def: Dictionary, tiles = null) -> String:
 	if tiles == null:
-		return "≥ %d cases, motif de %d cases" % [int(def["taille"]), def["motif"].size()]
+		return "≥ %d cases, motif de %d cases%s" % [int(def["taille"]), def["motif"].size(),
+			" + " + game.building_def(def["decor"])["nom"] if def.has("decor") else ""]
 	var size_ok: bool = tiles.size() >= int(def["taille"])
 	var ps := game.pattern_status(def, tiles)
 	var parts: Array[String] = []

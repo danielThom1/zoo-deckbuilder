@@ -240,6 +240,11 @@ func _init() -> void:
 	var y0 := gk.map.h - 9
 	var interior := Vector2i(cx - 4, y0 + 1)
 	gk.stock["bois"] = 50.0
+	# Terrain de l'enclos préparé pour le motif du Zèbre (PPP / P.S)
+	for yy in range(y0 + 1, y0 + 3):
+		for xx in range(cx - 5, cx - 2):
+			gk.map.set_t(xx, yy, GameMap.SABLE if (xx == cx - 3 and yy == y0 + 2) else GameMap.PRAIRIE)
+			gk._terrain_updated(Vector2i(xx, yy))
 	var fences: Array = []
 	for y in range(y0, y0 + 4):
 		for x in range(cx - 6, cx - 1):
@@ -399,7 +404,7 @@ func _init() -> void:
 	check(gz2.placement_error("batiment", gz2.building_def("maison"), Vector2i(6, 9)) == "", "une maison reste possible dans l'enceinte")
 	check(gz2.sell_price("or") > 6.0 * gz2.sell_price("bois"), "l'or se vend bien plus cher que le bois (%.1f contre %.1f)" % [gz2.sell_price("or"), gz2.sell_price("bois")])
 	var tigre: Dictionary = data["animals"]["animaux"].filter(func(d): return d["id"] == "tigre")[0]
-	check(tigre["motif"].size() == 5, "Tigre : motif de 5 cases")
+	check(tigre["motif"].size() == 12 and tigre.get("decor", "") == "bassin_profond", "Tigre : motif de 12 cases et bassin profond")
 
 	print("Motifs, aménagement, démolition :")
 	var gp := _fresh_day(data, 321)
@@ -865,6 +870,7 @@ func _init() -> void:
 	f_b["id"] = "test_parc_b"
 	f_b["taille"] = 4
 	f_a["taille"] = 5
+	f_a["motif"] = [[0, 0, "Prairie"], [1, 0, "Prairie"], [0, 1, "Prairie"]]
 	f_b["taille"] = 1
 	f_b["motif"] = [[0, 0, "Prairie"]]
 	fg.contracts.append_array([f_a, f_b])
@@ -946,6 +952,86 @@ func _init() -> void:
 			mi.names[i], mi.day, built, pl.animals.size(), int(pl.money), pl.reputation()])
 		check(built > 20, "%s construit (%d bâtiments)" % [mi.names[i], built])
 	check(mi.players.any(func(pl): return not pl.animals.is_empty() or not pl.contracts.is_empty()), "au moins une IA a un contrat ou un animal")
+
+	print("Lot M : cadres jouables :")
+	var m_g := _fresh_day(data, 4242)
+	var m_arch: GameState.Card = b_mk.call("architecte", [])
+	var m_cm: GameState.Card = b_mk.call("contremaitre", [])
+	var m_mar: GameState.Card = b_mk.call("marchand", [])
+	var m_drh: GameState.Card = b_mk.call("drh", [])
+	var m_lent: GameState.Card = b_mk.call("manoeuvre", ["lent"])
+	m_g.hand.append_array([m_arch, m_cm, m_mar, m_drh, m_lent])
+	var m_c0 := m_g.task_mult("construire_bois")
+	var m_e0 := m_g.task_mult("extraire_bois")
+	check(m_g.play_cadre(m_arch) and is_equal_approx(m_g.task_mult("construire_bois"), m_c0 * 1.5) and is_equal_approx(m_g.task_mult("extraire_bois"), m_e0),
+		"Architecte joué : construction +50 %, rien d'autre")
+	check(not m_g.hand.has(m_arch) and m_g.discard.has(m_arch) and not m_g.play_cadre(m_arch), "le cadre joué part à la défausse")
+	var m_s0 := m_g.speed(m_lent)
+	check(m_g.play_cadre(m_cm) and m_g.speed(m_lent) > m_s0, "Contremaître joué : le défaut Lent n'agit plus (%.2f → %.2f)" % [m_s0, m_g.speed(m_lent)])
+	m_g.stock["pierre"] = 20.0
+	var m_money0 := m_g.money
+	check(m_g.cadre_error(m_mar, null, "or") != "" and m_g.play_cadre(m_mar, null, "pierre") and m_g.stock["pierre"] < 1.0 \
+		and m_g.money >= m_money0 + 22, "Marchand joué : pierre vendue à 140 %% (+%d)" % int(m_g.money - m_money0))
+	var m_h0 := m_g.hand.size()
+	check(m_g.cadre_error(m_drh, m_drh) != "" and m_g.play_cadre(m_drh, m_lent) and not m_g.all_employees().has(m_lent),
+		"DRH joué : un ouvrier de la main est licencié")
+	check(m_g.hand.size() == m_h0 or m_g.deck.is_empty(), "DRH joué : 2 cartes piochées (main %d → %d)" % [m_h0, m_g.hand.size()])
+	var m_anim: GameState.Card = b_mk.call("animateur", [])
+	m_g.hand.append(m_anim)
+	var m_att0 := m_g.attractiveness()
+	m_g.play_cadre(m_anim)
+	check(m_g.animals.is_empty() or m_g.attractiveness() == m_att0 + 10, "Animateur joué : +10 d'attractivité")
+	var m_form: GameState.Card = b_mk.call("formateur", [])
+	m_g.hand.append(m_form)
+	m_g.play_cadre(m_form)
+	check(is_equal_approx(float(m_g.action_fx.get("xp_soir", 0.0)), 1.0), "Formateur joué : +1 jour d'expérience ce soir")
+	var m_lob: GameState.Card = b_mk.call("lobbyiste", [])
+	m_g.hand.append(m_lob)
+	var m_inf0 := m_g.influence
+	var m_neg := m_g.event_is_negative()
+	m_g.play_cadre(m_lob)
+	check(m_g.event_effects().is_empty() if m_neg else is_equal_approx(m_g.influence, m_inf0 + 3.0), "Lobbyiste joué : événement annulé ou +3 d'influence")
+
+	print("Lot M : motifs, aménagements d'enclos, voisinage :")
+	var v_zeb: Dictionary = data["animals"]["animaux"].filter(func(d): return d["id"] == "zebre")[0]
+	var v_g := _fresh_day(data, 2027)
+	check(v_g.pattern_variants(v_zeb).size() == 8, "motif du Zèbre : 8 orientations (rotations et miroirs)")
+	v_g.debug_build_zoo(Vector2i(4, 4))
+	v_g.end_day()
+	v_g.start_next_day()
+	var v_d: Dictionary = v_zeb.duplicate(true)
+	v_d["id"] = "test_decor"
+	v_d["nom"] = "Test arbre"
+	v_d["taille"] = 5
+	v_d["decor"] = "grand_arbre"
+	v_d["motif"] = [[0, 0, "Prairie"], [1, 0, "Prairie"], [0, 1, "Prairie"]]
+	v_g.contracts.append(v_d)
+	v_g.stock["bois"] = 40.0
+	check(v_g.install_animal(v_d, Vector2i(10, 6)) == "" and v_g.pending_installs.size() == 1, "enclos posé dans le parc avec son aménagement requis")
+	var v_tree: Array = v_g.sites.filter(func(s): return s.def_id() == "grand_arbre")
+	check(v_tree.size() == 1 and not v_tree[0].done, "Grand arbre posé en chantier dans l'enclos")
+	for s in v_g.sites.duplicate():
+		if not s.done and s.def_id() == "enclos":
+			s.work = s.travail()
+			v_g._complete(s)
+	check(v_g.pending_installs.size() == 1 and v_g.animals.size() == 1, "clôtures finies, arbre en chantier : l'animal attend")
+	v_tree[0].work = v_tree[0].travail()
+	v_g._complete(v_tree[0])
+	check(v_g.pending_installs.is_empty() and v_g.animals.size() == 2, "arbre terminé : l'animal s'installe")
+	check(not v_g.animals[1].pattern_tiles.has(v_tree[0].rect.position), "le motif ne passe pas sur l'aménagement")
+	v_g.end_day()
+	var v_nb := v_g.continent_neighbours(v_g.animals[0])
+	check(v_nb.size() == 1 and v_nb[0] == v_g.animals[1], "voisinage : deux animaux d'Afrique dans des enclos voisins")
+	var v_lone: Array = [v_g.animals[0]]
+	check(v_g.attractiveness() > v_g.attractiveness(v_lone) + int(v_d["reputation"]) + 3, "voisinage : +2 d'attractivité par voisin du même continent")
+	var v_enc := v_g.enclosure_at(v_g.animals[1].tiles[0])
+	v_g.start_next_day()
+	var v_r: Dictionary = v_d.duplicate(true)
+	v_r["id"] = "test_rocher"
+	v_r["taille"] = 1
+	v_r["decor"] = "rocher_obs"
+	v_r["motif"] = [[0, 0, "Prairie"]]
+	check("Rocher" in v_g.animal_error(v_r, v_enc), "aménagement requis absent : %s" % v_g.animal_error(v_r, v_enc))
 
 	print("\n%s" % ("TOUS LES TESTS PASSENT" if failures == 0 else "%d ÉCHEC(S)" % failures))
 	quit(failures)

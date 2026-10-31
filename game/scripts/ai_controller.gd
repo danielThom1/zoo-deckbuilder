@@ -116,6 +116,7 @@ func on_day_start() -> void:
 			elif c.is_action() and c.action["id"] != "formation_express" \
 				and (c.action["id"] != "portes_ouvertes" or g.zoo_status()["open"]):
 				g.play_action(c)
+	_play_cadres()
 	var hand := g.hand.filter(func(c): return not c.is_action())
 	hand.sort_custom(func(a, b): return card_value(a) > card_value(b))
 	g.take_loan()  # seulement si aucun salaire n'est payable (voir loan_error)
@@ -134,6 +135,48 @@ func on_day_start() -> void:
 		if c.is_action() and c.action["id"] == "formation_express":
 			g.play_action(c)
 	think_clock = 0.0
+
+
+## Cadres joués pour leur action plutôt que déployés, quand la situation s'y prête.
+func _play_cadres() -> void:
+	var built := func(id: String) -> bool:
+		return g.sites.any(func(s): return s.done and s.def_id() == id)
+	var open: bool = g.zoo_status()["open"]
+	for c in g.hand.duplicate():
+		var A := g.cadre_action(c)
+		if A.is_empty() or not g.hand.has(c):
+			continue
+		match c.metier["id"]:
+			"architecte":
+				if g.sites.filter(func(s): return not s.done).size() >= 4:
+					g.play_cadre(c)
+			"contremaitre":
+				if g.hand.filter(func(o): return o != c and o.traits.any(func(t): return not g.is_positive(t))).size() >= 3:
+					g.play_cadre(c)
+			"marchand":
+				if g.stock["pierre"] >= 60:
+					g.play_cadre(c, null, "pierre")
+				elif g.stock["bois"] >= 80:
+					g.play_cadre(c, null, "bois")
+			"drh":
+				var worst: GameState.Card = null
+				for o in g.hand:
+					if o != c and g.cadre_error(c, o) == "" and card_value(o) < 0.5 and (worst == null or card_value(o) < card_value(worst)):
+						worst = o
+				if worst and g.all_employees().size() > 5:
+					g.play_cadre(c, worst)
+			"lobbyiste":
+				if g.event_is_negative():
+					g.play_cadre(c)
+			"vendeur":
+				if open and built.call("boutique"):
+					g.play_cadre(c)
+			"formateur":
+				if not built.call("formation") and g.hand.filter(func(o): return not o.is_action()).size() >= 5:
+					g.play_cadre(c)
+			"animateur":
+				if open and not g.animals.is_empty() and not built.call("kiosque"):
+					g.play_cadre(c)
 
 
 ## Intérêt d'une carte d'action pour cette IA (0 : inutile pour l'instant).
@@ -842,8 +885,10 @@ func _try_install() -> void:
 		if not ring.all(func(t): return g.is_fence(t) or g.is_wall(t)):
 			continue
 		var interior: Rect2i = p["interior"]
-		if _rect_tiles(interior).any(func(t): return g.site_at(t) != null):
-			continue  # aménagements en cours
+		if _rect_tiles(interior).any(func(t): return g.site_at(t) != null and not g.is_decor(t)):
+			continue  # aménagements de terrain en cours
+		if not _place_decor(p["def"], interior):
+			continue
 		var err := g.install_animal(p["def"], interior.position)
 		if err == "":
 			plans.erase(p)
@@ -851,6 +896,23 @@ func _try_install() -> void:
 			var conv = _pattern_conversions(p["def"], interior)
 			if conv != null:
 				p["conv"] = conv
+
+
+## Aménagement d'enclos requis (Grand arbre…) : posé sur une case de l'enclos hors du motif. Faux tant qu'il
+## ne peut pas être posé (ressources) ; l'animal est ensuite réservé jusqu'à la fin du chantier.
+func _place_decor(def: Dictionary, interior: Rect2i) -> bool:
+	var decor: String = def.get("decor", "")
+	if decor == "":
+		return true
+	var enc := g.enclosure_at(interior.position)
+	if g.decor_site(enc, decor) != null:
+		return true
+	var pattern: Array = g.pattern_status(def, g.free_enclosure_tiles(enc))["tiles"]
+	var ddef := g.building_def(decor)
+	for t in _rect_tiles(interior):
+		if not pattern.has(t) and g.placement_error("batiment", ddef, t) == "":
+			return g.place("batiment", ddef, t) != null
+	return false
 
 
 # --- Chantiers voulus --------------------------------------------------------
