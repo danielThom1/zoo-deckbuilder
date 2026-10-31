@@ -41,32 +41,46 @@ func _init() -> void:
 			"graine %d : 2 gisements d'or atteignables" % s)
 
 	print("Draft :")
+	# Tirages statistiques sur une seule partie : créer une partie génère une carte (~0,5 s), inutile ici.
 	var cats := {"peu_qualifie": 0, "qualifie": 0, "cadre": 0}
 	var runs := 200
-	for s in runs:
-		var md := Match.new(data, s + 1000, 2, 0)
-		for c in md.draft_pool:
-			cats[c.metier["categorie"]] += 1
-	print("  moyenne par draft de 20 cartes : %.1f peu qualifiés, %.1f qualifiés, %.1f cadres" % [
+	var md := Match.new(data, 1000, 1, 0)
+	var proba: Dictionary = data["workers"]["generation_draft"]["probabilites"]
+	for i in runs * 40:
+		cats[md.pick_weighted(proba)] += 1
+	print("  moyenne pour 40 cartes révélées (2 joueurs, 10 tours de 4) : %.1f peu qualifiés, %.1f qualifiés, %.1f cadres" % [
 		cats["peu_qualifie"] / float(runs), cats["qualifie"] / float(runs), cats["cadre"] / float(runs)])
 	var cols := 0
 	var col_ok := true
-	for s in 100:
-		var mc := Match.new(data, s + 5000, 1, 0)
-		for i in 30:
-			var c := mc.make_card(["peu_qualifie", "qualifie", "cadre"][i % 3])
-			if c.traits.has("col_blanc"):
-				cols += 1
-				col_ok = col_ok and c.metier["categorie"] == "cadre"
+	for i in 3000:
+		var c := md.make_card(["peu_qualifie", "qualifie", "cadre"][i % 3])
+		if c.traits.has("col_blanc"):
+			cols += 1
+			col_ok = col_ok and c.metier["categorie"] == "cadre"
 	check(col_ok and cols > 0, "Col blanc uniquement chez les cadres (%d tirés)" % cols)
 	var mt := Match.new(data, 42, 2, 0)
 	var g: GameState = mt.players[0]
-	check(mt.draft_pool.size() == 20, "pool de 20 cartes pour 2 joueurs")
+	check(mt.draft_pool.size() == 4 and mt.draft_reserve.size() == 36, "4 cartes révélées par tour, 10 tours (2 joueurs)")
 	var order := mt.draft_order.slice(0, 4)
-	check(order[0] != order[1] and order[1] == order[2], "ordre serpent (%s)" % str(order))
+	check(order[0] != order[1] and order[2] == order[1], "le premier à choisir tourne (%s)" % str(order))
+	mt.pick_draft(mt.ai_choice())
+	check(mt.draft_pool.size() == 3 and mt.draft_round() == 0, "un choix retire la carte, le tour continue")
+	mt.pick_draft(mt.ai_choice())
+	check(mt.draft_round() == 1 and mt.draft_pool.size() == 4, "à 2 joueurs, les 2 cartes restantes sont défaussées")
 	while mt.phase == "draft":
 		mt.pick_draft(mt.ai_choice())
 	check(mt.drafted[0].size() == 10 and mt.drafted[1].size() == 10, "10 cartes chacun")
+	# À 4 joueurs : la 4e carte du tour revient d'office au 4e joueur, puis le premier change.
+	var m4 := Match.new(data, 43, 4, -1)
+	var first4 := m4.current_drafter()
+	for k in 3:
+		m4.pick_draft(m4.ai_choice())
+	check(m4.draft_round() == 1 and m4.draft_pool.size() == 4 and m4.drafted.all(func(d): return d.size() == 1),
+		"4 joueurs : 3 choix, la dernière carte attribuée d'office")
+	check(m4.current_drafter() == (first4 + 1) % 4, "4 joueurs : le premier à choisir avance d'un joueur")
+	while m4.phase == "draft":
+		m4.pick_draft(m4.ai_choice())
+	check(m4.drafted.all(func(d): return d.size() == 10), "4 joueurs : 10 cartes chacun")
 	check(g.phase == "day" and g.hand.size() == 5, "le jour 1 commence avec 5 cartes en main")
 
 	print("Journée :")
@@ -240,12 +254,12 @@ func _init() -> void:
 	gk.end_day()
 	check(gk.attractiveness() == 4, "le Zèbre arrive la nuit : attractivité %d" % gk.attractiveness())
 	gk.money = 0.0
+	var gk_proba = data["events"]["proba_evenement"]
+	data["events"]["proba_evenement"] = 0.0  # un événement (subvention, épidémie) fausserait l'argent ou l'attractivité
 	gk.start_next_day()
-	check(gk.attractiveness() == 0, "non nourri faute d'argent : il ne compte pas ce tour-ci")
-	gk.end_day()
-	gk.money = 10.0
-	gk.start_next_day()
-	check(gk.attractiveness() == 4 and is_equal_approx(gk.money, 8.0), "nourri (2 argent pour un T1) : il compte de nouveau")
+	data["events"]["proba_evenement"] = gk_proba
+	check(not gk.food_due() and gk.attractiveness() == 4 and is_equal_approx(gk.money, 0.0),
+		"zoo pas encore ouvert : nourriture offerte, même sans argent")
 
 	print("Zoo et revenus :")
 	var gz := _fresh_day(data, 2026)
@@ -276,7 +290,8 @@ func _init() -> void:
 	check(gz.money > money_mid, "les billets sont encaissés pendant la journée")
 	gz.end_day()
 	var inc: Dictionary = gz.night_report["income"]
-	check(gz.rep_points > 0.0 and is_equal_approx(gz.rep_points, inc["avg_present"] * 0.6), "réputation gagnée selon la fréquentation moyenne : +%.2f" % gz.rep_points)
+	var rep_coef := float(data["buildings"]["zoo"]["reputation_par_visiteur_moyen"])
+	check(gz.rep_points > 0.0 and is_equal_approx(gz.rep_points, inc["avg_present"] * rep_coef), "réputation gagnée selon la fréquentation moyenne : +%.2f" % gz.rep_points)
 	gz.cared_today[gz.animals[0]] = true
 	check(gz.attractiveness() == 6, "Soigneur : +2 d'attractivité")
 	gz.influence = 15.0
@@ -285,6 +300,49 @@ func _init() -> void:
 	var wall: GameState.Site = gz.site_at(Vector2i(6, 4))  # milieu du mur du haut (un coin ne laisse rien passer)
 	gz._remove_site(wall)
 	check(not gz.zoo_status()["open"], "brèche dans l'enceinte : zoo fermé")
+
+	print("Visiteurs : capacité, arrivées, durée :")
+	var gvz := _fresh_day(data, 2027)
+	gvz.debug_build_zoo(Vector2i(4, 4))
+	gvz.end_day()
+	gvz.start_next_day()
+	gvz.mt.current_event = {}
+	gvz.sick_animal = null
+	var Zd: Dictionary = data["buildings"]["zoo"]
+	var cap := gvz.visitor_capacity()
+	check(cap > 0 and cap == int(gvz.zoo_status()["interior"].size() / float(Zd["cases_par_visiteur"])),
+		"capacité = cases intérieures / %d : %d visiteurs" % [int(Zd["cases_par_visiteur"]), cap])
+	var dl := gvz.day_length
+	var somme := 0.0
+	for i in 300:
+		somme += gvz.arrival_factor((i + 0.5) / 300.0 * dl)
+	check(absf(somme / 300.0 - 1.0) < 0.02, "courbe d'arrivées normalisée (moyenne %.2f)" % (somme / 300.0))
+	check(gvz.arrival_factor(dl * 0.5) > gvz.arrival_factor(dl * 0.02) and gvz.arrival_factor(dl - 10.0) == 0.0,
+		"pic en milieu de journée, plus d'arrivées juste avant la fermeture")
+	var guichetier: GameState.Card = gvz.hand[0]
+	gvz.deploy(guichetier, true)
+	var entree2: GameState.Site = gvz.sites.filter(func(s): return s.def_id() == "entree")[0]
+	var gw := gvz.worker_of(guichetier)
+	gvz.order([gw], entree2.rect.position)
+	for i in 3000:
+		gvz.tick(GameState.TICK)
+		if gvz.guichet_rate() > 0.0:
+			break
+	check(gvz.guichet_rate() > 0.0, "guichetier à son poste")
+	var durees_ok := gvz.in_zoo.all(func(v): return v["t"] <= float(Zd["duree_visite_s"]) + float(Zd["duree_visite_ecart_s"]))
+	check(durees_ok, "durées de visite au plus %d s" % int(float(Zd["duree_visite_s"]) + float(Zd["duree_visite_ecart_s"])))
+	gvz.in_zoo.clear()
+	for i in cap:
+		gvz.in_zoo.append({"t": 9999.0, "pos": Vector2.ZERO})
+	gvz.visitor_queue = 10
+	var adm0: int = gvz.visit["admitted"]
+	for i in 300:
+		gvz.tick(GameState.TICK)
+	check(gvz.visit["admitted"] == adm0 and gvz.visitor_queue > 0, "parc plein : la file attend (%d), personne n'entre" % gvz.visitor_queue)
+	gvz.in_zoo.clear()
+	for i in 300:
+		gvz.tick(GameState.TICK)
+	check(gvz.visit["admitted"] > adm0, "places libérées : %d visiteurs entrent" % (gvz.visit["admitted"] - adm0))
 
 	print("Vente du stock :")
 	var gv := _fresh_day(data, 5)
@@ -395,6 +453,179 @@ func _init() -> void:
 	var eff_opt: Dictionary = {"id": "plus_efficace", "nom": "Expérience", "effet": {"defaut": 1.15}}
 	check(me.apply_upgrade(target, eff_opt) and is_equal_approx(me.efficiency(target, "extraire_bois"), eff_before * 1.15), "amélioration payée (12) et appliquée")
 	check(not me.fire_paid(me.all_employees()[1]), "une seule action par nuit")
+
+	print("Lot B : expérience, formation, capacités :")
+	var b_g := _fresh_day(data, 4242)
+	b_g.mt.current_event = {}
+	var b_W: Dictionary = data["workers"]
+	var b_mk := func(metier_id: String, traits: Array) -> GameState.Card:
+		var c := GameState.Card.new()
+		c.nom = "Test " + metier_id
+		c.metier = b_W["metiers"].filter(func(mm): return mm["id"] == metier_id)[0]
+		c.traits.assign(traits)
+		return c
+	var b_appr: GameState.Card = b_mk.call("apprenti", [])
+	b_g.gain_xp(b_appr, 1.0)
+	check(is_equal_approx(b_appr.xp, 2.0), "Apprenti : expérience ×2 (%.1f jour pour 1 jour travaillé)" % b_appr.xp)
+	var b_eleve: GameState.Card = b_mk.call("manoeuvre", ["bon_eleve"])
+	b_g.gain_xp(b_eleve, 1.0)
+	check(is_equal_approx(b_eleve.xp, 1.5), "Bon élève : expérience ×1,5")
+	check(b_g._upgrade_pool(b_mk.call("manoeuvre", ["tetu"])).size() == 2, "Têtu : 2 améliorations au choix au lieu de 3")
+	# Montée de niveau : une amélioration gratuite au choix
+	var b_lc: GameState.Card = b_g.hand[0]
+	b_g.deploy(b_lc, true)
+	b_lc.xp = 1.0
+	var b_niv0 := b_lc.niveau
+	b_g.end_day()
+	var b_nopt := 2 if b_lc.traits.has("tetu") else 3
+	check(b_lc.niveau == b_niv0 + 1 and b_g.level_choices.size() == 1 and b_g.level_choices[0]["options"].size() == b_nopt,
+		"montée de niveau : %d améliorations au choix" % b_nopt)
+	var b_opt: Dictionary = b_g.level_choices[0]["options"][0]
+	var b_nup := b_lc.upgrade_names.size()
+	var b_money := b_g.money
+	check(b_g.choose_level_upgrade(b_lc, b_opt) and b_g.level_choices.is_empty() and b_lc.upgrade_names.size() == b_nup + 1 \
+		and is_equal_approx(b_g.money, b_money), "amélioration de niveau choisie gratuitement : %s" % b_opt["nom"])
+	# Centre de formation
+	var b_proba = data["events"]["proba_evenement"]
+	data["events"]["proba_evenement"] = 0.0
+	b_g.start_next_day()
+	data["events"]["proba_evenement"] = b_proba
+	b_g.stock["bois"] += 60.0
+	b_g.stock["pierre"] += 60.0
+	b_g.money += 80.0
+	var b_o := Vector2i(b_g.map.camp.position.x - 5, b_g.map.camp.position.y)
+	var b_centre := b_g.place("batiment", b_g.building_def("formation"), b_o)
+	check(b_centre != null, "Centre de formation placé")
+	b_centre.work = b_centre.travail()
+	b_g._complete(b_centre)
+	var b_trainee: GameState.Card = b_g.hand[0]
+	b_g.deploy(b_trainee)
+	b_g.order([b_g.worker_of(b_trainee)], b_centre.rect.position)
+	for i in 300:
+		b_g.tick(GameState.TICK)
+	var b_xp0 := b_trainee.xp
+	for i in 600:
+		b_g.tick(GameState.TICK)
+	var b_rate: float = float(b_g.building_def("formation")["effet"]["xp_par_minute"]) * b_g.xp_mult(b_trainee)
+	var b_gain1 := b_trainee.xp - b_xp0
+	check(absf(b_gain1 - b_rate) < 0.02, "Centre de formation : +%.2f jour d'expérience par minute" % b_gain1)
+	var b_form: GameState.Card = b_mk.call("formateur", [])
+	b_g.deploy(b_form)
+	b_g.order([b_g.worker_of(b_form)], b_centre.rect.position)
+	for i in 300:
+		b_g.tick(GameState.TICK)
+	var b_xp1 := b_trainee.xp
+	for i in 600:
+		b_g.tick(GameState.TICK)
+	var b_gain2 := b_trainee.xp - b_xp1
+	check(absf(b_gain2 - 2.0 * b_rate) < 0.02, "avec un Formateur posté : ×2 (+%.2f par minute)" % b_gain2)
+	# Architecte col blanc : supervise sans construire, puis rembourse 25 % à la fin
+	var b_arch: GameState.Card = b_mk.call("architecte", ["col_blanc"])
+	b_g.deploy(b_arch)
+	var b_maison := b_g.place("batiment", b_g.building_def("maison"), b_o + Vector2i(0, 3))
+	check(b_maison != null, "maison placée")
+	b_g.order([b_g.worker_of(b_arch)], b_maison.rect.position)
+	for i in 300:
+		b_g.tick(GameState.TICK)
+	check(is_equal_approx(b_maison.savings, 0.75) and is_zero_approx(b_maison.work), "Architecte col blanc : il supervise sans construire")
+	var b_bois0: float = b_g.stock["bois"]
+	b_maison.work = b_maison.travail()
+	b_g._complete(b_maison)
+	var b_refund: float = b_g.stock["bois"] - b_bois0
+	check(is_equal_approx(b_refund, floorf(float(b_maison.paid["bois"]) * 0.25)), "chantier terminé : 25 %% du bois remboursé (+%d)" % int(b_refund))
+	# Matinal, Peureux
+	var b_mat: GameState.Card = b_mk.call("manoeuvre", ["matinal"])
+	b_mat.last_work_tile = b_o + Vector2i(0, 3)
+	b_g.deploy(b_mat)
+	check(b_g.worker_of(b_mat).tile() == b_mat.last_work_tile, "Matinal : commence sur sa dernière case de travail")
+	var b_pred: Dictionary = data["animals"]["animaux"].filter(func(d): return d.get("special", "") == "predateur")[0]
+	var b_fauve := GameState.Animal.new()
+	b_fauve.def = b_pred
+	b_fauve.tiles.assign([Vector2i(10, 10)])
+	b_g.animals.append(b_fauve)
+	check(b_g.near_predator(Vector2i(12, 11)) and not b_g.near_predator(Vector2i(13, 10)), "Peureux : un prédateur à 2 cases ou moins")
+	b_g.animals.erase(b_fauve)
+	# Améliorations de métier et seconde spécialité
+	var b_port: GameState.Card = b_mk.call("porteur", [])
+	var b_cap0 := b_g.carry_capacity(b_port)
+	b_port.upgrades.append(b_W["ameliorations_metier"]["porteur"][0]["effet"])
+	check(b_g.carry_capacity(b_port) == b_cap0 + 2, "Brouette : portage +2")
+	var b_spe: GameState.Card = b_mk.call("manoeuvre", [])
+	b_spe.upgrades.append({"seconde_specialite": "construire_bois"})
+	check(is_equal_approx(b_g.efficiency(b_spe, "construire_bois"), 1.4), "Seconde spécialité : efficacité 1,4")
+	var b_charp: GameState.Card = b_mk.call("charpentier", [])
+	var b_drh: GameState.Card = b_mk.call("drh", [])
+	b_g.deck.append(b_drh)
+	var b_cost0 := b_g.hire_cost(b_charp)
+	b_drh.upgrades.append({"capacite": "chasseur_tetes"})
+	check(b_g.hire_cost(b_charp) == b_cost0 - 3, "Chasseur de têtes : embauche 3 moins chère (%d → %d)" % [b_cost0, b_g.hire_cost(b_charp)])
+	b_g.deck.erase(b_drh)
+
+	print("Lot C : nourrissage, propreté, snack, kiosque :")
+	var c_proba = data["events"]["proba_evenement"]
+	data["events"]["proba_evenement"] = 0.0  # pas d'événement : argent et rations prévisibles
+	var c_g := _fresh_day(data, 2027)
+	c_g.debug_build_zoo(Vector2i(4, 4))
+	c_g.end_day()
+	c_g.start_next_day()
+	check(c_g.food_due(), "zoo ouvert : les animaux dépendent de la Cuisine")
+	var c_a: GameState.Animal = c_g.animals[0]
+	check(is_equal_approx(c_a.food, c_g.food_capacity(c_a.def)), "l'animal arrive avec une journée de rations (%.0f)" % c_a.food)
+	c_a.food = 0.05
+	for i in 100:
+		c_g.tick(GameState.TICK)
+	check(not c_a.fed and c_g.attractiveness() == 0, "réserve vide : l'animal a faim et ne compte plus")
+	c_g.stock["bois"] += 60.0
+	c_g.stock["pierre"] += 60.0
+	c_g.money += 80.0
+	var c_o := Vector2i(c_g.map.camp.position.x - 5, c_g.map.camp.position.y)
+	var c_cuisine := c_g.place("batiment", c_g.building_def("cuisine"), c_o)
+	check(c_cuisine != null, "Cuisine des animaux placée")
+	c_cuisine.work = c_cuisine.travail()
+	c_g._complete(c_cuisine)
+	var c_feeder: GameState.Card = c_g.hand[0]
+	c_g.deploy(c_feeder)
+	c_g.order([c_g.worker_of(c_feeder)], c_cuisine.rect.position)
+	var c_m0 := c_g.money
+	for i in 2400:
+		c_g.tick(GameState.TICK)
+		if c_a.food > 1.0:
+			break
+	check(c_a.fed and c_a.food > 1.0, "nourrisseur : rations préparées à la cuisine puis livrées (réserve %.1f)" % c_a.food)
+	check(c_g.money < c_m0, "les rations se paient à la préparation (%d dépensés)" % int(c_m0 - c_g.money))
+	# Propreté et entretien (nouvelle journée)
+	c_g.end_day()
+	c_g.start_next_day()
+	c_g.proprete = 40.0
+	check(is_equal_approx(c_g.cleanliness_mult(), 0.85), "propreté 40 : visiteurs ×0,85")
+	var c_ent := c_g.place("batiment", c_g.building_def("entretien"), c_o + Vector2i(0, 3))
+	check(c_ent != null, "Local d'entretien placé")
+	c_ent.work = c_ent.travail()
+	c_g._complete(c_ent)
+	var c_cleaner: GameState.Card = c_g.hand[0]
+	c_g.deploy(c_cleaner)
+	c_g.order([c_g.worker_of(c_cleaner)], c_ent.rect.position)
+	for i in 1500:
+		c_g.tick(GameState.TICK)
+	check(c_g.proprete > 45.0, "agent d'entretien : le parc redevient propre (%d)" % roundi(c_g.proprete))
+	# Kiosque et snack : un ouvrier tient le poste dans l'enceinte
+	var c_in: Vector2i = c_g.zoo_status()["interior"].keys()[0]
+	var c_kiosque := GameState.Site.new()
+	c_kiosque.def = c_g.building_def("kiosque")
+	c_kiosque.rect = Rect2i(c_in, Vector2i(2, 2))
+	var c_anim: GameState.Card = b_mk.call("animateur", [])
+	c_g.deploy(c_anim)
+	var c_aw := c_g.worker_of(c_anim)
+	c_aw.pos = Vector2(c_in) + Vector2(0.5, 0.5)
+	c_aw.path.clear()
+	c_aw.task = {"type": "station", "kind": "kiosque", "obj": c_kiosque, "tile": c_in}
+	check(c_g.kiosque_bonus() == 6, "Kiosque tenu par un Animateur : +6 d'attractivité")
+	var c_snack := GameState.Site.new()
+	c_snack.def = c_g.building_def("snack")
+	c_snack.rect = Rect2i(c_in, Vector2i(2, 2))
+	c_aw.task = {"type": "station", "kind": "snack", "obj": c_snack, "tile": c_in}
+	check(is_equal_approx(c_g.snack_mult(), 1.25), "Snack tenu : visites 25 % plus longues")
+	data["events"]["proba_evenement"] = c_proba
 
 	print("IA :")
 	var mi := Match.new(data, 31, 2, -1)

@@ -27,16 +27,16 @@ Jeu de gestion vu du dessus, 1 à 4 joueurs (humain contre IA pour la v1). Chaqu
 ### 3.1 Mise en place
 1. Génération de la carte (graine commune).
 2. Chaque joueur reçoit un **Camp de base** (logement pour 10) avec 30 💰, **15 bois et 15 pierre** pour pouvoir construire des routes dès le début. Le camp est placé **en bas au centre** de la carte, au milieu d'une zone de départ toujours en Prairie (13×9 cases), et une **route d'accès** le relie au bord bas de la carte : c'est la porte vers l'extérieur.
-3. **Draft serpent** de 10 ouvriers :
-   - un pool visible de `nb_joueurs × 10` cartes ;
-   - chaque carte tire sa catégorie au hasard : **70 % peu qualifiés, 20 % qualifiés, 10 % cadres**. En moyenne, cela fait 1 cadre et 2 qualifiés par joueur (pour 2 joueurs : 20 cartes, dont ~2 cadres et ~4 qualifiés) ;
-   - ordre 1-2-3-4-4-3-2-1… jusqu'à 10 cartes chacun ;
-   - l'ordre du premier tour est aléatoire, puis il est fixé par l'influence.
+3. **Draft par tours** de 10 ouvriers (10 tours) :
+   - à chaque tour, **4 cartes** sont révélées (`cartes_par_tour`, au moins une par joueur) ;
+   - chaque carte tire sa catégorie au hasard : **70 % peu qualifiés, 20 % qualifiés, 10 % cadres** ;
+   - chaque joueur en prend une, à tour de rôle. À 4 joueurs, la dernière carte revient d'office au dernier joueur ; à moins de 4 joueurs, les cartes restantes sont défaussées ;
+   - le premier à choisir est tiré au sort au premier tour, puis **avance d'un joueur à chaque tour** (1-2-3-4, puis 2-3-4-1, puis 3-4-1-2…).
 4. Le deck est mélangé et chaque joueur pioche 5 cartes.
 
 ### 3.2 Le Jour (temps réel, 5 min)
 - La simulation tourne en ticks fixes (10 par seconde), indépendamment de l'affichage.
-- **Alimentation (début du jour, avant tout déploiement)** : la nourriture de chaque animal est payée automatiquement, en priorité sur les salaires. Les animaux les plus chers à nourrir sont servis en premier ❓. Un animal qui n'a pas pu être nourri **ne rapporte rien ce tour-ci** : son espèce n'est comptée ni dans la réputation ni dans les visiteurs de la nuit suivante.
+- **Alimentation (début du jour, avant tout déploiement)** : **une fois le zoo ouvert au public** (enceinte, entrée, animal et route depuis l'Accès), la nourriture de chaque animal est payée automatiquement, en priorité sur les salaires. Avant l'ouverture, le fournisseur la prend en charge : on ne s'endette pas avant les premiers revenus. Les animaux les plus chers à nourrir sont servis en premier ❓. Un animal qui n'a pas pu être nourri **ne rapporte rien ce tour-ci** : son espèce n'est comptée ni dans la réputation ni dans les visiteurs de la nuit suivante.
 - **Déploiement** : les 5 cartes piochées sont en main. Pour déployer un ouvrier, le joueur doit **payer son salaire immédiatement**. S'il n'a pas assez d'argent, la carte reste en main. Le déploiement est possible **à tout moment de la journée** : l'argent gagné par le Marchand peut ainsi servir à déployer d'autres ouvriers en cours de journée.
 - L'ouvrier déployé apparaît au Camp de base.
 - Les cartes non déployées à la fin de la journée vont à la défausse, sans gagner d'XP.
@@ -109,11 +109,17 @@ Liste complète : `data/workers.json`.
 - À la génération, un ouvrier reçoit **0 à 2 traits positifs** et **0 à 2 traits négatifs**, avec une distribution pondérée (voir `workers.json > generation_traits`).
 - Le coût d'embauche est ajusté : +15 % par trait positif et −15 % par trait négatif. Le joueur peut ainsi parier sur un ouvrier « défectueux » mais peu cher.
 
-### 6.4 Progression
-- Gain d'un niveau tous les **2 jours travaillés** (un jour où il a été pioché), avec un maximum au **niveau 4**.
-- À chaque niveau, choix d'une amélioration parmi 3, tirées dans le pool générique et dans le pool du métier.
-- Une amélioration peut **supprimer un trait négatif**.
-- Formateur et Centre de formation accélèrent l'XP.
+### 6.4 Progression (lot B : implémenté)
+- **Expérience** en jours de travail : +1 par jour déployé, ×2 pour l'**Apprenti**, ×1,5 pour **Bon élève**. Un niveau tous les **2 jours d'expérience**, au maximum le **niveau 4** (+10 % de rendement et +1 de salaire par niveau).
+- **Centre de formation** : un ouvrier posté dessus (clic droit) gagne **0,4 jour d'expérience par minute**, **×2 si un Formateur** y est posté aussi. 3 places (+2 avec un Formateur Pédagogue). Une journée complète de formation vaut 2 jours de travail en expérience (4 avec un Formateur), en plus du jour travaillé.
+- **À chaque niveau, une amélioration gratuite au choix** parmi 3 (**Têtu** : 2), tirées dans le pool générique et dans celui du métier. Le choix se fait la nuit ; s'il est oublié, la première option est appliquée au matin.
+- Améliorations génériques : Pied léger, Expérience, Maîtrise, Remise en question (supprime un défaut), Révélation (nouveau trait positif), Fidélité, **Seconde spécialité** (une tâche hors métier, tirée au hasard, passe à 1,4).
+- Améliorations de métier : Scie affûtée (Bûcheron : bois +25 %, portage +1), Brouette (Porteur : portage +2), Chasseur de têtes (DRH : embauches −3), Réseau (Lobbyiste : +1 influence par soir déployé), Négociateur (Marchand : vente +25 %), Pédagogue (Formateur : +2 places), Visionnaire (Paysagiste : aménager à côté d'une case du type voulu ×2).
+- L'amélioration payante de milieu de partie (12, à partir du jour 7) reste disponible en plus.
+
+### 6.5 bis Capacités et traits (lot B : implémentés)
+- **Architecte** : un chantier où il a travaillé rembourse **25 % des ressources** à la fin. Même col blanc, il peut superviser (sans construire). **Débrouillard** : 15 %.
+- **Matinal** : commence la journée sur sa dernière case de travail. **Casanier** : −30 % de vitesse à plus de 15 cases du camp. **Peureux** : abandonne sa tâche à 2 cases ou moins d'un enclos de prédateur.
 
 ### 6.5 Logement
 - La taille totale du deck est limitée par la **capacité de logement** : 10 pour le Camp, +4 par Maison.
@@ -138,7 +144,7 @@ Liste complète : `data/workers.json`.
 - **Visiteurs** = 20 × espèces nourries dans l'enceinte × (1 + 0,1 × biomes), +2 par prédateur, +2 par animal dont un **Soigneur** s'est occupé dans la journée. Exemple : 1 Zèbre donne 22 visiteurs.
 - **Billetterie** : 1 par visiteur. **Souvenirs** : 0,3 par visiteur et par boutique dans l'enceinte, ×2 si un **Vendeur** a tenu la boutique dans la journée.
 - **Vente du stock** : le bouton vend le bois et la pierre (l'or est conservé). Sans Marchand, le prix est divisé par deux ; avec un **Marchand** posté sur le camp, on obtient le plein tarif. Cela évite qu'une partie sans Marchand se retrouve bloquée sans argent.
-- **Postes fixes** (clic droit) : le Marchand sur le camp, le Vendeur sur une boutique, le Soigneur dans un enclos.
+- **Postes fixes** (clic droit) : le Marchand sur le camp, le Vendeur sur une boutique, le Soigneur dans un enclos, n'importe quel ouvrier (et le Formateur) au Centre de formation.
 
 ### 7.3 Visiteurs, routes et réputation (v4 : remplace les revenus de nuit)
 - **Les visiteurs sont simulés pendant la journée.** Ils apparaissent à la case **Accès**, marchent **uniquement sur les routes** jusqu'à la case devant l'**Entrée** (le camp sert de carrefour, les ponts comptent comme des routes, une route en diagonale passe), puis font la queue. Sans route reliant l'Accès à l'Entrée, personne ne vient.
@@ -147,8 +153,20 @@ Liste complète : `data/workers.json`.
   - **Publicité** = 1 + 0,6 × influence / (influence + 15). Par exemple : influence 15 → +30 % ; influence 45 → +45 %. L'influence sert donc aussi à attirer plus de visiteurs.
 - **Guichet** : il fait entrer 24 visiteurs par minute × le rendement de l'ouvrier au poste. Le nouveau métier **Guichetier** (peu qualifié) va 2 fois plus vite. Plusieurs ouvriers au guichet additionnent leur débit. File de 20 visiteurs au maximum : au-delà, les visiteurs repartent.
 - **Recettes encaissées à l'entrée** : billet à **2**, plus **0,6** de souvenirs si la boutique est tenue à ce moment-là (×2 avec un Vendeur).
-- **Visite** : 60 secondes dans le zoo, puis départ.
-- **Réputation** : chaque nuit, on gagne **0,6 × le nombre moyen de visiteurs présents dans le zoo** pendant la journée. La réputation s'accumule. **Objectif : 60**, fin forcée au jour 15.
+- **Arrivées (lot A)** : les visiteurs arrivent **par groupes de 1 à 5** (familles, couples, solos), à intervalles aléatoires. L'intensité suit une **courbe sur la journée** : montée le matin, pic entre 30 % et 70 % de la journée, puis baisse, et **plus aucune arrivée dans les 30 dernières secondes**. Le total du jour reste égal à la demande.
+- **Capacité du parc** : au plus **1 visiteur pour 3 cases intérieures** de l'enceinte en même temps. Parc plein : la file attend au guichet (20 au maximum, au-delà les visiteurs repartent). Un grand parc accueille donc plus de monde.
+- **Visite** : **3 minutes en moyenne**, tirées au hasard entre 1,5 et 4,5 minutes. À la fermeture, tout le monde sort.
+- **Réputation** : chaque nuit, on gagne **0,2 × le nombre moyen de visiteurs présents dans le zoo** pendant la journée (0,6 avec des visites de 60 s). La réputation s'accumule. **Objectif : 60**, fin forcée au jour 15.
+- **Rythme (lot A)** : les ouvriers se déplacent **30 % moins vite** (`regles.vitesse_ouvriers` = 0,7). Les bâtiments demandent environ **2 fois plus de travail** (maison 180, entrepôt 160, boutique 150, entrée 120, centre de formation 240, mine 300, pont 45, clôture d'enclos 8). Les routes (8) et l'enceinte (6) ne changent pas.
+
+### 7.4 Vie du zoo (lot C)
+- **Nourrissage** : chaque animal a une **réserve de rations** (une journée au maximum : T1 2, T2 4, T3 6) qu'il mange au fil de la journée. À 0, il **a faim** et ne compte plus dans l'attractivité. Il arrive avec une journée de rations, et le fournisseur le nourrit tant que le zoo n'est pas ouvert. Ensuite, il faut une **Cuisine des animaux** : un ouvrier envoyé dessus (clic droit) prépare les rations (1 argent chacune, 3 s par ration), les **livre** aux animaux les plus affamés puis revient, en boucle. **Animalier** ×2. Plus le zoo grandit, plus il faut de nourrisseurs.
+- **Propreté** (0 à 100) : chaque visiteur présent la fait baisser (0,3 par minute). En dessous de 60, la demande de visiteurs est ×0,85 ; en dessous de 30, ×0,6. Un ouvrier envoyé sur le **Local d'entretien** circule dans l'enceinte et nettoie, même en marchant (12 par minute, **Agent d'entretien** ×2).
+- **Snack** (tenu) : les visiteurs qui entrent restent 25 % plus longtemps, donc plus de réputation.
+- **Kiosque d'animation** (tenu) : +3 d'attractivité × l'efficacité « animer » (**Animateur** : +6).
+- **Nouveaux métiers** : Animalier et Agent d'entretien (peu qualifiés), Animateur (cadre).
+- **IA** : elle construit la cuisine dès le premier animal, sur la place libre du parc la plus proche de l'entrée, choisie au moment de construire : la réserver d'avance empêchait les enclos de tenir dans un petit parc. Elle affecte un nourrisseur pour 4 animaux, et un agent d'entretien quand la propreté passe sous 75. Sans Paysagiste ni Terrassier, elle n'achète que des animaux dont le motif existe déjà près du camp. Elle ne construit ni snack ni kiosque.
+- **Pas encore fait** : usure et réparations, Vétérinaire, grands projets (Aquarium, Vivarium, Volière), amélioration des enclos, bureau de communication.
 
 ### 7.2 Personnel, événements, bonus et milieu de partie (v3)
 - **Personnel obligatoire** : pas de billetterie sans quelqu'un au **guichet** (clic droit sur l'Entrée), pas de souvenirs sans quelqu'un à la **boutique**. N'importe quel ouvrier peut tenir ces postes, y compris un Col blanc ou un ouvrier déployé gratuitement, puisque la recette dépend de la présence et non du rendement. La recette est proportionnelle au temps de présence et devient pleine dès la moitié de la journée. Un Vendeur double les souvenirs.
@@ -205,7 +223,7 @@ Liste complète : `data/workers.json`.
 - **Trésorerie** : l'IA garde toujours de quoi payer une main complète et nourrir ses animaux. En dessous de ce seuil, elle passe en mode survie : aucun nouveau chantier, et la récolte est vendue le soir.
 - **Nuit** : licenciement de la carte la plus faible (si le DRH a travaillé), achat du contrat avec le meilleur rapport réputation (diversité comprise) / coût s'il rentre dans l'enceinte, embauche si une place de logement est libre.
 - **Stratégies** (réglages pour les simulations) : Équilibrée, Lobbying, Petits contrats, Gros contrats, Sans embauche, Économe. Les simulations se lancent avec `tests/balance_sim.gd` et écrivent un rapport dans `rapport_equilibrage.md`.
-- **Pas encore implémenté** : capacités du Formateur et de l'Architecte (l'IA les évite), choix des améliorations aux montées de niveau.
+- **Montées de niveau** : l'IA choisit d'abord de guérir un défaut, puis de renforcer sa spécialité, puis une amélioration de métier. Elle valorise l'Architecte, mais évite encore le Formateur, car elle ne construit pas de Centre de formation.
 
 ## 11 bis. IA (plan initial)
 

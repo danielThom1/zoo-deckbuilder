@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Émeraude — nuit</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&amp;family=Marcellus+SC&amp;family=Source+Sans+3:wght@400;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#FFD45A}a:hover{color:#FFE69A}
+button{font:inherit;cursor:pointer}
+.i{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;display:block;flex:none}
+</style>
+</helmet>
+<div style="width: 1600px; height: 900px; position: relative; overflow: hidden; background: #06202A; font-family: 'Source Sans 3', sans-serif; color: #F4FAEE">
+<svg width="0" height="0" style="position: absolute" aria-hidden="true">
+<defs>
+<radialGradient id="faceSh" cx="0.36" cy="0.32" r="0.8"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.3"></stop><stop offset="0.5" stop-color="#000000" stop-opacity="0"></stop><stop offset="1" stop-color="#3A1008" stop-opacity="0.4"></stop></radialGradient>
+<linearGradient id="bodySh" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.2"></stop><stop offset="0.5" stop-color="#000000" stop-opacity="0"></stop><stop offset="1" stop-color="#000000" stop-opacity="0.4"></stop></linearGradient>
+<linearGradient id="hatSh" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.45"></stop><stop offset="1" stop-color="#000000" stop-opacity="0.3"></stop></linearGradient>
+<radialGradient id="bgLight" cx="0.3" cy="0.25" r="0.9"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.5"></stop><stop offset="1" stop-color="#000000" stop-opacity="0.25"></stop></radialGradient>
+<radialGradient id="artSh" cx="0.38" cy="0.3" r="0.8"><stop offset="0" stop-color="#FFF2D8" stop-opacity="0.35"></stop><stop offset="0.55" stop-color="#000000" stop-opacity="0"></stop><stop offset="1" stop-color="#1A0800" stop-opacity="0.45"></stop></radialGradient>
+<filter id="fur" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.35" numOctaves="2" seed="9" result="n"></feTurbulence><feDisplacementMap in="SourceGraphic" in2="n" scale="3" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap></filter>
+<pattern id="pF" width="8" height="8" patternUnits="userSpaceOnUse"><path d="M4 1l3 5H1z" fill="#FFFFFF" fill-opacity="0.45"></path></pattern>
+<pattern id="pE" width="8" height="5" patternUnits="userSpaceOnUse"><path d="M0 3c1.5-1.5 2.5 1.5 4 0s2.5-1.5 4 0" fill="none" stroke="#FFFFFF" stroke-opacity="0.65" stroke-width="1"></path></pattern>
+<pattern id="pR" width="7" height="7" patternUnits="userSpaceOnUse"><path d="M1 6l2.5-4 2.5 4z" fill="#3A3428" fill-opacity="0.5"></path></pattern>
+<pattern id="pP" width="6" height="6" patternUnits="userSpaceOnUse"><path d="M2 5V2.5 M4.5 5V2" stroke="#1E4A10" stroke-opacity="0.55" stroke-width="1"></path></pattern>
+<pattern id="pS" width="6" height="6" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="0.8" fill="#8A6A2A" fill-opacity="0.6"></circle><circle cx="5" cy="5" r="0.8" fill="#8A6A2A" fill-opacity="0.6"></circle></pattern>
+</defs>
+</svg>
+<div style="position: absolute; inset: 0"><dc-import name="Vif" theme="emeraude" mode="nuit" hint-size="1600px,900px"></dc-import></div>
+<div style="position: absolute; inset: 0; background: rgba(4,16,26,0.5)"></div>
+
+<!-- en-tête -->
+<header style="position: absolute; left: 0; right: 0; top: 0; height: 64px; background: linear-gradient(#11564E, #08302C); box-shadow: 0 2px 0 #E2AE62, 0 3px 0 #6A4418, 0 8px 20px rgba(0,0,0,0.45); display: flex; align-items: center; gap: 20px; padding: 0 24px">
+<div style="display: flex; align-items: center; gap: 10px"><svg class="i" viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" style="color: #FFD45A"><path d="M20 14A8 8 0 1 1 10 4a6 6 0 0 0 10 10z"></path></svg><b style="font-family: 'Marcellus SC', serif; font-weight: 400; font-size: 28px; letter-spacing: 0.08em; color: #FFE6A8">NUIT 3</b></div>
+<ol aria-label="Étapes de la nuit" style="list-style: none; margin: 0; padding: 0; display: flex; align-items: center; gap: 6px; flex: 1">
+<sc-for list="{{steps}}" as="s" hint-placeholder-count="6">
+<li style="display: flex; align-items: center; gap: 6px"><span style="display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border-radius: 18px; background: {{s.bg}}; color: {{s.fg}}; box-shadow: {{s.ring}}; font-size: 14px; font-weight: 700"><svg class="i" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" style="stroke-width: 3"><path d="{{s.d}}"></path></svg>{{s.n}}</span><span style="width: 14px; height: 2px; background: rgba(255,255,255,0.25)"></span></li>
+</sc-for>
+</ol>
+<button style="height: 44px; padding: 0 22px; border: none; border-radius: 22px; background: linear-gradient(#FFD89A, #C88A3A); color: #1E1406; font-family: 'Marcellus SC', serif; font-weight: 400; font-size: 17px; display: flex; align-items: center; gap: 8px">Passer au jour 4<svg class="i" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" style="stroke-width: 2.6"><path d="M5 12h14 M13 6l6 6-6 6"></path></svg></button>
+</header>
+
+<!-- colonne gauche -->
+<div style="position: absolute; left: 20px; top: 82px; width: 330px; display: flex; flex-direction: column; gap: 12px">
+<section style="padding: 2px; border-radius: 10px; background: linear-gradient(160deg, #E2AE62, #6A4418)"><div style="border-radius: 8px; background: linear-gradient(#11564E, #08302C); overflow: hidden">
+<div style="background: linear-gradient(#1C7468, #10483F); padding: 8px 12px; box-shadow: 0 1px 0 #E2AE62"><b style="font-family: 'Marcellus SC', serif; font-weight: 400; font-size: 16px; letter-spacing: 0.06em">BILAN DE LA JOURNÉE</b></div>
+<div style="padding: 10px 12px; display: flex; flex-direction: column; gap: 7px; font-size: 14.5px">
+<sc-for list="{{bilan}}" as="b" hint-placeholder-count="5"><div style="display: flex; align-items: center; gap: 8px"><span style="width: 24px; height: 24px; border-radius: 50%; background: {{b.c}}; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg class="i" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" style="stroke-width: 2.4"><path d="{{b.d}}"></path></svg></span><span style="flex: 1">{{b.n}}</span><b style="color: {{b.vc}}">{{b.v}}</b></div></sc-for>
+<div style="display: flex; justify-content: space-between; align-items: baseline; border-top: 1px solid #6A4418; padding-top: 7px"><b>Total de la nuit</b><b style="font-size: 22px; color: #FFD45A">+88</b></div>
+</div></div></section>
+
+<section style="padding: 2px; border-radius: 10px; background: linear-gradient(160deg, #E2AE62, #6A4418)"><div style="border-radius: 8px; background: linear-gradient(#11564E, #08302C); overflow: hidden">
+<div style="background: linear-gradient(#1C7468, #10483F); padding: 8px 12px; box-shadow: 0 1px 0 #E2AE62"><b style="font-family: 'Marcellus SC', serif; font-weight: 400; font-size: 16px; letter-spacing: 0.06em">MONTÉES DE NIVEAU</b></div>
+<div style="padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; font-size: 14px">
+<div style="display: flex; align-items: center; gap: 8px"><span style="width: 30px; height: 30px; border-radius: 50%; background: #D8642A; box-shadow: 0 0 0 1.5px #E2AE62"></span><span style="flex: 1; line-height: 1.2"><b>Josette Marchal</b><br><span style="color: #A6D4C8">Bûcheronne · salaire 12 → 15</span></span><b style="color: #FFD45A">N2 → N3</b></div>
+<div style="display: flex; align-items: center; gap: 8px"><span style="width: 30px; height: 30px; border-radius: 50%; background: #D8642A; box-shadow: 0 0 0 1.5px #E2AE62"></span><span style="flex: 1; line-height: 1.2"><b>Samir Haddad</b><br><span style="color: #A6D4C8">Terrassier · salaire 8 → 10</span></span><b style="color: #FFD45A">N1 → N2</b></div>
+</div></div></section>
+
+<section style="padding: 2px; border-radius: 10px; background: linear-gradient(160deg, #E2AE62, #6A4418)"><div style="border-radius: 8px; background: linear-gradient(#11564E, #08302C); overflow: hidden">
+<div style="background: linear-gradient(#1C7468, #10483F); padding: 8px 12px; box-shadow: 0 1px 0 #E2AE62; display: flex; justify-content: space-between; align-items: baseline"><b style="font-family: 'Marcellus SC', serif; font-weight: 400; font-size: 16px; letter-spacing: 0.06em">AMÉLIORER OU LICENCIER</b><span style="font-size: 12.5px; color: #A6D4C8">1 par nuit</span></div>
+<div style="padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; font-size: 14px">
+<sc-for list="{{staff}}" as="s" hint-placeholder-count="3">
+<div style="display: flex; align-items: center; gap: 8px; padding: 6px; border-radius: 8px; background: rgba(255,255,255,0.06)">
+<span style="width: 28px; height: 28px; flex: none; border-radius: 50%; background: {{s.c}}; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg class="i" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="{{s.d}}"></path></svg></span>
+<span style="flex: 1; line-height: 1.15; min-width: 0"><b>{{s.n}}</b><br><span style="font-size: 12.5px; color: #A6D4C8">{{s.m}}</span></span>
+<button aria-label="Améliorer {{s.n}}" style="width: 40px; height: 40px; border: none; border-radius: 50%; background: rgba(255,212,90,0.18); color: #FFD45A; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 0 1.5px #FFD45A"><svg class="i" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" style="stroke-width: 2.6"><path d="M12 19V5 M6 11l6-6 6 6"></path></svg></button>
+<button aria-label="Licencier {{s.n}}" style="width: 40px; height: 40px; border: none; border-radius: 8px; background: rgba(232,120,42,0.18); color: #FFB070; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 0 1.5px #E8782A"><svg class="i" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" style="stroke-width: 2.6"><path d="M7 7l10 10 M17 7L7 17"></path></svg></button>
+</div>
+</sc-for>
+</div></div></section>
+</div>
+
+<!-- centre : marché -->
+<main style="position: absolute; left: 372px; top: 82px; width: 852px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 22px; background: rgba(8,48,44,0.85); box-shadow: inset 0 0 0 1px #6A4418">
+<b style="font-family: 'Marcellus SC', serif; font-weight: 400; font-size: 14px; letter-spacing: 0.06em; color: #E2AE62; white-space: nowrap">INFLUENCE</b>
+<sc-for list="{{order}}" as="o" hint-placeholder-count="4"><span style="display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px 0 4px; border-radius: 17px; background: {{o.bg}}; color: {{o.fg}}; opacity: {{o.op}}; font-size: 14px; font-weight: 700; white-space: nowrap"><span style="width: 26px; height: 26px; border-radius: 50%; background: {{o.c}}; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 13px">{{o.r}}</span>{{o.n}}<span style="font-weight: 600; opacity: 0.8">{{o.i}}</span></span></sc-for>
+<span style="margin-left: auto; font-size: 12.5px; color: #A6D4C8; white-space: nowrap">valeurs adverses cachées</span>
+</div>
+
+<div style="display: flex; align-items: baseline; justify-content: space-between"><b style="font-family: 'Marcellus SC', serif; font-weight: 400; font-size: 20px; letter-spacing: 0.04em">OUVRIERS À EMBAUCHER</b><span style="font-size: 14px; color: #A6D4C8">Argent disponible <b style="color: #FFD45A">270</b></span></div>
+<div style="display: flex; gap: 12px">
+<sc-for list="{{market}}" as="w" hint-placeholder-count="5">
+<div style="width: 160px; height: 236px; padding: 2px; box-sizing: border-box; border-radius: 12px; background: linear-gradient(160deg, #FFF0B8, #E2AE62 35%, #6A4418); box-shadow: 0 8px 16px rgba(0,0,0,0.45)">
+<div style="position: relative; height: 100%; border-radius: 10px; background: linear-gradient(#11564E, #08302C); overflow: hidden; display: flex; flex-direction: column; align-items: center">
+<div style="width: 100%; height: 88px; border-radius: 0 0 50% 50% / 0 0 16px 16px; background: {{w.bg}}; overflow: hidden; box-shadow: 0 2px 0 #E2AE62; flex: none">
+<svg viewBox="10 22 80 59" width="156" height="88" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="display: block">
+<rect width="100" height="120" fill="{{w.bg}}"></rect><rect width="100" height="120" fill="url(#bgLight)"></rect>
+<path d="{{w.toolD}}" fill="none" stroke="#5A3A1E" stroke-width="4" stroke-linecap="round"></path><path d="{{w.toolH}}" fill="#B8C0C8"></path>
+<path d="M6 120c3-20 20-30 44-30s41 10 44 30z" fill="{{w.cloth}}"></path><path d="M6 120c3-20 20-30 44-30s41 10 44 30z" fill="url(#bodySh)"></path>
+<path d="M41 70h18v20c-4 5-14 5-18 0z" fill="{{w.skin}}"></path>
+<ellipse cx="31.5" cy="58" rx="3.5" ry="6" fill="{{w.skin}}"></ellipse><ellipse cx="68.5" cy="58" rx="3.5" ry="6" fill="{{w.skin}}"></ellipse>
+<ellipse cx="50" cy="56" rx="19" ry="23" fill="{{w.skin}}"></ellipse><ellipse cx="50" cy="56" rx="19" ry="23" fill="url(#faceSh)"></ellipse>
+<path d="M38 51q5-3 9 0 M53 51q5-3 9 0" fill="none" stroke="{{w.hair}}" stroke-width="2" stroke-linecap="round"></path>
+<ellipse cx="43" cy="57" rx="2.3" ry="2.7" fill="#2A1E16"></ellipse><ellipse cx="57" cy="57" rx="2.3" ry="2.7" fill="#2A1E16"></ellipse><circle cx="43.8" cy="56" r="0.8" fill="#FFFFFF"></circle><circle cx="57.8" cy="56" r="0.8" fill="#FFFFFF"></circle>
+<path d="M44 71q6 3 12 0" fill="none" stroke="#8A3A2A" stroke-width="1.8" stroke-linecap="round"></path>
+<path d="{{w.beardD}}" fill="{{w.hair}}"></path><path d="{{w.hairD}}" fill="{{w.hair}}"></path>
+<path d="{{w.hatD}}" fill="{{w.hatC}}"></path><path d="{{w.hatD}}" fill="url(#hatSh)"></path>
+</svg>
+</div>
+<span style="position: absolute; left: 6px; top: 6px; display: flex; align-items: center; gap: 3px; padding: 2px 7px 2px 4px; border-radius: 9px; background: {{w.catC}}; box-shadow: 0 0 0 1.5px #E2AE62; color: #FFFFFF; font-size: 11px; font-weight: 800"><svg class="i" viewBox="0 0 24 24" width="11" height="11" aria-hidden="true" style="stroke-width: 3"><path d="{{w.catD}}"></path></svg>N{{w.lvl}}</span>
+<span style="position: absolute; right: 6px; top: 6px; width: 30px; height: 30px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #FFF0B8, #E2AE62 55%, #6A4418); color: #1E1406; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; box-shadow: 0 2px 4px rgba(0,0,0,0.5)">{{w.sal}}</span>
+<b style="margin-top: 8px; font-family: 'Marcellus SC', serif; font-weight: 400; font-size: 14px; line-height: 1.1; text-align: center; padding: 0 6px">{{w.name}}</b>
+<span style="font-size: 13px; color: #A6D4C8">{{w.met}} · {{w.salTxt}}</span>
+<div style="display: flex; gap: 4px; margin-top: 6px; height: 20px">
+<sc-for list="{{w.traits}}" as="t" hint-placeholder-count="2"><span style="width: 20px; height: 20px; border-radius: {{t.shape}}; background: {{t.bg}}; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg class="i" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" style="stroke-width: 2.8"><path d="{{t.d}}"></path></svg></span></sc-for>
+</div>
+<button style="margin-top: auto; margin-bottom: 10px; width: 140px; height: 40px; border: none; border-radius: 20px; background: {{w.btnBg}}; color: {{w.btnFg}}; box-shadow: {{w.btnBd}}; font-weight: 800; font-size: 14px">{{w.btnL}}</button>
+</div>
+</div>
+</sc-for>
+</div>
+
+<div style="display: flex; align-items: baseline; justify-content: space-between; margin-top: 4px"><b style="font-family: 'Marcellus SC', serif; font-weight: 400; font-size: 20px; letter-spacing: 0.04em">CONTRATS D'ANIMAUX</b><span style="font-size: 14px; color: #A6D4C8">4 contrats · achat dans l'ordre d'influence</span></div>
+<div style="display: flex; gap: 12px">
+<sc-for list="{{contracts}}" as="a" hint-placeholder-count="4">
+<div style="width: 204px; height: 292px; padding: 2px; box-sizing: border-box; border-radius: 12px; background: linear-gradient(160deg, #FFF0B8, #E2AE62 35%, #6A4418); box-shadow: 0 8px 16px rgba(0,0,0,0.45)">
+<div style="position: relative; height: 100%; border-radius: 10px; background: linear-gradient(#11564E, #08302C); overflow: hidden; display: flex; flex-direction: column">
+<div style="height: 30px; flex: none; background: {{a.bc}}; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; box-shadow: 0 1px 0 #E2AE62">
+<span style="display: flex; align-items: center; gap: 6px; font-weight: 800; font-size: 12.5px; letter-spacing: 0.08em"><svg class="i" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="{{a.bd}}"></path></svg>{{a.biome}}</span>
+<span style="display: flex; gap: 3px"><sc-for list="{{a.tier}}" as="p" hint-placeholder-count="3"><span style="width: 8px; height: 8px; transform: rotate(45deg); background: {{p}}; box-shadow: inset 0 0 0 1.5px #FFFFFF"></span></sc-for></span>
+</div>
+<div style="height: 86px; flex: none; position: relative; background: {{a.sky}}; overflow: hidden">
+<svg viewBox="0 0 100 50" width="200" height="86" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="display: block">
+<rect width="100" height="50" fill="{{a.sky}}"></rect><path d="M0 50c10-12 22-16 30-14 4 6 2 10-2 14z M100 50c-10-12-20-16-28-14-4 6-2 10 2 14z" fill="{{a.ground}}"></path>
+<g transform="translate(26 -4) scale(0.48)">
+<sc-if value="{{a.isTiger}}" hint-placeholder-val="{{ false }}"><g filter="url(#fur)"><circle cx="26" cy="24" r="9" fill="#E8781A"></circle><circle cx="74" cy="24" r="9" fill="#E8781A"></circle><path d="M18 50c0-18 14-30 32-30s32 12 32 30c0 6-3 12-7 16 3 2 4 6 2 9-6-1-10-3-13-6-4 3-9 4-14 4s-10-1-14-4c-3 3-7 5-13 6-2-3-1-7 2-9-4-4-7-10-7-16z" fill="#F08A22"></path></g><path d="M36 56c4-4 10-5 14-5s10 1 14 5c3 4 2 10-3 13-3 2-7 3-11 3s-8-1-11-3c-5-3-6-9-3-13z" fill="#FFFFFF"></path><ellipse cx="38" cy="40" rx="7" ry="4" fill="#FFFFFF"></ellipse><ellipse cx="62" cy="40" rx="7" ry="4" fill="#FFFFFF"></ellipse><path d="M50 22v8 M44 24l2 7 M56 24l-2 7 M38 32c3 0 5 2 6 4 M62 32c-3 0-5 2-6 4 M21 48c5 0 8 2 10 4 M20 56c5-1 8 0 11 2 M79 48c-5 0-8 2-10 4 M80 56c-5-1-8 0-11 2" fill="none" stroke="#14100C" stroke-width="2.6" stroke-linecap="round"></path><ellipse cx="40" cy="44" rx="4" ry="3" fill="#E8C020"></ellipse><ellipse cx="60" cy="44" rx="4" ry="3" fill="#E8C020"></ellipse><ellipse cx="40" cy="44" rx="1" ry="2.6" fill="#14100C"></ellipse><ellipse cx="60" cy="44" rx="1" ry="2.6" fill="#14100C"></ellipse><path d="M45 55h10l-5 5z" fill="#D8706A"></path><path d="M18 50c0-18 14-30 32-30s32 12 32 30c0 6-3 12-7 16-4 3-9 6-25 7-16-1-21-4-25-7-4-4-7-10-7-16z" fill="url(#artSh)"></path></sc-if>
+<sc-if value="{{a.isZebra}}" hint-placeholder-val="{{ false }}"><path d="M32 22l-4-12 9 8z M68 22l4-12-9 8z" fill="#F4F2EC" stroke="#14100C" stroke-width="2"></path><path d="M30 34c0-12 9-18 20-18s20 6 20 18l-4 30c-2 8-9 12-16 12s-14-4-16-12z" fill="#F4F2EC"></path><path d="M34 26c5 3 9 3 11 0 M55 26c2 3 6 3 11 0 M31 36c6 2 10 1 13-2 M56 34c3 3 7 4 13 2 M32 46c5 1 9 0 12-3 M56 43c3 3 7 4 12 3 M35 56c5 0 8-2 10-4 M55 52c2 2 5 4 10 4" fill="none" stroke="#14100C" stroke-width="3" stroke-linecap="round"></path><path d="M38 64c0-6 6-8 12-8s12 2 12 8c0 7-5 12-12 12s-12-5-12-12z" fill="#2A2420"></path><circle cx="40" cy="38" r="2.6" fill="#14100C"></circle><circle cx="60" cy="38" r="2.6" fill="#14100C"></circle><path d="M44 14c2-6 10-6 12 0l-2 12h-8z" fill="#14100C"></path><path d="M30 34c0-12 9-18 20-18s20 6 20 18l-4 30c-2 8-9 12-16 12s-14-4-16-12z" fill="url(#artSh)"></path></sc-if>
+<sc-if value="{{a.isBear}}" hint-placeholder-val="{{ false }}"><g filter="url(#fur)"><circle cx="26" cy="22" r="10" fill="#6A4226"></circle><circle cx="74" cy="22" r="10" fill="#6A4226"></circle><path d="M16 46c0-18 15-30 34-30s34 12 34 30c0 16-15 28-34 28S16 62 16 46z" fill="#7A4E2C"></path></g><circle cx="26" cy="22" r="5" fill="#4A2A16"></circle><circle cx="74" cy="22" r="5" fill="#4A2A16"></circle><path d="M36 54c0-8 6-12 14-12s14 4 14 12-6 14-14 14-14-6-14-14z" fill="#C89A6A"></path><path d="M44 48c0-3 3-4 6-4s6 1 6 4-3 5-6 5-6-2-6-5z" fill="#1E120A"></path><circle cx="38" cy="38" r="3" fill="#1E120A"></circle><circle cx="62" cy="38" r="3" fill="#1E120A"></circle><circle cx="39" cy="37" r="0.9" fill="#FFFFFF"></circle><circle cx="63" cy="37" r="0.9" fill="#FFFFFF"></circle><path d="M16 46c0-18 15-30 34-30s34 12 34 30c0 16-15 28-34 28S16 62 16 46z" fill="url(#artSh)"></path></sc-if>
+<sc-if value="{{a.isFennec}}" hint-placeholder-val="{{ false }}"><path d="M30 40L14 2l26 22z M70 40L86 2 60 24z" fill="#E8B070"></path><path d="M30 34L20 10l16 14z M70 34L80 10 64 24z" fill="#F6D8C0"></path><path d="M24 44c0-14 12-22 26-22s26 8 26 22c0 10-8 16-14 22l-12 8-12-8c-6-6-14-12-14-22z" fill="#F0C080"></path><path d="M36 50c4 2 9 3 14 3s10-1 14-3c-2 8-6 14-14 18-8-4-12-10-14-18z" fill="#FFF4E4"></path><ellipse cx="40" cy="42" rx="3.4" ry="3" fill="#1E120A"></ellipse><ellipse cx="60" cy="42" rx="3.4" ry="3" fill="#1E120A"></ellipse><path d="M47 56h6l-3 4z" fill="#1E120A"></path><path d="M24 44c0-14 12-22 26-22s26 8 26 22c0 10-8 16-14 22l-12 8-12-8c-6-6-14-12-14-22z" fill="url(#artSh)"></path></sc-if>
+</g>
+</svg>
+</div>
+<div style="padding: 6px 10px 0; display: flex; justify-content: space-between; align-items: baseline"><b style="font-family: 'Marcellus SC', serif; font-weight: 400; font-size: 20px">{{a.name}}</b><span style="font-size: 13px; color: #A6D4C8">{{a.size}} cases</span></div>
+<div style="padding: 5px 10px 0; display: flex; flex-wrap: wrap; gap: 3px">
+<sc-for list="{{a.cells}}" as="c" hint-placeholder-count="8"><svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><rect width="20" height="20" rx="3" fill="{{c.c}}" stroke="{{c.s}}" stroke-width="{{c.sw}}" stroke-dasharray="{{c.da}}"></rect><rect width="20" height="20" rx="3" fill="{{c.p}}"></rect></svg></sc-for>
+</div>
+<span style="padding: 4px 10px 0; font-size: 12.5px; color: #DCEDE6; line-height: 1.3">{{a.rule}}</span>
+<div style="margin-top: auto; padding: 6px 10px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); text-align: center; font-size: 11.5px; color: #A6D4C8">
+<div><b style="display: block; font-size: 16px; color: #D0A8FF">+{{a.rep}}</b>réputation</div><div><b style="display: block; font-size: 16px; color: #9AF0B0">{{a.food}}</b>nourriture</div><div><b style="display: block; font-size: 16px; color: #FFE48A">+{{a.vis}}</b>visiteurs</div>
+</div>
+<button style="margin: 0 10px 10px; height: 40px; border: none; border-radius: 20px; background: linear-gradient(#FFD89A, #C88A3A); color: #1E1406; font-weight: 800; font-size: 14px">Acheter · {{a.cost}}</button>
+</div>
+</div>
+</sc-for>
+</div>
+</main>
+
+<!-- colonne droite -->
+<div style="position: absolute; right: 20px; top: 82px; width: 340px; display: flex; flex-direction: column; gap: 12px">
+<section style="padding: 2px; border-radius: 10px; background: linear-gradient(160deg, #E2AE62, #6A4418)"><div style="border-radius: 8px; background: linear-gradient(#11564E, #08302C); overflow: hidden">
+<div style="background: linear-gradient(#1C7468, #10483F); padding: 8px 12px; box-shadow: 0 1px 0 #E2AE62"><b style="font-family: 'Marcellus SC', serif; font-weight: 400; font-size: 16px; letter-spacing: 0.06em">RÉPUTATION</b></div>
+<div style="padding: 10px 12px; display: flex; flex-direction: column; gap: 8px">
+<sc-for list="{{rank}}" as="r" hint-placeholder-count="4">
+<div style="display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; border-radius: 8px; background: {{r.bg}}; box-shadow: {{r.ring}}">
+<div style="display: flex; align-items: center; gap: 8px; font-size: 14px"><b style="width: 14px">{{r.pos}}</b><span style="width: 16px; height: 16px; border-radius: 50%; background: {{r.c}}; box-shadow: 0 0 0 1.5px #FFFFFF"></span><b style="flex: 1">{{r.n}}</b><b style="font-size: 17px">{{r.v}}</b><span style="font-size: 12.5px; color: #9AF0B0; width: 24px; text-align: right">{{r.d}}</span></div>
+<div style="height: 6px; border-radius: 3px; background: rgba(255,255,255,0.12)"><div style="width: {{r.v}}%; height: 100%; border-radius: 3px; background: {{r.c}}"></div></div>
+</div>
+</sc-for>
+<span style="font-size: 12.5px; color: #A6D4C8">Victoire au premier zoo à 100</span>
+</div></div></section>
+
+<section style="padding: 2px; border-radius: 10px; background: linear-gradient(160deg, #E2AE62, #6A4418)"><div style="border-radius: 8px; background: linear-gradient(#11564E, #08302C); overflow: hidden">
+<div style="background: linear-gradient(#1C7468, #10483F); padding: 8px 12px; box-shadow: 0 1px 0 #E2AE62; display: flex; justify-content: space-between; align-items: baseline"><b style="font-family: 'Marcellus SC', serif; font-weight: 400; font-size: 16px; letter-spacing: 0.06em">BONUS DE NUIT</b><span style="font-size: 12.5px; color: #A6D4C8">2ᵉ à choisir</span></div>
+<div style="padding: 10px 12px; display: flex; flex-direction: column; gap: 8px">
+<sc-for list="{{bonus}}" as="b" hint-placeholder-count="3">
+<button style="display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 6px 10px; border: none; border-radius: 10px; background: {{b.bg}}; color: #F4FAEE; box-shadow: {{b.ring}}; text-align: left; opacity: {{b.op}}">
+<span style="width: 34px; height: 34px; flex: none; border-radius: 50%; background: {{b.c}}; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg class="i" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="{{b.d}}"></path></svg></span>
+<span style="display: flex; flex-direction: column; line-height: 1.2"><b style="font-size: 14px">{{b.n}}</b><span style="font-size: 12.5px; color: #A6D4C8">{{b.s}}</span></span>
+</button>
+</sc-for>
+</div></div></section>
+
+<section style="padding: 10px 12px; border-radius: 10px; background: rgba(8,48,44,0.85); box-shadow: inset 0 0 0 1px #6A4418; display: flex; align-items: center; gap: 10px">
+<span style="width: 36px; height: 36px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #9AD4FF, #2E6AB8 70%); color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg class="i" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M7 18a4 4 0 0 1 0-8 6 6 0 0 1 11.5 1.5A3.5 3.5 0 0 1 18 18z M9 21l1-2 M13 21l1-2"></path></svg></span>
+<span style="font-size: 13.5px; line-height: 1.3"><b>Demain : Pluie</b><br><span style="color: #A6D4C8">annoncé au réveil</span></span>
+</section>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1600,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const I = {
+      check: 'M5 12l5 5 9-10', dot: 'M12 11v2', chev1: 'M6 15l6-6 6 6', chev2: 'M6 11l6-6 6 6 M6 18l6-6 6 6', star: 'M12 4l2.4 5 5.6.8-4 3.9 1 5.5L12 16.6 7 19.2l1-5.5-4-3.9 5.6-.8z',
+      vis: 'M9 5a3 3 0 1 0 0 6a3 3 0 1 0 0-6 M3 20a6 6 0 0 1 12 0 M16.5 7a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5 M16 14a5 5 0 0 1 5 6',
+      billet: 'M3 7h18v4a2 2 0 0 0 0 4v4H3v-4a2 2 0 0 0 0-4z M14 7v12', souv: 'M3 12l9-9h8v8l-9 9z M15.5 7.5h.01',
+      argent: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18 M15 9.2a3.5 3.5 0 1 0 0 5.6 M7.5 11h5 M7.5 13h5', food: 'M3 11h18a9 9 0 0 1-18 0z M9 7c0-2 2-2 2-4 M14 7c0-2 2-2 2-4',
+      manoeuvre: 'M3 17h18 M5 17a7 7 0 0 1 14 0 M10 10V7h4v3', apprenti: 'M12 21v-9 M12 12C12 8 9 6 5 6c0 4 3 6 7 6 M12 10c0-3 2-5 6-5 0 3-2 5-6 5', bucheron: 'M4 20L14 10 M12 5c3-2 7 0 8 4l-5 3-4-4z',
+      savane: 'M3 9h18 M6 9c2-4 10-4 12 0 M12 9v12', foret: 'M12 3l6 9h-3l4 6H5l4-6H6z M12 18v3', jungle: 'M12 21V10 M12 10C9 6 5 6 3 8 M12 10c3-4 7-4 9-2 M12 10c-2-3-2-6 0-8', desert: 'M10 21V5a2 2 0 0 1 4 0v16 M10 13H8a2 2 0 0 1-2-2V8 M14 11h2a2 2 0 0 0 2-2V7',
+      recrue: 'M9 7a3 3 0 1 0 0 6a3 3 0 1 0 0-6 M3 20a6 6 0 0 1 12 0 M18 8v6 M15 11h6', or: 'M3 18l3-7h12l3 7z M8 11l2-5h4l2 5', pioche: 'M5 4h10v16H5z M15 7h4v13h-9',
+      rapide: 'M13 2L4 14h7l-1 8 9-12h-7z', costaud: 'M3 10v4 M6 7v10 M18 7v10 M21 10v4 M6 12h12', lent: 'M3 19h15 M8 19a6 6 0 1 1 8-5.7 M18 19l2-6', colblanc: 'M10 3h4l-1 3 2 11-3 3-3-3 2-11z', endurant: 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z'
+    };
+    const done = { bg: 'rgba(255,255,255,0.08)', fg: '#A6D4C8', ring: 'none', d: I.check };
+    const steps = [
+      { ...done, n: 'Revenus' }, { ...done, n: 'Niveaux' }, { ...done, n: 'Bonus' },
+      { n: 'Marché · à vous', bg: 'linear-gradient(#FFD89A, #C88A3A)', fg: '#1E1406', ring: 'none', d: I.dot },
+      { n: 'Améliorer / licencier', bg: 'transparent', fg: '#A6D4C8', ring: 'inset 0 0 0 1.5px rgba(255,255,255,0.25)', d: I.dot },
+      { n: 'Jour 4', bg: 'transparent', fg: '#A6D4C8', ring: 'inset 0 0 0 1.5px rgba(255,255,255,0.25)', d: I.dot }
+    ];
+    const neg = '#FFB09A';
+    const bilan = [
+      { n: 'Visiteurs', v: '42', d: I.vis, c: '#7A3AC8', vc: '#F4FAEE' }, { n: 'Billetterie', v: '+126', d: I.billet, c: '#D8A010', vc: '#FFE48A' },
+      { n: 'Souvenirs', v: '+38', d: I.souv, c: '#C8307A', vc: '#FFE48A' }, { n: 'Salaires', v: '−64', d: I.argent, c: '#5A6A70', vc: neg },
+      { n: 'Nourriture des animaux', v: '−12', d: I.food, c: '#2A9A4A', vc: neg }
+    ];
+    const staff = [
+      { n: 'Marc Duval', m: 'Manœuvre · N2 · Lent, Paresseux', c: '#D8642A', d: I.manoeuvre },
+      { n: 'Paul Ngata', m: 'Apprenti · N1 · 4 / jour', c: '#D8642A', d: I.apprenti },
+      { n: 'Céline Roux', m: 'Bûcheronne · N1 · Paresseuse', c: '#D8642A', d: I.bucheron }
+    ];
+    const order = [
+      { r: '1', n: 'Marchande', i: '?', c: '#3A6AE0', bg: 'rgba(255,255,255,0.08)', fg: '#F4FAEE', op: 0.55 },
+      { r: '2', n: 'Vous', i: '· 7', c: '#18A88A', bg: 'linear-gradient(#FFD89A, #C88A3A)', fg: '#1E1406', op: 1 },
+      { r: '3', n: 'Bâtisseuse', i: '?', c: '#E8A020', bg: 'rgba(255,255,255,0.08)', fg: '#F4FAEE', op: 1 },
+      { r: '4', n: 'Prudente', i: '?', c: '#E04A8A', bg: 'rgba(255,255,255,0.08)', fg: '#F4FAEE', op: 1 }
+    ];
+    const CAT = { peu: { c: '#D8642A', d: I.chev1, bg: '#F2B85A' }, qual: { c: '#1E9A8A', d: I.chev2, bg: '#7AD8C8' }, cadre: { c: '#8A4AD0', d: I.star, bg: '#C8A8F0' } };
+    const TR = { Rapide: [I.rapide, 1], Costaud: [I.costaud, 1], Endurant: [I.endurant, 1], Lent: [I.lent, 0], 'Col blanc': [I.colblanc, 0] };
+    const trait = (n) => { const [d, q] = TR[n]; return q ? { d, shape: '50%', bg: '#3A8AE8' } : { d, shape: '3px', bg: '#E8782A' }; };
+    const HAIR = { s: 'M31 52c-2-13 6-21 19-21s21 8 19 21c-3-7-10-10-19-10s-16 3-19 10z', l: 'M30 54c-3-16 7-25 20-25s23 9 20 25c2 12 1 24-3 30l-3-26c-5-12-23-12-28 0l-3 26c-4-6-5-18-3-30z', b: 'M31 52c-2-13 6-21 19-21s21 8 19 21c-3-7-10-10-19-10s-16 3-19 10z M43 28a7 7 0 1 0 14 0a7 7 0 1 0 -14 0z', c: 'M30 54c-4-8 0-22 8-24 3-6 13-7 18-3 8-1 15 6 14 14 3 4 2 10 0 13-2-7-8-12-20-12s-17 5-20 12z' };
+    const HAT = { cap: 'M30 46c0-12 9-17 20-17s20 5 20 15c-6-3-13-4-20-4s-14 2-20 6z M62 42c8-1 15 1 19 5-6 1-13 0-19-2z', none: 'M0 0', wide: 'M33 42c0-12 7-18 17-18s17 6 17 18z M20 44c8-4 19-5 30-5s22 1 30 5c-8 3-19 4-30 4s-22-1-30-4z', scarf: 'M29 50c-1-14 8-22 21-22s22 8 21 22c-5-5-12-8-21-8s-16 3-21 8z' };
+    const TOOL = { peu: ['M76 120L91 72', 'M86 66l11 1-2 11-8-3z'], qual: ['M78 120L88 84', 'M80 80h16v7H80z'], cadre: ['M0 0', 'M0 0'] };
+    const W = (name, met, cls, lvl, sal, hire, tr, skin, hair, hs, hat, hatC, cloth, money) => {
+      const C = CAT[cls]; const ok = hire <= money;
+      return { name, met, lvl, sal, salTxt: sal + '/j', catC: C.c, catD: C.d, bg: C.bg, skin, hair, hairD: HAIR[hs], hatD: HAT[hat], hatC, cloth, beardD: 'M0 0', toolD: TOOL[cls][0], toolH: TOOL[cls][1], traits: tr.map(trait),
+        btnBg: ok ? 'linear-gradient(#FFD89A, #C88A3A)' : 'rgba(255,255,255,0.08)', btnFg: ok ? '#1E1406' : '#FFB09A', btnBd: ok ? 'none' : 'inset 0 0 0 1.5px #E8782A', btnL: ok ? 'Embaucher · ' + hire : 'Manque ' + (hire - money) };
+    };
+    const market = [
+      W('Amélie Chen', 'Cantonnière', 'qual', 2, 19, 60, ['Endurant'], '#F0C9A8', '#2A1E16', 'b', 'cap', '#2E6AB8', '#1E9A8A', 270),
+      W('Lina Petit', 'Apprentie', 'peu', 1, 4, 15, ['Rapide'], '#E8B48F', '#B0502A', 'l', 'scarf', '#2E9A6A', '#D8842A', 270),
+      W('Yann Le Goff', 'Mineur', 'peu', 2, 13, 35, ['Costaud', 'Lent'], '#D9A27C', '#6E3E22', 's', 'cap', '#C8402A', '#C8402A', 270),
+      W('Odile Ferrand', 'DRH', 'cadre', 2, 32, 110, ['Col blanc'], '#B97A52', '#141010', 'c', 'none', '#000000', '#6A3AA8', 270),
+      W('Rachid Amrani', 'Formateur', 'cadre', 3, 40, 300, ['Rapide'], '#8A5638', '#2A1E16', 's', 'wide', '#4A2A6A', '#3A3A48', 270)
+    ];
+    const T = { F: ['#1E6A22', 'url(#pF)'], E: ['#1E9AC8', 'url(#pE)'], R: ['#B8B2A6', 'url(#pR)'], P: ['#8ACC4A', 'url(#pP)'], S: ['#F2D684', 'url(#pS)'] };
+    const cells = (list) => list.map((k) => k === 'L' ? { c: 'transparent', p: 'transparent', s: 'rgba(255,255,255,0.6)', sw: 1.5, da: '3 2' } : { c: T[k][0], p: T[k][1], s: 'rgba(255,255,255,0.35)', sw: 1, da: 'none' });
+    const tier = (n) => [1, 2, 3].map((k) => (k <= n ? '#FFFFFF' : 'transparent'));
+    const A = (o) => ({ isTiger: false, isZebra: false, isBear: false, isFennec: false, ...o, cells: cells(o.cl), tier: tier(o.t) });
+    const contracts = [
+      A({ name: 'Tigre', biome: 'JUNGLE', bd: I.jungle, bc: '#0E8A6A', sky: '#2E8A5A', ground: '#165A30', t: 2, size: 8, cl: ['F', 'F', 'F', 'E', 'E', 'R', 'P', 'L'], rule: 'au moins 3 paires eau / forêt voisines', rep: 6, food: 4, vis: 9, cost: 70, isTiger: true }),
+      A({ name: 'Zèbre', biome: 'SAVANE', bd: I.savane, bc: '#C88A10', sky: '#E8C060', ground: '#A88A30', t: 1, size: 4, cl: ['P', 'P', 'P', 'L'], rule: 'au moins 3 prairie', rep: 2, food: 2, vis: 3, cost: 25, isZebra: true }),
+      A({ name: 'Ours brun', biome: 'FORÊT', bd: I.foret, bc: '#3A7A2A', sky: '#6AA05A', ground: '#2E5A22', t: 2, size: 6, cl: ['F', 'F', 'F', 'E', 'R', 'L'], rule: '3 forêt, 1 eau, 1 roche', rep: 4, food: 3, vis: 5, cost: 50, isBear: true }),
+      A({ name: 'Fennec', biome: 'DÉSERT', bd: I.desert, bc: '#C8602A', sky: '#F0B070', ground: '#C89A50', t: 1, size: 3, cl: ['S', 'S', 'L'], rule: 'au moins 2 sable', rep: 2, food: 1, vis: 2, cost: 15, isFennec: true })
+    ];
+    const rank = [
+      { pos: '1', n: 'Bâtisseuse', v: 41, d: '+6', c: '#E8A020', bg: 'transparent', ring: 'none' },
+      { pos: '2', n: 'Vous', v: 34, d: '+5', c: '#18A88A', bg: 'rgba(24,168,138,0.2)', ring: 'inset 0 0 0 1.5px #FFD45A' },
+      { pos: '3', n: 'Marchande', v: 29, d: '+3', c: '#3A6AE0', bg: 'transparent', ring: 'none' },
+      { pos: '4', n: 'Prudente', v: 22, d: '+4', c: '#E04A8A', bg: 'transparent', ring: 'none' }
+    ];
+    const bonus = [
+      { n: 'Recrutement à moitié prix', s: 'pris par la Marchande', d: I.recrue, c: '#5A6A70', bg: 'rgba(255,255,255,0.04)', ring: 'none', op: 0.5 },
+      { n: '+1 carte piochée demain', s: 'disponible', d: I.pioche, c: '#2E6AB8', bg: 'rgba(255,212,90,0.14)', ring: 'inset 0 0 0 1.5px #FFD45A', op: 1 },
+      { n: '+2 or à la mine', s: 'disponible', d: I.or, c: '#C8960A', bg: 'rgba(255,255,255,0.06)', ring: 'none', op: 1 }
+    ];
+    return { steps, bilan, staff, order, market, contracts, rank, bonus };
+  }
+}
+</script>
+</body>
+</html>

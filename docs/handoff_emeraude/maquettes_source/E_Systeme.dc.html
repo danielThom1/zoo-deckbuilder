@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Émeraude — jetons et icônes</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&amp;family=Marcellus+SC&amp;family=Source+Sans+3:wght@400;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#FFD45A}a:hover{color:#FFE69A}
+button{font:inherit;cursor:pointer}
+.i{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;display:block;flex:none}
+.h{font-size:15px;font-weight:800;letter-spacing:0.08em;color:#E2AE62}
+</style>
+</helmet>
+<div style="width: 1600px; height: 1100px; box-sizing: border-box; padding: 28px 40px; background: #0B2A26; font-family: 'Source Sans 3', sans-serif; color: #F4FAEE; display: grid; grid-template-columns: 500px 500px 1fr; column-gap: 40px; row-gap: 22px; align-content: start">
+
+<div style="grid-column: 1 / -1; display: flex; align-items: baseline; gap: 14px"><b style="font-family: 'Marcellus SC', serif; font-weight: 400; font-size: 30px; letter-spacing: 0.06em; color: #FFE6A8">COMPOSANTS · JETONS, ICÔNES, ÉTATS</b><span style="font-size: 15px; color: #A6D4C8">les valeurs sont reprises dans tokens.json</span></div>
+
+<!-- ===== colonne 1 ===== -->
+<div style="display: flex; flex-direction: column; gap: 22px">
+<section style="display: flex; flex-direction: column; gap: 10px">
+<span class="h">COULEURS D'INTERFACE</span>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
+<sc-for list="{{colors}}" as="c" hint-placeholder-count="12"><div style="display: flex; flex-direction: column; gap: 4px"><div style="height: 44px; border-radius: 8px; background: {{c.v}}; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2)"></div><span style="font-size: 12.5px; line-height: 1.2"><b>{{c.n}}</b><br><span style="color: #A6D4C8">{{c.h}}</span></span></div></sc-for>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 10px">
+<span class="h">COULEURS DE JEU</span>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
+<sc-for list="{{gameColors}}" as="c" hint-placeholder-count="8"><div style="display: flex; align-items: center; gap: 8px"><span style="width: 26px; height: 26px; flex: none; border-radius: {{c.r}}; background: {{c.v}}; box-shadow: 0 0 0 1.5px #E2AE62"></span><span style="font-size: 12.5px; line-height: 1.15"><b>{{c.n}}</b><br><span style="color: #A6D4C8">{{c.h}}</span></span></div></sc-for>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 8px">
+<span class="h">TYPOGRAPHIE</span>
+<div style="display: flex; align-items: baseline; gap: 12px"><b style="font-family: 'Marcellus SC', serif; font-weight: 400; font-size: 30px; color: #FFE6A8">ZOO DU VAL</b><span style="font-size: 13px; color: #A6D4C8">Marcellus SC 400 · 30–46 px · grands titres</span></div>
+<div style="display: flex; align-items: baseline; gap: 12px"><b style="font-family: 'Marcellus SC', serif; font-weight: 400; font-size: 18px; letter-spacing: 0.06em">CONSTRUIRE</b><span style="font-size: 13px; color: #A6D4C8">Marcellus SC · 16–18 px · en-têtes de panneau, interlettrage 6 %</span></div>
+<div style="display: flex; align-items: baseline; gap: 12px"><b style="font-size: 18px; font-weight: 800">182 +24</b><span style="font-size: 13px; color: #A6D4C8">Source Sans 3 800 · 18 px · compteurs</span></div>
+<div style="display: flex; align-items: baseline; gap: 12px"><span style="font-size: 14.5px">Guichet tenu par Léon</span><span style="font-size: 13px; color: #A6D4C8">Source Sans 3 400–700 · 14–15 px · texte</span></div>
+<div style="display: flex; align-items: baseline; gap: 12px"><span style="font-size: 12.5px; color: #A6D4C8">Argent · Bois · Pierre</span><span style="font-size: 13px; color: #A6D4C8">12–13 px · légendes (minimum 11,5 px)</span></div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 10px">
+<span class="h">PANNEAU</span>
+<div style="display: flex; gap: 16px; align-items: flex-start">
+<div style="width: 230px; padding: 2px; border-radius: 10px; background: linear-gradient(160deg, #E2AE62, #6A4418); box-shadow: 0 10px 24px rgba(0,0,0,0.4)"><div style="border-radius: 8px; background: linear-gradient(#11564E, #08302C); overflow: hidden"><div style="background: linear-gradient(#1C7468, #10483F); padding: 9px 12px; box-shadow: 0 1px 0 #E2AE62"><b style="font-family: 'Marcellus SC', serif; font-weight: 400; font-size: 16px; letter-spacing: 0.06em">EN-TÊTE</b></div><div style="padding: 12px; font-size: 14px; color: #DCEDE6">Contenu · marge 12 px</div></div></div>
+<ul style="margin: 0; padding: 0; list-style: none; font-size: 13px; line-height: 1.5; color: #DCEDE6">
+<li>Bord : 2 px, dégradé 160° #E2AE62 → #6A4418</li><li>Rayon : 10 (extérieur), 8 (intérieur)</li><li>Fond : #11564E → #08302C</li><li>En-tête : #1C7468 → #10483F, filet or 1 px</li><li>Ombre : 0 10 24 noir 40 %</li>
+</ul>
+</div>
+</section>
+</div>
+
+<!-- ===== colonne 2 ===== -->
+<div style="display: flex; flex-direction: column; gap: 22px">
+<section style="display: flex; flex-direction: column; gap: 10px">
+<span class="h">BOUTONS</span>
+<div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center">
+<button style="height: 44px; padding: 0 20px; border: none; border-radius: 22px; background: linear-gradient(#FFD89A, #C88A3A); color: #1E1406; font-weight: 800; font-size: 15px; box-shadow: inset 0 -2px 0 rgba(0,0,0,0.2)">Principal</button>
+<button style="height: 44px; padding: 0 20px; border: none; border-radius: 22px; background: rgba(8,48,44,0.85); color: #F4FAEE; box-shadow: inset 0 0 0 1.5px #E2AE62; font-weight: 700; font-size: 15px">Secondaire</button>
+<button style="height: 44px; padding: 0 20px; border: none; border-radius: 22px; background: rgba(255,255,255,0.08); color: #FFB09A; box-shadow: inset 0 0 0 1.5px #E8782A; font-weight: 700; font-size: 15px">Impossible</button>
+<button style="height: 44px; padding: 0 20px; border: none; border-radius: 22px; background: linear-gradient(#FFD89A, #C88A3A); color: #1E1406; font-weight: 800; font-size: 15px; box-shadow: 0 0 0 3px #0B2A26, 0 0 0 5px #FFD45A">Focus clavier</button>
+</div>
+<div style="display: flex; gap: 10px; align-items: center">
+<sc-for list="{{rounds}}" as="r" hint-placeholder-count="5"><button aria-label="{{r.n}}" style="width: 46px; height: 46px; border: none; border-radius: 50%; background: {{r.bg}}; color: {{r.fg}}; box-shadow: 0 0 0 1.5px #E2AE62, inset 0 -3px 5px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center"><svg class="i" viewBox="0 0 24 24" width="21" height="21" aria-hidden="true"><path d="{{r.d}}"></path></svg></button></sc-for>
+<span style="font-size: 13px; color: #A6D4C8">ordres ronds 46 px · actif en or</span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, 100px); gap: 3px; padding: 3px; border-radius: 8px; background: rgba(0,0,0,0.3); width: max-content">
+<button style="height: 32px; border: none; border-radius: 6px; background: linear-gradient(#FFD89A, #C88A3A); color: #1E1406; font-weight: 800; font-size: 13px">Bâtiments</button><button style="height: 32px; border: none; border-radius: 6px; background: transparent; color: #F4FAEE; font-size: 13px">Zoo</button><button style="height: 32px; border: none; border-radius: 6px; background: transparent; color: #F4FAEE; font-size: 13px">Terrain</button>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 10px">
+<span class="h">RESSOURCES</span>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px">
+<sc-for list="{{yields}}" as="y" hint-placeholder-count="7"><div style="display: flex; align-items: center; gap: 8px"><span style="width: 34px; height: 34px; flex: none; border-radius: 50%; background: radial-gradient(circle at 35% 30%, {{y.hi}}, {{y.c}} 70%); box-shadow: 0 0 0 1.5px #E2AE62; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg class="i" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" style="stroke-width: 2.4"><path d="{{y.d}}"></path></svg></span><span style="font-size: 12.5px; line-height: 1.15"><b>{{y.n}}</b><br><span style="color: #A6D4C8">{{y.c}}</span></span></div></sc-for>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 10px">
+<span class="h">BIOMES</span>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px">
+<sc-for list="{{biomes}}" as="b" hint-placeholder-count="6"><div style="display: flex; align-items: center; gap: 8px"><span style="width: 34px; height: 34px; flex: none; border-radius: 50%; background: {{b.c}}; box-shadow: 0 0 0 1.5px #E2AE62; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg class="i" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="{{b.d}}"></path></svg></span><span style="font-size: 12.5px; line-height: 1.15"><b>{{b.n}}</b><br><span style="color: #A6D4C8">{{b.c}}</span></span></div></sc-for>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 10px">
+<span class="h">TERRAINS (monde · tuile d'interface)</span>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px">
+<sc-for list="{{terrains}}" as="t" hint-placeholder-count="7"><div style="display: flex; align-items: center; gap: 8px"><svg width="34" height="34" viewBox="0 0 20 20" aria-hidden="true"><rect width="20" height="20" rx="3" fill="{{t.c}}"></rect><path d="{{t.g}}" fill="{{t.gf}}" stroke="{{t.gs}}" stroke-width="1"></path></svg><span style="font-size: 12.5px; line-height: 1.15"><b>{{t.n}}</b><br><span style="color: #A6D4C8">{{t.c}}</span></span></div></sc-for>
+</div>
+</section>
+</div>
+
+<!-- ===== colonne 3 ===== -->
+<div style="display: flex; flex-direction: column; gap: 22px">
+<section style="display: flex; flex-direction: column; gap: 10px">
+<span class="h">OUVRIERS SUR LA CARTE · ÉCUSSONS</span>
+<div style="display: flex; gap: 14px; align-items: flex-end; padding: 14px; border-radius: 10px; background: #4E9A3A">
+<sc-for list="{{flags}}" as="f" hint-placeholder-count="6">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 4px; width: 62px">
+<div style="width: {{f.s}}px; height: {{f.h}}px; padding: 2px; box-sizing: border-box; background: #E2AE62; clip-path: polygon(0 0, 100% 0, 100% 68%, 50% 100%, 0 68%); filter: drop-shadow(0 3px 3px rgba(0,0,0,0.5))"><div style="width: 100%; height: 100%; background: {{f.bg}}; clip-path: polygon(0 0, 100% 0, 100% 68%, 50% 100%, 0 68%); color: #FFFFFF; display: flex; justify-content: center; padding-top: 5px; box-sizing: border-box"><svg class="i" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" style="stroke-width: 2.4"><path d="{{f.d}}"></path></svg></div></div>
+<div style="width: 2px; height: 14px; background: #E2AE62"></div>
+<div style="width: 34px; height: 12px; border-radius: 50%; border: {{f.ring}}; box-shadow: {{f.glow}}"></div>
+<span style="font-size: 12px; font-weight: 700; text-align: center; line-height: 1.15; color: #0B2A26">{{f.t}}</span>
+</div>
+</sc-for>
+</div>
+<span style="font-size: 13px; color: #DCEDE6; line-height: 1.45">Couleur de l'écusson = catégorie (orange, sarcelle, violet) ; jaune = inactif, gris = pause, bordure or = joueur. La sélection ajoute un anneau au sol #FFD45A. Au-delà d'un seuil de zoom, l'écusson reste à taille fixe à l'écran (Sprite3D billboard, fixed_size).</span>
+</section>
+<section style="display: flex; flex-direction: column; gap: 10px">
+<span class="h">MÉTIERS</span>
+<div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px">
+<sc-for list="{{jobs}}" as="j" hint-placeholder-count="18"><div style="display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center"><span style="width: 38px; height: 38px; border-radius: 50%; background: {{j.c}}; box-shadow: 0 0 0 1.5px #E2AE62; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg class="i" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="{{j.d}}"></path></svg></span><span style="font-size: 11.5px; line-height: 1.1">{{j.n}}</span></div></sc-for>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 10px">
+<span class="h">QUALITÉS ET DÉFAUTS</span>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
+<sc-for list="{{traits}}" as="t" hint-placeholder-count="8"><div style="display: flex; align-items: center; gap: 6px"><span style="width: 26px; height: 26px; flex: none; border-radius: {{t.shape}}; background: {{t.bg}}; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg class="i" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" style="stroke-width: 2.6"><path d="{{t.d}}"></path></svg></span><span style="font-size: 12.5px"><b>{{t.sign}}</b> {{t.n}}</span></div></sc-for>
+</div>
+<span style="font-size: 13px; color: #DCEDE6">Qualité : rond bleu, signe +. Défaut : carré orange, signe −. Lisible en niveaux de gris par la forme.</span>
+</section>
+<section style="display: flex; flex-direction: column; gap: 10px">
+<span class="h">NOTIFICATIONS ET CHRONO</span>
+<div style="display: flex; gap: 14px; align-items: center">
+<span style="width: 46px; height: 46px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #FFE890, #E8B020 70%); box-shadow: 0 0 0 2px #E2AE62; color: #3A2A00; display: flex; align-items: center; justify-content: center"><svg class="i" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" style="stroke-width: 2.6"><path d="M9 9a3 3 0 1 1 4 2.8c-.8.4-1 1-1 1.7V15 M12 18.5h.01"></path></svg></span>
+<span style="width: 46px; height: 46px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #8AF0A0, #2EA04A 70%); box-shadow: 0 0 0 2px #E2AE62; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg class="i" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M3 9l9-5 9 5v11H3z M7 20v-7h10v7"></path></svg></span>
+<span style="width: 46px; height: 46px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #F0A0D0, #C83A8A 70%); box-shadow: 0 0 0 2px #E2AE62; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg class="i" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 8h16v11H4z M9 8V5h6v3 M4 13h16"></path></svg></span>
+<div style="width: 104px; height: 104px; border-radius: 50%; padding: 4px; box-sizing: border-box; background: linear-gradient(160deg, #FFF0B8, #E2AE62 40%, #6A4418); margin-left: auto"><div style="width: 100%; height: 100%; border-radius: 50%; background: conic-gradient(#FFD45A 0 56%, rgba(255,255,255,0.12) 56% 100%); padding: 6px; box-sizing: border-box"><div style="width: 100%; height: 100%; border-radius: 50%; background: radial-gradient(circle at 50% 30%, #1C7468, #08302C 75%); display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1"><span style="font-family: 'Marcellus SC', serif; font-size: 10px; letter-spacing: 0.1em">JOUR 3</span><b style="font-size: 22px">2:47</b></div></div></div>
+</div>
+<span style="font-size: 13px; color: #DCEDE6">Jaune : à traiter · vert : terminé · violet : cadre ou hors carte. Le médaillon (164 px en jeu) montre le temps restant en anneau.</span>
+</section>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1600,"height":1100}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const I = {
+      argent: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18 M15 9.2a3.5 3.5 0 1 0 0 5.6 M7.5 11h5 M7.5 13h5', bois: 'M7 7h11 M7 17h11 M7 7a3 5 0 0 0 0 10 M7 7a3 5 0 0 1 0 10 M18 7a3 5 0 0 1 0 10',
+      pierre: 'M4 14l3-7h10l3 7-4 5H8z M7 7l2 7h6l2-7', or: 'M3 18l3-7h12l3 7z M8 11l2-5h4l2 5', influence: 'M3 10v4h3l7 4V6L6 10z M16 9a4 4 0 0 1 0 6 M19 6a8 8 0 0 1 0 12',
+      logement: 'M3 11l9-7 9 7 M5 10v10h14V10 M10 20v-6h4v6', rep: 'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z',
+      savane: 'M3 9h18 M6 9c2-4 10-4 12 0 M12 9v12', foret: 'M12 3l6 9h-3l4 6H5l4-6H6z M12 18v3', jungle: 'M12 21V10 M12 10C9 6 5 6 3 8 M12 10c3-4 7-4 9-2 M12 10c-2-3-2-6 0-8',
+      aqua: 'M12 3c3 4 5 7 5 10a5 5 0 0 1-10 0c0-3 2-6 5-10z', mont: 'M2 20l7-13 4 7 3-4 6 10z', desert: 'M10 21V5a2 2 0 0 1 4 0v16 M10 13H8a2 2 0 0 1-2-2V8 M14 11h2a2 2 0 0 0 2-2V7',
+      axe: 'M4 20L14 10 M12 5c3-2 7 0 8 4l-5 3-4-4z', build: 'M3 11l9-7 9 7 M5 10v10h14V10', terrain: 'M3 20l6-10 4 6 3-4 5 8z', poste: 'M6 21V4 M6 4h12l-3 4 3 4H6', retour: 'M9 14L4 9l5-5 M4 9h11a5 5 0 0 1 0 10h-3',
+      q: 'M9 9a3 3 0 1 1 4 2.8c-.8.4-1 1-1 1.7V15 M12 18.5h.01', pause: 'M9 6v12 M15 6v12', lobby: 'M4 8h16v11H4z M9 8V5h6v3 M4 13h16'
+    };
+    const colors = [
+      { n: 'Panneau haut', h: '#11564E', v: '#11564E' }, { n: 'Panneau bas', h: '#08302C', v: '#08302C' }, { n: 'En-tête', h: '#1C7468 → #10483F', v: 'linear-gradient(#1C7468, #10483F)' }, { n: 'Fond écran', h: '#0B2A26', v: '#0B2A26' },
+      { n: 'Or', h: '#E2AE62', v: '#E2AE62' }, { n: 'Or sombre', h: '#6A4418', v: '#6A4418' }, { n: 'Or clair', h: '#FFF0B8', v: '#FFF0B8' }, { n: 'Bouton', h: '#FFD89A → #C88A3A', v: 'linear-gradient(#FFD89A, #C88A3A)' },
+      { n: 'Texte', h: '#F4FAEE', v: '#F4FAEE' }, { n: 'Texte secondaire', h: '#A6D4C8', v: '#A6D4C8' }, { n: 'Sélection', h: '#FFD45A', v: '#FFD45A' }, { n: 'Joueur', h: '#18A88A', v: '#18A88A' }
+    ];
+    const gameColors = [
+      { n: 'Peu qualifié', h: '#D8642A', v: '#D8642A', r: '50%' }, { n: 'Qualifié', h: '#1E9A8A', v: '#1E9A8A', r: '50%' }, { n: 'Cadre', h: '#8A4AD0', v: '#8A4AD0', r: '50%' }, { n: 'Inactif', h: '#E8B020', v: '#E8B020', r: '50%' },
+      { n: 'Qualité / OK', h: '#3A8AE8', v: '#3A8AE8', r: '50%' }, { n: 'Défaut / manque', h: '#E8782A', v: '#E8782A', r: '3px' }, { n: 'IA Bâtisseuse', h: '#E8A020', v: '#E8A020', r: '50%' }, { n: 'IA Marchande', h: '#3A6AE0', v: '#3A6AE0', r: '50%' }
+    ];
+    const ab = (n, d, on) => ({ n, d, bg: on ? 'linear-gradient(#FFD89A, #C88A3A)' : 'rgba(255,255,255,0.1)', fg: on ? '#1E1406' : '#F4FAEE' });
+    const rounds = [ab('Abattre', I.axe, true), ab('Construire', I.build), ab('Aménager', I.terrain), ab('Tenir un poste', I.poste), ab('Rappeler', I.retour)];
+    const yields = [
+      { n: 'Argent', c: '#D8A010', hi: '#FFE48A', d: I.argent }, { n: 'Bois', c: '#C8601A', hi: '#FFB070', d: I.bois }, { n: 'Pierre', c: '#4A6A98', hi: '#A8C4E8', d: I.pierre }, { n: 'Or', c: '#E8B000', hi: '#FFF09A', d: I.or },
+      { n: 'Influence', c: '#C8307A', hi: '#FF9AC8', d: I.influence }, { n: 'Logement', c: '#2A9A4A', hi: '#9AF0B0', d: I.logement }, { n: 'Réputation', c: '#7A3AC8', hi: '#D0A8FF', d: I.rep }
+    ];
+    const biomes = [
+      { n: 'Savane', c: '#C88A10', d: I.savane }, { n: 'Forêt', c: '#3A7A2A', d: I.foret }, { n: 'Jungle', c: '#0E8A6A', d: I.jungle },
+      { n: 'Aquatique', c: '#2E7AD0', d: I.aqua }, { n: 'Montagne', c: '#7A6AA0', d: I.mont }, { n: 'Désert', c: '#C8602A', d: I.desert }
+    ];
+    const terrains = [
+      { n: 'Prairie', c: '#74BE40', g: 'M6 15v-5 M10 15v-7 M14 15v-5', gf: 'none', gs: '#1E4A10' }, { n: 'Forêt', c: '#1E6A22', g: 'M10 3l6 10H4z', gf: 'rgba(255,255,255,0.5)', gs: 'none' },
+      { n: 'Eau', c: '#1E9AC8', g: 'M3 8c2-2 4 2 7 0s5-2 7 0 M3 13c2-2 4 2 7 0s5-2 7 0', gf: 'none', gs: '#FFFFFF' }, { n: 'Roche', c: '#A8A296', g: 'M4 15l3-8 4 3 3-4 3 9z', gf: 'rgba(58,52,40,0.5)', gs: 'none' },
+      { n: 'Sable', c: '#F2D684', g: 'M5 6h.1 M10 6h.1 M15 6h.1 M7 11h.1 M13 11h.1 M5 16h.1 M10 16h.1 M15 16h.1', gf: 'none', gs: '#8A6A2A' }, { n: 'Montagne', c: '#8E7E6C', g: 'M3 16l5-10 3 5 2-3 4 8z', gf: 'rgba(255,255,255,0.55)', gs: 'none' },
+      { n: 'Or', c: '#A8A296', g: 'M10 4l4 6-4 6-4-6z', gf: '#FFD84A', gs: '#8A6A00' }
+    ];
+    const F = (t, bg, d, o) => ({ t, bg, d, s: 34, h: 40, ring: (o && o.sel) ? '3px solid #FFD45A' : '0 solid transparent', glow: (o && o.sel) ? '0 0 10px #FFD45A' : 'none' });
+    const flags = [F('Au travail', '#D8642A', I.axe), F('Sélectionné', '#D8642A', I.axe, { sel: true }), F('Charge', '#D8642A', I.bois), F('Inactif', '#E8B020', I.q), F('En pause', '#7A8A88', I.pause), F('Cadre', '#8A4AD0', I.lobby)];
+    const J = {
+      'Manœuvre': 'M3 17h18 M5 17a7 7 0 0 1 14 0 M10 10V7h4v3', 'Bûcheron': I.axe, 'Maçon': 'M4 20l5-5 M9 15l1.5 1.5L20 7l-3-4-9.5 9.5z', 'Mineur': 'M6 20L16 9 M5 8c4-4 10-4 14 0',
+      'Terrassier': 'M5 19l8-8 M11 7l3-3 6 6-3 3a3 3 0 0 1-4 0l-2-2a3 3 0 0 1 0-4z M3 21l2-2', 'Porteur': 'M4 8l8-4 8 4v9l-8 4-8-4z M4 8l8 4 8-4 M12 12v9', 'Apprenti': 'M12 21v-9 M12 12C12 8 9 6 5 6c0 4 3 6 7 6 M12 10c0-3 2-5 6-5 0 3-2 5-6 5',
+      'Charpentier': 'M14 4l6 6-3 3-6-6z M12.5 8.5L4 17a1.5 1.5 0 0 0 3 3l8.5-8.5', 'Paysagiste': 'M5 20c0-9 6-15 15-15 0 9-6 15-15 15z M5 20l9-9', 'Cantonnier': 'M10 4h4l4 15H6z M8.2 10h7.6 M7 14.5h10', 'Soigneur': 'M12 13c3 0 5 3 5 5s-2 2-5 1c-3 1-5 1-5-1s2-5 5-5z M6 9h.01 M10 6h.01 M14 6h.01 M18 9h.01',
+      'DRH': 'M4 6h16v13H4z M9 9.5a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M6 17c1-2 5-2 6 0 M14 10h4 M14 14h4', 'Lobbyiste': I.lobby, 'Marchand': 'M12 4v16 M7 20h10 M5 7h14 M5 7l-3 6h6z M19 7l-3 6h6z', 'Souvenirs': 'M3 12l9-9h8v8l-9 9z M15.5 7.5h.01',
+      'Formateur': 'M3 4h18v11H3z M8 20l4-5 4 5 M7 8h6 M7 11h9', 'Contremaître': 'M6 4h12v17H6z M9 3h6v3H9z M9 12l2 2 4-4', 'Architecte': 'M12 3v3 M12 6l-6 15 M12 6l6 15 M8 15h8'
+    };
+    const cat = (n) => ['Charpentier', 'Paysagiste', 'Cantonnier', 'Soigneur'].includes(n) ? '#1E9A8A' : (['DRH', 'Lobbyiste', 'Marchand', 'Souvenirs', 'Formateur', 'Contremaître', 'Architecte'].includes(n) ? '#8A4AD0' : '#D8642A');
+    const jobs = Object.keys(J).map((n) => ({ n, d: J[n], c: cat(n) }));
+    const tq = (n, d) => ({ n, d, sign: '+', shape: '50%', bg: '#3A8AE8' }), td = (n, d) => ({ n, d, sign: '−', shape: '4px', bg: '#E8782A' });
+    const traits = [
+      tq('Costaud', 'M3 10v4 M6 7v10 M18 7v10 M21 10v4 M6 12h12'), tq('Rapide', 'M13 2L4 14h7l-1 8 9-12h-7z'), tq('Charismatique', 'M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6 M12 2v3 M12 19v3 M2 12h3 M19 12h3'), tq('Endurant', 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z'),
+      td('Lent', 'M3 19h15 M8 19a6 6 0 1 1 8-5.7 M18 19l2-6'), td('Paresseux', 'M5 6h6l-6 7h6 M14 12h5l-5 6h5'), td('Col blanc', 'M10 3h4l-1 3 2 11-3 3-3-3 2-11z'), td('Maladroit', 'M7 3h10l-1 18H8z M11 3l2 5-3 3 3 4')
+    ];
+    return { colors, gameColors, rounds, yields, biomes, terrains, flags, jobs, traits };
+  }
+}
+</script>
+</body>
+</html>

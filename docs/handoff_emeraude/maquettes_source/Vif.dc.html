@@ -1,0 +1,780 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Coloré — jeu de jour</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&amp;family=Marcellus+SC&amp;family=Source+Sans+3:wght@400;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#FFD86A}a:hover{color:#FFE9A8}
+button{font:inherit;cursor:pointer}
+.i{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;display:block;flex:none}
+</style>
+</helmet>
+<div style="width: 1600px; height: 900px; position: relative; overflow: hidden; background: #1E4A26; font-family: 'Source Sans 3', sans-serif; color: {{K.text}}">
+
+<svg width="0" height="0" style="position: absolute" aria-hidden="true">
+<defs>
+<radialGradient id="faceSh" cx="0.36" cy="0.32" r="0.8"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.3"></stop><stop offset="0.5" stop-color="#000000" stop-opacity="0"></stop><stop offset="1" stop-color="#3A1008" stop-opacity="0.4"></stop></radialGradient>
+<linearGradient id="bodySh" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.2"></stop><stop offset="0.5" stop-color="#000000" stop-opacity="0"></stop><stop offset="1" stop-color="#000000" stop-opacity="0.4"></stop></linearGradient>
+<linearGradient id="hatSh" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.45"></stop><stop offset="1" stop-color="#000000" stop-opacity="0.3"></stop></linearGradient>
+<radialGradient id="bgLight" cx="0.3" cy="0.25" r="0.9"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.5"></stop><stop offset="1" stop-color="#000000" stop-opacity="0.25"></stop></radialGradient>
+</defs>
+</svg>
+
+<!-- ======================= MONDE ======================= -->
+<div style="position: absolute; inset: 0; background: linear-gradient(#BFE4F4, #4E9A48 30%, #1E5A26)"></div>
+<div style="position: absolute; inset: 0; perspective: 1500px; perspective-origin: 50% 0%">
+<div style="position: absolute; left: -1233px; top: -720px; width: 3400px; height: 1600px; transform-origin: 50% 100%; transform: rotateX(48deg); transform-style: preserve-3d">
+<svg width="3400" height="1600" viewBox="0 0 3400 1600" aria-hidden="true" style="position: absolute; left: 0; top: 0; display: block; filter: saturate(1.25) contrast(1.06)">
+<defs>
+<filter id="rough" x="-2%" y="-2%" width="104%" height="104%"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="4" result="n"></feTurbulence><feDisplacementMap in="SourceGraphic" in2="n" scale="24" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap></filter>
+<filter id="rough2" x="-2%" y="-2%" width="104%" height="104%"><feTurbulence type="fractalNoise" baseFrequency="0.07" numOctaves="2" seed="8" result="n"></feTurbulence><feDisplacementMap in="SourceGraphic" in2="n" scale="6" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap></filter>
+<filter id="leaf" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.28" numOctaves="2" seed="11" result="n"></feTurbulence><feDisplacementMap in="SourceGraphic" in2="n" scale="6" xChannelSelector="R" yChannelSelector="G"></feDisplacementMap></filter>
+<filter id="mottle" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.011" numOctaves="4" seed="9"></feTurbulence><feColorMatrix type="matrix" values="0 0 0 0 0.10  0 0 0 0 0.30  0 0 0 0 0.06  0 0 0 1.8 -0.66"></feColorMatrix></filter>
+<filter id="grass" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.09" numOctaves="3" seed="21"></feTurbulence><feColorMatrix type="matrix" values="0 0 0 0 0.78  0 0 0 0 0.96  0 0 0 0 0.36  0 0 0 1.6 -0.72"></feColorMatrix></filter>
+<filter id="relief" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.005" numOctaves="4" seed="2" result="h"></feTurbulence><feDiffuseLighting in="h" surfaceScale="10" diffuseConstant="1.2" lighting-color="#FFFFFF"><feDistantLight azimuth="{{L.az}}" elevation="{{L.el}}"></feDistantLight></feDiffuseLighting></filter>
+<filter id="rockRelief" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.028" numOctaves="5" seed="6" result="h"></feTurbulence><feDiffuseLighting in="h" surfaceScale="16" diffuseConstant="1.25" lighting-color="#FFFFFF"><feDistantLight azimuth="{{L.az}}" elevation="{{L.el}}"></feDistantLight></feDiffuseLighting></filter>
+<filter id="canopy" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.12" numOctaves="3" seed="7" result="n"></feTurbulence><feDiffuseLighting in="n" surfaceScale="6" diffuseConstant="1.35" lighting-color="#F8FFE0" result="l"><feDistantLight azimuth="{{L.az}}" elevation="{{L.el}}"></feDistantLight></feDiffuseLighting><feColorMatrix in="n" type="matrix" values="0 0 0 0 0.12  0 0 0 0 0.42  0 0 0 0 0.12  0 0 0 0 1" result="base"></feColorMatrix><feComposite in="l" in2="base" operator="arithmetic" k1="1" k2="0" k3="0" k4="0"></feComposite></filter>
+<filter id="ripple" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.005 0.08" numOctaves="2" seed="5"></feTurbulence><feColorMatrix type="matrix" values="0 0 0 0 0.9  0 0 0 0 1  0 0 0 0 1  0 0 0 2.6 -1.3"></feColorMatrix></filter>
+<filter id="shore" x="-2%" y="-2%" width="104%" height="104%"><feMorphology in="SourceAlpha" operator="erode" radius="9" result="er"></feMorphology><feGaussianBlur in="er" stdDeviation="9" result="erb"></feGaussianBlur><feComposite in="SourceAlpha" in2="erb" operator="out" result="band"></feComposite><feFlood flood-color="#46E0D8" flood-opacity="0.9"></feFlood><feComposite in2="band" operator="in" result="bandc"></feComposite><feMorphology in="SourceAlpha" operator="erode" radius="1.8" result="er2"></feMorphology><feComposite in="SourceAlpha" in2="er2" operator="out" result="edge"></feComposite><feFlood flood-color="#FFFFFF" flood-opacity="0.75"></feFlood><feComposite in2="edge" operator="in" result="foam"></feComposite><feMerge><feMergeNode in="SourceGraphic"></feMergeNode><feMergeNode in="bandc"></feMergeNode><feMergeNode in="foam"></feMergeNode></feMerge></filter>
+<filter id="b2"><feGaussianBlur stdDeviation="2"></feGaussianBlur></filter>
+<filter id="b4" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="4"></feGaussianBlur></filter>
+<filter id="b8" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="8"></feGaussianBlur></filter>
+<filter id="b14" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="14"></feGaussianBlur></filter>
+<radialGradient id="wg" gradientUnits="userSpaceOnUse" cx="940" cy="420" r="300"><stop offset="0" stop-color="#0A3E8A"></stop><stop offset="0.55" stop-color="#1268B8"></stop><stop offset="1" stop-color="#1E9AC8"></stop></radialGradient>
+<radialGradient id="pond" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#0E58A8"></stop><stop offset="1" stop-color="#2AB0C8"></stop></radialGradient>
+<pattern id="tiles" width="6" height="10" patternUnits="userSpaceOnUse"><path d="M0 0v10 M3 5h3" stroke="#3A0E04" stroke-opacity="0.28" stroke-width="1"></path></pattern>
+<pattern id="zebra" width="3" height="10" patternUnits="userSpaceOnUse"><rect width="1.4" height="10" fill="#1A1A1A"></rect></pattern>
+<mask id="mW" maskUnits="userSpaceOnUse" x="0" y="0" width="3400" height="1600"><path d="{{D.E}}" fill="#FFFFFF" filter="url(#rough)"></path></mask>
+<mask id="mF" maskUnits="userSpaceOnUse" x="0" y="0" width="3400" height="1600"><path d="{{D.F}}" fill="#FFFFFF" filter="url(#rough)"></path></mask>
+<mask id="mR" maskUnits="userSpaceOnUse" x="0" y="0" width="3400" height="1600"><path d="{{D.rock}}" fill="#FFFFFF" filter="url(#rough)"></path></mask>
+</defs>
+
+<g filter="url(#rough)">
+<path d="{{D.P}}" fill="#62AE34"></path>
+<path d="{{D.P2}}" fill="#74BE40"></path>
+<path d="{{D.F}}" fill="#1A5A20"></path>
+<path d="{{D.S}}" fill="#F2D684"></path>
+<path d="{{D.R}}" fill="#A8A296"></path>
+<path d="{{D.O}}" fill="#A8A296"></path>
+<path d="{{D.M}}" fill="#8E7E6C"></path>
+<path d="{{D.N}}" fill="#D8D4CE"></path>
+<path d="{{D.C}}" fill="#D2A868"></path>
+</g>
+<rect width="3400" height="1600" filter="url(#mottle)" opacity="0.5"></rect>
+<rect width="3400" height="1600" filter="url(#grass)" opacity="0.25"></rect>
+<rect width="3400" height="1600" filter="url(#relief)" style="mix-blend-mode: soft-light"></rect>
+<rect width="3400" height="1600" filter="url(#rockRelief)" mask="url(#mR)" style="mix-blend-mode: multiply" opacity="0.85"></rect>
+<path d="{{D.N}}" fill="#FFFFFF" filter="url(#b8)" opacity="0.95"></path>
+<rect width="3400" height="1600" filter="url(#canopy)" mask="url(#mF)"></rect>
+
+<path d="{{D.E}}" fill="#2A5A20" opacity="0.5" filter="url(#b14)"></path>
+<g filter="url(#rough)"><path d="{{D.E}}" fill="url(#wg)" filter="url(#shore)"></path></g>
+<rect width="3400" height="1600" filter="url(#ripple)" mask="url(#mW)" style="mix-blend-mode: screen" opacity="0.55"></rect>
+<path d="M900 390l26 -4 M930 414l18 -3 M860 450l22 -3 M1010 380l14 -2" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" opacity="0.9"></path>
+
+<g filter="url(#rough2)">
+<path d="{{roadD}}" fill="none" stroke="#6A4A22" stroke-width="32" stroke-linecap="round" stroke-linejoin="round" opacity="0.3" filter="url(#b4)"></path>
+<path d="{{roadD}}" fill="none" stroke="#D6A866" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="{{roadD}}" fill="none" stroke="#EBC488" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"></path>
+</g>
+<g transform="translate(1244 1294) rotate(6)">
+<rect x="-76" y="-14" width="152" height="34" fill="#000000" opacity="0.3" filter="url(#b4)" transform="translate({{L.bx}} {{L.by}})"></rect>
+<rect x="-70" y="-17" width="140" height="34" fill="#9A6A3A"></rect>
+<path d="M-70 -13H70 M-70 13H70" stroke="#5A3A1A" stroke-width="5"></path>
+<path d="M-66 0H66" stroke="#C08A52" stroke-width="22" stroke-dasharray="3 3"></path>
+</g>
+
+<!-- camp -->
+<g transform="translate({{L.bx}} {{L.by}})" opacity="0.35" filter="url(#b4)"><rect x="1492" y="1212" width="88" height="56" fill="#000"></rect><rect x="1492" y="1316" width="88" height="56" fill="#000"></rect><rect x="1636" y="1208" width="112" height="72" fill="#000"></rect></g>
+<rect x="1492" y="1212" width="44" height="56" fill="{{L.roofA1}}"></rect><rect x="1536" y="1212" width="44" height="56" fill="{{L.roofA2}}"></rect><rect x="1492" y="1212" width="88" height="56" fill="url(#tiles)"></rect><rect x="1534" y="1210" width="4" height="60" fill="#7A2A14"></rect>
+<rect x="1492" y="1316" width="44" height="56" fill="{{L.roofA1}}"></rect><rect x="1536" y="1316" width="44" height="56" fill="{{L.roofA2}}"></rect><rect x="1492" y="1316" width="88" height="56" fill="url(#tiles)"></rect><rect x="1534" y="1314" width="4" height="60" fill="#7A2A14"></rect>
+<rect x="1636" y="1208" width="56" height="72" fill="{{L.roofB1}}"></rect><rect x="1692" y="1208" width="56" height="72" fill="{{L.roofB2}}"></rect><rect x="1636" y="1208" width="112" height="72" fill="url(#tiles)"></rect><rect x="1690" y="1206" width="4" height="76" fill="#123A6A"></rect>
+<rect x="1648" y="1290" width="12" height="10" fill="#C08A52"></rect><rect x="1664" y="1290" width="12" height="12" fill="#A87440"></rect><rect x="1680" y="1293" width="10" height="9" fill="#C08A52"></rect>
+<path d="M1648 1320h46 M1648 1327h46 M1650 1334h44 M1654 1341h38" stroke="#8A5228" stroke-width="6" stroke-linecap="round"></path>
+<path d="M1694 1320h.1 M1694 1327h.1 M1694 1334h.1 M1692 1341h.1" stroke="#F2C88A" stroke-width="5.5" stroke-linecap="round"></path>
+<path d="M1710 1328h10v8h-10z M1722 1326h12v10h-12z M1714 1340h12v9h-12z M1728 1340h10v8h-10z" fill="#E2DCCE" stroke="#9A9284" stroke-width="1"></path>
+<g fill="#E8463A"><circle cx="1504" cy="1290" r="3.5"></circle><circle cx="1514" cy="1296" r="3.5"></circle><circle cx="1584" cy="1296" r="3.5"></circle></g><g fill="#F2D23A"><circle cx="1508" cy="1300" r="3"></circle><circle cx="1578" cy="1290" r="3"></circle></g>
+
+<!-- zoo -->
+<path d="M2020 1112V864 M1792 864H2328" stroke="#9A7A4A" stroke-width="24" stroke-linecap="round" opacity="0.45" filter="url(#b2)"></path>
+<path d="M2020 1112V864 M1792 864H2328" stroke="#F4E6C4" stroke-width="18" stroke-linecap="round"></path>
+<g fill="#E8463A"><circle cx="1990" cy="1090" r="3.5"></circle><circle cx="1996" cy="1080" r="3.5"></circle><circle cx="2050" cy="1092" r="3.5"></circle><circle cx="2056" cy="1080" r="3.5"></circle><circle cx="2040" cy="900" r="3.5"></circle></g>
+<g fill="#F2D23A"><circle cx="1994" cy="1098" r="3"></circle><circle cx="1980" cy="1084" r="3"></circle><circle cx="2046" cy="1084" r="3"></circle><circle cx="2000" cy="896" r="3"></circle></g>
+<g fill="#C860E0"><circle cx="2002" cy="1088" r="3"></circle><circle cx="2062" cy="1090" r="3"></circle><circle cx="2034" cy="890" r="3"></circle></g>
+<path d="M2048 1120H2360V600H1760V1120H1992" fill="none" stroke="#000" stroke-width="14" opacity="0.3" filter="url(#b4)" transform="translate({{L.wx}} {{L.wy}})"></path>
+<path d="M2048 1120H2360V600H1760V1120H1992" fill="none" stroke="#E6D6B4" stroke-width="12"></path>
+<path d="M2048 1120H2360V600H1760V1120H1992" fill="none" stroke="#B89A6A" stroke-width="12" stroke-dasharray="1.5 9"></path>
+<path d="M2048 1120H2360V600H1760V1120H1992" fill="none" stroke="{{K.flag}}" stroke-width="3" transform="translate(0 -7)" opacity="0.9"></path>
+<rect x="1982" y="1110" width="18" height="18" fill="#D6C8A4"></rect><rect x="2040" y="1110" width="18" height="18" fill="#D6C8A4"></rect>
+<path d="M2000 1119H2040" stroke="{{K.flag}}" stroke-width="6"></path>
+
+<ellipse cx="1880" cy="706" rx="64" ry="46" fill="#F0C878" filter="url(#b8)" opacity="0.9"></ellipse>
+<rect x="1784" y="624" width="184" height="200" fill="none" stroke="#000" stroke-width="4" opacity="0.25" transform="translate({{L.wx}} {{L.wy}})" filter="url(#b2)"></rect>
+<rect x="1784" y="624" width="184" height="200" fill="none" stroke="#6A4A2A" stroke-width="3"></rect>
+<rect x="1784" y="624" width="184" height="200" fill="none" stroke="#4A3018" stroke-width="7" stroke-dasharray="3 12"></rect>
+<rect x="1936" y="796" width="20" height="10" fill="#1E9AC8" stroke="#8A6A44" stroke-width="2"></rect>
+<rect x="2048" y="624" width="288" height="168" fill="none" stroke="#000" stroke-width="4" opacity="0.25" transform="translate({{L.wx}} {{L.wy}})" filter="url(#b2)"></rect>
+<rect x="2048" y="624" width="288" height="168" fill="none" stroke="#F4ECDA" stroke-width="3"></rect>
+<rect x="2048" y="624" width="288" height="168" fill="none" stroke="#8A6A44" stroke-width="7" stroke-dasharray="3 14"></rect>
+<g opacity="{{M.jo}}">
+<ellipse cx="1888" cy="1004" rx="62" ry="44" fill="#8A6A3E" filter="url(#b8)" opacity="0.55"></ellipse>
+<ellipse cx="1888" cy="1004" rx="44" ry="28" fill="url(#pond)" filter="url(#shore)"></ellipse>
+<path d="M1800 1088V912H1976" fill="none" stroke="#6A4A2A" stroke-width="3"></path>
+<path d="M1800 1088V912H1976" fill="none" stroke="#4A3018" stroke-width="7" stroke-dasharray="3 12"></path>
+<path d="M1976 912V1088H1800" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-dasharray="8 7"></path>
+</g>
+<rect x="2080" y="984" width="96" height="80" fill="#000" opacity="0.3" filter="url(#b4)" transform="translate({{L.bx}} {{L.by}})"></rect>
+<rect x="2080" y="984" width="96" height="80" fill="#E2CC9E"></rect>
+<rect x="2128" y="984" width="48" height="80" fill="#2EA08A"></rect>
+<path d="M2084 988h88v72h-88z M2084 988l44 72 M2128 988l-44 72" fill="none" stroke="#8A5A2A" stroke-width="3"></path>
+<path d="M2094 1072h40 M2094 1078h40 M2096 1084h36" stroke="#E0A860" stroke-width="4"></path>
+<circle cx="2074" cy="1090" r="16" fill="#000" opacity="0.25" filter="url(#b2)" transform="translate({{L.wx}} {{L.wy}})"></circle>
+<circle cx="2074" cy="1090" r="16" fill="{{K.flag}}"></circle><path d="M2074 1074v32 M2058 1090h32 M2063 1079l22 22 M2085 1079l-22 22" stroke="#FFFFFF" stroke-width="2.4"></path><circle cx="2074" cy="1090" r="4" fill="#FFD84A"></circle>
+
+<g transform="translate(1852 742) rotate(18)"><ellipse cx="0" cy="0" rx="14" ry="6.5" fill="#000" opacity="0.3" transform="translate({{L.ax}} {{L.ay}})"></ellipse><path d="M-14 0q-10 2-12 8" stroke="#B88440" stroke-width="2" fill="none"></path><ellipse cx="0" cy="0" rx="13" ry="6" fill="#E0A85A"></ellipse><circle cx="12" cy="0" r="7.5" fill="#8A4A1E"></circle><circle cx="13" cy="0" r="4.5" fill="#E2AA5E"></circle></g>
+<g transform="translate(1904 696) rotate(-150)"><ellipse rx="12" ry="5.5" fill="#E8B266"></ellipse><circle cx="11" cy="0" r="4" fill="#DCA45E"></circle></g>
+<g transform="translate(2124 690) rotate(8)"><ellipse rx="11" ry="5" fill="#FFFFFF"></ellipse><ellipse rx="11" ry="5" fill="url(#zebra)"></ellipse><ellipse cx="11" cy="0" rx="4" ry="2.6" fill="#2A2A2A"></ellipse></g>
+<g transform="translate(2170 724) rotate(-6)"><ellipse rx="11" ry="5" fill="#FFFFFF"></ellipse><ellipse rx="11" ry="5" fill="url(#zebra)"></ellipse><ellipse cx="11" cy="0" rx="4" ry="2.6" fill="#2A2A2A"></ellipse></g>
+<g transform="translate(2212 676) rotate(186)"><ellipse rx="11" ry="5" fill="#FFFFFF"></ellipse><ellipse rx="11" ry="5" fill="url(#zebra)"></ellipse><ellipse cx="11" cy="0" rx="4" ry="2.6" fill="#2A2A2A"></ellipse></g>
+<g transform="translate(2270 742) rotate(28)"><ellipse rx="11" ry="5" fill="#FFFFFF"></ellipse><ellipse rx="11" ry="5" fill="url(#zebra)"></ellipse><ellipse cx="11" cy="0" rx="4" ry="2.6" fill="#2A2A2A"></ellipse></g>
+<g transform="translate(2094 752) rotate(-2)"><ellipse rx="10" ry="4.6" fill="#FFFFFF"></ellipse><ellipse rx="10" ry="4.6" fill="url(#zebra)"></ellipse><ellipse cx="10" cy="0" rx="3.6" ry="2.4" fill="#2A2A2A"></ellipse></g>
+
+<path d="{{vis.sh}}" fill="#000" opacity="0.28"></path>
+<path d="{{vis.a}}" fill="#E8463A"></path><path d="{{vis.b}}" fill="#FFFFFF"></path><path d="{{vis.c}}" fill="#2E7AD8"></path><path d="{{vis.d}}" fill="#F2C440"></path>
+
+<path d="{{RK.sh}}" fill="#1A2010" opacity="0.35" filter="url(#b2)"></path>
+<path d="{{RK.d}}" fill="#8E887C"></path>
+<path d="{{RK.l}}" fill="#D6D0C2"></path>
+<path d="{{T.stump}}" fill="#E8C088" stroke="#7A4E28" stroke-width="2"></path>
+<path d="{{GL}}" fill="#FFF2A0"></path>
+<circle cx="2300" cy="500" r="24" fill="#FFE04A" opacity="0.5" filter="url(#b8)"></circle>
+
+<g filter="url(#b4)"><path d="{{T.sh}}" fill="#0A2A08" opacity="0.45"></path></g>
+<path d="{{T.bush}}" fill="#3A8A28"></path>
+<path d="{{T.flow}}" fill="#F2D23A"></path>
+<g filter="url(#leaf)">
+<path d="{{T.d1}}" fill="#1E6A22"></path>
+<path d="{{T.m1}}" fill="#3E9A2E"></path>
+<path d="{{T.h1}}" fill="#A2DA4A" opacity="0.9"></path>
+<path d="{{T.d2}}" fill="#0E4A2C"></path>
+<path d="{{T.m2}}" fill="#1E7040"></path>
+<path d="{{T.h2}}" fill="#62B85E" opacity="0.9"></path>
+</g>
+<g opacity="{{M.jo}}"><rect x="1320" y="920" width="128" height="124" rx="10" fill="{{K.accent}}" fill-opacity="0.18" stroke="{{K.accent}}" stroke-width="3" stroke-dasharray="10 7"></rect></g>
+<!-- mode placement : grille, zone d'enclos, aperçus -->
+<g opacity="{{M.po}}">
+<defs>
+<pattern id="grid40" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#FFFFFF" stroke-opacity="0.32" stroke-width="1.5"></path></pattern>
+<pattern id="pF" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M10 3l5 8h-10z" fill="#FFFFFF" fill-opacity="0.45"></path></pattern>
+<pattern id="pE" width="20" height="10" patternUnits="userSpaceOnUse"><path d="M0 6c3-3 7 3 10 0s7-3 10 0" fill="none" stroke="#FFFFFF" stroke-opacity="0.6" stroke-width="1.6"></path></pattern>
+<pattern id="pR" width="12" height="12" patternUnits="userSpaceOnUse"><path d="M2 10l4-7 4 7z" fill="#3A3428" fill-opacity="0.45"></path></pattern>
+<pattern id="pP" width="12" height="12" patternUnits="userSpaceOnUse"><path d="M3 10v-4 M8 10v-5" stroke="#1E4A10" stroke-opacity="0.5" stroke-width="1.4"></path></pattern>
+<pattern id="warn" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="14" fill="#E8782A" fill-opacity="0.75"></rect><rect x="7" width="7" height="14" fill="#FFFFFF" fill-opacity="0.35"></rect></pattern>
+</defs>
+<rect x="480" y="80" width="2240" height="1440" fill="url(#grid40)"></rect>
+<path d="{{Z.F}}" fill="#1E6A22" fill-opacity="0.92"></path><path d="{{Z.F}}" fill="url(#pF)"></path>
+<path d="{{Z.E}}" fill="#1E9AC8" fill-opacity="0.92"></path><path d="{{Z.E}}" fill="url(#pE)"></path>
+<path d="{{Z.R}}" fill="#B8B2A6" fill-opacity="0.95"></path><path d="{{Z.R}}" fill="url(#pR)"></path>
+<path d="{{Z.P}}" fill="#8ACC4A" fill-opacity="0.92"></path><path d="{{Z.P}}" fill="url(#pP)"></path>
+<path d="M1800 920h160v80h-160z M1840 920v80 M1880 920v80 M1920 920v80 M1800 960h160" fill="none" stroke="#FFFFFF" stroke-opacity="0.7" stroke-width="1.5"></path>
+<path d="{{Z.pairs}}" fill="none" stroke="#FFD45A" stroke-width="5" stroke-linecap="round"></path>
+<path d="M1800 920H1960V960 M1960 1000H1800V920" fill="none" stroke="#4A3018" stroke-width="7" stroke-dasharray="3 10"></path>
+<path d="M1800 920H1960V960 M1960 1000H1800V920" fill="none" stroke="#6A4A2A" stroke-width="3"></path>
+<path d="M1960 960V1000" fill="none" stroke="#E8782A" stroke-width="5" stroke-dasharray="6 5"></path>
+<rect x="1792" y="912" width="176" height="96" rx="6" fill="none" stroke="#FFD45A" stroke-width="3" stroke-dasharray="12 8"></rect>
+<rect x="1780" y="1320" width="80" height="60" rx="3" fill="#FFD45A" fill-opacity="0.32" stroke="#FFD45A" stroke-width="3"></rect>
+<path d="M1820 1320v60" stroke="#FFD45A" stroke-width="2" stroke-dasharray="5 4"></path>
+<rect x="2340" y="880" width="80" height="60" rx="3" fill="url(#warn)" stroke="#E8782A" stroke-width="3"></rect>
+</g>
+<path d="M0 0H3400V1600H0Z M480 80V1520H2720V80Z" fill="#0A1A30" fill-opacity="0.3" fill-rule="evenodd"></path>
+</svg>
+
+<div style="position: absolute; left: 100px; top: 120px; width: 900px; height: 500px; border-radius: 50%; background: radial-gradient(closest-side, rgba(10,30,60,0.22), rgba(10,30,60,0))"></div>
+
+<sc-for list="{{workers}}" as="w" hint-placeholder-count="12">
+<div style="position: absolute; left: {{w.x}}px; top: {{w.y}}px; width: 0; height: 0">
+<div style="position: absolute; left: -22px; top: -22px; width: 44px; height: 44px; box-sizing: border-box; border-radius: 50%; border: {{w.ring}}; box-shadow: {{w.glow}}"></div>
+<div style="position: absolute; left: {{L.wsx}}px; top: {{L.wsy}}px; width: 22px; height: 13px; border-radius: 50%; background: rgba(8,20,6,0.45); filter: blur(2px)"></div>
+<div style="position: absolute; left: -8px; top: -6px; width: 16px; height: 11px; border-radius: 50%; background: {{w.cloth}}; box-shadow: inset 3px 2px 3px rgba(255,255,255,0.3), inset -3px -2px 3px rgba(0,0,0,0.3); transform: rotate({{w.rot}}deg)"></div>
+<div style="position: absolute; left: -13px; top: -4px; width: 26px; height: 5px; border-radius: 2px; background: {{w.carry}}; transform: rotate({{w.rot}}deg)"></div>
+<div style="position: absolute; left: -4.5px; top: -4.5px; width: 9px; height: 9px; border-radius: 50%; background: {{w.hat}}; box-shadow: inset 2px 2px 2px rgba(255,255,255,0.5)"></div>
+</div>
+</sc-for>
+
+<!-- drapeaux d'unités -->
+<sc-if value="{{M.marks}}" hint-placeholder-val="{{ true }}">
+<sc-for list="{{flags}}" as="f" hint-placeholder-count="6">
+<div style="position: absolute; left: {{f.x}}px; top: {{f.y}}px; width: 0; height: 0; transform-style: preserve-3d">
+<div style="position: absolute; left: -40px; bottom: 0; width: 80px; height: 110px; transform-origin: 50% 100%; transform: rotateX(-48deg); display: flex; flex-direction: column; align-items: center; justify-content: flex-end">
+<div style="position: relative; width: {{f.s}}px; height: {{f.h}}px; padding: 2px; box-sizing: border-box; background: {{K.gold}}; clip-path: polygon(0 0, 100% 0, 100% 68%, 50% 100%, 0 68%); filter: drop-shadow(0 3px 3px rgba(0,0,0,0.5))">
+<div style="width: 100%; height: 100%; background: {{f.bg}}; clip-path: polygon(0 0, 100% 0, 100% 68%, 50% 100%, 0 68%); color: #FFFFFF; display: flex; justify-content: center; padding-top: 5px; box-sizing: border-box"><svg class="i" viewBox="0 0 24 24" width="{{f.is}}" height="{{f.is}}" aria-hidden="true" style="stroke-width: 2.4"><path d="{{f.d}}"></path></svg></div>
+</div>
+<div style="display: {{f.tagShow}}; margin-top: 3px; padding: 1px 7px; border-radius: 8px; background: rgba(0,0,0,0.65); font-size: 12px; font-weight: 700; white-space: nowrap">{{f.t}}</div>
+<div style="width: 2px; height: {{f.p}}px; background: {{K.gold}}"></div>
+</div>
+</div>
+</sc-for>
+</sc-if>
+
+<!-- bannière du zoo -->
+<sc-if value="{{M.marks}}" hint-placeholder-val="{{ true }}">
+<div style="position: absolute; left: 2060px; top: 600px; width: 0; height: 0; transform-style: preserve-3d">
+<div style="position: absolute; left: -160px; bottom: 0; width: 320px; height: 120px; transform-origin: 50% 100%; transform: rotateX(-48deg); display: flex; flex-direction: column; align-items: center; justify-content: flex-end">
+<div style="display: flex; align-items: center; height: 44px; padding: 0 14px 0 0; border-radius: 22px; background: {{K.panel}}; box-shadow: 0 0 0 2px {{K.gold}}, 0 0 0 4px {{K.goldD}}, 0 8px 16px rgba(0,0,0,0.5)">
+<span style="width: 50px; height: 50px; margin-left: -4px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #D8A8FF, #8A4AD8 70%); box-shadow: 0 0 0 3px {{K.gold}}; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 20px; color: #FFFFFF">34</span>
+<span style="width: 6px; height: 44px; background: {{K.flag}}; margin: 0 10px 0 8px"></span>
+<b style="font-family: {{K.title}}; font-size: 19px; letter-spacing: 0.06em; white-space: nowrap">ZOO DU VAL</b>
+<span style="display: flex; align-items: center; gap: 4px; margin-left: 12px; font-size: 15px; font-weight: 700"><svg class="i" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M9 5a3 3 0 1 0 0 6a3 3 0 1 0 0-6 M3 20a6 6 0 0 1 12 0 M16.5 7a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5 M16 14a5 5 0 0 1 5 6"></path></svg>42</span>
+<span style="display: flex; gap: 3px; margin-left: 10px"><span style="width: 10px; height: 10px; border-radius: 50%; background: #E8B030"></span><span style="width: 10px; height: 10px; border-radius: 50%; background: #2E8AE0"></span><span style="width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.5)"></span><span style="width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.5)"></span></span>
+</div>
+<div style="width: 3px; height: 60px; background: {{K.gold}}"></div>
+</div>
+</div>
+</sc-if>
+
+<!-- étiquettes de placement -->
+<sc-if value="{{M.plac}}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; left: 1880px; top: 912px; width: 0; height: 0; transform-style: preserve-3d">
+<div style="position: absolute; left: -120px; bottom: 0; width: 240px; height: 110px; transform-origin: 50% 100%; transform: rotateX(-48deg); display: flex; flex-direction: column; align-items: center; justify-content: flex-end">
+<div style="display: flex; align-items: center; gap: 8px; padding: 4px 12px 4px 4px; border-radius: 18px; background: {{K.panelSolid}}; box-shadow: 0 0 0 2px {{K.gold}}, 0 6px 12px rgba(0,0,0,0.5); white-space: nowrap">
+<span style="width: 28px; height: 28px; border-radius: 3px; background: #E8782A; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg class="i" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" style="stroke-width: 3"><path d="M7 7l10 10 M17 7L7 17"></path></svg></span>
+<span style="display: flex; flex-direction: column; line-height: 1.1"><b style="font-size: 15px">Tigre · 6 / 7</b><span style="font-size: 12.5px; color: {{K.dim}}">enclos ouvert</span></span>
+</div>
+<div style="width: 2px; height: 40px; background: {{K.gold}}"></div>
+</div>
+</div>
+<div style="position: absolute; left: 1820px; top: 1320px; width: 0; height: 0; transform-style: preserve-3d">
+<div style="position: absolute; left: -110px; bottom: 0; width: 220px; height: 80px; transform-origin: 50% 100%; transform: rotateX(-48deg); display: flex; flex-direction: column; align-items: center; justify-content: flex-end">
+<div style="display: flex; align-items: center; gap: 8px; padding: 4px 12px 4px 4px; border-radius: 18px; background: {{K.panelSolid}}; box-shadow: 0 0 0 2px #FFD45A; white-space: nowrap">
+<span style="width: 26px; height: 26px; border-radius: 50%; background: #3A8AE8; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg class="i" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" style="stroke-width: 3"><path d="M5 12l5 5 9-10"></path></svg></span>
+<b style="font-size: 14px">Maison · placement valide</b>
+</div>
+<div style="width: 2px; height: 20px; background: #FFD45A"></div>
+</div>
+</div>
+<div style="position: absolute; left: 2380px; top: 880px; width: 0; height: 0; transform-style: preserve-3d">
+<div style="position: absolute; left: -120px; bottom: 0; width: 240px; height: 80px; transform-origin: 50% 100%; transform: rotateX(-48deg); display: flex; flex-direction: column; align-items: center; justify-content: flex-end">
+<div style="display: flex; align-items: center; gap: 8px; padding: 4px 12px 4px 4px; border-radius: 18px; background: #6A2A10; box-shadow: 0 0 0 2px #E8782A; white-space: nowrap">
+<span style="width: 26px; height: 26px; border-radius: 3px; background: #E8782A; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg class="i" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" style="stroke-width: 3"><path d="M7 7l10 10 M17 7L7 17"></path></svg></span>
+<b style="font-size: 14px">Chevauche l'enceinte</b>
+</div>
+<div style="width: 2px; height: 20px; background: #E8782A"></div>
+</div>
+</div>
+</sc-if>
+</div>
+</div>
+
+<!-- étalonnage -->
+<div style="position: absolute; inset: 0; pointer-events: none; background: linear-gradient(to bottom, {{K.haze}} 0%, rgba(255,255,255,0) 34%)"></div>
+<div style="position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at {{K.sun}}, rgba(255,236,190,0.5), rgba(255,236,190,0) 45%); mix-blend-mode: screen"></div>
+<div style="position: absolute; inset: 0; pointer-events: none; background: {{K.tint}}; opacity: {{K.tintO}}; mix-blend-mode: soft-light"></div>
+<div style="position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 46%, rgba(0,0,0,0) 56%, {{K.vig}} 100%)"></div>
+
+<sc-if value="{{M.nuit}}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; inset: 0; pointer-events: none; background: #0A1838; opacity: 0.66; mix-blend-mode: multiply"></div>
+<div style="position: absolute; inset: 0; pointer-events: none; background: rgba(6,14,34,0.42)"></div>
+<div style="position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at 440px 600px, rgba(255,170,80,0.55), rgba(255,170,80,0) 140px), radial-gradient(circle at 820px 300px, rgba(255,200,120,0.35), rgba(255,200,120,0) 220px), radial-gradient(circle at 820px 452px, rgba(255,190,110,0.5), rgba(255,190,110,0) 90px); mix-blend-mode: screen"></div>
+<div style="position: absolute; inset: 0; pointer-events: none; background: linear-gradient(rgba(30,50,110,0.6), rgba(30,50,110,0) 35%)"></div>
+</sc-if>
+
+<!-- ======================= INTERFACE ======================= -->
+<sc-if value="{{M.top}}" hint-placeholder-val="{{ true }}">
+<header style="position: absolute; left: 0; right: 0; top: 0; height: 52px; background: {{K.panel}}; box-shadow: 0 2px 0 {{K.gold}}, 0 3px 0 {{K.goldD}}, 0 8px 20px rgba(0,0,0,0.4); display: flex; align-items: center; gap: 2px; padding: 0 12px">
+<sc-for list="{{yields}}" as="y" hint-placeholder-count="7">
+<div style="display: flex; align-items: center; gap: 7px; height: 40px; padding: 0 10px 0 4px; border-radius: 20px; background: {{y.bg}}">
+<span style="width: 32px; height: 32px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, {{y.hi}}, {{y.c}} 70%); box-shadow: 0 0 0 1.5px {{K.gold}}, inset 0 -3px 4px rgba(0,0,0,0.25); color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg class="i" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" style="stroke-width: 2.4"><path d="{{y.d}}"></path></svg></span>
+<div style="display: flex; flex-direction: column; line-height: 1.05"><span style="display: flex; align-items: baseline; gap: 4px"><b style="font-size: 18px; font-weight: 800">{{y.v}}</b><span style="font-size: 12.5px; font-weight: 700; color: {{y.dc}}">{{y.dt}}</span></span><span style="font-size: 11.5px; color: {{K.dim}}">{{y.n}}</span></div>
+</div>
+</sc-for>
+<div style="margin-left: auto; display: flex; align-items: center; gap: 6px; padding: 0 10px; height: 40px; border-left: 1px solid {{K.goldD}}">
+<span style="font-size: 12.5px; color: {{K.dim}}; margin-right: 2px">Course à 100</span>
+<sc-for list="{{rivals}}" as="r" hint-placeholder-count="4"><span style="width: 34px; height: 34px; border-radius: 50%; background: {{r.c}}; box-shadow: {{r.ring}}; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; text-shadow: 0 1px 2px rgba(0,0,0,0.5)">{{r.v}}</span></sc-for>
+</div>
+<div style="display: flex; gap: 3px; padding: 3px; border-radius: 18px; background: rgba(0,0,0,0.3); box-shadow: inset 0 0 0 1px {{K.goldD}}">
+<sc-for list="{{speeds}}" as="s" hint-placeholder-count="4"><button aria-label="{{s.n}}" style="width: 40px; height: 34px; border: none; border-radius: 15px; background: {{s.bg}}; color: {{s.fg}}; font-weight: 800; font-size: 14px">{{s.l}}</button></sc-for>
+</div>
+</header>
+</sc-if>
+
+<!-- bandeau événement -->
+<sc-if value="{{M.jour}}" hint-placeholder-val="{{ true }}">
+<div style="position: absolute; left: 266px; top: 62px; display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 26px 0 6px; background: {{K.head}}; box-shadow: inset 0 0 0 1.5px {{K.gold}}, 0 6px 14px rgba(0,0,0,0.35); clip-path: polygon(0 0, 100% 0, 96% 50%, 100% 100%, 0 100%)">
+<span style="width: 30px; height: 30px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #FFC870, #E8682A 70%); box-shadow: 0 0 0 1.5px {{K.gold}}; display: flex; align-items: center; justify-content: center; color: #FFFFFF"><svg class="i" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8 M12 2v2 M12 20v2 M4.9 4.9l1.4 1.4 M17.7 17.7l1.4 1.4 M2 12h2 M20 12h2 M4.9 19.1l1.4-1.4 M17.7 6.3l1.4-1.4"></path></svg></span>
+<b style="font-family: {{K.title}}; font-size: 15px; letter-spacing: 0.06em">CANICULE</b><span style="font-size: 14px; color: {{K.dim}}">les animaux ont soif</span>
+</div>
+</sc-if>
+
+<!-- bandeau mode construction -->
+<sc-if value="{{M.plac}}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; left: 50%; top: 64px; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; height: 44px; padding: 0 6px 0 18px; border-radius: 22px; background: {{K.panel}}; box-shadow: 0 0 0 2px {{K.gold}}, 0 8px 18px rgba(0,0,0,0.45); white-space: nowrap">
+<b style="font-family: {{K.title}}; font-size: 16px; letter-spacing: 0.08em; color: {{K.accent}}">MODE CONSTRUCTION</b>
+<span style="font-size: 14.5px">Clôture d'enclos · 1 bois par segment</span>
+<span style="font-size: 13.5px; color: {{K.dim}}">clic gauche : tracer · clic droit : annuler</span>
+<button style="height: 34px; padding: 0 14px; border: none; border-radius: 17px; background: rgba(255,255,255,0.12); color: {{K.text}}; font-weight: 700; font-size: 13.5px">Échap · quitter</button>
+</div>
+</sc-if>
+
+<!-- construire -->
+<sc-if value="{{M.top}}" hint-placeholder-val="{{ true }}">
+<nav aria-label="Construire" style="position: absolute; left: 14px; top: 64px; width: 238px; padding: 2px; border-radius: 10px; background: linear-gradient(160deg, {{K.gold}}, {{K.goldD}}); box-shadow: 0 10px 24px rgba(0,0,0,0.4)">
+<div style="position: relative; border-radius: 8px; background: {{K.panel}}; overflow: hidden">
+<div style="background: {{K.head}}; padding: 9px 12px; text-align: center; box-shadow: 0 1px 0 {{K.gold}}"><b style="font-family: {{K.title}}; font-size: 18px; letter-spacing: 0.08em">CONSTRUIRE</b></div>
+<div style="padding: 10px; display: flex; flex-direction: column; gap: 6px">
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; padding: 3px; border-radius: 8px; background: rgba(0,0,0,0.3)">
+<sc-for list="{{tabs}}" as="t" hint-placeholder-count="3"><button style="height: 32px; border: none; border-radius: 6px; background: {{t.bg}}; color: {{t.fg}}; font-weight: {{t.fw}}; font-size: 13px">{{t.n}}</button></sc-for>
+</div>
+<sc-for list="{{build}}" as="b" hint-placeholder-count="5">
+<button style="display: flex; align-items: center; gap: 9px; height: 54px; padding: 0 8px 0 4px; border: none; border-radius: 8px; background: {{b.bg}}; color: {{K.text}}; text-align: left; box-shadow: {{b.ring}}">
+<span style="width: 42px; height: 42px; flex: none; border-radius: 50%; background: radial-gradient(circle at 35% 30%, {{b.hi}}, {{b.c}} 70%); box-shadow: 0 0 0 1.5px {{K.gold}}; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg class="i" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="{{b.d}}"></path></svg></span>
+<span style="flex: 1; display: flex; flex-direction: column; line-height: 1.2"><b style="font-size: 14.5px">{{b.n}}</b><span style="display: flex; gap: 8px; font-size: 12.5px; color: {{K.dim}}"><span style="display: flex; align-items: center; gap: 3px"><span style="width: 9px; height: 9px; border-radius: 50%; background: #E07A2A"></span>{{b.w}}</span><span style="display: flex; align-items: center; gap: 3px"><span style="width: 9px; height: 9px; border-radius: 50%; background: #7A9AC0"></span>{{b.s}}</span></span></span>
+<span style="font-size: 12.5px; color: {{K.dim}}">{{b.t}}</span>
+</button>
+</sc-for>
+</div>
+</div>
+</nav>
+</sc-if>
+
+<!-- validation d'enclos (mode placement) -->
+<sc-if value="{{M.plac}}" hint-placeholder-val="{{ false }}">
+<aside style="position: absolute; right: 14px; top: 64px; width: 300px; padding: 2px; border-radius: 10px; background: linear-gradient(160deg, {{K.gold}}, {{K.goldD}}); box-shadow: 0 10px 24px rgba(0,0,0,0.4)">
+<div style="border-radius: 8px; background: {{K.panel}}; overflow: hidden">
+<div style="background: {{K.head}}; padding: 9px 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 0 {{K.gold}}"><b style="font-family: {{K.title}}; font-size: 17px; letter-spacing: 0.06em">ENCLOS SURVOLÉ</b><span style="font-size: 13px; color: {{K.dim}}">8 cases</span></div>
+<div style="padding: 12px; display: flex; flex-direction: column; gap: 10px; font-size: 14px">
+<div style="display: flex; align-items: center; gap: 10px">
+<span style="width: 44px; height: 44px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #7AF0C8, #0E8A6A 70%); box-shadow: 0 0 0 2px {{K.gold}}; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg class="i" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 21V10 M12 10C9 6 5 6 3 8 M12 10c3-4 7-4 9-2 M12 10c-2-3-2-6 0-8"></path></svg></span>
+<div style="display: flex; flex-direction: column; line-height: 1.15; flex: 1"><b style="font-size: 17px">Tigre</b><span style="color: {{K.dim}}">Jungle · palier II · contrat en main</span></div>
+<b style="font-size: 18px; color: #FFB070">6/7</b>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<sc-for list="{{reqs}}" as="r" hint-placeholder-count="7">
+<div style="display: flex; align-items: center; gap: 8px">
+<span style="width: 20px; height: 20px; flex: none; border-radius: {{r.shape}}; background: {{r.bg}}; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg class="i" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" style="stroke-width: 3.6"><path d="{{r.d}}"></path></svg></span>
+<span style="width: 14px; height: 14px; flex: none; border-radius: 3px; background: {{r.sw}}; box-shadow: {{r.swb}}"></span>
+<span style="flex: 1">{{r.t}}</span><b style="font-size: 13.5px">{{r.v}}</b>
+</div>
+</sc-for>
+</div>
+<div style="padding: 8px 10px; border-radius: 8px; background: rgba(232,120,42,0.2); box-shadow: inset 0 0 0 1px rgba(232,120,42,0.6); line-height: 1.35">Fermez le segment est (pointillé orange) pour valider l'enclos.</div>
+<div style="display: flex; flex-direction: column; gap: 4px; border-top: 1px solid {{K.goldD}}; padding-top: 8px; color: {{K.dim}}">
+<span>Aussi compatible : <b style="color: {{K.text}}">Ours brun</b> (Forêt)</span>
+<span>Trop petit pour : <b style="color: {{K.text}}">Éléphant</b> (12 cases)</span>
+</div>
+</div>
+</div>
+</aside>
+</sc-if>
+
+<!-- panneau du zoo -->
+<sc-if value="{{M.jour}}" hint-placeholder-val="{{ true }}">
+<aside style="position: absolute; right: 14px; top: 64px; width: 262px; padding: 2px; border-radius: 10px; background: linear-gradient(160deg, {{K.gold}}, {{K.goldD}}); box-shadow: 0 10px 24px rgba(0,0,0,0.4)">
+<div style="border-radius: 8px; background: {{K.panel}}; overflow: hidden">
+<div style="background: {{K.head}}; padding: 9px 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 0 {{K.gold}}"><b style="font-family: {{K.title}}; font-size: 17px; letter-spacing: 0.06em">ZOO DU VAL</b><span style="width: 14px; height: 14px; border-radius: 3px; background: {{K.flag}}; box-shadow: 0 0 0 1.5px {{K.gold}}"></span></div>
+<div style="padding: 12px; display: flex; flex-direction: column; gap: 10px; font-size: 14px">
+<div style="display: flex; align-items: center; gap: 12px">
+<div style="width: 64px; height: 64px; border-radius: 50%; background: conic-gradient(#B07AF0 0 34%, rgba(255,255,255,0.12) 34% 100%); display: flex; align-items: center; justify-content: center"><div style="width: 52px; height: 52px; border-radius: 50%; background: {{K.panel}}; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1"><b style="font-size: 20px">34</b><span style="font-size: 11px; color: {{K.dim}}">/100</span></div></div>
+<div style="display: flex; flex-direction: column; gap: 3px"><span>Réputation <b style="color: #C8A0FF">+5</b> hier</span><span style="color: {{K.dim}}">2ᵉ sur 4 · tête à 41</span></div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px">
+<div style="padding: 6px 8px; border-radius: 8px; background: rgba(255,255,255,0.07)"><b style="font-size: 18px">4</b> <span style="color: {{K.dim}}">espèces</span></div>
+<div style="padding: 6px 8px; border-radius: 8px; background: rgba(255,255,255,0.07)"><b style="font-size: 18px">42</b> <span style="color: {{K.dim}}">visiteurs</span></div>
+</div>
+<div style="display: flex; align-items: center; gap: 6px"><span style="color: {{K.dim}}; margin-right: 2px">Biomes</span>
+<sc-for list="{{biomes}}" as="b" hint-placeholder-count="6"><span style="width: 26px; height: 26px; border-radius: 50%; background: {{b.bg}}; box-shadow: {{b.bd}}; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg class="i" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" style="stroke-width: 2.4"><path d="{{b.d}}"></path></svg></span></sc-for>
+</div>
+<div style="display: flex; flex-direction: column; gap: 5px; border-top: 1px solid {{K.goldD}}; padding-top: 8px">
+<span style="display: flex; align-items: center; gap: 8px"><span style="width: 18px; height: 18px; border-radius: 50%; background: #3A8AE8; display: flex; align-items: center; justify-content: center"><svg class="i" viewBox="0 0 24 24" width="11" height="11" aria-hidden="true" style="stroke-width: 3.6"><path d="M5 12l5 5 9-10"></path></svg></span>Guichet tenu par Léon</span>
+<span style="display: flex; align-items: center; gap: 8px"><span style="width: 18px; height: 18px; border-radius: 3px; background: #E8782A; display: flex; align-items: center; justify-content: center"><svg class="i" viewBox="0 0 24 24" width="11" height="11" aria-hidden="true" style="stroke-width: 3.6"><path d="M7 7l10 10 M17 7L7 17"></path></svg></span>Boutique sans vendeur</span>
+</div>
+</div>
+</div>
+</aside>
+</sc-if>
+
+<!-- panneau d'unité -->
+<sc-if value="{{M.jour}}" hint-placeholder-val="{{ true }}">
+<div style="position: absolute; left: 14px; bottom: 14px; width: 344px; padding: 2px; border-radius: 10px; background: linear-gradient(160deg, {{K.gold}}, {{K.goldD}}); box-shadow: 0 10px 24px rgba(0,0,0,0.45)">
+<div style="position: relative; border-radius: 8px; background: {{K.panel}}; padding: 12px 12px 12px 132px; min-height: 186px; box-sizing: border-box">
+<div style="position: absolute; left: 10px; top: -34px; width: 112px; height: 112px; padding: 4px; border-radius: 50%; background: linear-gradient(160deg, #FFF0B8, {{K.gold}} 40%, {{K.goldD}}); box-shadow: 0 6px 14px rgba(0,0,0,0.5)">
+<div style="width: 100%; height: 100%; border-radius: 50%; overflow: hidden">
+<svg viewBox="0 0 100 120" width="104" height="104" preserveAspectRatio="xMidYMin slice" aria-hidden="true" style="display: block">
+<rect width="100" height="120" fill="#E0A85A"></rect><rect width="100" height="120" fill="url(#bgLight)"></rect>
+<path d="M76 120L91 72" fill="none" stroke="#6B4A2A" stroke-width="4" stroke-linecap="round"></path><path d="M86 66l11 1-2 11-8-3z" fill="#B8C0C8"></path>
+<path d="M6 120c3-20 20-30 44-30s41 10 44 30z" fill="#C8402A"></path><path d="M36 92l4 28h4l-3-28z M64 92l-4 28h-4l3-28z" fill="#5A2A1A"></path><path d="M6 120c3-20 20-30 44-30s41 10 44 30z" fill="url(#bodySh)"></path>
+<path d="M41 70h18v20c-4 5-14 5-18 0z" fill="#E8B48F"></path><path d="M41 70h18v20c-4 5-14 5-18 0z" fill="#3A1008" opacity="0.25"></path>
+<ellipse cx="31.5" cy="58" rx="3.5" ry="6" fill="#E8B48F"></ellipse><ellipse cx="68.5" cy="58" rx="3.5" ry="6" fill="#E8B48F"></ellipse>
+<ellipse cx="50" cy="56" rx="19" ry="23" fill="#E8B48F"></ellipse><ellipse cx="50" cy="56" rx="19" ry="23" fill="url(#faceSh)"></ellipse>
+<path d="M38 51q5-3 9 0 M53 51q5-3 9 0" fill="none" stroke="#6E3E22" stroke-width="2" stroke-linecap="round"></path>
+<ellipse cx="43" cy="57" rx="2.3" ry="2.7" fill="#2A1E16"></ellipse><ellipse cx="57" cy="57" rx="2.3" ry="2.7" fill="#2A1E16"></ellipse><circle cx="43.8" cy="56" r="0.8" fill="#FFFFFF"></circle><circle cx="57.8" cy="56" r="0.8" fill="#FFFFFF"></circle>
+<path d="M50 58c-1 5-3 8-1.5 9.5 1.5 1 4 .5 4 .5" fill="none" stroke="#3A1008" stroke-opacity="0.3" stroke-width="1.5" stroke-linecap="round"></path>
+<path d="M44 71q6 3 12 0" fill="none" stroke="#8A3A2A" stroke-width="1.8" stroke-linecap="round"></path>
+<ellipse cx="40" cy="66" rx="4" ry="2.5" fill="#E86A5A" opacity="0.3"></ellipse><ellipse cx="60" cy="66" rx="4" ry="2.5" fill="#E86A5A" opacity="0.3"></ellipse>
+<path d="M31 52c-2-13 6-21 19-21s21 8 19 21c-3-7-10-10-19-10s-16 3-19 10z M43 28a7 7 0 1 0 14 0a7 7 0 1 0 -14 0z" fill="#6E3E22"></path>
+<path d="M30 46c0-12 9-17 20-17s20 5 20 15c-6-3-13-4-20-4s-14 2-20 6z M62 42c8-1 15 1 19 5-6 1-13 0-19-2z" fill="#2E6A3A"></path><path d="M30 46c0-12 9-17 20-17s20 5 20 15c-6-3-13-4-20-4s-14 2-20 6z" fill="url(#hatSh)"></path>
+</svg>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 3px">
+<b style="font-family: {{K.title}}; font-size: 19px; letter-spacing: 0.03em; line-height: 1.05">JOSETTE MARCHAL</b>
+<span style="font-size: 14px; color: {{K.dim}}">Bûcheronne · peu qualifiée</span>
+<span style="display: flex; align-items: center; gap: 6px; font-size: 13px"><span style="display: flex; gap: 2px; color: #FFD84A">★★<span style="color: rgba(255,255,255,0.25)">★★</span></span>Niv. 2 · 12 / jour</span>
+</div>
+<div style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap">
+<span style="display: flex; align-items: center; gap: 5px; padding: 3px 9px 3px 3px; border-radius: 12px; background: rgba(58,138,232,0.25); font-size: 13px"><span style="width: 18px; height: 18px; border-radius: 50%; background: #3A8AE8; display: flex; align-items: center; justify-content: center; font-weight: 800">+</span>Costaude</span>
+<span style="display: flex; align-items: center; gap: 5px; padding: 3px 9px 3px 3px; border-radius: 4px; background: rgba(232,120,42,0.25); font-size: 13px"><span style="width: 18px; height: 18px; border-radius: 3px; background: #E8782A; display: flex; align-items: center; justify-content: center; font-weight: 800">−</span>Lente</span>
+</div>
+<div style="position: absolute; left: 12px; right: 12px; bottom: 12px; display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; align-items: center; gap: 8px; font-size: 13px"><span style="flex: none">Abattage</span><div style="flex: 1; height: 8px; border-radius: 4px; background: rgba(255,255,255,0.12)"><div style="width: 62%; height: 100%; border-radius: 4px; background: linear-gradient(90deg, {{K.goldD}}, {{K.gold}})"></div></div><b>62 %</b><span style="color: {{K.dim}}">· 3/5 bûches</span></div>
+<div style="display: flex; gap: 6px; justify-content: space-between">
+<sc-for list="{{acts}}" as="a" hint-placeholder-count="6"><button aria-label="{{a.n}}" style="width: 46px; height: 46px; border: none; border-radius: 50%; background: {{a.bg}}; color: {{a.fg}}; box-shadow: 0 0 0 1.5px {{K.gold}}, inset 0 -3px 5px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center"><svg class="i" viewBox="0 0 24 24" width="21" height="21" aria-hidden="true"><path d="{{a.d}}"></path></svg></button></sc-for>
+</div>
+</div>
+</div>
+</div>
+
+</sc-if>
+<!-- pioche -->
+<sc-if value="{{M.jour}}" hint-placeholder-val="{{ true }}">
+<div style="position: absolute; left: 372px; bottom: 14px; width: 86px; display: flex; flex-direction: column; align-items: center; gap: 6px">
+<span style="width: 50px; height: 50px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #FFF0B8, {{K.gold}} 55%, {{K.goldD}}); color: {{K.btnFg}}; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; box-shadow: 0 4px 8px rgba(0,0,0,0.45)">25 %</span>
+<span style="font-size: 12px; font-weight: 700; text-align: center; line-height: 1.1; text-shadow: 0 1px 3px rgba(0,0,0,0.8)">Gratuit<br>du jour</span>
+<div style="position: relative; width: 70px; height: 94px">
+<div style="position: absolute; left: 6px; top: 0; width: 62px; height: 88px; border-radius: 7px; background: {{K.panel}}; box-shadow: 0 0 0 1.5px {{K.gold}}; transform: rotate(6deg)"></div>
+<div style="position: absolute; left: 2px; top: 4px; width: 62px; height: 88px; border-radius: 7px; background: {{K.head}}; box-shadow: 0 0 0 1.5px {{K.gold}}, 0 6px 12px rgba(0,0,0,0.45); display: flex; flex-direction: column; align-items: center; justify-content: center"><b style="font-size: 26px; line-height: 1">3</b><span style="font-size: 11.5px; color: {{K.dim}}">pioche</span><span style="font-size: 11.5px; color: {{K.dim}}">4 défausse</span></div>
+</div>
+</div>
+
+</sc-if>
+<!-- la main -->
+<sc-if value="{{M.jour}}" hint-placeholder-val="{{ true }}">
+<div style="position: absolute; left: 474px; bottom: -34px; display: flex; gap: 8px; align-items: flex-end">
+<sc-for list="{{hand}}" as="w" hint-placeholder-count="5">
+<div style="width: 136px; height: 216px; padding: 2px; box-sizing: border-box; border-radius: 12px; background: linear-gradient(160deg, #FFF0B8, {{K.gold}} 35%, {{K.goldD}}); box-shadow: {{w.shadow}}; transform: translateY({{w.lift}}px)">
+<div style="position: relative; height: 100%; border-radius: 10px; background: {{K.panel}}; overflow: hidden; display: flex; flex-direction: column; align-items: center">
+<div style="width: 100%; height: 98px; border-radius: 0 0 50% 50% / 0 0 18px 18px; background: {{w.bg}}; overflow: hidden; box-shadow: 0 2px 0 {{K.gold}}">
+<svg viewBox="10 22 80 59" width="132" height="98" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="display: block">
+<rect width="100" height="120" fill="{{w.bg}}"></rect><rect width="100" height="120" fill="url(#bgLight)"></rect>
+<path d="{{w.toolD}}" fill="none" stroke="#5A3A1E" stroke-width="4" stroke-linecap="round"></path><path d="{{w.toolH}}" fill="#B8C0C8"></path>
+<path d="M6 120c3-20 20-30 44-30s41 10 44 30z" fill="{{w.cloth}}"></path><path d="M6 120c3-20 20-30 44-30s41 10 44 30z" fill="url(#bodySh)"></path>
+<path d="M41 70h18v20c-4 5-14 5-18 0z" fill="{{w.skin}}"></path><path d="M41 70h18v20c-4 5-14 5-18 0z" fill="#3A1008" opacity="0.25"></path>
+<ellipse cx="31.5" cy="58" rx="3.5" ry="6" fill="{{w.skin}}"></ellipse><ellipse cx="68.5" cy="58" rx="3.5" ry="6" fill="{{w.skin}}"></ellipse>
+<ellipse cx="50" cy="56" rx="19" ry="23" fill="{{w.skin}}"></ellipse><ellipse cx="50" cy="56" rx="19" ry="23" fill="url(#faceSh)"></ellipse>
+<path d="M38 51q5-3 9 0 M53 51q5-3 9 0" fill="none" stroke="{{w.hair}}" stroke-width="2" stroke-linecap="round"></path>
+<ellipse cx="43" cy="57" rx="2.3" ry="2.7" fill="#2A1E16"></ellipse><ellipse cx="57" cy="57" rx="2.3" ry="2.7" fill="#2A1E16"></ellipse><circle cx="43.8" cy="56" r="0.8" fill="#FFFFFF"></circle><circle cx="57.8" cy="56" r="0.8" fill="#FFFFFF"></circle>
+<path d="M44 71q6 3 12 0" fill="none" stroke="#8A3A2A" stroke-width="1.8" stroke-linecap="round"></path>
+<path d="{{w.beardD}}" fill="{{w.hair}}"></path><path d="{{w.hairD}}" fill="{{w.hair}}"></path>
+<path d="{{w.hatD}}" fill="{{w.hatC}}"></path><path d="{{w.hatD}}" fill="url(#hatSh)"></path>
+</svg>
+</div>
+<span style="position: absolute; left: 6px; top: 6px; display: flex; align-items: center; gap: 3px; padding: 2px 7px 2px 4px; border-radius: 9px; background: {{w.catC}}; box-shadow: 0 0 0 1.5px {{K.gold}}; color: #FFFFFF; font-size: 11px; font-weight: 800"><svg class="i" viewBox="0 0 24 24" width="11" height="11" aria-hidden="true" style="stroke-width: 3"><path d="{{w.catD}}"></path></svg>{{w.cat}}</span>
+<span style="position: absolute; right: 6px; top: 6px; width: 32px; height: 32px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #FFF0B8, {{K.gold}} 55%, {{K.goldD}}); color: {{K.btnFg}}; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.5)">{{w.sal}}</span>
+<b style="margin-top: 8px; font-family: {{K.title}}; font-size: 12.5px; letter-spacing: 0.01em; line-height: 1.1; text-align: center; padding: 0 6px">{{w.name}}</b>
+<span style="font-size: 13px; color: {{K.dim}}">{{w.met}} · N{{w.lvl}}</span>
+<div style="display: flex; gap: 4px; margin-top: 4px; height: 20px">
+<sc-for list="{{w.traits}}" as="t" hint-placeholder-count="2"><span style="width: 20px; height: 20px; border-radius: {{t.shape}}; background: {{t.bg}}; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg class="i" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" style="stroke-width: 2.8"><path d="{{t.d}}"></path></svg></span></sc-for>
+</div>
+<div style="margin-top: auto; margin-bottom: 42px; display: grid; grid-template-columns: 1fr 40px; gap: 4px; width: 124px">
+<button style="height: 32px; border: none; border-radius: 16px; background: {{K.btn}}; color: {{K.btnFg}}; font-weight: 800; font-size: 13px; box-shadow: inset 0 -2px 0 rgba(0,0,0,0.2)">Déployer</button>
+<button aria-label="Déployer gratuitement à 25 %" style="height: 32px; border: none; border-radius: 16px; background: rgba(255,255,255,0.1); color: {{K.accent}}; box-shadow: inset 0 0 0 1px {{K.accent}}; font-weight: 800; font-size: 10px; white-space: nowrap">25 %</button>
+</div>
+</div>
+</div>
+</sc-for>
+</div>
+
+</sc-if>
+<!-- main repliée (placement) -->
+<sc-if value="{{M.plac}}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); display: flex; gap: 6px; align-items: flex-end">
+<sc-for list="{{hand}}" as="w" hint-placeholder-count="5"><div style="width: 136px; height: 40px; border-radius: 10px 10px 0 0; background: {{K.panel}}; box-shadow: 0 0 0 2px {{K.gold}}; display: flex; align-items: center; gap: 6px; padding: 0 8px; box-sizing: border-box"><span style="width: 18px; height: 18px; border-radius: 50%; background: {{w.catC}}; flex: none"></span><b style="font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{w.name}}</b></div></sc-for>
+</div>
+</sc-if>
+<!-- notifications -->
+<sc-if value="{{M.jour}}" hint-placeholder-val="{{ true }}">
+<div style="position: absolute; right: 22px; bottom: 186px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end">
+<div style="display: flex; align-items: center; gap: 8px"><span style="padding: 5px 12px; border-radius: 14px; background: {{K.panel}}; box-shadow: 0 0 0 1.5px {{K.gold}}; font-size: 13.5px; font-weight: 700">Lina est inactive</span><span style="width: 46px; height: 46px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #FFE890, #E8B020 70%); box-shadow: 0 0 0 2px {{K.gold}}, 0 4px 10px rgba(0,0,0,0.4); color: #3A2A00; display: flex; align-items: center; justify-content: center"><svg class="i" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" style="stroke-width: 2.6"><path d="M9 9a3 3 0 1 1 4 2.8c-.8.4-1 1-1 1.7V15 M12 18.5h.01"></path></svg></span></div>
+<span style="width: 40px; height: 40px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #8AF0A0, #2EA04A 70%); box-shadow: 0 0 0 2px {{K.gold}}, 0 4px 10px rgba(0,0,0,0.4); color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg class="i" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><path d="M3 9l9-5 9 5v11H3z M7 20v-7h10v7"></path></svg></span>
+<span style="width: 40px; height: 40px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #F0A0D0, #C83A8A 70%); box-shadow: 0 0 0 2px {{K.gold}}, 0 4px 10px rgba(0,0,0,0.4); color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg class="i" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><path d="M4 8h16v11H4z M9 8V5h6v3 M4 13h16"></path></svg></span>
+</div>
+
+</sc-if>
+<!-- médaillon du jour -->
+<sc-if value="{{M.top}}" hint-placeholder-val="{{ true }}">
+<div style="position: absolute; right: 14px; bottom: 14px; width: 164px; height: 164px; border-radius: 50%; padding: 5px; box-sizing: border-box; background: linear-gradient(160deg, #FFF0B8, {{K.gold}} 40%, {{K.goldD}}); box-shadow: 0 10px 24px rgba(0,0,0,0.5)">
+<div style="width: 100%; height: 100%; border-radius: 50%; background: conic-gradient({{K.accent}} 0 56%, rgba(255,255,255,0.12) 56% 100%); padding: 8px; box-sizing: border-box">
+<button style="width: 100%; height: 100%; border: none; border-radius: 50%; background: radial-gradient(circle at 50% 30%, {{K.head2}}, {{K.panelSolid}} 75%); color: {{K.text}}; box-shadow: inset 0 0 0 1.5px {{K.gold}}; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px">
+<span style="font-family: {{K.title}}; font-size: 14px; letter-spacing: 0.1em">JOUR 3</span>
+<b style="font-size: 36px; line-height: 1; font-weight: 800">2:47</b>
+<span style="font-size: 12.5px; color: {{K.dim}}">puis la nuit</span>
+</button>
+</div>
+</div>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["royal","emeraude","pourpre"],"default":"royal"},"mode":{"editor":"enum","options":["jour","placement","decor","nuit"],"default":"jour"},"$preview":{"width":1600,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const THEMES = {
+      royal: {
+        K: { panel: 'linear-gradient(#1F3560, #0F1C38)', panelSolid: '#0F1C38', head: 'linear-gradient(#2E4C84, #1C3260)', head2: '#2E4C84', gold: '#E6C060', goldD: '#7A5A1E', text: '#F6EEDA', dim: '#AFC0DE', accent: '#5FD0FF', flag: '#2E6AD8', btn: 'linear-gradient(#FFE29A, #D2A040)', btnFg: '#1A1408', title: "Cinzel, serif", haze: 'rgba(196,228,255,0.9)', sun: '20% 2%', tint: '#FFE0A0', tintO: 0.12, vig: 'rgba(8,20,50,0.45)' },
+        L: { az: 225, el: 48, sdx: 9, sdy: 9 }
+      },
+      emeraude: {
+        K: { panel: 'linear-gradient(#11564E, #08302C)', panelSolid: '#08302C', head: 'linear-gradient(#1C7468, #10483F)', head2: '#1C7468', gold: '#E2AE62', goldD: '#6A4418', text: '#F4FAEE', dim: '#A6D4C8', accent: '#FFD45A', flag: '#18A88A', btn: 'linear-gradient(#FFD89A, #C88A3A)', btnFg: '#1E1406', title: "'Marcellus SC', serif", haze: 'rgba(220,252,240,0.85)', sun: '96% 3%', tint: '#A8FFE0', tintO: 0.1, vig: 'rgba(2,28,24,0.45)' },
+        L: { az: 340, el: 30, sdx: -14, sdy: 7 }
+      },
+      pourpre: {
+        K: { panel: 'linear-gradient(#64203A, #36101E)', panelSolid: '#36101E', head: 'linear-gradient(#8A2C4C, #561830)', head2: '#8A2C4C', gold: '#F4C65C', goldD: '#7A4A12', text: '#FFF2E2', dim: '#E8BCC4', accent: '#FFB04A', flag: '#C8304A', btn: 'linear-gradient(#FFE08A, #E09A2A)', btnFg: '#2A1204', title: "Cinzel, serif", haze: 'rgba(255,206,160,0.9)', sun: '3% 3%', tint: '#FF9A50', tintO: 0.2, vig: 'rgba(44,6,12,0.5)' },
+        L: { az: 192, el: 20, sdx: 16, sdy: 5 }
+      }
+    };
+    const TH = THEMES[this.props.theme ?? 'royal'] || THEMES.royal;
+    const K = TH.K, LT = TH.L;
+    const mode = this.props.mode ?? 'jour';
+    const M = { top: mode === 'jour' || mode === 'placement', jour: mode === 'jour', plac: mode === 'placement', marks: mode === 'jour' || mode === 'placement', nuit: mode === 'nuit', po: mode === 'placement' ? 1 : 0, jo: mode === 'placement' ? 0 : 1 };
+    const tabs = ['Bâtiments', 'Zoo', 'Terrain'].map((n, i) => { const on = M.plac ? i === 1 : i === 0; return { n, bg: on ? K.btn : 'transparent', fg: on ? K.btnFg : K.text, fw: on ? 800 : 500 }; });
+    // zone d'enclos survolée (mode placement) : 4 x 2 cases, x 33..36, y 21..22
+    const ZC = [['F', 'F', 'E', 'R'], ['F', 'E', 'P', 'P']];
+    const Z = { F: '', E: '', R: '', P: '' };
+    ZC.forEach((row, j) => row.forEach((t, i) => { Z[t] += 'M' + ((33 + i + 12) * 40) + ' ' + ((21 + j + 2) * 40) + 'h40v40h-40z'; }));
+    const cx = (i) => (33 + i + 12) * 40 + 20, cy = (j) => (21 + j + 2) * 40 + 20;
+    Z.pairs = 'M' + cx(1) + ' ' + cy(0) + 'H' + cx(2) + ' M' + cx(0) + ' ' + cy(1) + 'H' + cx(1) + ' M' + cx(1) + ' ' + cy(0) + 'V' + cy(1);
+    const lit = LT.sdx < 0;
+    const L = {
+      az: LT.az, el: LT.el,
+      bx: Math.round(LT.sdx), by: Math.round(LT.sdy), wx: Math.round(LT.sdx * 0.6), wy: Math.round(LT.sdy * 0.6), ax: Math.round(LT.sdx * 0.5), ay: Math.round(LT.sdy * 0.5),
+      wsx: Math.round(-11 + LT.sdx * 0.35), wsy: Math.round(-6 + LT.sdy * 0.35),
+      roofA1: lit ? '#B8382A' : '#F07A50', roofA2: lit ? '#F07A50' : '#B8382A',
+      roofB1: lit ? '#1E4E9A' : '#4A8AE0', roofB2: lit ? '#4A8AE0' : '#1E4E9A'
+    };
+    const CS = 40;
+    const X = (v) => (v + 12) * CS, Y = (v) => (v + 2) * CS;
+    const hash = (x, y) => { const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453; return s - Math.floor(s); };
+    const fn = (x, y) => 0.5 + 0.25 * Math.sin(x * 0.42 + Math.cos(y * 0.37) * 2) + 0.25 * Math.sin(y * 0.4 + Math.sin(x * 0.27) * 2);
+    const riverX = (y) => 15.5 + 1.8 * Math.sin(y / 3.6 - 1.9) + (y - 8) * 0.12;
+    const terr = (x, y) => {
+      if (x >= 25 && x <= 31 && y >= 28 && y <= 33) return 'C';
+      const lake = ((x - 11) ** 2) / 26 + ((y - 8) ** 2) / 11;
+      if (lake < 1 || (y >= 7 && Math.abs(x - riverX(y)) < 1.05)) return 'E';
+      const h = hash(x, y);
+      if (lake < 1.6 || (y >= 7 && Math.abs(x - riverX(y)) < 1.8 && h > 0.55)) return 'S';
+      if ((x === 45 && y === 10) || (x === 6 && y === 31)) return 'O';
+      const m = ((x - 48) ** 2) / 110 + ((y - 1) ** 2) / 64;
+      if (m < 1) return m < 0.33 ? 'N' : 'M';
+      if (m < 1.45 || (m < 1.85 && h > 0.45)) return 'R';
+      if (((x - 29) ** 2) / 8 + ((y - 12) ** 2) / 3 < 1) return 'S';
+      if (x >= 32 && x <= 46 && y >= 13 && y <= 25) return 'P';
+      if (x >= 19 && x <= 25 && y >= 14 && y <= 26 && fn(x, y) > 0.36) return 'F';
+      if (x < 0 || x > 55 || y < 0 || y > 35) return fn(x, y) > 0.38 ? 'F' : 'P';
+      if ((x < 15 && fn(x, y) > 0.46) || x < 3 || (x > 48 && y > 17 && fn(x, y) > 0.5)) return 'F';
+      if (h > 0.982) return 'R';
+      return 'P';
+    };
+    const roads = [
+      [[28.5, 39], [28.5, 33.6]],
+      [[25.2, 30.6], [21.5, 30.3], [16, 29.8], [8, 29.2], [0, 28.7], [-12, 28]],
+      [[31.8, 30.8], [35, 28.4], [38.5, 26.4]],
+      [[39.5, 26.6], [47.8, 26.6], [48.8, 18], [46, 11]]
+    ];
+    const segD = (px, py, a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1]; const L2 = dx * dx + dy * dy; let t = ((px - a[0]) * dx + (py - a[1]) * dy) / L2; t = Math.max(0, Math.min(1, t)); return Math.hypot(a[0] + t * dx - px, a[1] + t * dy - py); };
+    const nearRoad = (px, py, d) => roads.some((r) => r.some((p, i) => i > 0 && segD(px, py, r[i - 1], p) < d));
+    const f1 = (n) => Math.round(n * 10) / 10;
+    const D = { P: '', P2: '', F: '', E: '', S: '', R: '', M: '', N: '', O: '', C: '' };
+    for (let y = -2; y < 38; y++) for (let x = -12; x < 73; x++) {
+      let t = terr(x, y);
+      if (t === 'P' && hash(x + 5, y + 11) > 0.6) t = 'P2';
+      D[t] += 'M' + X(x) + ' ' + Y(y) + 'h40v40h-40z';
+    }
+    D.rock = D.R + D.M + D.N + D.O;
+    const roadD = roads.map((r) => r.map((p, i) => (i ? 'L' : 'M') + f1(X(p[0])) + ' ' + f1(Y(p[1]))).join('')).join('');
+    const len = Math.hypot(LT.sdx, LT.sdy), ux = -LT.sdx / len, uy = -LT.sdy / len;
+    const circ = (cx, cy, r) => 'M' + f1(cx - r) + ' ' + f1(cy) + 'a' + f1(r) + ' ' + f1(r) + ' 0 1 0 ' + f1(2 * r) + ' 0a' + f1(r) + ' ' + f1(r) + ' 0 1 0 ' + f1(-2 * r) + ' 0';
+    const T = { sh: '', d1: '', m1: '', h1: '', d2: '', m2: '', h2: '', bush: '', stump: '', flow: '' };
+    const tree = (cx, cy, r, con) => {
+      T.sh += circ(cx + LT.sdx * r / 12, cy + LT.sdy * r / 12, r);
+      const k = con ? '2' : '1';
+      T['d' + k] += circ(cx, cy, r);
+      T['m' + k] += circ(cx + ux * r * 0.18, cy + uy * r * 0.18, r * 0.7);
+      T['h' + k] += circ(cx + ux * r * 0.42, cy + uy * r * 0.42, r * 0.3);
+    };
+    const inZoo = (x, y) => x >= 32 && x < 47 && y >= 13 && y < 26;
+    const inCamp = (x, y) => x >= 25 && x < 32 && y >= 28 && y < 34;
+    for (let y = 0; y < 36; y++) for (let x = 0; x < 56; x++) {
+      const t = terr(x, y), h = hash(x + 0.3, y + 0.7);
+      if (nearRoad(x + 0.5, y + 0.5, 0.95) || inZoo(x, y) || inCamp(x, y)) continue;
+      if (t === 'F') {
+        const cut = x >= 21 && x <= 23 && y >= 21 && y <= 23;
+        const n = cut ? 1 : (h > 0.4 ? 3 : 2);
+        for (let k = 0; k < n; k++) {
+          const a = hash(x * 3.1 + k, y * 1.7 - k), b = hash(x * 1.3 - k, y * 2.9 + k);
+          tree(X(x) + 7 + a * 26, Y(y) + 7 + b * 26, 10 + hash(x + k * 7, y - k * 3) * 7, fn(x * 1.4 + k, y * 1.4) > 0.62);
+        }
+        if (cut) { T.stump += circ(X(x) + 10 + h * 8, Y(y) + 26, 4) + circ(X(x) + 28, Y(y) + 12 + h * 10, 3.5); }
+      } else if ((t === 'P' || t === 'P2') && h > 0.972) {
+        tree(X(x) + 20, Y(y) + 20, 13 + (h - 0.972) * 200, false);
+      } else if ((t === 'P' || t === 'P2') && h > 0.93) {
+        const r = 4 + h * 3;
+        T.sh += circ(X(x) + 20 + LT.sdx * 0.3, Y(y) + 22 + LT.sdy * 0.3, r);
+        T.bush += circ(X(x) + 20, Y(y) + 22, r);
+      } else if ((t === 'P' || t === 'P2') && h > 0.88) {
+        T.flow += circ(X(x) + 12 + h * 10, Y(y) + 14, 2.2) + circ(X(x) + 24, Y(y) + 24 - h * 6, 2) + circ(X(x) + 16, Y(y) + 28, 1.8);
+      } else if (t === 'R' && h > 0.55 && y > 6) tree(X(x) + 20, Y(y) + 20, 8 + h * 5, true);
+    }
+    [[45.8, 21.6, 16], [43.4, 20.6, 13], [33.6, 19.9, 12], [45.6, 24.6, 14], [36.6, 14.3, 15]].forEach((p) => tree(X(p[0]), Y(p[1]), p[2], false));
+    [[34.3, 22.1], [35.2, 24.4], [36.7, 21.7]].forEach((p) => tree(X(p[0]), Y(p[1]), 7, false));
+    [[24.4, 28.6, 15], [32.4, 31.4, 14], [24.6, 33.2, 12]].forEach((p) => tree(X(p[0]), Y(p[1]), p[2], false));
+    const RK = { sh: '', d: '', l: '' };
+    const rock = (cx, cy, r, s) => {
+      let p = '', q = '', sh = '';
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 + s, rr = r * (0.7 + 0.3 * hash(s * 10 + i, i));
+        const px = cx + Math.cos(a) * rr, py = cy + Math.sin(a) * rr * 0.8;
+        p += (i ? 'L' : 'M') + f1(px) + ' ' + f1(py);
+        sh += (i ? 'L' : 'M') + f1(px + LT.sdx * 0.5) + ' ' + f1(py + LT.sdy * 0.5);
+        q += (i ? 'L' : 'M') + f1(cx + ux * r * 0.28 + Math.cos(a) * rr * 0.55) + ' ' + f1(cy + uy * r * 0.28 + Math.sin(a) * rr * 0.45);
+      }
+      RK.d += p + 'Z'; RK.l += q + 'Z'; RK.sh += sh + 'Z';
+    };
+    for (let y = -2; y < 38; y++) for (let x = -12; x < 73; x++) {
+      const t = terr(x, y), h = hash(x + 2.2, y + 4.4);
+      if ((t === 'R' || t === 'O') && h > 0.4) rock(X(x) + 10 + hash(x, y + 1) * 20, Y(y) + 10 + hash(x + 1, y) * 20, 6 + h * 8, x * 0.7 + y);
+      if (t === 'M' && h > 0.7) rock(X(x) + 20, Y(y) + 20, 10 + h * 6, x + y * 0.3);
+    }
+    [[1812, 662, 15], [1834, 676, 9], [1950, 760, 8]].forEach((r, i) => rock(r[0], r[1], r[2], i + 1.3));
+    let GL = '';
+    [[2290, 486], [2306, 500], [2284, 508], [2312, 478], [742, 1336]].forEach((g) => { GL += 'M' + g[0] + ' ' + (g[1] - 6) + 'l1.8 4.2 4.2 1.8-4.2 1.8-1.8 4.2-1.8-4.2-4.2-1.8 4.2-1.8z'; });
+    const vis = { sh: '', a: '', b: '', c: '', d: '' };
+    const keys = ['a', 'b', 'c', 'd'];
+    for (let i = 0; i < 34; i++) {
+      let px, py;
+      if (i < 14) { px = X(38.5) + (hash(i, 1) - 0.5) * 14; py = Y(20) + (i / 14) * (Y(25.6) - Y(20)); }
+      else { px = X(33) + ((i - 14) / 20) * (X(46) - X(33)); py = Y(19.6) + (hash(i, 2) - 0.5) * 14; }
+      vis.sh += circ(px + LT.sdx * 0.3, py + LT.sdy * 0.3, 3.6);
+      vis[keys[i % 4]] += circ(px, py, 3.2);
+    }
+    const P = (x, y) => ({ x: Math.round(X(x)), y: Math.round(Y(y)) });
+    const W = (x, y, cloth, hat, rot, o) => ({ ...P(x, y), cloth, hat, rot, carry: (o && o.carry) || 'transparent', ring: (o && o.sel) ? '2.5px solid ' + K.accent : '0 solid transparent', glow: (o && o.sel) ? '0 0 12px ' + K.accent : 'none' });
+    const PEU = '#D8642A', QUAL = '#1E9A8A', CAD = '#8A4AD0';
+    const workers = [
+      W(21.6, 22.4, '#C8402A', '#2E6A3A', 30, { sel: true }), W(22.9, 23.3, '#C8402A', '#F2C440', -20, { sel: true }), W(22.1, 21.3, '#C8402A', '#3A3A3A', 70, { sel: true }),
+      W(24.2, 29.9, '#D8842A', '#F4F0E0', 0, { carry: '#8A5A32' }), W(41.2, 24.8, '#E0A040', '#F4F0E0', 90), W(40.4, 22.3, '#E0A040', '#F4F0E0', -60),
+      W(47.8, 22, QUAL, '#F4F0E0', 90), W(35.2, 18.9, QUAL, '#2E6A3A', 0), W(35.8, 23.3, QUAL, '#F2C440', 200),
+      W(40.1, 25.4, CAD, '#2A2A30', 270), W(45.3, 10.7, '#8A6A4A', '#F2C440', 45), W(27.9, 31.6, '#E07A2A', '#F4F0E0', 120)
+    ];
+    const I = {
+      axe: 'M4 20L14 10 M12 5c3-2 7 0 8 4l-5 3-4-4z', log: 'M7 7h11 M7 17h11 M7 7a3 5 0 0 0 0 10 M18 7a3 5 0 0 1 0 10',
+      q: 'M9 9a3 3 0 1 1 4 2.8c-.8.4-1 1-1 1.7V15 M12 18.5h.01', build: 'M3 11l9-7 9 7 M5 10v10h14V10',
+      macon: 'M4 20l5-5 M9 15l1.5 1.5L20 7l-3-4-9.5 9.5z', soigneur: 'M12 13c3 0 5 3 5 5s-2 2-5 1c-3 1-5 1-5-1s2-5 5-5z M6 9h.01 M10 6h.01 M14 6h.01 M18 9h.01',
+      paysagiste: 'M5 20c0-9 6-15 15-15 0 9-6 15-15 15z M5 20l9-9', pick: 'M6 20L16 9 M5 8c4-4 10-4 14 0', guichet: 'M3 7h18v4a2 2 0 0 0 0 4v4H3v-4a2 2 0 0 0 0-4z M14 7v12',
+      argent: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18 M15 9.2a3.5 3.5 0 1 0 0 5.6 M7.5 11h5 M7.5 13h5',
+      pierre: 'M4 14l3-7h10l3 7-4 5H8z M7 7l2 7h6l2-7', or: 'M3 18l3-7h12l3 7z M8 11l2-5h4l2 5',
+      influence: 'M3 10v4h3l7 4V6L6 10z M16 9a4 4 0 0 1 0 6 M19 6a8 8 0 0 1 0 12', logement: 'M3 11l9-7 9 7 M5 10v10h14V10 M10 20v-6h4v6',
+      rep: 'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z',
+      route: 'M8 3L5 21 M16 3l3 18 M12 5v3 M12 11v3 M12 17v2', entrepot: 'M3 9l9-5 9 5v11H3z M7 20v-7h10v7 M7 16h10', mine: 'M3 20h18 M6 20v-6a6 6 0 0 1 12 0v6 M10 20v-4h4v4',
+      boutique: 'M4 9h16l-1-4H5z M5 9v11h14V9 M9 20v-5h6v5', formation: 'M2 9l10-5 10 5-10 5z M6 11v5c3 3 9 3 12 0v-5',
+      terrain: 'M3 20l6-10 4 6 3-4 5 8z', poste: 'M6 21V4 M6 4h12l-3 4 3 4H6', lobby: 'M4 8h16v11H4z M9 8V5h6v3 M4 13h16', retour: 'M9 14L4 9l5-5 M4 9h11a5 5 0 0 1 0 10h-3',
+      rapide: 'M13 2L4 14h7l-1 8 9-12h-7z', costaud: 'M3 10v4 M6 7v10 M18 7v10 M21 10v4 M6 12h12', lent: 'M3 19h15 M8 19a6 6 0 1 1 8-5.7 M18 19l2-6', colblanc: 'M10 3h4l-1 3 2 11-3 3-3-3 2-11z',
+      chev1: 'M6 15l6-6 6 6', chev2: 'M6 11l6-6 6 6 M6 18l6-6 6 6', star: 'M12 4l2.4 5 5.6.8-4 3.9 1 5.5L12 16.6 7 19.2l1-5.5-4-3.9 5.6-.8z',
+      savane: 'M3 9h18 M6 9c2-4 10-4 12 0 M12 9v12', aqua: 'M12 3c3 4 5 7 5 10a5 5 0 0 1-10 0c0-3 2-6 5-10z', foret: 'M12 3l6 9h-3l4 6H5l4-6H6z M12 18v3',
+      jungle: 'M12 21V10 M12 10C9 6 5 6 3 8 M12 10c3-4 7-4 9-2 M12 10c-2-3-2-6 0-8', mont: 'M2 20l7-13 4 7 3-4 6 10z', desert: 'M10 21V5a2 2 0 0 1 4 0v16 M10 13H8a2 2 0 0 1-2-2V8 M14 11h2a2 2 0 0 0 2-2V7'
+    };
+    const F = (x, y, bg, d, o) => ({ ...P(x, y), bg, d, s: o.big ? 44 : 34, h: o.big ? 50 : 40, is: o.big ? 22 : 17, p: o.p || 26, t: o.t || '', tagShow: o.t ? 'block' : 'none' });
+    const flags = [
+      F(21.6, 22.4, PEU, I.axe, { big: true, p: 30, t: 'Abattage ×3' }),
+      F(24.2, 29.9, PEU, I.log, { p: 22 }),
+      F(27.9, 31.6, '#E8B020', I.q, { p: 26, t: 'Inactive' }),
+      F(41.2, 24.8, PEU, I.macon, { p: 26, t: 'Boutique 40 %' }),
+      F(35.2, 18.9, QUAL, I.soigneur, { p: 22 }),
+      F(35.8, 23.3, QUAL, I.paysagiste, { p: 24 }),
+      F(40.1, 25.4, CAD, I.guichet, { p: 20 }),
+      F(45.3, 10.7, PEU, I.pick, { p: 22 })
+    ];
+    const Yd = (n, v, dt, dc, c, hi, d, bg) => ({ n, v, dt, dc, c, hi, d, bg });
+    const pos = '#7CF29A', neg = '#FF9A8A';
+    const yields = [
+      Yd('Argent', '182', '+24', pos, '#D8A010', '#FFE48A', I.argent, 'transparent'),
+      Yd('Bois', '46', '+8', pos, '#C8601A', '#FFB070', I.log, 'transparent'),
+      Yd('Pierre', '21', '+3', pos, '#4A6A98', '#A8C4E8', I.pierre, 'transparent'),
+      Yd('Or', '3', '', pos, '#E8B000', '#FFF09A', I.or, 'transparent'),
+      Yd('Influence', '7', 'privée', K.dim, '#C8307A', '#FF9AC8', I.influence, 'rgba(200,48,122,0.18)'),
+      Yd('Logement', '8/10', '', pos, '#2A9A4A', '#9AF0B0', I.logement, 'transparent'),
+      Yd('Réputation', '34', '/100', K.dim, '#7A3AC8', '#D0A8FF', I.rep, 'transparent')
+    ];
+    const rivals = [
+      { c: '#E8A020', v: 41, ring: '0 0 0 2px rgba(255,255,255,0.4)' }, { c: K.flag, v: 34, ring: '0 0 0 2.5px ' + K.gold + ', 0 0 10px ' + K.gold },
+      { c: '#3A6AE0', v: 29, ring: '0 0 0 2px rgba(255,255,255,0.4)' }, { c: '#E04A8A', v: 22, ring: '0 0 0 2px rgba(255,255,255,0.4)' }
+    ];
+    const speeds = [
+      { n: 'Pause', l: 'II', bg: 'transparent', fg: K.text }, { n: 'Vitesse normale', l: '×1', bg: K.btn, fg: K.btnFg },
+      { n: 'Vitesse double', l: '×2', bg: 'transparent', fg: K.text }, { n: 'Vitesse triple', l: '×3', bg: 'transparent', fg: K.text }
+    ];
+    const Bd = (n, w, s, t, d, c, hi, selected) => ({ n, w, s, t, d, c, hi, bg: selected ? 'rgba(255,255,255,0.12)' : 'transparent', ring: selected ? 'inset 0 0 0 1.5px ' + K.gold : 'none' });
+    const buildZoo = [
+      Bd('Segment d’enceinte', '0', '2', '0:10', 'M3 20V8 M9 20V8 M15 20V8 M21 20V8 M3 11h18 M3 16h18', '#4A6A98', '#A8C4E8', false),
+      Bd('Entrée du zoo', '10', '6', '0:50', 'M4 21V9l8-5 8 5v12 M9 21v-7h6v7', '#7A3AC8', '#D0A8FF', false),
+      Bd('Clôture d’enclos', '1', '0', '0:05', 'M5 20V7l1.5-2L8 7v13 M16 20V7l1.5-2L19 7v13 M3 10h18 M3 15h18', '#C8601A', '#FFB070', true),
+      Bd('Creuser un bassin', '0', '0', '0:25', 'M12 3c3 4 5 7 5 10a5 5 0 0 1-10 0c0-3 2-6 5-10z', '#1E7AC8', '#9AD4FF', false),
+      Bd('Planter une forêt', '2', '0', '0:20', 'M12 3l6 9h-3l4 6H5l4-6H6z M12 18v3', '#2A9A4A', '#9AF0B0', false)
+    ];
+    const buildBat = [
+      Bd('Maison d’ouvriers', '10', '4', '0:35', I.logement, '#2A9A4A', '#9AF0B0', false),
+      Bd('Entrepôt', '12', '0', '0:30', I.entrepot, '#C8601A', '#FFB070', false),
+      Bd('Boutique de souvenirs', '8', '0', '0:40', I.boutique, '#C8307A', '#FF9AC8', true),
+      Bd('Mine d’or', '8', '10', '1:10', I.mine, '#E8B000', '#FFF09A', false),
+      Bd('Centre de formation', '14', '8', '1:00', I.formation, '#4A6AD8', '#A8BEFF', false)
+    ];
+    const build = M.plac ? buildZoo : buildBat;
+    const ok = { shape: '50%', bg: '#3A8AE8', d: 'M5 12l5 5 9-10' }, ko = { shape: '3px', bg: '#E8782A', d: 'M7 7l10 10 M17 7L7 17' };
+    const reqs = [
+      { ...ok, t: 'Taille', v: '8 / 8 cases' }, { ...ok, t: 'Forêt', v: '3 / 3', sw: '#1E6A22' }, { ...ok, t: 'Eau', v: '2 / 2', sw: '#1E9AC8' },
+      { ...ok, t: 'Roche', v: '1 / 1', sw: '#A8A296' }, { ...ok, t: 'Prairie', v: '2 / 1', sw: '#74BE40' },
+      { ...ok, t: 'Paires eau / forêt', v: '3 / 3' }, { ...ko, t: 'Enclos fermé', v: '1 segment manquant' }
+    ].map((r) => ({ sw: 'transparent', ...r, swb: r.sw ? 'inset 0 0 0 1.5px rgba(255,255,255,0.5)' : 'none' }));
+    const biomes = [
+      { d: I.savane, bg: '#E0A020', bd: '0 0 0 1.5px ' + K.gold }, { d: I.aqua, bg: '#2E8AE0', bd: '0 0 0 1.5px ' + K.gold },
+      { d: I.foret, bg: 'transparent', bd: 'inset 0 0 0 1.5px rgba(255,255,255,0.3)' }, { d: I.jungle, bg: 'transparent', bd: 'inset 0 0 0 1.5px rgba(255,255,255,0.3)' },
+      { d: I.mont, bg: 'transparent', bd: 'inset 0 0 0 1.5px rgba(255,255,255,0.3)' }, { d: I.desert, bg: 'transparent', bd: 'inset 0 0 0 1.5px rgba(255,255,255,0.3)' }
+    ];
+    const ab = (n, d, on) => ({ n, d, bg: on ? K.btn : 'rgba(255,255,255,0.1)', fg: on ? K.btnFg : K.text });
+    const acts = [ab('Abattre', I.axe, true), ab('Construire', I.build), ab('Aménager', I.terrain), ab('Tenir un poste', I.poste), ab('Lobbying', I.lobby), ab('Rappeler', I.retour)];
+    const HAIR = {
+      short: 'M31 52c-2-13 6-21 19-21s21 8 19 21c-3-7-10-10-19-10s-16 3-19 10z',
+      long: 'M30 54c-3-16 7-25 20-25s23 9 20 25c2 12 1 24-3 30l-3-26c-5-12-23-12-28 0l-3 26c-4-6-5-18-3-30z',
+      bun: 'M31 52c-2-13 6-21 19-21s21 8 19 21c-3-7-10-10-19-10s-16 3-19 10z M43 28a7 7 0 1 0 14 0a7 7 0 1 0 -14 0z',
+      curly: 'M30 54c-4-8 0-22 8-24 3-6 13-7 18-3 8-1 15 6 14 14 3 4 2 10 0 13-2-7-8-12-20-12s-17 5-20 12z'
+    };
+    const HAT = {
+      cap: 'M30 46c0-12 9-17 20-17s20 5 20 15c-6-3-13-4-20-4s-14 2-20 6z M62 42c8-1 15 1 19 5-6 1-13 0-19-2z',
+      wide: 'M33 42c0-12 7-18 17-18s17 6 17 18z M20 44c8-4 19-5 30-5s22 1 30 5c-8 3-19 4-30 4s-22-1-30-4z',
+      scarf: 'M29 50c-1-14 8-22 21-22s22 8 21 22c-5-5-12-8-21-8s-16 3-21 8z',
+      none: 'M0 0'
+    };
+    const BEARD = { none: 'M0 0', full: 'M33 64c1 12 8 20 17 20s16-8 17-20c-4 5-10 7-17 7s-13-2-17-7z', mous: 'M42 67c3-2 6-2 8 0 2-2 5-2 8 0-3 2-13 2-16 0z' };
+    const TOOL = { axe: ['M76 120L91 72', 'M86 66l11 1-2 11-8-3z'], trowel: ['M78 120L86 86', 'M80 80l12-6 4 8-12 6z'], none: ['M0 0', 'M0 0'], plane: ['M78 120L88 84', 'M80 80h16v7H80z'] };
+    const CLS = { peu: { catC: PEU, catD: I.chev1, cat: 'PEU QUAL.' }, qual: { catC: QUAL, catD: I.chev2, cat: 'QUALIFIÉ' }, cadre: { catC: CAD, catD: I.star, cat: 'CADRE' } };
+    const TR = { Rapide: [I.rapide, 1], Costaud: [I.costaud, 1], Lent: [I.lent, 0], 'Col blanc': [I.colblanc, 0] };
+    const trait = (n) => { const [d, q] = TR[n]; return q ? { d, shape: '50%', bg: '#3A8AE8' } : { d, shape: '3px', bg: '#E8782A' }; };
+    const H = (o, lift, sel) => { const t = TOOL[o.tool]; return { ...CLS[o.cls], ...o, hairD: HAIR[o.hairS], hatD: HAT[o.hatS], beardD: BEARD[o.beardS || 'none'], toolD: t[0], toolH: t[1], lift, traits: o.tr.map(trait), shadow: sel ? '0 0 0 3px ' + K.accent + ', 0 0 24px ' + K.accent + ', 0 16px 28px rgba(0,0,0,0.5)' : '0 10px 20px rgba(0,0,0,0.45)' }; };
+    const hand = [
+      H({ name: 'AÏCHA DIALLO', met: 'Bûcheronne', cls: 'peu', lvl: 2, sal: 12, bg: '#F2B85A', skin: '#8A5638', hair: '#1E1612', hairS: 'long', hatS: 'scarf', hatC: '#2E9A6A', cloth: '#C8402A', tool: 'axe', tr: ['Rapide'] }, 0, false),
+      H({ name: 'BRUNO LEFÈVRE', met: 'Maçon', cls: 'peu', lvl: 3, sal: 18, bg: '#F2B85A', skin: '#E8B48F', hair: '#8A6A4A', hairS: 'short', beardS: 'mous', hatS: 'cap', hatC: '#3A5AA8', cloth: '#E0A040', tool: 'trowel', tr: ['Costaud'] }, -26, true),
+      H({ name: 'SOPHIE LAURENT', met: 'Charpentière', cls: 'qual', lvl: 2, sal: 20, bg: '#7AD8C8', skin: '#F0C9A8', hair: '#B0502A', hairS: 'bun', hatS: 'none', hatC: '#000000', cloth: '#1E9A8A', tool: 'plane', tr: [] }, 0, false),
+      H({ name: 'FATOU SARR', met: 'Porteuse', cls: 'peu', lvl: 2, sal: 11, bg: '#F2B85A', skin: '#6E432A', hair: '#141010', hairS: 'curly', hatS: 'none', hatC: '#000000', cloth: '#D8842A', tool: 'none', tr: ['Rapide', 'Lent'] }, 0, false),
+      H({ name: 'GÉRARD BLANCHET', met: 'Marchand', cls: 'cadre', lvl: 2, sal: 34, bg: '#C8A8F0', skin: '#D9A27C', hair: '#9A9A92', hairS: 'short', beardS: 'full', hatS: 'wide', hatC: '#4A2A6A', cloth: '#6A3AA8', tool: 'none', tr: ['Col blanc'] }, 0, false)
+    ];
+    return { K, L, M, Z, tabs, reqs, D, roadD, T, RK, GL, vis, workers, flags, yields, rivals, speeds, build, biomes, acts, hand };
+  }
+}
+</script>
+</body>
+</html>

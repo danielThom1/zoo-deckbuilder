@@ -8,6 +8,9 @@ game/.godot/
 *.tmp
 *.translation
 
+# Captures de contrôle (galerie_composants.tscn -- --capture)
+capture_*.png
+
 # Divers
 .DS_Store
 Thumbs.db

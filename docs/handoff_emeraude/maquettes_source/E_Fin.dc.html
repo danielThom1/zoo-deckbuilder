@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Émeraude — fin de partie</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&amp;family=Marcellus+SC&amp;family=Source+Sans+3:wght@400;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#FFD45A}a:hover{color:#FFE69A}
+button{font:inherit;cursor:pointer}
+.i{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;display:block;flex:none}
+</style>
+</helmet>
+<div style="width: 1600px; height: 900px; position: relative; overflow: hidden; background: #08302C; font-family: 'Source Sans 3', sans-serif; color: #F4FAEE">
+<div style="position: absolute; inset: 0; filter: blur(3px)"><dc-import name="Vif" theme="emeraude" mode="decor" hint-size="1600px,900px"></dc-import></div>
+<div style="position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 30%, rgba(255,212,90,0.25), rgba(8,48,44,0.88) 60%)"></div>
+
+<!-- bandeau -->
+<div style="position: absolute; left: 50%; top: 40px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px">
+<div style="display: flex; align-items: center; height: 74px; padding: 0 70px; background: linear-gradient(#1C7468, #10483F); box-shadow: inset 0 0 0 2px #E2AE62, 0 12px 26px rgba(0,0,0,0.5); clip-path: polygon(0 0, 100% 0, 96% 50%, 100% 100%, 0 100%, 4% 50%)"><b style="font-family: 'Marcellus SC', serif; font-weight: 400; font-size: 46px; letter-spacing: 0.12em; color: #FFE6A8">VICTOIRE</b></div>
+<span style="font-size: 18px; color: #DCEDE6">Le Zoo du Val atteint <b style="color: #FFD45A">100</b> de réputation au soir du jour 9</span>
+</div>
+
+<!-- podium -->
+<section aria-label="Classement final" style="position: absolute; left: 120px; top: 190px; width: 660px; height: 470px; display: flex; align-items: flex-end; gap: 18px">
+<sc-for list="{{podium}}" as="p" hint-placeholder-count="4">
+<div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 10px">
+<div style="width: 92px; height: 92px; padding: 4px; border-radius: 50%; background: {{p.ring}}; box-shadow: 0 8px 18px rgba(0,0,0,0.45)"><div style="width: 100%; height: 100%; border-radius: 50%; background: {{p.c}}; display: flex; align-items: center; justify-content: center; font-family: 'Marcellus SC', serif; font-weight: 400; font-size: 34px; color: #FFFFFF; text-shadow: 0 2px 3px rgba(0,0,0,0.4)">{{p.pos}}</div></div>
+<b style="font-size: 18px">{{p.n}}</b>
+<span style="font-size: 14px; color: #A6D4C8">{{p.zoo}}</span>
+<div style="width: 100%; height: {{p.h}}px; border-radius: 10px 10px 0 0; background: linear-gradient(#11564E, #08302C); box-shadow: inset 0 0 0 2px {{p.bd}}; display: flex; flex-direction: column; align-items: center; padding-top: 14px; box-sizing: border-box"><b style="font-size: 30px">{{p.v}}</b><span style="font-size: 13px; color: #A6D4C8">réputation</span></div>
+</div>
+</sc-for>
+</section>
+
+<!-- statistiques -->
+<aside style="position: absolute; right: 120px; top: 190px; width: 620px; padding: 2px; border-radius: 12px; background: linear-gradient(160deg, #E2AE62, #6A4418); box-shadow: 0 14px 30px rgba(0,0,0,0.5)">
+<div style="border-radius: 10px; background: linear-gradient(#11564E, #08302C); overflow: hidden">
+<div style="background: linear-gradient(#1C7468, #10483F); padding: 10px 16px; box-shadow: 0 1px 0 #E2AE62"><b style="font-family: 'Marcellus SC', serif; font-weight: 400; font-size: 18px; letter-spacing: 0.06em">VOTRE PARTIE</b></div>
+<div style="padding: 16px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
+<sc-for list="{{stats}}" as="s" hint-placeholder-count="4"><div style="padding: 10px; border-radius: 10px; background: rgba(255,255,255,0.07); display: flex; flex-direction: column; gap: 2px"><b style="font-size: 26px; color: {{s.c}}">{{s.v}}</b><span style="font-size: 13px; color: #A6D4C8">{{s.n}}</span></div></sc-for>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 14px; color: #A6D4C8">Réputation jour après jour</span>
+<svg viewBox="0 0 580 200" width="580" height="200" role="img" aria-label="Courbes de réputation des quatre joueurs sur neuf jours">
+<path d="M0 200H580 M0 100H580 M0 0H580" stroke="rgba(255,255,255,0.12)" stroke-width="1"></path>
+<sc-for list="{{lines}}" as="l" hint-placeholder-count="4"><polyline points="{{l.pts}}" fill="none" stroke="{{l.c}}" stroke-width="{{l.w}}" stroke-linejoin="round" stroke-linecap="round"></polyline></sc-for>
+<text x="4" y="14" fill="#A6D4C8" font-size="12">100</text><text x="4" y="96" fill="#A6D4C8" font-size="12">50</text>
+</svg>
+<div style="display: flex; gap: 16px; font-size: 13px"><sc-for list="{{lines}}" as="l" hint-placeholder-count="4"><span style="display: flex; align-items: center; gap: 6px"><span style="width: 14px; height: 4px; border-radius: 2px; background: {{l.c}}"></span>{{l.n}}</span></sc-for></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px; font-size: 14px">
+<span style="color: #A6D4C8">Biomes ouverts</span>
+<div style="display: flex; gap: 8px"><sc-for list="{{biomes}}" as="b" hint-placeholder-count="6"><span style="display: flex; align-items: center; gap: 6px; padding: 4px 10px 4px 4px; border-radius: 14px; background: {{b.bg}}; opacity: {{b.op}}"><span style="width: 22px; height: 22px; border-radius: 50%; background: {{b.c}}"></span>{{b.n}}</span></sc-for></div>
+</div>
+</div>
+</div>
+</aside>
+
+<!-- actions -->
+<div style="position: absolute; left: 50%; bottom: 60px; transform: translateX(-50%); display: flex; gap: 14px">
+<button style="height: 58px; padding: 0 34px; border: none; border-radius: 29px; background: linear-gradient(#FFD89A, #C88A3A); color: #1E1406; font-family: 'Marcellus SC', serif; font-weight: 400; font-size: 20px; box-shadow: 0 0 0 2px #FFF0B8, 0 10px 20px rgba(0,0,0,0.4)">Rejouer</button>
+<button style="height: 58px; padding: 0 30px; border: none; border-radius: 29px; background: rgba(8,48,44,0.85); color: #F4FAEE; box-shadow: inset 0 0 0 1.5px #E2AE62; font-weight: 700; font-size: 17px">Revoir la carte finale</button>
+<button style="height: 58px; padding: 0 30px; border: none; border-radius: 29px; background: rgba(8,48,44,0.85); color: #F4FAEE; box-shadow: inset 0 0 0 1.5px #E2AE62; font-weight: 700; font-size: 17px">Menu principal</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1600,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const gold = 'linear-gradient(160deg, #FFF0B8, #E2AE62 40%, #6A4418)';
+    const podium = [
+      { pos: '2', n: 'Bâtisseuse', zoo: 'Zoo des Cimes', v: 91, c: '#E8A020', h: 250, ring: 'linear-gradient(160deg, #F4F4F4, #A8B0B4)', bd: 'rgba(255,255,255,0.3)' },
+      { pos: '1', n: 'Vous', zoo: 'Zoo du Val', v: 100, c: '#18A88A', h: 310, ring: gold, bd: '#FFD45A' },
+      { pos: '3', n: 'Marchande', zoo: 'Parc du Lac', v: 78, c: '#3A6AE0', h: 200, ring: 'linear-gradient(160deg, #F2C8A0, #A86A3A)', bd: 'rgba(255,255,255,0.3)' },
+      { pos: '4', n: 'Prudente', zoo: 'Jardin Sud', v: 64, c: '#E04A8A', h: 150, ring: 'linear-gradient(160deg, #6A7A78, #3A4A48)', bd: 'rgba(255,255,255,0.2)' }
+    ];
+    const stats = [
+      { n: 'espèces', v: '11', c: '#9AF0B0' }, { n: 'biomes sur 6', v: '5', c: '#FFE48A' },
+      { n: 'visiteurs cumulés', v: '1 240', c: '#D0A8FF' }, { n: 'ouvriers recrutés', v: '14', c: '#9AD4FF' }
+    ];
+    const series = {
+      'Vous': [0, 6, 13, 22, 34, 47, 62, 80, 100], 'Bâtisseuse': [0, 9, 18, 29, 41, 55, 68, 80, 91],
+      'Marchande': [0, 5, 11, 20, 29, 41, 52, 66, 78], 'Prudente': [0, 4, 9, 15, 22, 31, 42, 52, 64]
+    };
+    const col = { 'Vous': '#18A88A', 'Bâtisseuse': '#E8A020', 'Marchande': '#3A6AE0', 'Prudente': '#E04A8A' };
+    const lines = Object.keys(series).map((n) => ({ n, c: n === 'Vous' ? '#7AF0C8' : col[n], w: n === 'Vous' ? 4 : 2.5, pts: series[n].map((v, i) => Math.round(i * 72.5) + ',' + (200 - v * 2)).join(' ') }));
+    const B = (n, c, on) => ({ n, c, bg: on ? 'rgba(255,255,255,0.1)' : 'transparent', op: on ? 1 : 0.4 });
+    const biomes = [B('Savane', '#E0A020', true), B('Forêt', '#3A7A2A', true), B('Jungle', '#0E8A6A', true), B('Aquatique', '#2E8AE0', true), B('Montagne', '#8A7AA8', true), B('Désert', '#C8602A', false)];
+    return { podium, stats, lines, biomes };
+  }
+}
+</script>
+</body>
+</html>

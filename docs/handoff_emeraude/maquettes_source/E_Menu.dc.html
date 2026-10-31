@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Émeraude — menu principal</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&amp;family=Marcellus+SC&amp;family=Source+Sans+3:wght@400;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#FFD45A}a:hover{color:#FFE69A}
+button{font:inherit;cursor:pointer}
+.i{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;display:block;flex:none}
+</style>
+</helmet>
+<div style="width: 1600px; height: 900px; position: relative; overflow: hidden; background: #08302C; font-family: 'Source Sans 3', sans-serif; color: #F4FAEE">
+<div style="position: absolute; inset: 0; filter: blur(1.5px)"><dc-import name="Vif" theme="emeraude" mode="decor" hint-size="1600px,900px"></dc-import></div>
+<div style="position: absolute; inset: 0; background: linear-gradient(90deg, rgba(8,48,44,0.96) 0%, rgba(8,48,44,0.86) 28%, rgba(8,48,44,0.2) 52%, rgba(8,48,44,0) 70%)"></div>
+<div style="position: absolute; inset: 0; background: linear-gradient(rgba(8,48,44,0) 70%, rgba(8,48,44,0.7))"></div>
+
+<!-- titre -->
+<div style="position: absolute; left: 96px; top: 96px; display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; align-items: center; gap: 18px">
+<div style="width: 96px; height: 96px; padding: 4px; border-radius: 50%; background: linear-gradient(160deg, #FFF0B8, #E2AE62 40%, #6A4418); box-shadow: 0 8px 20px rgba(0,0,0,0.5)">
+<div style="width: 100%; height: 100%; border-radius: 50%; background: radial-gradient(circle at 50% 35%, #1C7468, #08302C 75%); display: flex; align-items: center; justify-content: center; color: #FFD45A">
+<svg class="i" viewBox="0 0 24 24" width="50" height="50" aria-hidden="true" style="stroke-width: 1.6"><path d="M7.5 9.5a1.8 2.2 0 1 0 0.1 0z M11 6a1.8 2.2 0 1 0 0.1 0z M15 6a1.8 2.2 0 1 0 0.1 0z M18.5 9.5a1.8 2.2 0 1 0 0.1 0z M13 12c3 0 5.5 3.4 5.5 5.6 0 2-2 2.4-5.5 1.4-3.5 1-5.5.6-5.5-1.4C7.5 15.4 10 12 13 12z"></path></svg>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; line-height: 0.95">
+<b style="font-family: 'Marcellus SC', serif; font-weight: 400; font-size: 70px; letter-spacing: 0.04em; color: #FFE6A8; text-shadow: 0 3px 0 #6A4418, 0 8px 20px rgba(0,0,0,0.5)">ZOO</b>
+<b style="font-family: 'Marcellus SC', serif; font-weight: 400; font-size: 40px; letter-spacing: 0.16em; color: #E2AE62">DECKBUILDER</b>
+</div>
+</div>
+<span style="font-size: 18px; color: #A6D4C8; max-width: 440px; line-height: 1.4; margin-top: 6px">Recrutez, formez et déployez vos ouvriers. Bâtissez le zoo le plus réputé de la vallée.</span>
+</div>
+
+<!-- menu -->
+<nav aria-label="Menu principal" style="position: absolute; left: 96px; top: 340px; width: 380px; display: flex; flex-direction: column; gap: 12px">
+<button style="height: 68px; border: none; border-radius: 34px; background: linear-gradient(#FFD89A, #C88A3A); color: #1E1406; box-shadow: 0 0 0 2px #FFF0B8, 0 0 0 4px #6A4418, 0 10px 22px rgba(0,0,0,0.45); display: flex; align-items: center; gap: 14px; padding: 0 22px; text-align: left">
+<svg class="i" viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" style="stroke-width: 2.4"><path d="M7 4l12 8-12 8z"></path></svg>
+<span style="display: flex; flex-direction: column; line-height: 1.1"><b style="font-family: 'Marcellus SC', serif; font-weight: 400; font-size: 22px; letter-spacing: 0.04em">Jouer contre l'IA</b><span style="font-size: 14px; font-weight: 600; opacity: 0.8">1 joueur et 1 à 3 adversaires</span></span>
+</button>
+<sc-for list="{{items}}" as="m" hint-placeholder-count="4">
+<button style="height: 56px; border: none; border-radius: 28px; background: {{m.bg}}; color: {{m.fg}}; box-shadow: inset 0 0 0 1.5px {{m.bd}}; display: flex; align-items: center; gap: 14px; padding: 0 22px; text-align: left">
+<svg class="i" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="{{m.d}}"></path></svg>
+<span style="display: flex; flex-direction: column; line-height: 1.1"><b style="font-size: 18px; font-weight: 700">{{m.n}}</b><span style="font-size: 13.5px; color: #A6D4C8">{{m.s}}</span></span>
+</button>
+</sc-for>
+</nav>
+
+<!-- nouvelle partie -->
+<section aria-label="Nouvelle partie" style="position: absolute; right: 64px; bottom: 64px; width: 420px; padding: 2px; border-radius: 12px; background: linear-gradient(160deg, #E2AE62, #6A4418); box-shadow: 0 14px 30px rgba(0,0,0,0.5)">
+<div style="border-radius: 10px; background: linear-gradient(#11564E, #08302C); overflow: hidden">
+<div style="background: linear-gradient(#1C7468, #10483F); padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 0 #E2AE62"><b style="font-family: 'Marcellus SC', serif; font-weight: 400; font-size: 19px; letter-spacing: 0.06em">NOUVELLE PARTIE</b><span style="font-size: 13px; color: #A6D4C8">environ 1 h</span></div>
+<div style="padding: 16px; display: flex; flex-direction: column; gap: 14px; font-size: 14.5px">
+<div style="display: flex; flex-direction: column; gap: 6px"><span style="color: #A6D4C8">Adversaires IA</span>
+<div style="display: flex; gap: 6px"><sc-for list="{{opp}}" as="o" hint-placeholder-count="4"><button style="flex: 1; height: 44px; border: none; border-radius: 22px; background: {{o.bg}}; color: {{o.fg}}; font-weight: 800; font-size: 16px">{{o.n}}</button></sc-for></div></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><span style="color: #A6D4C8">Adversaires</span>
+<div style="display: flex; gap: 8px"><sc-for list="{{ais}}" as="a" hint-placeholder-count="3"><div style="flex: 1; display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 10px; background: rgba(255,255,255,0.07)"><span style="width: 28px; height: 28px; border-radius: 50%; background: {{a.c}}; box-shadow: 0 0 0 1.5px #E2AE62"></span><span style="display: flex; flex-direction: column; line-height: 1.1"><b style="font-size: 13.5px">{{a.n}}</b><span style="font-size: 12px; color: #A6D4C8">{{a.s}}</span></span></div></sc-for></div></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><span style="color: #A6D4C8">Difficulté</span>
+<div style="display: flex; gap: 6px"><sc-for list="{{diff}}" as="o" hint-placeholder-count="3"><button style="flex: 1; height: 44px; border: none; border-radius: 22px; background: {{o.bg}}; color: {{o.fg}}; font-weight: 700; font-size: 14.5px">{{o.n}}</button></sc-for></div></div>
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,0.07)"><span>Carte : <b>Vallée tempérée</b></span><span style="color: #A6D4C8">graine 4821</span></div>
+<button style="height: 52px; border: none; border-radius: 26px; background: linear-gradient(#FFD89A, #C88A3A); color: #1E1406; font-family: 'Marcellus SC', serif; font-weight: 400; font-size: 19px; letter-spacing: 0.06em; box-shadow: inset 0 -3px 0 rgba(0,0,0,0.2)">Lancer le draft</button>
+</div>
+</div>
+</section>
+
+<span style="position: absolute; left: 96px; bottom: 32px; font-size: 13px; color: #A6D4C8">Prototype · interface en français · 1600 × 900</span>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1600,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const sec = { bg: 'rgba(8,48,44,0.75)', fg: '#F4FAEE', bd: '#E2AE62' };
+    const on = { bg: 'linear-gradient(#FFD89A, #C88A3A)', fg: '#1E1406' }, off = { bg: 'rgba(255,255,255,0.08)', fg: '#F4FAEE' };
+    return {
+      items: [
+        { ...sec, n: 'Regarder des IA jouer', s: '2 à 4 IA, vitesse réglable', d: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6' },
+        { ...sec, n: 'Didacticiel', s: 'une journée guidée', d: 'M4 4h12a4 4 0 0 1 4 4v12H8a4 4 0 0 1-4-4z M8 9h8 M8 13h6' },
+        { ...sec, n: 'Options', s: 'affichage, son, accessibilité', d: 'M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6 M12 2v3 M12 19v3 M2 12h3 M19 12h3 M5 5l2 2 M17 17l2 2 M5 19l2-2 M17 7l2-2' },
+        { bg: 'transparent', fg: '#A6D4C8', bd: 'rgba(166,212,200,0.35)', n: 'Quitter', s: 'retour au bureau', d: 'M14 4h5v16h-5 M10 8l-4 4 4 4 M6 12h10' }
+      ],
+      opp: [{ n: '1', ...off }, { n: '2', ...off }, { n: '3', ...on }],
+      ais: [{ n: 'Bâtisseuse', s: 'construit vite', c: '#E8A020' }, { n: 'Marchande', s: 'vise l’argent', c: '#3A6AE0' }, { n: 'Prudente', s: 'joue la diversité', c: '#E04A8A' }],
+      diff: [{ n: 'Facile', ...off }, { n: 'Normale', ...on }, { n: 'Difficile', ...off }]
+    };
+  }
+}
+</script>
+</body>
+</html>

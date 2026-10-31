@@ -41,6 +41,8 @@ var resource_tiles := {}  # "bois" / "pierre" -> cases triées par distance au c
 var lobby_today := 0
 var _plan_cache := {}  # id d'espèce -> plan d'enclos, valable tant que l'état du joueur ne change pas
 var _plan_cache_key := ""
+var _search_cache := {}  # recherches coûteuses (route d'accès, emplacements), même principe que _plan_cache
+var _search_cache_key := ""
 
 
 func _init(the_match: Match, state: GameState, strategy: Dictionary) -> void:
@@ -77,11 +79,19 @@ func card_bonus(c: GameState.Card) -> float:
 		"paysagiste":
 			return 1.2 if not has.call("paysagiste") else 0.0
 		"terrassier":
-			return 0.6 if not (has.call("terrassier") or has.call("paysagiste")) else 0.0
+			return 1.0 if not (has.call("terrassier") or has.call("paysagiste")) else 0.0  # sans aménageur, beaucoup d'animaux sont impossibles
 		"drh":
 			return 0.2 if not has.call("drh") else -1.0
-		"formateur", "architecte":
-			return -1.5  # capacités pas encore implémentées
+		"architecte":
+			return 0.5 if not has.call("architecte") else -1.0  # rembourse 25 % des chantiers où il travaille
+		"animalier":
+			return 0.6 if not has.call("animalier") else -0.3  # nourrit les animaux deux fois plus vite
+		"agent_entretien":
+			return 0.3 if not has.call("agent_entretien") else -0.5
+		"animateur":
+			return -1.0  # l'IA ne construit pas de kiosque
+		"formateur":
+			return -1.5  # l'IA ne construit pas de Centre de formation
 	return 0.0
 
 
@@ -133,8 +143,9 @@ func _needs_first_animal() -> bool:
 ## Argent minimum à garder : salaires d'une main complète + nourriture des animaux.
 func _cash_floor() -> float:
 	var food := 0.0
-	for a in g.animals:
-		food += g.food_cost(a.def)
+	if g.food_due():
+		for a in g.animals:
+			food += g.food_cost(a.def)
 	return 8.0 + food
 
 
@@ -178,6 +189,7 @@ func update(dt: float) -> void:
 
 func on_night() -> void:
 	_pick_bonus()
+	_choose_level_upgrades()
 	_night_action()
 	# Licenciement de la carte la plus faible si le DRH a travaillé.
 	if g.drh_available > 0 and g.employees() >= g.housing():
@@ -204,6 +216,9 @@ func on_night() -> void:
 				if g.money - cost < margin + _cash_floor():
 					continue
 				if zoo_rect.size != Vector2i.ZERO and _plan_enclosure(def).is_empty():
+					continue
+				# Sans Paysagiste ni Terrassier, aucun aménagement possible : le motif doit déjà exister.
+				if not _has_landscaper() and not _natural_fit(def):
 					continue
 				var tier := float(str(def["palier"]).substr(1).to_int())
 				var score := _rep_gain(def) * pow(tier, float(strat["preference_palier"]) - 1.0) / (cost + 10.0)
@@ -270,6 +285,27 @@ func _bonus_weight(k: String) -> float:
 	return 0.0
 
 
+## Montées de niveau : guérir un défaut, sinon renforcer la spécialité, sinon une amélioration de métier, sinon la première.
+func _choose_level_upgrades() -> void:
+	while not g.level_choices.is_empty():
+		var lc: Dictionary = g.level_choices[0]
+		g.choose_level_upgrade(lc["card"], _best_upgrade(lc["card"], lc["options"]))
+
+
+func _best_upgrade(card: GameState.Card, opts: Array) -> Dictionary:
+	for o in opts:
+		if o["id"] == "guerison":
+			return o
+	for o in opts:
+		if o["id"] == "specialite_up" and card.metier["efficacite"].size() > 1:
+			return o
+	var metier_ids: Array = g.data["workers"]["ameliorations_metier"].get(card.metier["id"], []).map(func(u): return u["id"])
+	for o in opts:
+		if metier_ids.has(o["id"]):
+			return o
+	return opts[0]
+
+
 ## Milieu de partie : licencier la pire carte si elle est vraiment mauvaise, sinon améliorer la meilleure.
 func _night_action() -> void:
 	var rules := g.night_action_rules()
@@ -286,12 +322,7 @@ func _night_action() -> void:
 			mt.log.append("%s licencie %s." % [mt.names[g.index], worst.nom])
 		return
 	var best: GameState.Card = cards[0]
-	var opts := g.upgrade_options(best)
-	var pick: Dictionary = opts[0]
-	for o in opts:
-		if o["id"] == "guerison" or (o["id"] == "specialite_up" and best.metier["efficacite"].size() > 1):
-			pick = o
-			break
+	var pick := _best_upgrade(best, g.upgrade_options(best))
 	if g.apply_upgrade(best, pick):
 		mt.log.append("%s améliore %s (%s)." % [mt.names[g.index], best.nom, pick["nom"]])
 
@@ -340,25 +371,48 @@ func _choose_zoo() -> void:
 		cands.sort_custom(func(a, b): return a[0] < b[0])
 		for c in cands.slice(0, 12):
 			var ent := _find_entrance(c[1], camp_c)
-			if ent.x >= 0:
-				_setup_zoo(c[1], ent, mode == "evolutif")
+			if ent.x >= 0 and _setup_zoo(c[1], ent, mode == "evolutif"):
 				return
 
 
-func _setup_zoo(r: Rect2i, ent: Vector2i, evolutive: bool) -> void:
-	entrance = ent
+## Murs constructibles sur tout le pourtour : ni route, ni montagne, ni or, et peu d'eau (comblée par un aménageur).
+func _ring_ok(r: Rect2i) -> bool:
+	var m := g.map
+	var water := 0
+	for t in _ring(r):
+		var ter := m.get_t(t.x, t.y)
+		if m.road[m.idx(t.x, t.y)] or ter == GameMap.MONTAGNE or ter == GameMap.MINE_OR:
+			return false
+		if ter == GameMap.EAU:
+			water += 1
+	return water <= (4 if _has_landscaper() else 0)
+
+
+## Renvoie false si l'emplacement ne convient pas (parc évolutif : aucun petit parc aux murs constructibles).
+func _setup_zoo(r: Rect2i, ent: Vector2i, evolutive: bool) -> bool:
 	var bottom := ent.y == r.end.y - 1
 	if evolutive:
-		# Petit parc collé au mur de l'entrée, à l'intérieur du grand parc visé.
-		target_rect = r
+		# Petit parc collé au mur de l'entrée, à l'intérieur du grand parc visé. Son mur intérieur traverse
+		# le grand parc, où un peu de montagne est tolérée : on le décale jusqu'à des murs constructibles.
 		var sz: Vector2i = ZOO_SIZES["petit"]
-		var x0 := clampi(ent.x - sz.x / 2, r.position.x, r.end.x - sz.x)
 		var y0 := r.end.y - sz.y if bottom else r.position.y
-		zoo_rect = Rect2i(x0, y0, sz.x, sz.y)
+		var x_center := clampi(ent.x - sz.x / 2, r.position.x, r.end.x - sz.x)
+		var small := Rect2i()
+		for off in sz.x:
+			for sgn in [1, -1]:
+				var x0 := clampi(x_center + off * sgn, r.position.x, r.end.x - sz.x)
+				var cand := Rect2i(x0, y0, sz.x, sz.y)
+				if small.size == Vector2i.ZERO and x0 + 1 <= ent.x and ent.x + 1 <= x0 + sz.x - 2 and _ring_ok(cand):
+					small = cand
+		if small.size == Vector2i.ZERO:
+			return false
+		target_rect = r
+		zoo_rect = small
 		for t in _ring(target_rect):
 			reserved[t] = true
 	else:
 		zoo_rect = r
+	entrance = ent
 	var inner := zoo_rect.grow(-1)
 	var shop_y := inner.end.y - 2 if bottom else inner.position.y
 	shop_rect = Rect2i(clampi(entrance.x + 3, inner.position.x, inner.end.x - 2), shop_y, 2, 2)
@@ -366,6 +420,7 @@ func _setup_zoo(r: Rect2i, ent: Vector2i, evolutive: bool) -> void:
 		reserved[t] = true
 	for t in _rect_tiles(shop_rect):
 		reserved[t] = true
+	return true
 
 
 ## Zone du parc (actuelle ou visée) où l'on ne construit ni maison, ni entrepôt, ni mine.
@@ -695,6 +750,13 @@ func _wants() -> Array:
 		for t in p["ring"]:
 			if g.site_at(t) == null:
 				out.append(["batiment", g.building_def("enclos"), t])
+	# 3 bis. Cuisine dès le premier animal (zoo ouvert : il faut livrer les rations), puis local d'entretien
+	# quand le parc commence à se salir.
+	for b in [["cuisine", not g.animals.is_empty()], ["entretien", g.proprete < 85.0]]:
+		if b[1] and not g.has_building(b[0]):
+			var spot := _park_spot(g.building_def(b[0]))
+			if spot.x >= 0:
+				out.append(["batiment", g.building_def(b[0]), spot])
 	# 4. Boutique, une fois le premier animal installé.
 	if strat["boutique"] and not g.animals.is_empty() and g.site_at(shop_rect.position) == null:
 		out.append(["batiment", g.building_def("boutique"), shop_rect.position])
@@ -738,12 +800,19 @@ func _place_wants() -> void:
 	for wnt in _wants():
 		if open >= max_open:
 			break
-		# Les chantiers payés en argent ne doivent pas vider la trésorerie (salaires de demain).
+		# Les chantiers payés en argent ne doivent pas vider la trésorerie (salaires de demain), sauf ceux du
+		# premier enclos : sans animal il n'y a aucun revenu, et garder la réserve bloquerait la partie.
 		var argent := float(wnt[1].get("cout", {}).get("argent", 0))
-		if argent > 0.0 and g.money - argent < floor_cash:
+		var first_enclosure: bool = g.animals.is_empty() and (wnt[0] == "amenagement" or wnt[1].get("id") == "enclos")
+		if argent > 0.0 and g.money - argent < (0.0 if first_enclosure else floor_cash):
 			continue
-		if g.place(wnt[0], wnt[1], wnt[2]) != null:
+		var placed := g.place(wnt[0], wnt[1], wnt[2])
+		if placed != null:
 			open += 1
+			# Bâtiment de service posé dans le parc : les enclos prévus ensuite l'éviteront.
+			if placed.def_id() in ["cuisine", "entretien"]:
+				for t in _rect_tiles(placed.rect):
+					reserved[t] = true
 
 
 ## Ressources manquantes pour les prochains chantiers voulus.
@@ -767,7 +836,24 @@ func _spot_near_camp(def: Dictionary) -> Vector2i:
 	return _spot_near(g.map.camp.get_center(), def, 3)
 
 
+## Mémorise le résultat d'une recherche tant que la carte, les chantiers et le plan du zoo n'ont pas changé :
+## _wants() est rappelé à chaque réflexion et pour chaque ouvrier inactif (via _needs).
+func _cached(name: String, compute: Callable) -> Variant:
+	var key := "%d|%s|%s|%s|%s|%d|%d" % [g.version, g.phase, str(zoo_rect), str(target_rect), str(entrance),
+		reserved.size(), fence_tiles.size()]
+	if key != _search_cache_key:
+		_search_cache_key = key
+		_search_cache.clear()
+	if not _search_cache.has(name):
+		_search_cache[name] = compute.call()
+	return _search_cache[name]
+
+
 func _spot_near(c: Vector2i, def: Dictionary, r0 := 1) -> Vector2i:
+	return _cached("spot|%s|%s|%d" % [str(c), def["id"], r0], _search_spot_near.bind(c, def, r0))
+
+
+func _search_spot_near(c: Vector2i, def: Dictionary, r0: int) -> Vector2i:
 	for r in range(r0, 14):
 		for dy in range(-r, r + 1):
 			for dx in range(-r, r + 1):
@@ -793,6 +879,56 @@ func _far_resource() -> Vector2i:
 
 
 func _mine_spot() -> Vector2i:
+	return _cached("mine", _search_mine_spot)
+
+
+## Le motif de l'animal existe déjà tel quel sur la carte, près du camp (là où ira le zoo) : réalisable sans aménageur.
+func _natural_fit(def: Dictionary) -> bool:
+	return _cached("motif|" + str(def["id"]), _search_natural_fit.bind(def))
+
+
+func _search_natural_fit(def: Dictionary) -> bool:
+	var m := g.map
+	var c := m.camp.get_center()
+	for v in g.pattern_variants(def):
+		for y in range(maxi(0, c.y - 30), m.h):
+			for x in range(maxi(0, c.x - 30), mini(m.w, c.x + 30)):
+				var ok := true
+				for cell in v:
+					var px: int = x + cell[0]
+					var py: int = y + cell[1]
+					if not m.in_bounds(px, py) or GameMap.TERRAINS[m.get_t(px, py)] != cell[2]:
+						ok = false
+						break
+				if ok:
+					return true
+	return false
+
+
+## Place libre dans le parc pour un petit bâtiment de service (cuisine, entretien), au plus près de l'entrée.
+## Choisie au moment de construire, hors des cases déjà réservées (murs, boutique, enclos prévus) : la
+## réserver d'avance empêchait les enclos de tenir dans un petit parc.
+func _park_spot(def: Dictionary) -> Vector2i:
+	return _cached("parc|" + str(def["id"]), _search_park_spot.bind(def))
+
+
+func _search_park_spot(def: Dictionary) -> Vector2i:
+	var inner := zoo_rect.grow(-1)
+	var cands: Array[Vector2i] = []
+	for y in range(inner.position.y, inner.end.y):
+		for x in range(inner.position.x, inner.end.x):
+			cands.append(Vector2i(x, y))
+	cands.sort_custom(func(a, b): return a.distance_squared_to(entrance) < b.distance_squared_to(entrance))
+	for o in cands:
+		var tiles := _rect_tiles(g.footprint("batiment", def, o))
+		if tiles.any(func(t): return not inner.has_point(t) or reserved.has(t) or fence_tiles.has(t) or g.animal_at(t) != null):
+			continue
+		if g.placement_error("batiment", def, o, false) == "":
+			return o
+	return Vector2i(-1, -1)
+
+
+func _search_mine_spot() -> Vector2i:
 	var c := Vector2(g.map.camp.get_center())
 	var golds := g.map.golds.duplicate()
 	golds.sort_custom(func(a, b): return c.distance_squared_to(Vector2(a)) < c.distance_squared_to(Vector2(b)))
@@ -851,7 +987,7 @@ func _buy_materials() -> void:
 ## Recherche en largeur sur 8 directions, uniquement sur des cases où une route peut être posée.
 func _road_plan() -> Array[Vector2i]:
 	var front := entrance + (Vector2i(0, 1) if entrance.y == _park_area().end.y - 1 or entrance.y == zoo_rect.end.y - 1 else Vector2i(0, -1))
-	return _road_plan_to(front, _park_area())
+	return _cached("route", _road_plan_to.bind(front, _park_area()))
 
 
 func _road_plan_to(front: Vector2i, park: Rect2i) -> Array[Vector2i]:
@@ -912,6 +1048,34 @@ func _staff_posts() -> void:
 				_ensure_post(s, "ticket", 2)
 		elif s.done and s.def_id() == "boutique":
 			_ensure_post(s, "shop")
+		elif s.done and s.def_id() == "cuisine" and g.food_due():
+			# Un nourrisseur pour 4 animaux (l'Animalier, puis le Soigneur, puis le moins utile ailleurs)
+			var arrived := g.animals.filter(func(a): return a.arrived).size()
+			_ensure_job(s, "feed", ceili(arrived / 4.0), "nourrir", "animalier")
+		elif s.done and s.def_id() == "entretien" and g.proprete < 75.0:
+			_ensure_job(s, "clean", 1, "nettoyer", "agent_entretien")
+
+
+## Affecte des ouvriers à une tâche en boucle partant d'un bâtiment (nourrir, nettoyer) jusqu'à `wanted`.
+func _ensure_job(site: GameState.Site, type: String, wanted: int, task: String, specialist: String) -> void:
+	var have := g.workers.filter(func(w): return w.task.get("type") == type and w.task.get("site") == site).size()
+	for i in wanted - have:
+		var best: GameState.Worker = null
+		var best_v := INF
+		for w in g.workers:
+			if w.offmap or w.task.get("type") in ["station", "feed", "clean"] or w.card.metier["id"] in ["lobbyiste", "marchand"]:
+				continue
+			if w.card.traits.has("col_blanc"):
+				continue
+			var v := g.efficiency(w.card, "defaut") - 2.0 * g.efficiency(w.card, task)
+			if w.card.metier["id"] == specialist:
+				v -= 5.0
+			if v < best_v:
+				best_v = v
+				best = w
+		if best == null:
+			return
+		g.order([best], site.rect.position)
 
 
 func _ensure_post(site: GameState.Site, kind: String, wanted := 1) -> void:
@@ -920,7 +1084,7 @@ func _ensure_post(site: GameState.Site, kind: String, wanted := 1) -> void:
 	var best: GameState.Worker = null
 	var best_v := INF
 	for w in g.workers:
-		if w.offmap or w.task.get("type") == "station" or w.card.metier["id"] in ["lobbyiste", "marchand"]:
+		if w.offmap or w.task.get("type") in ["station", "feed", "clean"] or w.card.metier["id"] in ["lobbyiste", "marchand"]:
 			continue
 		# Les moins utiles ailleurs tiennent les postes (la recette ne dépend que de la présence).
 		var v := g.efficiency(w.card, "defaut")

@@ -25,10 +25,12 @@ var res_noms := {"bois": "bois", "pierre": "pierre", "or": "or"}
 var building_colors := {
 	"route": UiTokens.CHEMIN, "pont": Color("9A6A3E"), "maison": Color("D2553A"), "entrepot": Color("8C6A48"),
 	"mine": Color("5A4636"), "cloture": UiTokens.ENCEINTE, "entree": Color("E9D5A8"), "enclos": UiTokens.CLOTURE_ENCLOS,
-	"boutique": Color("E06A5A"), "formation": Color("3A6AE0"),
+	"boutique": Color("E06A5A"), "formation": Color("3A6AE0"), "cuisine": Color("D8A010"), "entretien": Color("7A8A88"),
+	"snack": Color("E8782A"), "kiosque": Color("8A4AD0"),
 }
 var building_short := {
 	"maison": "Maison", "entrepot": "Entrepôt", "mine": "Mine", "entree": "Entrée", "boutique": "Boutique", "formation": "Formation",
+	"cuisine": "Cuisine", "entretien": "Entretien", "snack": "Snack", "kiosque": "Kiosque",
 }
 
 var mt: Match
@@ -84,6 +86,8 @@ var night_workers: HBoxContainer
 var night_contracts: HBoxContainer
 var night_fire_box: VBoxContainer
 var night_bonus_box: HBoxContainer
+var night_level_box: VBoxContainer
+var night_level_rows: VBoxContainer
 var night_action_box: VBoxContainer
 var night_action_flow: HFlowContainer
 var night_upgrade_box: HBoxContainer
@@ -103,6 +107,7 @@ var biome_noms := {"Savane": "Savane", "Foret": "Forêt", "Jungle": "Jungle", "A
 var terrain_req_noms := {"Prairie": "Prairie", "Foret": "Forêt", "Eau": "Eau", "Roche": "Roche", "Sable": "Sable", "PrairieOuSable": "Prairie ou sable"}
 var draft_root: Control
 var draft_title: Label
+var draft_order_lbl: RichTextLabel
 var draft_grid: GridContainer
 var draft_picks: RichTextLabel
 # Interface Émeraude
@@ -147,6 +152,7 @@ func _show_menu() -> void:
 	bg.add_child(v)
 	var title := Label.new()
 	title.text = "ZOO\nDECKBUILDER"
+	title.theme_type_variation = "TitreEcran"
 	title.add_theme_font_size_override("font_size", 46)
 	title.add_theme_color_override("font_color", UiTokens.OR)
 	v.add_child(title)
@@ -166,7 +172,7 @@ func _show_menu() -> void:
 	seed_edit.custom_minimum_size = Vector2(160, 0)
 	seed_row.add_child(seed_edit)
 	var choices := [
-		["Jouer contre l'IA", false, "Vous et 3 IA : draft serpent puis partie complète.", true],
+		["Jouer contre l'IA", false, "Vous et 3 IA : draft par tours de 4 cartes puis partie complète.", true],
 		["Regarder des IA jouer", true, "4 IA aux stratégies différentes, en accéléré (x8). Boutons « Voir » pour passer d'un zoo à l'autre.", false],
 	]
 	for c in choices:
@@ -360,7 +366,9 @@ func _draw() -> void:
 		if not a.arrived:
 			txt += " (arrive cette nuit)"
 		elif not a.fed:
-			txt += " (non nourri)"
+			txt += " (a faim !)"
+		elif game.food_due():
+			txt += " %.0f/%.0f" % [a.food, game.food_capacity(a.def)]
 		_label(txt, center + Vector2(0, -8), 10)
 	# Accès vers l'extérieur
 	var ex := Vector2(m.exit_tile) * TILE
@@ -850,6 +858,7 @@ func _build_ui() -> void:
 	ui = Control.new()
 	ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ui.theme = UiTokens.build_theme()
 	layer.add_child(ui)
 
 	# Barre du haut
@@ -1068,6 +1077,11 @@ func _build_ui() -> void:
 	night_bonus_box = HBoxContainer.new()
 	night_bonus_box.add_theme_constant_override("separation", 8)
 	nv.add_child(night_bonus_box)
+	night_level_box = VBoxContainer.new()
+	nv.add_child(night_level_box)
+	_menu_title(night_level_box, "Montées de niveau : choisissez une amélioration (gratuite)")
+	night_level_rows = VBoxContainer.new()
+	night_level_box.add_child(night_level_rows)
 	night_action_box = VBoxContainer.new()
 	nv.add_child(night_action_box)
 	_menu_title(night_action_box, "Améliorer ou licencier un ouvrier (une action par nuit)")
@@ -1093,14 +1107,20 @@ func _build_ui() -> void:
 	draft_root = draft[0]
 	var dv: VBoxContainer = draft[1]
 	draft_title = Label.new()
-	draft_title.add_theme_font_size_override("font_size", 22)
+	draft_title.theme_type_variation = "TitreEcran"
+	draft_title.add_theme_font_size_override("font_size", 26)
 	dv.add_child(draft_title)
+	draft_order_lbl = RichTextLabel.new()
+	draft_order_lbl.bbcode_enabled = true
+	draft_order_lbl.fit_content = true
+	draft_order_lbl.custom_minimum_size = Vector2(1060, 0)
+	dv.add_child(draft_order_lbl)
 	var dscroll := ScrollContainer.new()
 	dscroll.custom_minimum_size = Vector2(1060, 520)
 	dscroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	dv.add_child(dscroll)
 	draft_grid = GridContainer.new()
-	draft_grid.columns = 5
+	draft_grid.columns = 4
 	draft_grid.add_theme_constant_override("h_separation", 10)
 	draft_grid.add_theme_constant_override("v_separation", 10)
 	dscroll.add_child(draft_grid)
@@ -1330,8 +1350,23 @@ func _rebuild_draft() -> void:
 	for c in draft_grid.get_children():
 		c.queue_free()
 	var my_turn := not mt.is_ai(mt.current_drafter())
-	draft_title.text = "Draft serpent : %s  (choix %d / %d)" % [
-		"à vous de choisir" if my_turn else "%s choisit…" % mt.names[mt.current_drafter()], mt.draft_turn + 1, mt.draft_order.size()]
+	draft_title.text = "DRAFT · TOUR %d / %d — %s" % [mt.draft_round() + 1, mt.draft_rounds(),
+		"À VOUS DE CHOISIR" if my_turn else "%s choisit…" % mt.names[mt.current_drafter()]]
+	# Ordre du tour : déjà passés en gris, joueur courant en or, la dernière carte revient d'office au dernier.
+	var order: Array[String] = []
+	var pos_in_round := mt.draft_turn % mt.players.size()
+	var round_order := mt.draft_round_order()
+	for i in round_order.size():
+		var nom := mt.names[round_order[i]]
+		if i < pos_in_round:
+			order.append("[color=#6E8F86]%s[/color]" % nom)
+		elif i == pos_in_round:
+			order.append("[color=#FFD45A][b]%s[/b][/color]" % nom)
+		else:
+			order.append(nom)
+	draft_order_lbl.text = "Ordre du tour : %s\n[color=#A6D4C8]%d cartes révélées, une chacun. Le premier à choisir change à chaque tour.%s[/color]" % [
+		"  ›  ".join(order), mt.draft_round_size(),
+		" La dernière carte revient d'office au dernier joueur." if mt.draft_round_size() == mt.players.size() else " Les cartes restantes sont défaussées."]
 	for card in mt.draft_pool:
 		draft_grid.add_child(_card_widget(card, "Choisir", not my_turn, mt.pick_draft.bind(card)))
 	var lines: Array[String] = []
@@ -1355,7 +1390,18 @@ func _task_text(w: GameState.Worker) -> String:
 	if w.task["type"] == "station":
 		if not w.path.is_empty():
 			return "Va à son poste"
-		return {"trade": "Tient le comptoir du camp", "shop": "Tient la boutique", "ticket": "Tient le guichet", "care": "Soigne : " + str(w.task["obj"].def["nom"] if w.task["obj"] else "")}[w.task["kind"]]
+		if w.task["kind"] == "formation":
+			return "Forme les ouvriers du centre" if w.card.metier["id"] == "formateur" else "Se forme au centre de formation"
+		return {"trade": "Tient le comptoir du camp", "shop": "Tient la boutique", "ticket": "Tient le guichet", "snack": "Tient le snack",
+			"kiosque": "Anime le kiosque", "care": "Soigne : " + str(w.task["obj"].def["nom"] if w.task["obj"] else "")}[w.task["kind"]]
+	if w.task["type"] == "feed":
+		if w.task["phase"] == "deliver":
+			return "Livre %.0f ration(s) : %s" % [w.task["rations"], w.task["animal"].def["nom"]]
+		if not w.path.is_empty():
+			return "Retourne à la cuisine"
+		return "Prépare des rations (%.0f)" % w.task["rations"] if game.rations_needed() > 0.0 else "Attend à la cuisine (tous nourris)"
+	if w.task["type"] == "clean":
+		return "Nettoie le parc (propreté %d %%)" % roundi(game.proprete)
 	if w.task["type"] == "build":
 		var s: GameState.Site = w.task["site"]
 		return ("Va au chantier : " if not w.path.is_empty() else "Construit : ") + str(s.def["nom"])
@@ -1393,9 +1439,15 @@ func _update_info() -> void:
 		var zoo_line := ""
 		if z["open"]:
 			zoo_line = "[color=#7fc97f]Zoo ouvert[/color] · attractivité %d · publicité +%d %%\n" % [z["attract"], roundi((z["pub"] - 1.0) * 100)]
-			zoo_line += "Visiteurs : %d sur la route, %d en file, %d dans le zoo\n" % [z["road"], z["queue"], z["inside"]]
+			zoo_line += "Visiteurs : %d sur la route, %d en file, %d / %d dans le zoo\n" % [z["road"], z["queue"], z["inside"], z["capacity"]]
+			if z["inside"] >= z["capacity"] and z["queue"] > 0:
+				zoo_line += "[color=#ffb09a]Parc plein : la file attend. Agrandissez l'enceinte pour accueillir plus de monde.[/color]\n"
 			zoo_line += "Aujourd'hui : %d entrés, %d repartis (file pleine)\nRecettes : billets %d, souvenirs %d\n" % [z["admitted"], z["lost"], z["tickets"], z["souvenirs"]]
-			zoo_line += "Demande ≈ %d visiteurs/jour · guichet %d/min" % [roundi(z["demand_day"]), roundi(z["guichet_min"])]
+			zoo_line += "Demande ≈ %d visiteurs/jour · guichet %d/min\n" % [roundi(z["demand_day"]), roundi(z["guichet_min"])]
+			var hungry := game.animals.filter(func(a): return a.arrived and not a.fed).size()
+			zoo_line += "Propreté %d %%%s · rations à livrer %d%s" % [roundi(game.proprete),
+				" [color=#ffb09a](visiteurs en baisse : Local d'entretien)[/color]" if game.cleanliness_mult() < 1.0 else "",
+				ceili(game.rations_needed()), " · [color=#ffb09a]%d animal(aux) affamé(s) : Cuisine des animaux ![/color]" % hungry if hungry > 0 else ""]
 			if z["guichet_min"] <= 0.0:
 				zoo_line += "\n[color=#f08080]Personne au guichet : les visiteurs attendent dehors ![/color]"
 		else:
@@ -1433,7 +1485,8 @@ func _update_info() -> void:
 		"Bonus d'équipe reçu : %+d %%" % roundi((team - 1.0) * 100),
 		("Effet de zone : " + ", ".join(auras)) if not auras.is_empty() else "",
 		"Salaire : %d" % game.salary(c),
-		"Jours travaillés : %d" % c.jours_travailles,
+		"Expérience : %.1f / %d jours (niveau suivant)%s" % [c.xp, roundi(game.xp_next_level(c)),
+			"  ×%.1f" % game.xp_mult(c) if game.xp_mult(c) != 1.0 else ""] if c.niveau < 4 else "Niveau maximum",
 	])
 
 
@@ -1532,7 +1585,7 @@ func _rebuild_night() -> void:
 		var lv: Array[String] = []
 		for c in r["level_ups"]:
 			lv.append("%s → niv. %d" % [c.nom, c.niveau])
-		lines.append("Montées de niveau : " + ", ".join(lv) + " [color=#9aa0ab](choix des améliorations : plus tard)[/color]")
+		lines.append("Montées de niveau : " + ", ".join(lv) + " [color=#9aa0ab](choisissez leurs améliorations plus bas)[/color]")
 	var order := ", ".join(mt.night_order.map(func(i): return mt.names[i]))
 	var inc: Dictionary = r["income"]
 	if inc["visitors"] > 0:
@@ -1580,6 +1633,25 @@ func _rebuild_night() -> void:
 		btn.custom_minimum_size = Vector2(200, 0)
 		btn.pressed.connect(game.pick_bonus.bind(b))
 		night_bonus_box.add_child(btn)
+	# Montées de niveau : une amélioration gratuite à choisir par niveau gagné
+	for c in night_level_rows.get_children():
+		c.queue_free()
+	night_level_box.visible = not spectator and not game.level_choices.is_empty()
+	for lc in game.level_choices:
+		var card: GameState.Card = lc["card"]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		var who := Label.new()
+		who.text = "%s (%s, niv. %d)" % [card.nom, card.metier["nom"], card.niveau]
+		who.custom_minimum_size = Vector2(220, 0)
+		row.add_child(who)
+		for opt in lc["options"]:
+			var ob := Button.new()
+			ob.text = "%s\n%s" % [opt["nom"], opt.get("texte", _effect_text(opt["effet"]))]
+			ob.focus_mode = Control.FOCUS_NONE
+			ob.pressed.connect(game.choose_level_upgrade.bind(card, opt))
+			row.add_child(ob)
+		night_level_rows.add_child(row)
 	# Action de milieu de partie : améliorer ou licencier
 	var rules := game.night_action_rules()
 	var cost_up := int(rules["cout_amelioration"])

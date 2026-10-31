@@ -16,9 +16,11 @@ class Card:
 	var traits: Array[String] = []
 	var niveau := 1
 	var jours_travailles := 0
+	var xp := 0.0  # expérience en jours de travail (voir gain_xp) ; le niveau suit, la nuit
 	var deployed := false
-	var upgrades: Array = []  # effets des améliorations achetées (vitesse, defaut, specialite, salaire)
+	var upgrades: Array = []  # effets des améliorations (vitesse, defaut, specialite, salaire, portage, capacite…)
 	var upgrade_names: Array[String] = []
+	var last_work_tile := Vector2i(-1, -1)  # dernière case de travail (trait Matinal)
 
 
 class Worker:
@@ -46,6 +48,7 @@ class Site:
 	var work := 0.0
 	var done := false
 	var paid := {}
+	var savings := 1.0  # part des ressources réellement dépensée (Architecte, Débrouillard) : le reste est remboursé à la fin
 
 	func def_id() -> String:
 		return str(def["id"])
@@ -62,7 +65,8 @@ class Animal:
 	var def: Dictionary
 	var tiles: Array[Vector2i] = []
 	var arrived := false
-	var fed := true
+	var fed := true  # a encore des rations en réserve (sinon il a faim et ne compte pas)
+	var food := 0.0  # rations en réserve, une journée au maximum
 
 
 var mt: Match
@@ -134,8 +138,11 @@ var day_bonus := {}  # bonus actif aujourd'hui
 var sick_animal: Animal = null  # événement « Épidémie »
 var night_action_used := false
 var pending_upgrade := {}  # {"card": Card, "options": [...]} pendant le choix d'une amélioration
+var level_choices: Array = []  # [{"card": Card, "options": [...]}] : une amélioration gratuite à choisir par niveau gagné
 var _zoo_cache_version := -1
 var _zoo_cache := {}
+var _aura_cache: Array = []  # émetteurs d'aura du pas en cours (voir _tick_player)
+var _aura_cache_valid := false
 
 # Visiteurs (simulés pendant la journée)
 var rep_points := 0.0  # réputation accumulée (condition de victoire)
@@ -143,19 +150,22 @@ var road_visitors := PackedFloat32Array()  # distance parcourue sur le chemin Ac
 var visitor_queue := 0  # visiteurs qui attendent au guichet
 var in_zoo: Array = []  # [{"t": temps restant, "pos": Vector2}]
 var visit := {}  # compteurs du jour
-var _spawn_acc := 0.0
 var _admit_acc := 0.0
+var proprete := 100.0  # propreté du parc (0 à 100) : les visiteurs salissent, l'entretien nettoie
+var _arrival_norm := 1.0  # moyenne de courbe_arrivees sur la journée (voir arrival_factor)
+var _arrival_norm_len := -1.0
 var _path_cache_version := -1
 var _path_cache: Array[Vector2i] = []
 
 
-func _init(game_data: Dictionary, map_seed: int, the_match: Match, player_index: int) -> void:
+## base_map : carte déjà générée avec cette graine (partagée par la partie), copiée plutôt que régénérée.
+func _init(game_data: Dictionary, map_seed: int, the_match: Match, player_index: int, base_map: GameMap = null) -> void:
 	mt = the_match
 	index = player_index
 	data = game_data
 	seed_value = map_seed
 	rng.seed = (map_seed ^ 0x9e3779b9) + player_index * 7919
-	map = MapGenerator.generate(data["buildings"], map_seed)
+	map = base_map.copy() if base_map else MapGenerator.generate(data["buildings"], map_seed)
 	for t in data["workers"]["traits_positifs"]:
 		traits_by_id[t["id"]] = t
 		positive_ids[t["id"]] = true
@@ -239,7 +249,7 @@ func salary(card: Card) -> int:
 
 
 func speed(card: Card) -> float:
-	var s := float(card.metier["vitesse"])
+	var s := float(card.metier["vitesse"]) * float(data["workers"]["regles"].get("vitesse_ouvriers", 1.0))
 	for t in trait_defs(card):
 		s *= float(t["effet"].get("vitesse", 1.0))
 	for u in card.upgrades:
@@ -258,18 +268,60 @@ func efficiency(card: Card, task: String) -> float:
 		base = float(eff["defaut"])
 		if card.traits.has("polyvalent"):
 			base = maxf(base, 1.2)
+		for u in card.upgrades:
+			if u.get("seconde_specialite", "") == task:
+				base = maxf(base, float(data["workers"]["regles"]["efficacite_seconde_specialite"]))
 	for t in trait_defs(card):
 		var e: Dictionary = t["effet"]
 		base *= float(e.get("defaut", 1.0)) * float(e.get(task, 1.0))
 		if task.begins_with("construire_"):
 			base *= float(e.get("construire", 1.0))
-	# Expérience : +10 % par niveau au-delà du premier, puis améliorations achetées.
+	# Expérience : +10 % par niveau au-delà du premier, puis améliorations (générales, de spécialité, ou d'une tâche).
 	base *= 1.0 + float(data["workers"]["regles"].get("bonus_par_niveau", 0.0)) * (card.niveau - 1)
 	for u in card.upgrades:
-		base *= float(u.get("defaut", 1.0))
+		base *= float(u.get("defaut", 1.0)) * float(u.get(task, 1.0))
 		if eff.has(task):
 			base *= float(u.get("specialite", 1.0))
 	return base
+
+
+## Capacité spéciale apportée par une amélioration de métier (effet.capacite : chasseur_tetes, reseau…).
+func has_capacity(card: Card, id: String) -> bool:
+	return card.upgrades.any(func(u): return u.get("capacite", "") == id)
+
+
+## Multiplicateur d'expérience : métier (Apprenti ×2) et traits (Bon élève ×1,5).
+func xp_mult(card: Card) -> float:
+	var m := float(card.metier.get("xp_mult", 1.0))
+	for t in trait_defs(card):
+		m *= float(t["effet"].get("xp", 1.0))
+	return m
+
+
+## Ajoute de l'expérience, en jours de travail. Les niveaux sont gagnés la nuit (voir _end_day_player).
+func gain_xp(card: Card, days: float) -> void:
+	card.xp += days * xp_mult(card)
+
+
+## Expérience nécessaire pour passer au niveau suivant (en jours de travail).
+func xp_next_level(card: Card) -> float:
+	return card.niveau * float(data["workers"]["regles"]["xp_jours_par_niveau"])
+
+
+## Part des ressources réellement dépensée sur un chantier où travaille cette carte (Architecte 0,75, Débrouillard 0,85).
+func resource_mult(card: Card) -> float:
+	var m := float(card.metier.get("cout_ressources_chantier", 1.0))
+	for t in trait_defs(card):
+		m *= float(t["effet"].get("cout_ressources_chantier", 1.0))
+	return m
+
+
+## Trait Peureux : un enclos de prédateur à 2 cases ou moins.
+func near_predator(t: Vector2i) -> bool:
+	for a in animals:
+		if a.def.get("special", "") == "predateur" and a.tiles.any(func(p): return maxi(absi(p.x - t.x), absi(p.y - t.y)) <= 2):
+			return true
+	return false
 
 
 func auras_of(card: Card) -> Array:
@@ -282,17 +334,30 @@ func auras_of(card: Card) -> Array:
 	return out
 
 
+## Liste [ouvrier, aura] des ouvriers qui émettent une aura. Pendant un pas de simulation, elle est calculée
+## une seule fois (voir _tick_player) au lieu d'une fois par ouvrier au travail : O(n) au lieu de O(n²).
+func _aura_sources() -> Array:
+	if _aura_cache_valid:
+		return _aura_cache
+	var out := []
+	for o in workers:
+		for a in auras_of(o.card):
+			out.append([o, a])
+	return out
+
+
 ## Bonus de productivité reçu des AUTRES ouvriers présents sur la carte (Charismatique, Contremaître, Rabat-joie…).
 func aura_mult(w: Worker) -> float:
 	if w.offmap:
 		return 1.0
 	var bonus := 0.0
-	for o in workers:
+	for s in _aura_sources():
+		var o: Worker = s[0]
 		if o == w or o.offmap:
 			continue
-		for a in auras_of(o.card):
-			if o.pos.distance_to(w.pos) <= float(a["rayon"]) + 0.01:
-				bonus += float(a["bonus"])
+		var a: Dictionary = s[1]
+		if o.pos.distance_to(w.pos) <= float(a["rayon"]) + 0.01:
+			bonus += float(a["bonus"])
 	return maxf(0.1, 1.0 + bonus)
 
 
@@ -309,7 +374,10 @@ func free_deploy_available() -> bool:
 
 
 func carry_capacity(card: Card) -> int:
-	return int(data["buildings"]["extraction"]["capacite_portage"]) + int(card.metier.get("capacite_portage", 0))
+	var c := int(data["buildings"]["extraction"]["capacite_portage"]) + int(card.metier.get("capacite_portage", 0))
+	for u in card.upgrades:
+		c += int(u.get("portage", 0))
+	return c
 
 
 func draw_hand() -> void:
@@ -350,6 +418,10 @@ func deploy(card: Card, free := false) -> bool:
 	w.card = card
 	w.unpaid = free
 	w.pos = Vector2(map.camp.get_center()) + Vector2(0.5, 0.5)
+	# Matinal : commence la journée sur sa dernière case de travail plutôt qu'au camp.
+	var last := card.last_work_tile
+	if card.traits.has("matinal") and last.x >= 0 and map.passable(last.x, last.y):
+		w.pos = Vector2(last) + Vector2(0.5, 0.5)
 	workers.append(w)
 	version += 1
 	return true
@@ -430,7 +502,8 @@ func order(targets: Array, target: Vector2i) -> void:
 			_set_path(w, target)
 			continue
 		if site and not site.done:
-			if w.card.traits.has("col_blanc"):
+			# Un Architecte col blanc ne construit pas, mais il supervise (économie de ressources).
+			if w.card.traits.has("col_blanc") and w.card.metier["id"] != "architecte":
 				say("%s est un col blanc : il refuse le travail manuel." % w.card.nom)
 				continue
 			if site.kind == "amenagement" and not can_landscape(w.card):
@@ -442,6 +515,20 @@ func order(targets: Array, target: Vector2i) -> void:
 		var job: String = w.card.metier["id"]
 		if site and site.done and site.def_id() == "entree":
 			_station(w, "ticket", site, target)
+			continue
+		if site and site.done and site.def_id() == "formation":
+			_station(w, "formation", site, target)
+			continue
+		if site and site.done and site.def_id() == "cuisine":
+			w.task = {"type": "feed", "site": site, "phase": "to_kitchen", "rations": 0.0, "prep": 0.0}
+			_set_path(w, target)
+			continue
+		if site and site.done and site.def_id() == "entretien":
+			w.task = {"type": "clean", "site": site, "t": 0.0}
+			_set_path(w, target)
+			continue
+		if site and site.done and site.def_id() in ["snack", "kiosque"]:
+			_station(w, site.def_id(), site, target)
 			continue
 		if site and site.done and site.def_id() == "boutique":
 			_station(w, "shop", site, target)
@@ -489,8 +576,14 @@ func tick(dt: float) -> void:
 
 
 func _tick_player(dt: float) -> void:
+	# Les traits et la liste des ouvriers ne changent pas pendant un pas : les auras sont listées une fois.
+	_aura_cache_valid = false
+	_aura_cache = _aura_sources()
+	_aura_cache_valid = true
 	for w in workers:
 		_update_worker(w, dt)
+	_aura_cache_valid = false
+	_animals_eat(dt)
 	_update_visitors(dt)
 
 
@@ -499,6 +592,8 @@ func _move(w: Worker, dt: float) -> void:
 	while not w.path.is_empty() and budget > 0.0:
 		var t := w.tile()
 		var spd := speed(w.card) * map.move_speed(t.x, t.y) * speed_mult()
+		if w.card.traits.has("casanier") and w.pos.distance_to(Vector2(map.camp.get_center())) > 15.0:
+			spd *= 0.7
 		var target := Vector2(w.path[0]) + Vector2(0.5, 0.5)
 		var dist := w.pos.distance_to(target)
 		var step := spd * budget
@@ -524,6 +619,8 @@ func _update_worker(w: Worker, dt: float) -> void:
 	if w.pause_left > 0.0:
 		w.pause_left -= dt
 		return
+	if w.task.get("type") == "clean":
+		_sweep(w, dt)  # l'agent d'entretien nettoie aussi en marchant dans l'enceinte
 	if not w.path.is_empty():
 		_move(w, dt)
 		return
@@ -534,6 +631,10 @@ func _update_worker(w: Worker, dt: float) -> void:
 			_update_extract(w, dt)
 		"build":
 			_update_build(w, dt)
+		"feed":
+			_update_feed(w, dt)
+		"clean":
+			_update_clean(w, dt)
 		"station":
 			if w.tile() != w.task["tile"]:
 				_set_path(w, w.task["tile"])
@@ -543,6 +644,8 @@ func _update_worker(w: Worker, dt: float) -> void:
 					vendeur_time[w.task["obj"]] = vendeur_time.get(w.task["obj"], 0.0) + dt
 			elif w.task["kind"] == "care":
 				cared_today[w.task["obj"]] = true
+			elif w.task["kind"] == "formation":
+				_train(w, dt)
 		"lobby":
 			if w.tile() == map.exit_tile:
 				w.offmap = true
@@ -562,6 +665,9 @@ func _update_extract(w: Worker, dt: float) -> void:
 			else:
 				task["phase"] = "working"
 		"working":
+			if _refuses_near_predator(w):
+				return
+			w.card.last_work_tile = w.tile()
 			var res: String = task["res"]
 			var tgt: Vector2i = task["target"]
 			var per_minute := float(data["buildings"]["extraction"][res]) * efficiency_at(w, "extraire_" + res)
@@ -828,15 +934,74 @@ func _update_build(w: Worker, dt: float) -> void:
 	if not work_tiles(s).has(w.tile()):
 		_path_to_site(w, s)
 		return
-	s.work += efficiency_at(w, s.type_travail()) * dt
+	if _refuses_near_predator(w):
+		return
+	w.card.last_work_tile = w.tile()
+	s.savings = minf(s.savings, resource_mult(w.card))
+	# Un Architecte col blanc supervise sans travailler de ses mains.
+	if not w.card.traits.has("col_blanc"):
+		var rate := efficiency_at(w, s.type_travail())
+		# Visionnaire (Paysagiste) : aménager à côté d'une case déjà du type voulu va 2× plus vite.
+		if s.kind == "amenagement" and has_capacity(w.card, "visionnaire") and _next_to_terrain(s.rect.position, str(s.def["vers"])):
+			rate *= 2.0
+		s.work += rate * dt
 	_work_traits(w, dt)
 	if s.work >= s.travail():
 		_complete(s)
 
 
+## Trait Peureux : refuse de travailler près d'un enclos de prédateur (la tâche est abandonnée).
+func _refuses_near_predator(w: Worker) -> bool:
+	if not w.card.traits.has("peureux") or not near_predator(w.tile()):
+		return false
+	say("%s a peur des fauves : il refuse de travailler si près d'un prédateur." % w.card.nom)
+	w.task = {}
+	return true
+
+
+func _next_to_terrain(t: Vector2i, terrain: String) -> bool:
+	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		var q: Vector2i = t + d
+		if map.in_bounds(q.x, q.y) and GameMap.TERRAINS[map.get_t(q.x, q.y)] == terrain:
+			return true
+	return false
+
+
+## Centre de formation : les ouvriers postés gagnent de l'expérience (×2 si un Formateur est posté aussi).
+## Places limitées (capacite_formation, +2 avec un Formateur Pédagogue) : les premiers arrivés sont formés.
+func _train(w: Worker, dt: float) -> void:
+	if w.card.metier["id"] == "formateur":
+		return  # il forme les autres
+	var s: Site = w.task["obj"]
+	var present := workers.filter(func(o): return o.task.get("kind") == "formation" and o.task.get("obj") == s \
+		and o.path.is_empty() and o.tile() == o.task["tile"])
+	var trainers := present.filter(func(o): return o.card.metier["id"] == "formateur")
+	var trainees := present.filter(func(o): return o.card.metier["id"] != "formateur")
+	var fx: Dictionary = s.def["effet"]
+	var places := int(fx["capacite_formation"]) + (2 if trainers.any(func(o): return has_capacity(o.card, "pedagogue")) else 0)
+	if trainees.find(w) >= places:
+		return
+	var rate := float(fx["xp_par_minute"]) * (2.0 if not trainers.is_empty() else 1.0) * unpaid_mult(w)
+	gain_xp(w.card, rate * dt / 60.0)
+
+
 func _complete(s: Site) -> void:
 	s.done = true
 	var p := s.rect.position
+	# Architecte / Débrouillard : une partie des ressources payées est remboursée.
+	if s.savings < 1.0:
+		var refund: Array[String] = []
+		for k in s.paid:
+			var back := floorf(float(s.paid[k]) * (1.0 - s.savings))
+			if back <= 0.0:
+				continue
+			if k == "argent":
+				money += back
+			else:
+				stock[k] += back
+			refund.append("%d %s" % [int(back), k])
+		if not refund.is_empty():
+			say("%s : économie de %s." % [s.def["nom"], ", ".join(refund)])
 	if s.kind == "amenagement":
 		map.set_t(p.x, p.y, GameMap.TERRAINS.find(str(s.def["vers"])))
 		var bonus: Dictionary = s.def.get("bonus", {})
@@ -965,16 +1130,24 @@ func _end_day_player() -> void:
 	for a in animals:
 		if not a.arrived:
 			a.arrived = true
+			a.food = food_capacity(a.def)  # il arrive avec une journée de rations
 			arrivals.append(a.def["nom"])
 	var income := _close_zoo_day()  # les recettes ont été encaissées pendant la journée
 	version += 1  # invalide le cache de l'enceinte (nouveaux animaux)
 	for w in workers:
 		var card := w.card
 		card.jours_travailles += 1
-		if card.jours_travailles % int(regles["xp_jours_par_niveau"]) == 0 and card.niveau < int(regles["niveau_max"]):
+		gain_xp(card, 1.0)
+		# Réseau (Lobbyiste) : +1 influence chaque soir où il a été déployé.
+		if has_capacity(card, "reseau"):
+			influence += 1.0
+		card.deployed = false
+	# Montées de niveau (journées de travail et Centre de formation) : une amélioration gratuite au choix par niveau.
+	for card in all_employees():
+		while card.niveau < int(regles["niveau_max"]) and card.xp >= xp_next_level(card) - 0.0001:
 			card.niveau += 1
 			level_ups.append(card)
-		card.deployed = false
+			level_choices.append({"card": card, "options": _upgrade_pool(card)})
 	night_report = {"day": day, "stats": day_stats.duplicate(), "level_ups": level_ups, "deployed": workers.size(),
 		"arrivals": arrivals, "income": income}
 	workers.clear()
@@ -993,6 +1166,10 @@ func _start_day_player() -> void:
 	night_bonus = {}
 	sick_animal = null
 	pending_upgrade = {}
+	# Améliorations de niveau non choisies pendant la nuit : la première proposée est appliquée.
+	while not level_choices.is_empty():
+		var lc: Dictionary = level_choices[0]
+		choose_level_upgrade(lc["card"], lc["options"][0])
 	_reset_visit()
 	night_report = {}
 	_feed_animals()
@@ -1012,6 +1189,9 @@ func hire_cost(card: Card) -> int:
 	var neg := card.traits.size() - pos
 	var regles: Dictionary = data["workers"]["regles"]
 	var base := float(card.metier["cout"]) * (1.0 + float(regles["modif_cout_par_trait_positif"]) * pos + float(regles["modif_cout_par_trait_negatif"]) * neg)
+	# Chasseur de têtes : un DRH de l'équipe négocie 3 de moins.
+	if all_employees().any(func(c): return has_capacity(c, "chasseur_tetes")):
+		base -= 3.0
 	return maxi(int(regles["cout_min_embauche"]), roundi(base))
 
 
@@ -1154,20 +1334,45 @@ func fire_paid(card: Card) -> bool:
 func upgrade_options(card: Card) -> Array:
 	if pending_upgrade.get("card") == card:
 		return pending_upgrade["options"]
-	var has_neg := card.traits.any(func(t): return not is_positive(t))
-	var pool: Array = data["workers"]["ameliorations_generiques"].filter(func(u):
-		return u["id"] != "double_spe" and (u["id"] != "guerison" or has_neg) and (u["id"] != "salaire_down" or salary(card) > 0))
-	mt.shuffle(pool)
-	pending_upgrade = {"card": card, "options": pool.slice(0, 3)}
+	pending_upgrade = {"card": card, "options": _upgrade_pool(card)}
 	version += 1
 	return pending_upgrade["options"]
 
 
-func apply_upgrade(card: Card, option: Dictionary) -> bool:
-	var cost := int(night_action_rules()["cout_amelioration"])
-	if night_action_error(cost) != "" or not all_employees().has(card):
-		return false
-	money -= cost
+const LIBELLES_TACHES := {
+	"extraire_bois": "Extraction de bois", "extraire_pierre": "Extraction de pierre", "construire_bois": "Construction en bois",
+	"construire_pierre": "Construction en pierre", "construire_route": "Routes", "construire_enclos": "Clôtures d'enclos",
+	"guichet": "Guichet",
+}
+
+
+## Améliorations proposées à une carte : génériques utiles pour elle + celles de son métier, tirées au hasard.
+## 3 au choix (Têtu : 2). « Seconde spécialité » désigne au tirage une tâche hors de son métier.
+func _upgrade_pool(card: Card) -> Array:
+	var has_neg := card.traits.any(func(t): return not is_positive(t))
+	var specs: Array = LIBELLES_TACHES.keys().filter(func(k): return not card.metier["efficacite"].has(k) \
+		and not card.upgrades.any(func(u): return u.get("seconde_specialite", "") == k))
+	var pool: Array = data["workers"]["ameliorations_generiques"].filter(func(u):
+		return (u["id"] != "guerison" or has_neg) and (u["id"] != "salaire_down" or salary(card) > 0) \
+			and (u["id"] != "double_spe" or not specs.is_empty()))
+	pool.append_array(data["workers"]["ameliorations_metier"].get(card.metier["id"], []).filter(func(u):
+		return not card.upgrade_names.has(u["nom"])))
+	mt.shuffle(pool)
+	var n := int(data["workers"]["regles"]["choix_ameliorations"])
+	for t in trait_defs(card):
+		n = mini(n, int(t["effet"].get("choix_ameliorations", n)))
+	var out := []
+	for u in pool.slice(0, n):
+		if u["id"] == "double_spe":
+			var task: String = specs[mt.rng.randi_range(0, specs.size() - 1)]
+			u = {"id": "double_spe", "nom": "Seconde spécialité : %s" % LIBELLES_TACHES[task],
+				"effet": {"seconde_specialite": task}, "texte": "%s : efficacité 1,4" % LIBELLES_TACHES[task]}
+		out.append(u)
+	return out
+
+
+## Applique l'effet d'une amélioration (sans coût) : guérison, nouveau trait, ou effet ajouté à la carte.
+func _apply_upgrade_effect(card: Card, option: Dictionary) -> void:
 	match option["id"]:
 		"guerison":
 			for t in card.traits:
@@ -1179,11 +1384,31 @@ func apply_upgrade(card: Card, option: Dictionary) -> bool:
 		_:
 			card.upgrades.append(option["effet"])
 	card.upgrade_names.append(option["nom"])
-	night_action_used = true
-	pending_upgrade = {}
 	say("%s : amélioration « %s »." % [card.nom, option["nom"]])
 	version += 1
+
+
+## Amélioration payante de milieu de partie (action de nuit).
+func apply_upgrade(card: Card, option: Dictionary) -> bool:
+	var cost := int(night_action_rules()["cout_amelioration"])
+	if night_action_error(cost) != "" or not all_employees().has(card):
+		return false
+	money -= cost
+	_apply_upgrade_effect(card, option)
+	night_action_used = true
+	pending_upgrade = {}
 	return true
+
+
+## Amélioration gratuite gagnée à une montée de niveau : choisie parmi les options proposées pour cette carte.
+func choose_level_upgrade(card: Card, option: Dictionary) -> bool:
+	for i in level_choices.size():
+		var lc: Dictionary = level_choices[i]
+		if lc["card"] == card and lc["options"].has(option):
+			level_choices.remove_at(i)
+			_apply_upgrade_effect(card, option)
+			return true
+	return false
 
 
 func all_employees() -> Array[Card]:
@@ -1328,22 +1553,199 @@ func install_animal(def: Dictionary, t: Vector2i) -> String:
 	return ""
 
 
+## Coût de la nourriture d'un animal pour une journée (rations × prix d'une ration).
 func food_cost(def: Dictionary) -> int:
-	var base := float(data["animals"]["paliers"][def["palier"]]["nourriture"])
-	return roundi(base * float(event_effects().get("nourriture", 1.0)))
+	return roundi(rations_per_day(def) * float(data["buildings"]["zoo"]["rations"]["cout"]))
 
 
-## Au début du jour, avant tout déploiement : les animaux les plus chers à nourrir passent en premier.
+## Rations mangées par jour (= nourriture du palier ; la Canicule et d'autres événements la modifient).
+func rations_per_day(def: Dictionary) -> float:
+	return float(data["animals"]["paliers"][def["palier"]]["nourriture"]) * float(event_effects().get("nourriture", 1.0))
+
+
+## Réserve maximale d'un animal : une journée de rations (hors événement).
+func food_capacity(def: Dictionary) -> float:
+	return float(data["animals"]["paliers"][def["palier"]]["nourriture"])
+
+
+## Les animaux ne dépendent de la Cuisine qu'une fois le zoo ouvert au public (enceinte, entrée, animal et
+## route) : avant, le fournisseur les nourrit. Cela évite de s'endetter avant les premiers revenus.
+func food_due() -> bool:
+	return zoo_status()["open"] and not visitor_path().is_empty()
+
+
+## Début du jour : avant l'ouverture, le fournisseur remplit les réserves ; ensuite, il faut livrer les rations.
 func _feed_animals() -> void:
-	var arrived := animals.filter(func(a): return a.arrived)
-	arrived.sort_custom(func(a, b): return food_cost(a.def) > food_cost(b.def))
-	for a in arrived:
-		var cost := food_cost(a.def)
-		a.fed = money >= cost
-		if a.fed:
-			money -= cost
+	var due := food_due()
+	for a in animals:
+		if a.arrived and not due:
+			a.food = food_capacity(a.def)
+		a.fed = not a.arrived or a.food > 0.0
+
+
+## Les animaux mangent leur réserve au fil de la journée. À 0, ils ont faim : ils ne comptent plus dans l'attractivité.
+func _animals_eat(dt: float) -> void:
+	var due := food_due()
+	for a in animals:
+		if not a.arrived:
+			continue
+		if due:
+			a.food = maxf(0.0, a.food - rations_per_day(a.def) * dt / day_length)
 		else:
-			say("%s n'a pas pu être nourri : il ne compte pas aujourd'hui." % a.def["nom"])
+			a.food = food_capacity(a.def)
+		a.fed = a.food > 0.0
+
+
+## Rations qui manquent pour remplir toutes les réserves (zoo ouvert seulement).
+func rations_needed() -> float:
+	if not food_due():
+		return 0.0
+	var n := 0.0
+	for a in animals:
+		if a.arrived:
+			n += maxf(0.0, food_capacity(a.def) - a.food)
+	return n
+
+
+## L'animal à nourrir en priorité : la réserve la plus basse, en part de sa journée.
+func _hungriest() -> Animal:
+	var best: Animal = null
+	var best_r := 0.95
+	for a in animals:
+		if a.arrived:
+			var r := a.food / food_capacity(a.def)
+			if r < best_r:
+				best_r = r
+				best = a
+	return best
+
+
+## Nourrisseur (clic droit sur la Cuisine) : prépare des rations (payées), les livre aux animaux qui en ont le
+## plus besoin, puis revient, en boucle. Il attend à la cuisine quand toutes les réserves sont pleines.
+func _update_feed(w: Worker, dt: float) -> void:
+	var task := w.task
+	var kitchen: Site = task["site"]
+	if not sites.has(kitchen):
+		w.task = {}
+		return
+	var R: Dictionary = data["buildings"]["zoo"]["rations"]
+	if task["phase"] == "deliver":
+		var a: Animal = task["animal"]
+		if not animals.has(a):
+			_feed_next(w)
+			return
+		if _refuses_near_predator(w):
+			return
+		var give := minf(float(task["rations"]), maxf(0.0, food_capacity(a.def) - a.food))
+		a.food += give
+		a.fed = a.food > 0.0
+		task["rations"] = float(task["rations"]) - give
+		w.card.last_work_tile = w.tile()
+		_feed_next(w)
+		return
+	# À la cuisine : préparer jusqu'à remplir ses bras ou couvrir le besoin, puis partir livrer.
+	if not kitchen.rect.has_point(w.tile()):
+		_set_path(w, kitchen.rect.position)
+		return
+	var want := minf(float(carry_capacity(w.card)), ceilf(rations_needed() - 0.0001))
+	if task["rations"] >= want or (task["rations"] > 0.01 and money < float(R["cout"])):
+		if task["rations"] > 0.01:
+			_feed_next(w)
+		return
+	if money < float(R["cout"]):
+		return
+	task["prep"] += efficiency_at(w, "nourrir") * dt
+	_work_traits(w, dt)
+	if task["prep"] >= float(R["preparation_s"]):
+		task["prep"] -= float(R["preparation_s"])
+		money -= float(R["cout"])
+		task["rations"] += 1
+
+
+## Agent d'entretien (clic droit sur le Local d'entretien) : circule dans l'enceinte et nettoie le parc.
+func _update_clean(w: Worker, dt: float) -> void:
+	var task := w.task
+	if not sites.has(task["site"]):
+		w.task = {}
+		return
+	var interior: Dictionary = zoo_status()["interior"]
+	if interior.is_empty():
+		return
+	task["t"] += dt
+	if not interior.has(w.tile()) or task["t"] >= 15.0:
+		# Change d'endroit toutes les 15 s (quelques essais au hasard parmi les cases de l'enceinte)
+		task["t"] = 0.0
+		var keys := interior.keys()
+		for i in 5:
+			var t: Vector2i = keys[rng.randi_range(0, keys.size() - 1)]
+			var p = map.find_path(w.tile(), t) if map.passable(t.x, t.y) else null
+			if p != null:
+				w.path.assign(p)
+				return
+		if not interior.has(w.tile()):
+			return
+	w.card.last_work_tile = w.tile()
+	_work_traits(w, dt)
+
+
+## Nettoyage : tant que l'agent est dans l'enceinte (à l'arrêt ou en marchant), la propreté remonte.
+func _sweep(w: Worker, dt: float) -> void:
+	if not zoo_status()["interior"].has(w.tile()):
+		return
+	var P: Dictionary = data["buildings"]["zoo"]["proprete"]
+	proprete = minf(100.0, proprete + float(P["nettoyage_par_minute"]) * efficiency_at(w, "nettoyer") * dt / 60.0)
+
+
+## Demande de visiteurs selon la propreté : ×0,85 sous 60, ×0,6 sous 30 (voir zoo.proprete.seuils).
+func cleanliness_mult() -> float:
+	var m := 1.0
+	for s in data["buildings"]["zoo"]["proprete"]["seuils"]:
+		if proprete < float(s[0]):
+			m = float(s[1])
+	return m
+
+
+## L'ouvrier tient en ce moment un poste de ce type situé dans l'enceinte (snack, kiosque…).
+func _at_post(w: Worker, kind: String) -> bool:
+	return w.task.get("kind") == kind and w.path.is_empty() and w.tile() == w.task["tile"] \
+		and zoo_status()["interior"].has(w.task["obj"].rect.position)
+
+
+## Snack tenu : multiplicateur de durée de visite des visiteurs qui entrent.
+func snack_mult() -> float:
+	for w in workers:
+		if _at_post(w, "snack"):
+			return float(building_def("snack")["effet"]["duree_visite_mult"])
+	return 1.0
+
+
+## Kiosque d'animation tenu : +3 d'attractivité × l'efficacité « animer » du meilleur ouvrier présent (Animateur : +6).
+func kiosque_bonus() -> int:
+	var best := 0
+	var base := float(building_def("kiosque")["effet"]["attractivite"])
+	for w in workers:
+		if _at_post(w, "kiosque"):
+			best = maxi(best, roundi(base * efficiency(w.card, "animer")))
+	return best
+
+
+## Va livrer l'animal le plus affamé avec les rations portées, ou retourne à la cuisine.
+func _feed_next(w: Worker) -> void:
+	var task := w.task
+	var a := _hungriest() if task["rations"] > 0.01 else null
+	if a == null:
+		task["phase"] = "to_kitchen"
+		_set_path(w, task["site"].rect.position)
+		return
+	var tiles: Array = a.tiles.filter(func(t): return map.passable(t.x, t.y))
+	if tiles.is_empty():
+		task["phase"] = "to_kitchen"
+		_set_path(w, task["site"].rect.position)
+		return
+	tiles.sort_custom(func(p, q): return w.pos.distance_squared_to(Vector2(p)) < w.pos.distance_squared_to(Vector2(q)))
+	task["phase"] = "deliver"
+	task["animal"] = a
+	_set_path(w, tiles[0])
 
 
 ## Réputation accumulée : gagnée chaque nuit selon le nombre moyen de visiteurs présents dans le zoo.
@@ -1365,7 +1767,7 @@ func attractiveness(only = null) -> int:
 			extra += int(Z["bonus_predateur"])
 		if cared_today.has(a):
 			extra += int(Z["bonus_soigneur"])
-	var total := extra
+	var total := extra + (kiosque_bonus() if not species.is_empty() else 0)
 	var biomes := {}
 	for d in species.values():
 		total += int(d["reputation"])
@@ -1388,8 +1790,13 @@ func marchand_present() -> bool:
 	return workers.any(func(w): return w.task.get("kind") == "trade" and w.path.is_empty() and map.in_camp(w.tile().x, w.tile().y))
 
 
+## Plein tarif avec un Marchand au comptoir (+25 % s'il est Négociateur), sinon taux réduit.
 func sell_rate() -> float:
-	return 1.0 if marchand_present() else float(data["buildings"]["zoo"]["vente_sans_marchand"])
+	var rate := float(data["buildings"]["zoo"]["vente_sans_marchand"])
+	for w in workers:
+		if w.task.get("kind") == "trade" and w.path.is_empty() and map.in_camp(w.tile().x, w.tile().y):
+			rate = maxf(rate, 1.25 if has_capacity(w.card, "negociateur") else 1.0)
+	return rate
 
 
 ## Vend le bois et la pierre du stock (l'or est gardé pour les contrats).
@@ -1543,7 +1950,7 @@ func demand_rate() -> float:
 		return 0.0
 	var Z: Dictionary = data["buildings"]["zoo"]
 	var per_day := attractiveness(z["animals"]) * float(Z["visiteurs_par_point_attractivite"]) * publicity_mult() \
-		* float(event_effects().get("visiteurs", 1.0)) * float(bonus_effects().get("visiteurs", 1.0))
+		* float(event_effects().get("visiteurs", 1.0)) * float(bonus_effects().get("visiteurs", 1.0)) * cleanliness_mult()
 	return per_day / day_length
 
 
@@ -1567,11 +1974,74 @@ func _shop_mult() -> float:
 	return best
 
 
+## Visiteurs simultanés maximum : cases intérieures de l'enceinte / cases_par_visiteur.
+func visitor_capacity() -> int:
+	return int(zoo_status()["interior"].size() / float(data["buildings"]["zoo"]["cases_par_visiteur"]))
+
+
+## Intensité des arrivées à l'instant t (1,0 = moyenne de la journée), selon courbe_arrivees, et nulle dans
+## les dernières secondes. Normalisée : le total des arrivées de la journée reste égal à la demande.
+func arrival_factor(t: float) -> float:
+	var stop := 1.0 - float(data["buildings"]["zoo"]["arret_arrivees_s"]) / day_length
+	if t / day_length >= stop:
+		return 0.0
+	if _arrival_norm_len != day_length:
+		var sum := 0.0
+		for i in 200:
+			var x := (i + 0.5) / 200.0
+			if x < stop:
+				sum += _arrival_curve(x)
+		_arrival_norm = sum / 200.0
+		_arrival_norm_len = day_length
+	return _arrival_curve(t / day_length) / _arrival_norm
+
+
+func _arrival_curve(x: float) -> float:
+	var pts: Array = data["buildings"]["zoo"]["courbe_arrivees"]
+	for i in range(1, pts.size()):
+		if x <= float(pts[i][0]):
+			var a: Array = pts[i - 1]
+			var b: Array = pts[i]
+			return lerpf(float(a[1]), float(b[1]), (x - float(a[0])) / maxf(float(b[0]) - float(a[0]), 0.0001))
+	return float(pts[-1][1])
+
+
+## Taille moyenne d'un groupe de visiteurs.
+func _group_mean() -> float:
+	var dist: Dictionary = data["buildings"]["zoo"]["groupes"]
+	var m := 0.0
+	for k in dist:
+		m += int(k) * float(dist[k])
+	return m
+
+
+func _group_size() -> int:
+	var dist: Dictionary = data["buildings"]["zoo"]["groupes"]
+	var r := rng.randf()
+	for k in dist:
+		r -= float(dist[k])
+		if r < 0.0:
+			return int(k)
+	return int(dist.keys()[-1])
+
+
+## Nombre d'arrivées d'un processus de Poisson de moyenne lam pendant un pas (méthode de Knuth, lam petit).
+func _poisson(lam: float) -> int:
+	if lam <= 0.0:
+		return 0
+	var limit := exp(-lam)
+	var k := 0
+	var p := rng.randf()
+	while p > limit:
+		k += 1
+		p *= rng.randf()
+	return k
+
+
 func _reset_visit() -> void:
 	road_visitors.clear()
 	visitor_queue = 0
 	in_zoo.clear()
-	_spawn_acc = 0.0
 	_admit_acc = 0.0
 	visit = {"admitted": 0, "lost": 0, "tickets": 0.0, "souvenirs": 0.0, "presence": 0.0}
 
@@ -1581,12 +2051,12 @@ func _update_visitors(dt: float) -> void:
 		_reset_visit()
 	var Z: Dictionary = data["buildings"]["zoo"]
 	var path := visitor_path()
-	# Arrivées à l'Accès
+	# Arrivées à l'Accès : des groupes, à intervalles aléatoires, plus nombreux en milieu de journée
 	if not path.is_empty():
-		_spawn_acc += demand_rate() * dt
-		while _spawn_acc >= 1.0:
-			_spawn_acc -= 1.0
-			road_visitors.append(0.0)
+		var groups_per_s := demand_rate() * arrival_factor(time) / _group_mean()
+		for _g in _poisson(groups_per_s * dt):
+			for _k in _group_size():
+				road_visitors.append(0.0)
 	# Marche sur la route jusqu'à la file d'attente
 	var step := float(Z["vitesse_visiteur"]) * dt
 	var end := float(maxi(path.size() - 1, 0))
@@ -1598,12 +2068,16 @@ func _update_visitors(dt: float) -> void:
 				visitor_queue += 1
 			else:
 				visit["lost"] += 1  # file pleine : le visiteur repart
-	# Guichet : billet, souvenirs, entrée dans le zoo
-	var interior: Array = zoo_status()["interior"].keys()
+	# Guichet : billet, souvenirs, entrée dans le zoo, dans la limite de la capacité du parc (sinon la file attend)
+	var room := visitor_capacity() - in_zoo.size()
 	_admit_acc += guichet_rate() * dt
-	if visitor_queue == 0:
+	if visitor_queue == 0 or room <= 0:
 		_admit_acc = minf(_admit_acc, 1.0)
-	while _admit_acc >= 1.0 and visitor_queue > 0 and not interior.is_empty():
+	var interior: Array = []
+	while _admit_acc >= 1.0 and visitor_queue > 0 and room > 0:
+		if interior.is_empty():
+			interior = zoo_status()["interior"].keys()
+		room -= 1
 		_admit_acc -= 1.0
 		visitor_queue -= 1
 		visit["admitted"] += 1
@@ -1618,13 +2092,17 @@ func _update_visitors(dt: float) -> void:
 		money += souv
 		visit["souvenirs"] += souv
 		var t: Vector2i = interior[rng.randi_range(0, interior.size() - 1)]
-		in_zoo.append({"t": float(Z["duree_visite_s"]), "pos": Vector2(t) + Vector2(rng.randf(), rng.randf())})
+		var ecart := float(Z["duree_visite_ecart_s"])
+		var duree := (float(Z["duree_visite_s"]) + rng.randf_range(-ecart, ecart)) * snack_mult()
+		in_zoo.append({"t": duree, "pos": Vector2(t) + Vector2(rng.randf(), rng.randf())})
 	# Visite puis départ
 	for i in range(in_zoo.size() - 1, -1, -1):
 		in_zoo[i]["t"] -= dt
 		if in_zoo[i]["t"] <= 0.0:
 			in_zoo.remove_at(i)
 	visit["presence"] += in_zoo.size() * dt
+	# Les visiteurs salissent le parc
+	proprete = maxf(0.0, proprete - float(Z["proprete"]["salete_par_visiteur_minute"]) * in_zoo.size() * dt / 60.0)
 
 
 ## Fin de journée : réputation gagnée selon la fréquentation moyenne, puis remise à zéro des visiteurs.
@@ -1654,7 +2132,8 @@ func zoo_live() -> Dictionary:
 		reason = "Aucune route ne relie l'Accès à l'Entrée du zoo"
 	return {"open": z["open"] and not visitor_path().is_empty(), "reason": reason,
 		"attract": attractiveness(z.get("animals", [])), "demand_day": demand_rate() * day_length, "pub": publicity_mult(),
-		"road": road_visitors.size(), "queue": visitor_queue, "inside": in_zoo.size(), "admitted": visit["admitted"],
+		"road": road_visitors.size(), "queue": visitor_queue, "inside": in_zoo.size(), "capacity": visitor_capacity(),
+		"admitted": visit["admitted"],
 		"lost": visit["lost"], "tickets": roundi(visit["tickets"]), "souvenirs": roundi(visit["souvenirs"]),
 		"guichet_min": guichet_rate() * 60.0}
 

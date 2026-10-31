@@ -1,6 +1,6 @@
 class_name Match
 extends RefCounted
-## Une partie : les joueurs (humain et IA), l'horloge commune, le draft serpent et le marché de nuit partagés.
+## Une partie : les joueurs (humain et IA), l'horloge commune, le draft par tours et le marché de nuit partagés.
 ## Chaque joueur (GameState) a sa propre copie de la carte, générée avec la même graine.
 
 const PRENOMS: Array[String] = ["Léa", "Hugo", "Jade", "Louis", "Emma", "Nathan", "Inès", "Gabin", "Chloé", "Tom",
@@ -22,7 +22,8 @@ var winner := -1
 var next_card_id := 1
 var positive_ids := {}
 
-var draft_pool: Array = []
+var draft_pool: Array = []  # cartes révélées du tour en cours
+var draft_reserve: Array = []  # cartes des tours suivants, pas encore révélées
 var draft_order: Array[int] = []
 var draft_turn := 0
 var drafted: Array = []  # cartes prises, par joueur
@@ -46,8 +47,10 @@ func _init(game_data: Dictionary, map_seed: int, nb_players := 4, human := 0, st
 	day_length = float(data["buildings"]["partie"]["duree_jour_s"])
 	for t in data["workers"]["traits_positifs"]:
 		positive_ids[t["id"]] = true
+	# Même graine pour tous : la carte est générée une seule fois puis copiée pour chaque joueur.
+	var base_map := MapGenerator.generate(data["buildings"], map_seed) if nb_players > 0 else null
 	for i in nb_players:
-		players.append(GameState.new(data, map_seed, self, i))
+		players.append(GameState.new(data, map_seed, self, i, base_map))
 		drafted.append([])
 	var ia_count := 0
 	for i in nb_players:
@@ -133,23 +136,48 @@ func _excluded(id: String, chosen: Array[String], exclusions: Array) -> bool:
 	return false
 
 
-# --- Draft serpent -----------------------------------------------------------
+# --- Draft par tours ---------------------------------------------------------
+# Chaque tour révèle `cartes_par_tour` cartes (au moins une par joueur). Les joueurs en prennent une
+# chacun, à tour de rôle ; s'il ne reste qu'une carte pour le dernier joueur, elle lui revient d'office.
+# Les cartes non prises sont défaussées. Le premier à choisir avance d'un joueur à chaque tour.
 
 func _setup_draft() -> void:
 	var gen: Dictionary = data["workers"]["generation_draft"]
 	var per_player := int(gen["cartes_par_joueur"])
 	var n := players.size()
-	for i in per_player * n:
-		draft_pool.append(make_card(pick_weighted(gen["probabilites"])))
+	for i in per_player * draft_round_size():
+		draft_reserve.append(make_card(pick_weighted(gen["probabilites"])))
 	var first := rng.randi_range(0, n - 1)
 	for r in per_player:
-		var round_order: Array[int] = []
 		for p in n:
-			round_order.append((first + p) % n)
-		if r % 2 == 1:
-			round_order.reverse()
-		draft_order.append_array(round_order)
+			draft_order.append((first + r + p) % n)
+	_reveal_draft_round()
 	bump()
+
+
+## Nombre de cartes révélées à chaque tour.
+func draft_round_size() -> int:
+	return maxi(int(data["workers"]["generation_draft"].get("cartes_par_tour", 4)), players.size())
+
+
+func draft_round() -> int:
+	return draft_turn / players.size()
+
+
+func draft_rounds() -> int:
+	return draft_order.size() / players.size()
+
+
+## Ordre de choix du tour en cours (index des joueurs).
+func draft_round_order() -> Array[int]:
+	var start := draft_round() * players.size()
+	return draft_order.slice(start, start + players.size())
+
+
+func _reveal_draft_round() -> void:
+	var k := draft_round_size()
+	draft_pool = draft_reserve.slice(0, k)
+	draft_reserve = draft_reserve.slice(k)
 
 
 func current_drafter() -> int:
@@ -159,12 +187,21 @@ func current_drafter() -> int:
 func pick_draft(card: GameState.Card) -> void:
 	if phase != "draft" or not draft_pool.has(card):
 		return
+	var n := players.size()
 	draft_pool.erase(card)
 	drafted[current_drafter()].append(card)
 	draft_turn += 1
-	bump()
+	# Dernier joueur du tour face à une seule carte : elle lui revient d'office.
+	if draft_turn % n != 0 and draft_pool.size() == 1:
+		drafted[current_drafter()].append(draft_pool.pop_back())
+		draft_turn += 1
 	if draft_turn >= draft_order.size():
+		draft_pool.clear()
 		_finish_draft()
+		return
+	if draft_turn % n == 0:
+		_reveal_draft_round()
+	bump()
 
 
 ## Choix au draft pour le joueur qui a la main (utilisé par les IA, et par --autodraft pour l'humain).

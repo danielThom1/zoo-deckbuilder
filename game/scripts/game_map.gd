@@ -41,6 +41,21 @@ func _init(width: int, height: int, terrain_defs: Dictionary, road_multiplier: f
 	res_left.resize(w * h)
 
 
+## Copie indépendante (chaque joueur modifie sa propre carte) : ~10 fois moins chère que de la régénérer.
+func copy() -> GameMap:
+	var m := GameMap.new(w, h, defs, road_mult)
+	m.tiles = tiles.duplicate()
+	m.road = road.duplicate()
+	m.bridge = bridge.duplicate()
+	m.res_left = res_left.duplicate()
+	m.camp = camp
+	m.start_zone = start_zone
+	m.exit_tile = exit_tile
+	m.golds = golds.duplicate()
+	m.build_astar()
+	return m
+
+
 func idx(x: int, y: int) -> int:
 	return y * w + x
 
