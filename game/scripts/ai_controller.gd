@@ -111,7 +111,9 @@ func on_day_start() -> void:
 	# est ouvert), puis Formation express une fois les ouvriers sur la carte.
 	for pass_i in 2:
 		for c in g.hand.duplicate():
-			if c.is_action() and c.action["id"] != "formation_express" \
+			if c.is_action() and c.action.get("cible", false):
+				_play_targeted(c)
+			elif c.is_action() and c.action["id"] != "formation_express" \
 				and (c.action["id"] != "portes_ouvertes" or g.zoo_status()["open"]):
 				g.play_action(c)
 	var hand := g.hand.filter(func(c): return not c.is_action())
@@ -146,7 +148,40 @@ func _action_value(c: GameState.Card) -> float:
 			return 2.0
 		"recrutement", "formation_express":
 			return 1.0
+		"promotion":
+			return 1.5
+		"licenciement":
+			var cards := g.all_employees()
+			return 1.5 if cards.size() > 4 and cards.any(func(c): return card_value(c) < 0.5) else 0.0
 	return 0.0
+
+
+## Rupture de contrat : la carte la plus faible qui n'est pas sur le terrain. Promotion : la meilleure carte.
+func _play_targeted(c: GameState.Card) -> void:
+	var cards := g.all_employees()
+	if cards.is_empty():
+		return
+	cards.sort_custom(func(a, b): return card_value(a) > card_value(b))
+	if c.action["effet"].has("licencier"):
+		for k in range(cards.size() - 1, -1, -1):
+			if g.action_target_error(c, cards[k]) == "":
+				g.play_action(c, cards[k])
+				return
+		return
+	var best: GameState.Card = cards[0]
+	g.play_action(c, best, _best_upgrade(best, g.upgrade_options(best)))
+
+
+## Campagne publicitaire voulue : zoo ouvert et argent abondant (deux fois son prix au-dessus de la réserve).
+## La plus chère qui remplit cette condition (la liste va de la moins chère à la plus chère).
+func _campaign_wanted() -> Dictionary:
+	if not g.campaign.is_empty() or not g.zoo_status()["open"]:
+		return {}
+	var best := {}
+	for d in g.campaign_defs():
+		if g.money - float(d["cout"]) * 2.0 >= _cash_floor() + float(strat["reserve"]):
+			best = d
+	return best
 
 
 func _manual_value(c: GameState.Card) -> float:
@@ -221,6 +256,9 @@ func update(dt: float) -> void:
 	for w in g.workers:
 		if not w.offmap and w.task.is_empty() and w.path.is_empty():
 			_assign(w)
+	var camp := _campaign_wanted()
+	if not camp.is_empty() and not g.outside_workers().is_empty():
+		g.launch_campaign(camp)
 	# Le Marchand rejoint le comptoir en fin de journée pour la vente du soir.
 	if g.time > g.day_length - 40.0:
 		for w in g.workers:
@@ -1078,6 +1116,11 @@ func _assign(w: GameState.Worker) -> void:
 			if a.arrived and not g.cared_today.has(a):
 				g.order([w], a.tiles[0])
 				return
+	# Campagne publicitaire à mener (en cours ou voulue) : un ouvrier part à l'extérieur s'il n'y a personne.
+	if not g.workers.any(func(o): return o.offmap or o.task.get("type") == "lobby") and not w.unpaid and g.workers.size() >= 4 \
+		and (not g.campaign.is_empty() or not _campaign_wanted().is_empty()):
+		g.order([w], g.map.exit_tile)
+		return
 	if lobby_today < int(strat["lobbyistes_max"]) and not w.unpaid and g.money > _cash_floor() + float(strat["reserve"]):
 		lobby_today += 1
 		g.order([w], g.map.exit_tile)

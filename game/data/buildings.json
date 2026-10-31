@@ -60,6 +60,8 @@
     { "id": "pont",       "nom": "Pont",                 "taille": [1, 1], "travail": 45,  "type_travail": "construire_bois",  "cout": { "bois": 4 },              "effet": { "vitesse": 2.0 }, "sur": "Eau", "peinture": true },
     { "id": "maison",     "nom": "Maison d'ouvriers",    "taille": [2, 2], "travail": 180,  "type_travail": "construire_bois",  "cout": { "bois": 12, "pierre": 4 }, "effet": { "logement": 4 } },
     { "id": "entrepot",   "nom": "Entrepôt",             "taille": [2, 2], "travail": 160,  "type_travail": "construire_bois",  "cout": { "bois": 10, "pierre": 6 }, "effet": { "stockage": true }, "hors_enceinte": true },
+    { "id": "comptoir",   "nom": "Marché",               "taille": [2, 2], "travail": 120,  "type_travail": "construire_bois",  "cout": { "bois": 10, "pierre": 4 }, "effet": { "commerce": true }, "unique": true, "_note_effet": "Vente du stock à 70 % sans personne. Tenu par un Marchand (clic droit) : vente à 125 % et achat de bois et de pierre 30 % moins cher (Négociateur : +25 % de vente et −10 % d'achat en plus)." },
+    { "id": "agence",     "nom": "Agence d'intérim",     "taille": [2, 2], "travail": 140,  "type_travail": "construire_bois",  "cout": { "bois": 12, "pierre": 6 }, "effet": { "echange": true }, "unique": true, "_note_effet": "La nuit, à votre tour au marché, échange un de vos ouvriers contre un ouvrier du marché (une fois par nuit, en plus de l'embauche, sans place de logement). Coût : voir la section agence." },
     { "id": "mine",       "nom": "Mine d'or",            "taille": [2, 2], "travail": 300, "type_travail": "construire_pierre", "cout": { "bois": 10, "pierre": 15 }, "effet": { "permet_extraction": "or" }, "sur": "MineOr", "hors_enceinte": true, "_note": "Une mine par gisement (2 gisements par carte)." },
     { "id": "cloture",    "nom": "Enceinte (segment)",   "taille": [1, 1], "travail": 6,   "type_travail": "construire_pierre", "cout": { "pierre": 1 },            "effet": { "enceinte": true }, "peinture": true },
     { "id": "entree",     "nom": "Entrée du zoo",        "taille": [2, 1], "travail": 120,  "type_travail": "construire_pierre", "cout": { "pierre": 8, "bois": 4 }, "effet": { "entree_zoo": true }, "unique": true },
@@ -72,6 +74,29 @@
     { "id": "kiosque",    "nom": "Kiosque d'animation",  "taille": [2, 2], "travail": 140, "type_travail": "construire_pierre", "cout": { "bois": 6, "pierre": 10, "argent": 15 }, "effet": { "attractivite": 3 }, "dans_enceinte": true, "_note_effet": "Tenu par un ouvrier (clic droit) : +3 d'attractivité × son efficacité « animer » (Animateur : +6)." }
   ],
 
+  "comptoir": {
+    "_note": "Bâtiment Marché (id comptoir) : taux de vente du stock et remise à l'achat. Sans Marchand : taux vente_sans_marchand de la section zoo ; Marchand au camp : 100 %.",
+    "vente_batiment": 0.7,
+    "vente_marchand": 1.25,
+    "achat_marchand": 0.7,
+    "negociateur_vente": 0.25,
+    "negociateur_achat": 0.1
+  },
+  "agence": {
+    "_note": "Échange à l'Agence d'intérim : coût = frais + prix d'embauche de l'ouvrier pris − reprise × prix d'embauche de l'ouvrier cédé (au moins les frais). L'ouvrier cédé rejoint le marché à la place de l'autre.",
+    "frais": 4,
+    "reprise": 0.5
+  },
+  "publicite": {
+    "_note": "Campagnes publicitaires : lancées en journée (une à la fois) s'il y a au moins un ouvrier hors de la carte (case Accès). Payées au lancement, elles avancent tant que des ouvriers sont dehors (1 + efficacité de lobbying par seconde et par ouvrier, sans réduire l'influence) et se poursuivent le lendemain. Terminée, une campagne ajoute ses points de publicité pour toute la partie. Visiteurs × (1 + max × points / (points + demi_points)).",
+    "max": 1.0,
+    "demi_points": 8,
+    "campagnes": [
+      { "id": "affiches", "nom": "Affiches en ville", "court": "Affiches", "cout": 40,  "travail": 60,  "points": 1,  "texte": "+1 point de publicité" },
+      { "id": "radio",    "nom": "Spot radio", "court": "Radio",        "cout": 120, "travail": 150, "points": 4,  "texte": "+4 points de publicité" },
+      { "id": "tele",     "nom": "Campagne télévisée", "court": "Télé", "cout": 300, "travail": 240, "points": 12, "texte": "+12 points de publicité" }
+    ]
+  },
   "marche": {
     "_note": "Marché de nuit commun aux joueurs. Chaque nuit : 1 ouvrier et 1 contrat maximum par joueur, dans l'ordre d'influence. Une carte non achetée est retirée au hasard chaque nuit pour faire tourner le marché.",
     "ouvriers": 5,
@@ -111,7 +136,6 @@
     "file_max": 20,
     "vitesse_visiteur": 1.5,
     "reputation_par_visiteur_moyen": 0.3,
-    "publicite": { "max": 0.6, "demi_influence": 15, "_note": "Visiteurs × (1 + max × influence / (influence + demi_influence))" },
     "rations": { "cout": 1, "preparation_s": 3, "_note": "Chaque animal mange par jour autant de rations que sa nourriture de palier (T1 2, T2 4, T3 6), réparties sur la journée. Réserve maximale : une journée. À 0, il a faim : il ne compte plus dans l'attractivité. Avant l'ouverture du zoo, le fournisseur le nourrit." },
     "proprete": { "salete_par_visiteur_minute": 0.3, "nettoyage_par_minute": 12, "seuils": [[60, 0.85], [30, 0.6]], "_note": "Propreté du parc de 0 à 100. Les visiteurs présents la font baisser ; un ouvrier du Local d'entretien la remonte. En dessous des seuils, la demande de visiteurs est multipliée (×0,85 sous 60, ×0,6 sous 30)." },
     "bonus_predateur": 2,

@@ -127,6 +127,8 @@ func _init() -> void:
 	a.card.traits.assign(["rabat_joie"])
 	b.pos = a.pos + Vector2(1, 0)
 	check(is_equal_approx(ga.aura_mult(b), 0.9), "Rabat-joie adjacent : -10 %%")
+	b.pos = a.pos + Vector2(3, 0)
+	check(is_equal_approx(ga.aura_mult(b), 0.9), "Rabat-joie à 3 cases : -10 %% aussi")
 
 	print("Construction :")
 	var gc := _fresh_day(data, 12345)
@@ -295,7 +297,9 @@ func _init() -> void:
 	gz.cared_today[gz.animals[0]] = true
 	check(gz.attractiveness() == 6, "Soigneur : +2 d'attractivité")
 	gz.influence = 15.0
-	check(is_equal_approx(gz.publicity_mult(), 1.3), "publicité : influence 15 -> +30 %% de visiteurs")
+	check(is_equal_approx(gz.publicity_mult(), 1.0), "l'influence n'attire plus de visiteurs")
+	gz.publicite = 8.0
+	check(is_equal_approx(gz.publicity_mult(), 1.5), "publicité : 8 points de campagnes -> +50 %% de visiteurs")
 	# Ouvrir une brèche dans l'enceinte ferme le zoo
 	var wall: GameState.Site = gz.site_at(Vector2i(6, 4))  # milieu du mur du haut (un coin ne laisse rien passer)
 	gz._remove_site(wall)
@@ -357,8 +361,9 @@ func _init() -> void:
 	var gf := _fresh_day(data, 77)
 	check(is_equal_approx(gf.stock["bois"], 15.0) and is_equal_approx(gf.stock["pierre"], 15.0), "stock de départ : 15 bois, 15 pierre")
 	gf.money = 0.0
-	var c0: GameState.Card = gf.hand[0]
-	var c1: GameState.Card = gf.hand[1]
+	var paid_hand := gf.hand.filter(func(c): return gf.salary(c) > 0)  # un Économe peut avoir un salaire nul
+	var c0: GameState.Card = paid_hand[0]
+	var c1: GameState.Card = paid_hand[1]
 	check(not gf.deploy(c0), "sans argent, déploiement normal refusé")
 	check(gf.deploy(c0, true), "déploiement gratuit accepté")
 	check(not gf.deploy(c1, true), "un seul déploiement gratuit par jour")
@@ -656,29 +661,71 @@ func _init() -> void:
 	check(d_g.employees() == d_emp0, "les cartes d'action ne comptent pas dans le logement")
 	check(not d_g.deploy(d_sup), "une carte d'action ne se déploie pas")
 	var d_mult0 := d_g.task_mult("construire_bois")
-	check(d_g.play_action(d_sup) and is_equal_approx(d_g.task_mult("construire_bois"), d_mult0 * 1.25), "Heures sup : +25 % de productivité")
-	check(not d_g.play_action(d_sup), "une carte ne se joue qu'une fois par jour")
+	check(d_g.play_action(d_sup) and is_equal_approx(d_g.task_mult("construire_bois"), d_mult0 * 1.4), "Heures sup : +40 % de productivité")
+	check(not d_g.hand.has(d_sup) and not d_g.play_action(d_sup), "usage unique : la carte jouée quitte la main")
 	var d_bois0: float = d_g.stock["bois"]
-	check(d_g.play_action(d_liv) and is_equal_approx(d_g.stock["bois"], d_bois0 + 10.0), "Livraison : +10 bois")
+	check(d_g.play_action(d_liv) and is_equal_approx(d_g.stock["bois"], d_bois0 + 30.0), "Livraison : +30 bois")
 	var d_hand0 := d_g.hand.size()
-	check(d_g.play_action(d_recr) and d_g.hand.size() == d_hand0 + 2, "Recrutement express : 2 cartes de plus en main")
+	check(d_g.play_action(d_recr) and d_g.hand.size() == d_hand0 + 2, "Recrutement express : 3 cartes piochées (la carte jouée sort de la main)")
 	d_g.play_action(d_prime)
 	var d_worker: GameState.Card = d_g.hand.filter(func(c): return not c.is_action() and not c.deployed)[0]
 	var d_money0 := d_g.money
-	check(d_g.deploy(d_worker) and is_equal_approx(d_g.money, d_money0) and d_g.prime_left == 1, "Prime : ouvrier déployé sans salaire")
+	check(d_g.deploy(d_worker) and is_equal_approx(d_g.money, d_money0) and d_g.prime_left == 3, "Prime : ouvrier déployé sans salaire (3 restants)")
 	d_g.end_day()
-	check(not d_sup.deployed and d_g.discard.has(d_sup), "le soir, les cartes jouées retournent à la défausse, prêtes à resservir")
+	check(d_g.action_cards().is_empty(), "le soir, les cartes jouées ne reviennent pas dans le deck")
+	d_g.start_next_day()
+	var d_fire := d_g.mt.make_action(d_defs["licenciement"])
+	var d_promo := d_g.mt.make_action(d_defs["promotion"])
+	var d_form := d_g.mt.make_action(d_defs["formation_express"])
+	d_g.hand.append_array([d_fire, d_promo, d_form])
+	var d_n0 := d_g.employees()
+	var d_victim: GameState.Card = d_g.all_employees()[-1]
+	check(not d_g.play_action(d_fire), "Rupture de contrat : il faut choisir un ouvrier")
+	check(d_g.play_action(d_fire, d_victim) and d_g.employees() == d_n0 - 1 and not d_g.all_employees().has(d_victim),
+		"Rupture de contrat : %s licencié, la carte quitte le deck" % d_victim.nom)
+	var d_star: GameState.Card = d_g.all_employees()[0]
+	var d_opt: Dictionary = d_g.upgrade_options(d_star)[0]
+	var d_up0 := d_star.upgrade_names.size()
+	check(d_g.play_action(d_promo, d_star, d_opt) and d_star.upgrade_names.size() == d_up0 + 1, "Promotion : %s gagne « %s »" % [d_star.nom, d_opt["nom"]])
+	var d_far: GameState.Card = d_g.all_employees()[-1]
+	var d_xp0 := d_far.xp
+	check(d_g.play_action(d_form) and d_far.xp >= d_xp0 + 1.999, "Formation express : +2 jours d'expérience, même dans la pioche")
+	# Draft : premiers tours plus faibles
+	var d_neg := [0, 0]
+	for i in 300:
+		d_neg[0] += d_g.mt.make_card("peu_qualifie", 1.0).traits.filter(func(t): return not d_g.is_positive(t)).size()
+		d_neg[1] += d_g.mt.make_card("peu_qualifie", 0.0).traits.filter(func(t): return not d_g.is_positive(t)).size()
+	check(d_neg[0] > d_neg[1] + 200, "draft : cartes du 1er tour avec plus de défauts (%d contre %d sur 300 cartes)" % d_neg)
 	# Achat au marché (partie à un joueur : on achète toujours en premier)
 	var d_solo := Match.new(data, 6161, 1, 0)
 	while d_solo.phase == "draft":
 		d_solo.pick_draft(d_solo.ai_choice())
 	var d_me: GameState = d_solo.players[0]
 	d_me.money = 100.0
+	d_me.stock["bois"] = 60.0
+	d_me.stock["pierre"] = 60.0
+	var d_agdef := d_me.building_def("agence")
+	var d_ag: GameState.Site = null
+	for dy in range(-8, 9):
+		for dx in range(-8, 9):
+			if d_ag == null and d_me.placement_error("batiment", d_agdef, d_me.map.camp.position + Vector2i(dx, dy), false) == "":
+				d_ag = d_me.place("batiment", d_agdef, d_me.map.camp.position + Vector2i(dx, dy))
+	check(d_ag != null, "Agence d'intérim placée")
+	d_ag.work = d_ag.travail()
+	d_me._complete(d_ag)
 	d_solo.end_day()
 	check(d_solo.market_actions.size() == int(data["buildings"]["marche"]["actions"]), "%d cartes d'action au marché de nuit" % d_solo.market_actions.size())
 	var d_buy: GameState.Card = d_solo.market_actions[0]
 	check(d_me.buy_action(d_buy) and d_me.discard.has(d_buy) and d_me.action_cards().size() == 1, "carte d'action achetée : %s, dans la défausse" % d_buy.action["nom"])
 	check(not d_me.buy_action(d_solo.market_actions[0]), "une seule carte d'action par nuit")
+	var d_take: GameState.Card = d_solo.market_workers[0]
+	var d_give: GameState.Card = d_me.all_employees()[0]
+	var d_cost := d_me.swap_cost(d_give, d_take)
+	var d_m := d_me.money
+	check(d_me.swap_worker(d_give, d_take) and d_solo.market_workers.has(d_give) and d_me.discard.has(d_take) \
+		and not d_me.all_employees().has(d_give) and is_equal_approx(d_me.money, d_m - d_cost),
+		"Agence d'intérim : %s échangé contre %s pour %d" % [d_give.nom, d_take.nom, d_cost])
+	check(not d_me.swap_worker(d_me.all_employees()[0], d_solo.market_workers[1]), "un seul échange par nuit")
 	# Terrain : transformations en deux étapes (par la Prairie) pour l'IA
 	var d_ai: AIController = Match.new(data, 6262, 2, 0).ais[1]
 	check(d_ai._conversion_steps("Foret", "Eau") == 2 and d_ai._conversion_steps("Roche", "Sable") == 2 \
@@ -726,6 +773,90 @@ func _init() -> void:
 	e_g.start_next_day()
 	check(e_g.hand.size() == e_hand0 + 1 or e_g.deck.is_empty(), "le lendemain, la main compte %d cartes" % e_g.hand.size())
 	data["events"]["proba_evenement"] = e_proba
+
+	print("Lot F : marché, dépôt, enclos partagés, parc libre :")
+	var f_proba = data["events"]["proba_evenement"]
+	data["events"]["proba_evenement"] = 0.0
+	var fm := _fresh_day(data, 12345)
+	fm.stock["bois"] = 60.0
+	fm.stock["pierre"] = 60.0
+	fm.money = 100.0
+	for c in fm.hand.duplicate():
+		fm.deploy(c)
+	var f_site := fm.place("batiment", fm.building_def("comptoir"), fm.map.camp.position + Vector2i(-4, 0))
+	check(f_site != null, "bâtiment Marché placé")
+	f_site.work = f_site.travail()
+	fm._complete(f_site)
+	check(not fm.building_def("comptoir")["cout"].has("or") and not fm.building_def("comptoir")["cout"].has("argent"), "Marché : bois et pierre seulement")
+	check(is_equal_approx(fm.sell_rate(), 0.7), "Marché sans Marchand : vente à 70 %% (%.2f)" % fm.sell_rate())
+	var f_tr: GameState.Worker = fm.workers[0]
+	f_tr.card.metier = fm.metier_def("marchand")
+	f_tr.task = {"type": "station", "kind": "trade", "obj": f_site, "tile": f_site.rect.position}
+	f_tr.pos = Vector2(f_site.rect.position) + Vector2(0.5, 0.5)
+	f_tr.path.clear()
+	check(is_equal_approx(fm.sell_rate(), 1.25) and is_equal_approx(fm.buy_mult(), 0.7),
+		"Marchand au Marché : vente %.2f, achat ×%.2f" % [fm.sell_rate(), fm.buy_mult()])
+	fm.stock["bois"] = 20.0
+	var f_m0 := fm.money
+	check(fm.sell_amount("bois", 8) and is_equal_approx(fm.stock["bois"], 12.0) and fm.money > f_m0, "vente d'une quantité choisie : 8 bois sur 20")
+	var f_w: GameState.Worker = fm.workers[1]
+	f_w.carry = 3.0
+	f_w.carry_type = "pierre"
+	f_w.task = {}
+	var f_p0: float = fm.stock["pierre"]
+	fm.order([f_w], fm.map.camp.get_center())
+	for i in 300:
+		fm.tick(0.1)
+		if f_w.carry == 0.0:
+			break
+	check(is_zero_approx(f_w.carry) and is_equal_approx(fm.stock["pierre"], f_p0 + 3.0), "clic droit sur le camp : la charge est déposée")
+	# Campagne publicitaire menée par un ouvrier à l'extérieur
+	var f_out: GameState.Worker = fm.workers[2]
+	fm.money = 100.0
+	var f_aff: Dictionary = fm.campaign_defs()[0]
+	check(fm.campaign_error(f_aff) != "", "campagne : il faut un ouvrier à l'extérieur")
+	f_out.offmap = true
+	f_out.path.clear()
+	var f_inf0 := fm.influence
+	check(fm.launch_campaign(f_aff) and is_equal_approx(fm.money, 100.0 - float(f_aff["cout"])), "campagne lancée et payée (%d)" % int(f_aff["cout"]))
+	for i in 1500:
+		fm.tick(0.1)
+		if fm.campaign.is_empty():
+			break
+	check(is_equal_approx(fm.publicite, float(f_aff["points"])) and fm.influence > f_inf0,
+		"campagne terminée par l'ouvrier dehors (+%d point), l'influence continue (%.1f)" % [int(f_aff["points"]), fm.influence])
+	check(fm.publicity_mult() > 1.05, "la publicité augmente l'affluence : ×%.2f" % fm.publicity_mult())
+
+	var fg := _fresh_day(data, 2027)
+	fg.debug_build_zoo(Vector2i(4, 4))
+	fg.end_day()
+	fg.start_next_day()
+	var f_zebre: Dictionary = fg.animals[0].def
+	var f_enc := fg.enclosure_at(Vector2i(7, 6))
+	check(f_enc["closed"] and not f_enc.get("park", false), "enclos clôturé reconnu")
+	var f_big: Dictionary = f_zebre.duplicate(true)
+	f_big["id"] = "test_grand"
+	f_big["taille"] = 3
+	check("trop petit" in fg.animal_error(f_big, f_enc), "enclos partagé : la surface couvre tous les animaux (%s)" % fg.animal_error(f_big, f_enc))
+	var f_park := fg.enclosure_at(Vector2i(10, 6))
+	check(f_park["closed"] and f_park.get("park", false) and f_park["tiles"].size() >= 10, "le parc libre de l'enceinte sert d'enclos (%d cases)" % f_park.get("tiles", []).size())
+	var f_lion: Dictionary = data["animals"]["animaux"].filter(func(d): return d.get("special", "") == "predateur")[0]
+	check("prédateur" in fg.animal_error(f_lion, f_park), "pas de prédateur en liberté")
+	var f_a: Dictionary = f_zebre.duplicate(true)
+	f_a["id"] = "test_parc_a"
+	f_a["taille"] = 4
+	var f_b: Dictionary = f_zebre.duplicate(true)
+	f_b["id"] = "test_parc_b"
+	f_b["taille"] = 4
+	fg.contracts.append_array([f_a, f_b])
+	var f_bonus0 := fg.affinity_bonus()
+	check(fg.install_animal(f_a, Vector2i(10, 6)) == "" and fg.install_animal(f_b, Vector2i(10, 6)) == "", "deux animaux installés ensemble dans le parc libre")
+	check(fg.animals[1].pattern_tiles.all(func(t): return not fg.animals[2].pattern_tiles.has(t)), "chaque animal garde ses cases de motif")
+	fg.end_day()
+	fg.start_next_day()
+	check(fg.shared_type_count(fg.animals[1]) == 1, "même type dans le même enclos : 1 compagnon")
+	check(fg.affinity_bonus() >= f_bonus0 + 0.149, "affinités : continent +10 %% et type partagé +5 %% (%.2f → %.2f)" % [f_bonus0, fg.affinity_bonus()])
+	data["events"]["proba_evenement"] = f_proba
 
 	print("IA :")
 	var mi := Match.new(data, 31, 2, -1)

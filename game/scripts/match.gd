@@ -106,7 +106,9 @@ func is_positive(trait_id: String) -> bool:
 	return positive_ids.has(trait_id)
 
 
-func make_card(categorie: String) -> GameState.Card:
+## `faiblesse` (0 à 1, premiers tours du draft) : un défaut de plus et une qualité de moins, avec les
+## probabilités de generation_draft > defauts_debut multipliées par elle.
+func make_card(categorie: String, faiblesse := 0.0) -> GameState.Card:
 	var W: Dictionary = data["workers"]
 	var card := GameState.Card.new()
 	card.id = next_card_id
@@ -114,8 +116,16 @@ func make_card(categorie: String) -> GameState.Card:
 	card.nom = pick(PRENOMS)
 	card.metier = pick(W["metiers"].filter(func(m): return m["categorie"] == categorie))
 	var gen: Dictionary = W["generation_traits"]
-	_draw_traits(card, W["traits_positifs"], int(pick_weighted(gen["nb_positifs"])), gen["exclusions"])
-	_draw_traits(card, W["traits_negatifs"], int(pick_weighted(gen["nb_negatifs"])), gen["exclusions"])
+	var n_pos := int(pick_weighted(gen["nb_positifs"]))
+	var n_neg := int(pick_weighted(gen["nb_negatifs"]))
+	if faiblesse > 0.0:
+		var D: Dictionary = W["generation_draft"].get("defauts_debut", {})
+		if rng.randf() < faiblesse * float(D.get("negatif_en_plus", 0.0)):
+			n_neg += 1
+		if n_pos > 0 and rng.randf() < faiblesse * float(D.get("positif_en_moins", 0.0)):
+			n_pos -= 1
+	_draw_traits(card, W["traits_positifs"], n_pos, gen["exclusions"])
+	_draw_traits(card, W["traits_negatifs"], n_neg, gen["exclusions"])
 	return card
 
 
@@ -156,8 +166,11 @@ func _setup_draft() -> void:
 	var gen: Dictionary = data["workers"]["generation_draft"]
 	var per_player := int(gen["cartes_par_joueur"])
 	var n := players.size()
-	for i in per_player * draft_round_size():
-		draft_reserve.append(make_card(pick_weighted(gen["probabilites"])))
+	var k := draft_round_size()
+	for i in per_player * k:
+		# Les premiers tours sont plus faibles (plus de défauts), le dernier tour est normal.
+		var faiblesse := 1.0 - float(i / k) / maxf(1.0, per_player - 1.0)
+		draft_reserve.append(make_card(pick_weighted(gen["probabilites"]), faiblesse))
 	var first := rng.randi_range(0, n - 1)
 	for r in per_player:
 		for p in n:
@@ -306,6 +319,7 @@ func end_day() -> void:
 		p.bought_action = false
 		p.contracts_tonight = 0
 		p.night_action_used = false
+		p.swapped_tonight = false
 	# Bonus de nuit : seul le premier en influence choisit, et le bonus s'applique à tous le lendemain.
 	var pool: Array = data["events"]["bonus_nuit"].duplicate()
 	shuffle(pool)

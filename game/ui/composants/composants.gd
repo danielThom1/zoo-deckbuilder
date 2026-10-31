@@ -19,7 +19,7 @@ const ICONES_TRAITS := {
 }
 const ICONES_BATIMENTS := {
 	"route": "batiment_route", "pont": "batiment_pont", "maison": "batiment_maison", "entrepot": "batiment_entrepot",
-	"mine": "batiment_mine_or", "cloture": "batiment_enceinte", "entree": "batiment_entree_zoo", "enclos": "batiment_cloture",
+	"mine": "batiment_mine_or", "comptoir": "metier_marchand", "agence": "ui_recruter", "cloture": "batiment_enceinte", "entree": "batiment_entree_zoo", "enclos": "batiment_cloture",
 	"boutique": "batiment_boutique", "formation": "batiment_formation", "cuisine": "ressource_nourriture",
 	"entretien": "ordre_amenager", "snack": "ressource_billetterie", "kiosque": "ressource_reputation",
 	"camp_n2": "ui_ameliorer", "camp_n3": "ui_ameliorer", "planter": "terrain_planter_foret", "creuser": "terrain_bassin",
@@ -335,9 +335,11 @@ static func carte_ouvrier(d: Dictionary, etat := "normale", taille := "main", bo
 			if not carte.get_global_rect().has_point(carte.get_global_mouse_position()):
 				carte.position.y = 0
 				sb_carte.border_color = UiTokens.DEFAUT if orange else UiTokens.OR)
-	if clic.is_valid():
-		carte.gui_input.connect(func(ev: InputEvent):
-			if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
+	# Le clic est consommé : sinon il atteindrait le monde, où un clic dans le vide désélectionne tout.
+	carte.gui_input.connect(func(ev: InputEvent):
+		if ev is InputEventMouseButton and ev.button_index == MOUSE_BUTTON_LEFT:
+			carte.accept_event()
+			if ev.pressed and clic.is_valid():
 				clic.call())
 	return racine
 
@@ -374,7 +376,7 @@ static func carte_action(card: GameState.Card, texte_bouton: String, desactive: 
 	bandeau.add_theme_stylebox_override("panel", sb)
 	bandeau.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	placer(carte, bandeau, Vector2(2, 2), Vector2(t.x - 4, 26))
-	var kind := label("CARTE D'ACTION")
+	var kind := label("USAGE UNIQUE")
 	kind.add_theme_font_override("font", UiTokens.police_corps(800))
 	kind.add_theme_font_size_override("font_size", 11)
 	kind.add_theme_color_override("font_color", UiTokens.BOUTON_TEXTE)

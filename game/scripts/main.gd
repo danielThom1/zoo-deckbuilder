@@ -10,6 +10,7 @@ extends Node2D
 ##   --sim=60        avance la simulation de N secondes au démarrage
 ##   --shot=img.png  enregistre une capture puis quitte
 ##   --marche        ouvre l'aperçu du marché du soir (captures)
+##   --contrat       ajoute un contrat et passe en mode installation d'animal (avec --autoplay --autozoo)
 ##   --un            avec --autoplay : un seul ouvrier sélectionné (panneau d'unité)
 ##   --zoom=2.5      zoom de la caméra (captures de détail)
 ##   --jours=N       spectateur : avance de N jours avant d'afficher
@@ -29,10 +30,10 @@ var building_colors := {
 	"route": UiTokens.CHEMIN, "pont": Color("9A6A3E"), "maison": Color("D2553A"), "entrepot": Color("8C6A48"),
 	"mine": Color("5A4636"), "cloture": UiTokens.ENCEINTE, "entree": Color("E9D5A8"), "enclos": UiTokens.CLOTURE_ENCLOS,
 	"boutique": Color("E06A5A"), "formation": Color("3A6AE0"), "cuisine": Color("D8A010"), "entretien": Color("7A8A88"),
-	"snack": Color("E8782A"), "kiosque": Color("8A4AD0"), "camp_n2": Color("A0743C"), "camp_n3": Color("B8864A"),
+	"snack": Color("E8782A"), "kiosque": Color("8A4AD0"), "comptoir": Color("D8A010"), "agence": Color("4A7AC8"), "camp_n2": Color("A0743C"), "camp_n3": Color("B8864A"),
 }
 var building_short := {
-	"maison": "Maison", "entrepot": "Entrepôt", "mine": "Mine", "entree": "Entrée", "boutique": "Boutique", "formation": "Formation",
+	"maison": "Maison", "entrepot": "Entrepôt", "comptoir": "Marché", "agence": "Intérim", "mine": "Mine", "entree": "Entrée", "boutique": "Boutique", "formation": "Formation",
 	"cuisine": "Cuisine", "entretien": "Entretien", "snack": "Snack", "kiosque": "Kiosque",
 	"camp_n2": "Camp niv. 2", "camp_n3": "Camp niv. 3",
 }
@@ -51,6 +52,17 @@ var depth_img: Image
 
 var selected: Array = []
 var selected_site: GameState.Site = null
+var selected_sites: Array = []  # sélection multiple de bâtiments et chantiers (rectangle) : Suppr les démolit ou les annule
+var selected_animal: GameState.Animal = null
+# Aide au placement d'un animal : enclos possibles (motif en vert / orange) et enclos proposé
+var animal_hints: Array = []
+var enclosure_proposal := {}
+var proposal_box: PanelContainer
+var proposal_pattern: CenterContainer
+var proposal_label: RichTextLabel
+var proposal_btn: Button
+var info_extra: VBoxContainer  # sous le texte du panneau de droite : motif de l'animal sélectionné
+var info_extra_for: Variant = null
 var build_choice := {}  # {"kind": "batiment"|"amenagement", "def": {...}} pendant le placement
 var painting := false
 var last_paint := Vector2i(-99, -99)
@@ -76,7 +88,6 @@ var btn_lobby: Button
 var btn_recall: Button
 var btn_cancel_site: Button
 var btn_demolish: Button
-var sell_btn: Button
 var hand_box: HBoxContainer
 var toast_box: VBoxContainer
 var status_label: Label
@@ -94,7 +105,14 @@ var night_action_box: Control
 var night_action_flow: VBoxContainer
 var action_card: GameState.Card = null
 var event_label: Label
-var sell_gold_btn: Button
+var trade_rows := {}  # ressource -> [SpinBox, bouton Vendre, bouton Acheter]
+var trade_note: Label
+var pub_note: Label
+var pub_buttons := {}  # id de campagne -> bouton
+# Choix d'un ouvrier (cartes Rupture de contrat et Promotion, échange à l'Agence d'intérim)
+var picker_root: ColorRect
+var picker_box: VBoxContainer
+var picker_speed := -1.0  # vitesse à rétablir en refermant le choix (la journée est en pause pendant le choix)
 var night_fire: VBoxContainer
 var night_next: Button
 var contracts_box: VBoxContainer
@@ -147,6 +165,9 @@ var night_bonus_note: Label
 var end_root: ColorRect
 var end_reopen: Button
 var end_built := false
+var night_peek := false  # la nuit, « Voir mon zoo » masque l'écran du marché
+var night_return: Button
+var night_chips := {}
 var day_hud: Array[Control] = []  # masqués la nuit et sur l'écran de fin
 var end_dismissed := false
 ## Relance demandée par l'écran de fin (« jouer », « spectateur », « menu ») : survit au rechargement de la scène.
@@ -266,6 +287,11 @@ func _start(watch: bool) -> void:
 			mt.pick_draft(mt.ai_choice())
 	if args.has("autoplay"):
 		_auto_play()
+	# --contrat : ajoute un contrat de palier 1 et passe en mode installation (captures de l'aide au placement)
+	if args.has("contrat"):
+		var cdef: Dictionary = game.data["animals"]["animaux"].filter(func(d): return d["palier"] == "T1" and d["id"] != "zebre")[0]
+		game.contracts.append(cdef)
+		_set_build({"kind": "animal", "def": cdef})
 	if args.has("marche"):
 		market_root.visible = true
 		_rebuild_market_preview()
@@ -459,6 +485,10 @@ func _draw() -> void:
 			var cap := game.carry_capacity(w.card)
 			draw_rect(Rect2(p.x - r, p.y + r * 1.3, r * 2, 2.5), Color(0, 0, 0, 0.6))
 			draw_rect(Rect2(p.x - r, p.y + r * 1.3, r * 2 * w.carry / cap, 2.5), UiTokens.RESSOURCES.get(w.carry_type, {"couleur": Color.WHITE})["couleur"])
+			# quantité portée, lisible à côté de l'écusson
+			var qty := "%d/%d" % [floori(w.carry), cap]
+			draw_string_outline(font, p + Vector2(r + 1.5, r * 1.3 + 3), qty, HORIZONTAL_ALIGNMENT_LEFT, -1, 7, 2, Color(0, 0, 0, 0.85))
+			draw_string(font, p + Vector2(r + 1.5, r * 1.3 + 3), qty, HORIZONTAL_ALIGNMENT_LEFT, -1, 7, Color.WHITE)
 		if w.pause_left > 0.0:
 			draw_circle(p + Vector2(r, -r), 3.2, Color.WHITE)
 			draw_circle(p + Vector2(r, -r), 2.5, UiTokens.PAUSE)
@@ -475,6 +505,8 @@ func _draw() -> void:
 		draw_rect(rect, Color(0.91, 0.73, 0.29, 0.15))
 		draw_rect(rect, Color("e9b949"), false, 1.0 / camera.zoom.x)
 
+	if build_choice.get("kind") == "animal":
+		_draw_animal_hints()
 	# Case survolée, ou aperçu du bâtiment à placer
 	var hover := _hover_tile()
 	if build_choice.get("kind") == "animal":
@@ -512,6 +544,14 @@ func _draw() -> void:
 	if selected_site and game.sites.has(selected_site):
 		var sr := Rect2(Vector2(selected_site.rect.position) * TILE, Vector2(selected_site.rect.size) * TILE)
 		draw_rect(sr.grow(1), Color.WHITE, false, 2.0)
+	for site in selected_sites:
+		var sr2 := Rect2(Vector2(site.rect.position) * TILE, Vector2(site.rect.size) * TILE)
+		draw_rect(sr2.grow(0.5), UiTokens.SELECTION, false, 1.5)
+	if selected_animal:
+		for t in selected_animal.tiles:
+			draw_rect(Rect2(Vector2(t) * TILE, Vector2(TILE, TILE)), Color(UiTokens.SELECTION, 0.18))
+		for t in game.pattern_status(selected_animal.def, selected_animal.tiles)["tiles"]:
+			draw_rect(Rect2(Vector2(t) * TILE + Vector2(2, 2), Vector2(TILE - 4, TILE - 4)), UiTokens.SELECTION, false, 1.5)
 
 
 func _draw_site(s: GameState.Site) -> void:
@@ -664,11 +704,15 @@ func _draw_tent(base: Vector2, w: float, col: Color) -> void:
 ## Animal : enclos teinté, deux ou trois bêtes qui déambulent d'une case à l'autre, marqueur du biome.
 func _draw_animal(a: GameState.Animal, index: int, now: float) -> void:
 	var col: Color = biome_colors[a.def["biome"]]
+	if not a.park:
+		for t in a.tiles:
+			draw_rect(Rect2(Vector2(t) * TILE, Vector2(TILE, TILE)), Color(col, 0.12))
+	# Marqueur au centre de son motif (plusieurs animaux peuvent partager un enclos)
+	var anchor_tiles: Array = a.pattern_tiles if not a.pattern_tiles.is_empty() else a.tiles
 	var center := Vector2.ZERO
-	for t in a.tiles:
-		draw_rect(Rect2(Vector2(t) * TILE, Vector2(TILE, TILE)), Color(col, 0.12))
+	for t in anchor_tiles:
 		center += Vector2(t) + Vector2(0.5, 0.5)
-	center = center / a.tiles.size() * TILE
+	center = center / anchor_tiles.size() * TILE
 	if not a.arrived:
 		# caisse de transport en attendant la nuit
 		draw_rect(Rect2(center - Vector2(5, 4), Vector2(10, 8)), Color("A0743C"))
@@ -753,7 +797,8 @@ func _build_origin(hover: Vector2i) -> Vector2i:
 
 
 func _label(text: String, pos: Vector2, size: int) -> void:
-	var width := 80.0
+	# largeur à la mesure du texte (une largeur fixe coupait « (arrive cette nuit) » en « (arriv »)
+	var width := maxf(80.0, font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x + 8.0)
 	draw_string_outline(font, pos - Vector2(width / 2, 0), text, HORIZONTAL_ALIGNMENT_CENTER, width, size, 3, Color(0, 0, 0, 0.8))
 	draw_string(font, pos - Vector2(width / 2, 0), text, HORIZONTAL_ALIGNMENT_CENTER, width, size, Color.WHITE)
 
@@ -824,6 +869,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				else:
 					selected.clear()
 					selected_site = null
+					selected_sites.clear()
+					selected_animal = null
+			KEY_DELETE, KEY_BACKSPACE:
+				_delete_selection()
 			KEY_SPACE:
 				_set_speed(1.0 if speed == 0.0 else 0.0)
 			KEY_1:
@@ -861,6 +910,12 @@ func _input(event: InputEvent) -> void:
 func _set_build(choice: Dictionary) -> void:
 	build_choice = choice
 	painting = false
+	if choice.get("kind") == "animal":
+		_compute_animal_hints(choice["def"], true)
+	else:
+		animal_hints.clear()
+		enclosure_proposal = {}
+		proposal_box.visible = false
 	enc_cache_tile = Vector2i(-99, -99)
 	hand_version = -1  # rafraîchit l'état des boutons de contrats
 	for entry in build_buttons:
@@ -902,6 +957,8 @@ func _finish_selection() -> void:
 	if not drag_add:
 		selected.clear()
 	selected_site = null
+	selected_sites.clear()
+	selected_animal = null
 	if start.distance_to(drag_end) < 5:
 		var wp := _screen_to_world(drag_end) / TILE
 		var best: GameState.Worker = null
@@ -913,12 +970,46 @@ func _finish_selection() -> void:
 		if best and not selected.has(best):
 			selected.append(best)
 		elif not best and selected.is_empty():
-			selected_site = game.site_at(Vector2i(floori(wp.x), floori(wp.y)))
+			var t := Vector2i(floori(wp.x), floori(wp.y))
+			selected_site = game.site_at(t)
+			if selected_site == null:
+				selected_animal = game.animal_at(t)
 	else:
 		var rect := Rect2(_screen_to_world(start) / TILE, Vector2.ZERO).expand(_screen_to_world(drag_end) / TILE)
 		for w in game.workers:
 			if not w.offmap and rect.has_point(w.pos) and not selected.has(w):
 				selected.append(w)
+		# Sans ouvrier dans le rectangle : on sélectionne les bâtiments et chantiers touchés (Suppr pour les retirer).
+		if selected.is_empty():
+			for site in game.sites:
+				if rect.intersects(Rect2(Vector2(site.rect.position), Vector2(site.rect.size))):
+					selected_sites.append(site)
+			if selected_sites.size() == 1:
+				selected_site = selected_sites[0]
+				selected_sites.clear()
+	_update_info()
+
+
+## Suppr : démolit les bâtiments terminés et annule les chantiers sélectionnés (remboursés selon l'avancement).
+func _delete_selection() -> void:
+	if spectator or game.phase != "day":
+		return
+	var targets: Array = selected_sites.duplicate() if not selected_sites.is_empty() else ([selected_site] if selected_site else [])
+	var demolished := 0
+	var cancelled := 0
+	for site in targets:
+		if not game.sites.has(site):
+			continue
+		if site.done:
+			if game.demolish(site):
+				demolished += 1
+		else:
+			game.cancel_site(site)
+			cancelled += 1
+	if demolished + cancelled > 1:
+		game.say("%d démoli(s), %d chantier(s) annulé(s)." % [demolished, cancelled])
+	selected_sites.clear()
+	selected_site = null
 	_update_info()
 
 
@@ -977,6 +1068,8 @@ func _process(delta: float) -> void:
 		_rebuild_night()
 		_rebuild_market_preview()
 		enc_cache_tile = Vector2i(-99, -99)
+		if build_choice.get("kind") == "animal":
+			_compute_animal_hints(build_choice["def"], false)
 		_update_info()
 	info_clock += delta
 	if info_clock > 0.25:
@@ -984,14 +1077,12 @@ func _process(delta: float) -> void:
 		_update_info()
 		for entry in build_buttons:
 			entry[0].disabled = game.phase != "day" or not game.can_afford(entry[2].get("cout", {}))
-		sell_btn.text = "Vendre bois/pierre (%s)" % ("plein" if game.marchand_present() else "-50 %")
-		sell_gold_btn.text = "Vendre l'or (%.1f/u)" % game.sell_price("or")
+		_update_trade()
+		_update_publicity()
 		var ev: Dictionary = mt.current_event
 		event_label.visible = mt.phase == "day" and not ev.is_empty()
 		if not ev.is_empty():
 			event_label.text = "  %s : %s  " % [ev["nom"], ev["texte"]]
-		sell_btn.tooltip_text = "Vend le bois et la pierre du stock (l'or est conservé).
-Sans Marchand : moitié prix. Envoyez un Marchand sur le camp (clic droit) pour le plein tarif."
 	_screenshot_check()
 
 
@@ -1160,13 +1251,6 @@ func _build_ui() -> void:
 	help.custom_minimum_size = Vector2(32, 32)
 	help.tooltip_text = "Clic gauche : sélectionner (glisser pour plusieurs)\nClic droit : déplacer, extraire, construire, tenir un poste, lobbying (case Accès)\nMenu de gauche : placer un bâtiment (glisser pour routes et clôtures), Échap pour arrêter\nMolette : zoom · ZQSD : vue · Espace : pause"
 	hb.add_child(help)
-	sell_btn = Button.new()
-	sell_btn.text = "Vendre bois et pierre"
-	sell_btn.focus_mode = Control.FOCUS_NONE
-	sell_btn.pressed.connect(func(): game.sell_stock())
-	sell_gold_btn = Button.new()
-	sell_gold_btn.focus_mode = Control.FOCUS_NONE
-	sell_gold_btn.pressed.connect(func(): game.sell_stock({}, ["or"]))
 
 	event_label = Label.new()
 	event_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
@@ -1197,6 +1281,9 @@ func _build_ui() -> void:
 	info_text.add_theme_font_size_override("normal_font_size", 13)
 	info_text.add_theme_font_size_override("bold_font_size", 14)
 	rv.add_child(info_text)
+	info_extra = VBoxContainer.new()
+	info_extra.add_theme_constant_override("separation", 4)
+	rv.add_child(info_extra)
 	btn_lobby = Button.new()
 	btn_lobby.text = "Envoyer en lobbying"
 	btn_lobby.focus_mode = Control.FOCUS_NONE
@@ -1220,28 +1307,61 @@ func _build_ui() -> void:
 	btn_demolish = Button.new()
 	btn_demolish.text = "Démolir (sans remboursement)"
 	btn_demolish.focus_mode = Control.FOCUS_NONE
-	btn_demolish.pressed.connect(func():
-		if selected_site and game.demolish(selected_site):
-			selected_site = null)
+	btn_demolish.pressed.connect(_delete_selection)
 	rv.add_child(btn_demolish)
-	# Marché du camp : vendre et acheter des matériaux
+	# Marché : vendre et acheter la quantité choisie (Marchand au camp ou au bâtiment Marché pour de meilleurs prix)
 	if not spectator:
 		_menu_title(rv, "Marché")
-		var trade := GridContainer.new()
-		trade.columns = 2
-		rv.add_child(trade)
-		sell_btn.add_theme_font_size_override("font_size", 12)
-		sell_gold_btn.add_theme_font_size_override("font_size", 12)
-		trade.add_child(sell_btn)
-		trade.add_child(sell_gold_btn)
-		for res in ["bois", "pierre"]:
-			var bb := Button.new()
-			bb.text = "Acheter 10 %s (%d)" % [res, ceili(game.buy_price(res) * 10)]
-			bb.tooltip_text = "Au double du prix de revente : l'argent devient de la vitesse de construction."
-			bb.focus_mode = Control.FOCUS_NONE
+		trade_note = Composants.label("", "TexteSecondaire")
+		trade_note.add_theme_font_size_override("font_size", 11)
+		trade_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		rv.add_child(trade_note)
+		for res in ["bois", "pierre", "or"]:
+			var row := HBoxContainer.new()
+			row.add_theme_constant_override("separation", 4)
+			rv.add_child(row)
+			var rd: Dictionary = UiTokens.RESSOURCES[res]
+			var dot := Composants.pastille(rd["couleur"], rd["icone"], 22)
+			dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			dot.tooltip_text = rd["nom"]
+			row.add_child(dot)
+			var spin := SpinBox.new()
+			spin.min_value = 1
+			spin.max_value = 999
+			spin.step = 1
+			spin.value = 10
+			spin.custom_minimum_size = Vector2(78, 0)
+			spin.tooltip_text = "Quantité (molette ou flèches)"
+			spin.get_line_edit().add_theme_font_size_override("font_size", 12)
+			row.add_child(spin)
+			var sb := Composants.bouton("", "BoutonSecondaire")
+			sb.add_theme_font_size_override("font_size", 12)
+			sb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			sb.pressed.connect(func(): game.sell_amount(res, int(spin.value)))
+			row.add_child(sb)
+			var bb := Composants.bouton("", "BoutonSecondaire")
 			bb.add_theme_font_size_override("font_size", 12)
-			bb.pressed.connect(game.buy_material.bind(res, 10))
-			trade.add_child(bb)
+			bb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			bb.pressed.connect(func(): game.buy_material(res, int(spin.value)))
+			bb.visible = res != "or"
+			row.add_child(bb)
+			trade_rows[res] = [spin, sb, bb]
+		# Publicité : campagnes menées par les ouvriers à l'extérieur, elles seules augmentent l'affluence
+		_menu_title(rv, "Publicité")
+		pub_note = Composants.label("", "TexteSecondaire")
+		pub_note.add_theme_font_size_override("font_size", 11)
+		pub_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		rv.add_child(pub_note)
+		var prow := HBoxContainer.new()
+		prow.add_theme_constant_override("separation", 4)
+		rv.add_child(prow)
+		for d in game.campaign_defs():
+			var pb := Composants.bouton("", "BoutonSecondaire")
+			pb.add_theme_font_size_override("font_size", 11)
+			pb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			pb.pressed.connect(func(): game.launch_campaign(d))
+			prow.add_child(pb)
+			pub_buttons[d["id"]] = pb
 
 	# Panneau Construire à gauche (l 250) : onglets Bâtiments / Zoo / Terrain, lignes à icône et coût
 	var left := PanelContainer.new()
@@ -1265,7 +1385,7 @@ func _build_ui() -> void:
 	lv.add_child(tabs)
 	var group := ButtonGroup.new()
 	var pages := {
-		"Bâtiments": ["route", "pont", "maison", "entrepot", "mine", "formation", "camp_n2", "camp_n3"],
+		"Bâtiments": ["route", "pont", "maison", "entrepot", "comptoir", "agence", "mine", "formation", "camp_n2", "camp_n3"],
 		"Zoo": ["cloture", "entree", "enclos", "boutique", "cuisine", "entretien", "snack", "kiosque"],
 		"Terrain": [],
 	}
@@ -1378,12 +1498,13 @@ func _build_ui() -> void:
 
 	toast_box = VBoxContainer.new()
 	toast_box.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	toast_box.offset_top = 100
+	toast_box.offset_top = 196
 	toast_box.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	toast_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui.add_child(toast_box)
 
 	day_hud = [left, right, shade, pile_panel, hand_scroll, medallion]
+	_build_proposal_box()
 	_build_unit_panel()
 	_build_night_ui()
 	_build_end_ui()
@@ -1667,8 +1788,9 @@ func _rebuild_hand() -> void:
 	# Cartes Émeraude 136×216 (capture 03) : à déployer, sur le terrain, en lobbying, ou carte d'action
 	for card in game.hand:
 		if card.is_action():
-			hand_box.add_child(Composants.carte_action(card, "Jouée" if card.deployed else "Jouer",
-				spectator or card.deployed or game.phase != "day", game.play_action.bind(card)))
+			var ciblee: bool = card.action.get("cible", false)
+			hand_box.add_child(Composants.carte_action(card, "Choisir…" if ciblee else "Jouer", spectator or game.phase != "day",
+				_open_action_picker.bind(card) if ciblee else game.play_action.bind(card)))
 			continue
 		var w := game.worker_of(card)
 		var d := Composants.donnees_ouvrier(game, card)
@@ -1785,6 +1907,8 @@ func _task_text(w: GameState.Worker) -> String:
 		return "Se déplace" if not w.path.is_empty() else "Inactif"
 	if w.task["type"] == "lobby":
 		return "Va vers l'accès"
+	if w.task["type"] == "deposit":
+		return "Va déposer sa charge (%d %s)" % [floori(w.carry), res_noms.get(w.carry_type, "")]
 	if w.task["type"] == "station":
 		if not w.path.is_empty():
 			return "Va à son poste"
@@ -1809,6 +1933,39 @@ func _task_text(w: GameState.Worker) -> String:
 
 func _update_info() -> void:
 	_update_unit_panel()
+	selected_sites = selected_sites.filter(func(x): return game.sites.has(x))
+	if selected_animal and not game.animals.has(selected_animal):
+		selected_animal = null
+	var show_animal := selected.is_empty() and selected_animal != null and selected_site == null
+	if not show_animal and info_extra_for != null:
+		info_extra_for = null
+		_clear(info_extra)
+	if show_animal:
+		_animal_info(selected_animal)
+	elif selected.is_empty() and selected_sites.size() > 1:
+		zoo_title.text = "%d ÉLÉMENTS" % selected_sites.size()
+		var counts := {}
+		for x in selected_sites:
+			var key: String = ("Chantier : " if not x.done else "") + str(x.def["nom"])
+			counts[key] = counts.get(key, 0) + 1
+		var lines: Array[String] = ["[b]Sélection[/b]"]
+		for k in counts:
+			lines.append("%d × %s" % [counts[k], k])
+		lines.append("\n[color=#A6D4C8]Suppr : démolit les bâtiments (sans remboursement) et annule les chantiers (remboursés à 100 %% s'ils n'ont pas commencé, 50 %% sinon).[/color]")
+		info_text.text = "\n".join(lines)
+		btn_lobby.disabled = true
+		btn_recall.disabled = true
+		btn_cancel_site.visible = false
+		btn_demolish.visible = not spectator
+		btn_demolish.text = "Démolir / annuler la sélection (Suppr)"
+		return
+	btn_demolish.text = "Démolir (sans remboursement)"
+	if show_animal:
+		btn_lobby.disabled = true
+		btn_recall.disabled = true
+		btn_cancel_site.visible = false
+		btn_demolish.visible = false
+		return
 	if selected.size() > 1:
 		zoo_title.text = "%d OUVRIERS" % selected.size()
 	elif selected.size() == 1:
@@ -1953,17 +2110,23 @@ func _update_hud() -> void:
 				status += " : clic droit pour tenir le guichet (sans personne, les visiteurs n'entrent pas ; un Guichetier va 2x plus vite)"
 			elif site.def_id() == "boutique":
 				status += " : clic droit pour tenir la boutique (un Vendeur double les ventes)"
+			elif site.def_id() == "comptoir":
+				status += " : clic droit avec un Marchand (vente à 125 %, achat 30 % moins cher)"
+			elif site.def_id() == "agence":
+				status += " : la nuit, bouton « Échanger » sur un ouvrier du marché (une fois par nuit)"
+			elif site.def_id() == "entrepot":
+				status += " : clic droit pour y déposer la charge"
 		else:
 			status = "Chantier %s : %d / %d — clic droit pour y travailler" % [site.def["nom"], int(site.work), int(site.travail())]
 	elif m.in_bounds(hover.x, hover.y) and game.phase == "day":
 		if hover == m.exit_tile:
-			status = "Accès route : clic droit pour envoyer en lobbying"
+			status = "Accès route : clic droit pour envoyer à l'extérieur (lobbying et campagnes de publicité)"
 		elif m.in_camp(hover.x, hover.y) and selected.any(func(w): return w.card.metier["id"] == "marchand"):
 			status = "Camp : clic droit pour que le Marchand tienne le comptoir (vente au plein tarif)"
 		elif game.animal_at(hover) and selected.any(func(w): return w.card.metier["id"] == "soigneur"):
 			status = "%s : clic droit pour que le Soigneur s'en occupe (+%d visiteurs ce soir)" % [game.animal_at(hover).def["nom"], int(game.data["buildings"]["zoo"]["bonus_soigneur"])]
 		elif m.in_camp(hover.x, hover.y):
-			status = "Camp de base (dépôt des ressources)"
+			status = "Camp de base : clic droit pour y déposer la charge"
 		else:
 			status = terrain_noms[m.get_t(hover.x, hover.y)]
 			var res := m.extractible(hover.x, hover.y)
@@ -1978,7 +2141,10 @@ func _update_hud() -> void:
 	status_label.text = status
 	status_label.visible = status != ""
 
-	night_root.visible = game.phase == "night" and not mt.game_over
+	if game.phase != "night":
+		night_peek = false
+	night_root.visible = game.phase == "night" and not mt.game_over and not night_peek
+	night_return.visible = game.phase == "night" and night_peek and not mt.game_over
 	if mt.game_over and not end_built:
 		end_built = true
 		_rebuild_end()
@@ -2265,6 +2431,29 @@ func _build_night_ui() -> void:
 	night_steps.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	night_steps.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hb.add_child(night_steps)
+	# Argent et logement bien en vue : ce sont eux qui décident des achats de la nuit
+	for r in [["argent", "Argent disponible"], ["logement", "Logement"]]:
+		var res: Dictionary = UiTokens.RESSOURCES[r[0]]
+		var chip := Composants.jeton_ressource(res["icone"], res["couleur"], res["reflet"], r[1])
+		chip["valeur"].add_theme_font_size_override("font_size", 24)
+		chip["racine"].size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		hb.add_child(chip["racine"])
+		night_chips[r[0]] = chip
+	var peek := Composants.bouton("Voir mon zoo", "BoutonSecondaire")
+	peek.custom_minimum_size = Vector2(150, 40)
+	peek.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	peek.tooltip_text = "Masque le marché pour regarder votre terrain (enclos, motifs) avant d'acheter"
+	peek.pressed.connect(func(): night_peek = true)
+	hb.add_child(peek)
+	night_return = Composants.bouton("Retour au marché de nuit", "BoutonPrincipal")
+	night_return.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	night_return.offset_top = 64
+	night_return.offset_left = -140
+	night_return.offset_right = 140
+	night_return.offset_bottom = 106
+	night_return.visible = false
+	night_return.pressed.connect(func(): night_peek = false)
+	ui.add_child(night_return)
 	night_next = Composants.bouton("", "BoutonPrincipal")
 	night_next.custom_minimum_size = Vector2(230, 44)
 	night_next.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -2503,14 +2692,32 @@ func _rebuild_night() -> void:
 	night_influence.add_child(hidden)
 
 	# Marché : ouvriers, contrats, cartes d'action
-	night_money_lbl.text = "Argent disponible %d" % floori(game.money)
+	var full := game.employees() >= game.housing()
+	night_chips["argent"]["valeur"].text = str(floori(game.money))
+	night_chips["logement"]["valeur"].text = "%d/%d" % [game.employees(), game.housing()]
+	night_chips["logement"]["valeur"].add_theme_color_override("font_color", UiTokens.NEGATIF if full else UiTokens.TEXTE)
+	night_money_lbl.text = "Logement plein : construisez une Maison d'ouvriers pour embaucher" if full \
+		else "Argent disponible : %d" % floori(game.money)
+	night_money_lbl.add_theme_color_override("font_color", UiTokens.NEGATIF if full else UiTokens.TEXTE_SECONDAIRE)
 	_clear(night_workers)
 	for card in game.market_workers:
-		var err := game.hire_error(card)
+		var err := "Mode spectateur" if spectator else game.hire_error(card)
 		var cost := game.hire_cost(card)
-		var hire_text := ("Manque %d" % ceili(cost - game.money)) if game.money < cost else "Embaucher · %d" % cost
-		var w := _card_widget(card, hire_text, spectator or err != "", game.hire.bind(card))
+		var hire_text := "Embaucher · %d" % cost
+		if err != "":
+			# La raison du refus est écrite sur le bouton, et détaillée au survol.
+			hire_text = ("Manque %d" % ceili(cost - game.money)) if game.money < cost and not full else _short_reason(err)
+		# Agence d'intérim : second bouton pour échanger un de ses ouvriers contre celui-ci.
+		var swap_err := "" if spectator or not game.agency_built() else game.swap_error(null, card)
+		var swap_ok := swap_err.begins_with("Choisissez")
+		var extra := ["Échanger", not swap_ok, _open_swap_picker.bind(card)] if swap_err != "" else []
+		var w := _card_widget(card, hire_text, err != "", game.hire.bind(card), extra)
 		w.tooltip_text = (err + "\n" if err != "" else "") + w.tooltip_text
+		var btns := w.find_children("*", "Button", true, false)
+		for b in btns:
+			b.tooltip_text = err if err != "" else "Embaucher %s pour %d argent" % [card.nom, cost]
+		if btns.size() > 1:
+			btns[1].tooltip_text = "Agence d'intérim : céder un de vos ouvriers pour prendre %s" % card.nom if swap_ok else swap_err
 		night_workers.add_child(w)
 	_clear(night_contracts)
 	night_contracts_note.text = "%d contrats · 2 achats au plus · dans l'ordre d'influence" % game.market_contracts.size()
@@ -2693,6 +2900,431 @@ func _rebuild_night() -> void:
 	if game.employees() >= game.housing():
 		lines.append("[color=#FFB09A]Logement plein (%d / %d) : construisez une maison d'ouvriers pour embaucher.[/color]" % [game.employees(), game.housing()])
 	night_text.text = "\n".join(lines)
+
+
+# --- Aide au placement d'un animal ---------------------------------------------
+
+func _build_proposal_box() -> void:
+	proposal_box = PanelContainer.new()
+	proposal_box.add_theme_stylebox_override("panel", UiTokens.panel(UiTokens.PANNEAU_MILIEU, UiTokens.OR, 10, 2, 10))
+	proposal_box.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	proposal_box.offset_top = 104
+	proposal_box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	proposal_box.visible = false
+	ui.add_child(proposal_box)
+	var hb := HBoxContainer.new()
+	hb.add_theme_constant_override("separation", 12)
+	proposal_box.add_child(hb)
+	proposal_pattern = CenterContainer.new()
+	hb.add_child(proposal_pattern)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 6)
+	hb.add_child(v)
+	proposal_label = RichTextLabel.new()
+	proposal_label.bbcode_enabled = true
+	proposal_label.fit_content = true
+	proposal_label.scroll_active = false
+	proposal_label.custom_minimum_size = Vector2(430, 0)
+	proposal_label.add_theme_font_size_override("normal_font_size", 13)
+	proposal_label.add_theme_font_size_override("bold_font_size", 14)
+	v.add_child(proposal_label)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	v.add_child(row)
+	proposal_btn = Composants.bouton("", "BoutonPrincipal")
+	proposal_btn.custom_minimum_size = Vector2(0, 34)
+	proposal_btn.pressed.connect(_build_proposal)
+	row.add_child(proposal_btn)
+	var cancel := Composants.bouton("Annuler (Échap)", "BoutonSecondaire")
+	cancel.custom_minimum_size = Vector2(0, 34)
+	cancel.pressed.connect(func(): _set_build({}))
+	row.add_child(cancel)
+
+
+## Contrat choisi : repère les enclos où l'animal peut aller (motif en vert) ou presque (orange : cases à aménager),
+## et propose un enclos à construire s'il n'y en a aucun.
+func _compute_animal_hints(def: Dictionary, propose: bool) -> void:
+	animal_hints.clear()
+	var interior: Dictionary = game.zoo_status()["interior"]
+	var seen := {}
+	for t in interior:
+		if seen.has(t) or game.is_fence(t) or game.site_at(t) != null:
+			continue
+		var enc := game.enclosure_at(t)
+		if not enc["closed"]:
+			seen[t] = true
+			continue
+		for q in enc["tiles"]:
+			seen[q] = true
+		var err := game.animal_error(def, enc)
+		if err == "" or err.begins_with("Motif absent (au mieux"):
+			var ps := game.pattern_status(def, game.free_enclosure_tiles(enc))
+			animal_hints.append({"tiles": ps["tiles"], "ok": err == "", "missing": ps["missing"], "park": enc.get("park", false)})
+	if propose:
+		enclosure_proposal = {}
+		if not animal_hints.any(func(h): return h["ok"]):
+			_propose_enclosure(def, interior)
+	_update_proposal_box(def, interior)
+
+
+## Cherche un petit enclos rectangulaire libre dans l'enceinte où le motif existe déjà (sinon le plus proche),
+## en réutilisant les clôtures d'enclos existantes.
+func _propose_enclosure(def: Dictionary, interior: Dictionary) -> void:
+	if interior.is_empty():
+		return
+	var need := int(def["taille"])
+	var occupied := {}  # enclos clôturés déjà habités : on ne construit pas dedans
+	for a in game.animals:
+		if not a.park:
+			for t in a.tiles:
+				occupied[t] = true
+		for t in a.pattern_tiles:
+			occupied[t] = true
+	var lo := Vector2i(1 << 20, 1 << 20)
+	var hi := Vector2i(-1, -1)
+	for t in interior:
+		lo = Vector2i(mini(lo.x, t.x), mini(lo.y, t.y))
+		hi = Vector2i(maxi(hi.x, t.x), maxi(hi.y, t.y))
+	var fence_def := game.building_def("enclos")
+	var ring_cache := {}
+	var free := func(t: Vector2i) -> bool:
+		return interior.has(t) and game.site_at(t) == null and not occupied.has(t) and not game.map.in_camp(t.x, t.y)
+	var ring_ok := func(t: Vector2i) -> bool:
+		if not ring_cache.has(t):
+			ring_cache[t] = interior.has(t) and not occupied.has(t) and (game.is_fence(t) or game.placement_error("batiment", fence_def, t, false) == "")
+		return ring_cache[t]
+	var sizes: Array[Vector2i] = []
+	for w in range(2, 6):
+		for h in range(2, 6):
+			if w * h >= need and w * h <= need + 6:
+				sizes.append(Vector2i(w, h))
+	sizes.sort_custom(func(a, b): return a.x * a.y < b.x * b.y or (a.x * a.y == b.x * b.y and absi(a.x - a.y) < absi(b.x - b.y)))
+	var best := {}
+	var best_score := INF
+	for sz in sizes:
+		# Le premier enclos de surface minimale où le motif existe déjà suffit.
+		if not best.is_empty() and best["missing"] == 0 and sz.x * sz.y > best["area"]:
+			break
+		for y in range(lo.y + 1, hi.y - sz.y + 1):
+			for x in range(lo.x + 1, hi.x - sz.x + 1):
+				var r := Rect2i(x, y, sz.x, sz.y)
+				var inner: Array[Vector2i] = []
+				var ok := true
+				for yy in range(r.position.y, r.end.y):
+					for xx in range(r.position.x, r.end.x):
+						var p := Vector2i(xx, yy)
+						if not free.call(p):
+							ok = false
+							break
+						inner.append(p)
+					if not ok:
+						break
+				if not ok:
+					continue
+				var ring: Array[Vector2i] = []
+				var fresh := 0
+				for yy in range(r.position.y - 1, r.end.y + 1):
+					for xx in range(r.position.x - 1, r.end.x + 1):
+						if r.has_point(Vector2i(xx, yy)):
+							continue
+						var q := Vector2i(xx, yy)
+						if not ring_ok.call(q):
+							ok = false
+							break
+						ring.append(q)
+						if not game.is_fence(q):
+							fresh += 1
+					if not ok:
+						break
+				if not ok:
+					continue
+				var ps := game.pattern_status(def, inner)
+				if ps["missing"] >= 99:
+					continue
+				var score: float = ps["missing"] * 100.0 + fresh + sz.x * sz.y * 0.5
+				if score < best_score:
+					best_score = score
+					best = {"rect": r, "ring": ring, "new": ring.filter(func(q): return not game.is_fence(q)),
+						"pattern": ps["tiles"], "missing": ps["missing"], "area": sz.x * sz.y}
+	enclosure_proposal = best
+
+
+func _update_proposal_box(def: Dictionary, interior: Dictionary) -> void:
+	proposal_box.visible = true
+	_clear(proposal_pattern)
+	proposal_pattern.add_child(_pattern_view(def, 20.0))
+	var ok := animal_hints.filter(func(h): return h["ok"]).size()
+	var near := animal_hints.size() - ok
+	var lines: Array[String] = ["[b]%s[/b] · il faut %d cases et ce motif" % [def["nom"], int(def["taille"])]]
+	proposal_btn.visible = false
+	if interior.is_empty():
+		lines.append("[color=#FFB09A]Fermez d'abord l'enceinte du zoo avec son entrée : les animaux vivent à l'intérieur.[/color]")
+	elif ok > 0:
+		lines.append("[color=#7CF29A]%d emplacement(s) possible(s), en vert : cliquez dedans pour installer.[/color]" % ok)
+	elif not enclosure_proposal.is_empty():
+		var n: int = enclosure_proposal["new"].size()
+		lines.append("Aucun enclos ne convient. Enclos proposé en pointillés : %d clôture(s) à poser%s." % [n,
+			", puis %d case(s) à aménager (en orange)" % enclosure_proposal["missing"] if enclosure_proposal["missing"] > 0 else ""])
+		proposal_btn.visible = n > 0
+		proposal_btn.text = "Construire cet enclos · %d bois" % n
+		proposal_btn.disabled = game.stock["bois"] < n or game.phase != "day"
+		proposal_btn.tooltip_text = "Pose %d segments de clôture d'enclos (1 bois chacun). Envoyez ensuite des ouvriers (clic droit) ; une fois fermé, cliquez dedans." % n
+	elif near > 0:
+		lines.append("[color=#FFD45A]Aucun enclos ne convient tel quel : les cases orange sont à aménager (onglet Terrain).[/color]")
+	else:
+		lines.append("[color=#FFB09A]Pas de place libre pour un enclos dans l'enceinte : agrandissez-la.[/color]")
+	if near > 0 and ok > 0:
+		lines.append("En orange : %d enclos presque prêt(s) (cases à aménager)." % near)
+	proposal_label.text = "\n".join(lines)
+
+
+func _build_proposal() -> void:
+	if enclosure_proposal.is_empty():
+		return
+	var fence_def := game.building_def("enclos")
+	var placed := 0
+	for t in enclosure_proposal["new"]:
+		if game.place("batiment", fence_def, t) != null:
+			placed += 1
+	game.say("Enclos proposé : %d clôture(s) en chantier. Envoyez des ouvriers (clic droit dessus)." % placed)
+	enclosure_proposal["new"] = enclosure_proposal["new"].filter(func(t): return game.site_at(t) == null)
+
+
+func _draw_animal_hints() -> void:
+	var pulse := 0.6 + 0.4 * sin(Time.get_ticks_msec() / 260.0)
+	for h in animal_hints:
+		var col: Color = Color("7CF29A") if h["ok"] else UiTokens.DEFAUT
+		var c := Vector2.ZERO
+		for t in h["tiles"]:
+			draw_rect(Rect2(Vector2(t) * TILE, Vector2(TILE, TILE)), Color(col, 0.28 * pulse))
+			draw_rect(Rect2(Vector2(t) * TILE + Vector2(1.5, 1.5), Vector2(TILE - 3, TILE - 3)), col, false, 1.5)
+			c += Vector2(t) + Vector2(0.5, 0.5)
+		if not h["tiles"].is_empty():
+			c = c / h["tiles"].size() * TILE
+			_draw_pin(c - Vector2(0, 2), "ui_valide" if h["ok"] else "terrain_planter_foret", col.darkened(0.25))
+	if not enclosure_proposal.is_empty():
+		var r: Rect2i = enclosure_proposal["rect"]
+		draw_rect(Rect2(Vector2(r.position) * TILE, Vector2(r.size) * TILE), Color(UiTokens.SELECTION, 0.1))
+		for t in enclosure_proposal["ring"]:
+			var rr := Rect2(Vector2(t) * TILE, Vector2(TILE, TILE)).grow(-3)
+			if enclosure_proposal["new"].has(t):
+				_dashed_rect(rr, UiTokens.SELECTION)
+		for t in enclosure_proposal["pattern"]:
+			var ok_t: bool = enclosure_proposal["missing"] == 0
+			draw_rect(Rect2(Vector2(t) * TILE + Vector2(2, 2), Vector2(TILE - 4, TILE - 4)), Color("7CF29A") if ok_t else UiTokens.DEFAUT, false, 1.5)
+
+
+## Fiche d'un animal installé : contrat, motif, nourriture, affinités.
+func _animal_info(a: GameState.Animal) -> void:
+	var d: Dictionary = a.def
+	zoo_title.text = "ANIMAL"
+	var mult := game.animal_attract_mult(a)
+	var lines: Array[String] = [
+		"[b]%s[/b] · palier %s" % [d["nom"], d["palier"]],
+		"[color=%s]%s[/color] · %s · %s" % [biome_colors[d["biome"]].to_html(false), biome_noms[d["biome"]], game.continent_name(d.get("continent", "")), game.type_name(d.get("type", ""))],
+		"",
+		"État : %s" % ("arrive cette nuit" if not a.arrived else ("[color=#7CF29A]nourri[/color]" if a.fed else "[color=#FFB09A]a faim : il ne compte plus dans l'attractivité[/color]")),
+		"Attractivité : [b]%d[/b]%s" % [int(d["reputation"]), " (×%.2f avec les bonus)" % mult if not is_equal_approx(mult, 1.0) else ""],
+		"Nourriture : %d rations / jour · réserve %.0f / %.0f" % [roundi(game.rations_per_day(d)), a.food, game.food_capacity(d)],
+		("En liberté dans le parc (%d cases)" if a.park else "Enclos : %d cases") % a.tiles.size() + " · il lui en faut %d" % int(d["taille"]),
+	]
+	var same := game.animals.filter(func(o): return o != a and o.arrived and o.def.get("continent", "") == d.get("continent", "")).size()
+	if same > 0:
+		lines.append("[color=#FFD45A]Affinité : %d autre(s) animal(aux) d'%s dans le zoo[/color]" % [same, game.continent_name(d.get("continent", ""))])
+	var mates := game.shared_type_count(a)
+	if mates > 0:
+		lines.append("[color=#FFD45A]Enclos partagé : %d autre(s) animal(aux) %s ici (+%d %% de réputation)[/color]" % [
+			mates, game.type_name(d.get("type", "")), roundi(mates * float(game.data["animals"]["affinite_type"]["par_animal"]) * 100)])
+	info_text.text = "\n".join(lines)
+	if info_extra_for != a:
+		info_extra_for = a
+		_clear(info_extra)
+		info_extra.add_child(Composants.label("Motif d'enclos du contrat", "TexteSecondaire"))
+		var cc := CenterContainer.new()
+		cc.add_child(_pattern_view(d, 22.0))
+		info_extra.add_child(cc)
+
+
+## Prix du panneau Marché, recalculés selon la quantité choisie et les Marchands postés.
+func _update_trade() -> void:
+	if trade_rows.is_empty():
+		return
+	var rate := game.sell_rate()
+	var who := "Marchand au Marché" if game.buy_mult() < 1.0 else ("Marchand au camp" if game.marchand_present() else ("bâtiment Marché" if game.market_built() else "sans Marchand"))
+	trade_note.text = "Vente à %d %%%s (%s)" % [roundi(rate * 100), " · achat −%d %%" % roundi((1.0 - game.buy_mult()) * 100) if game.buy_mult() < 1.0 else "", who]
+	for res in trade_rows:
+		var row: Array = trade_rows[res]
+		var qty := int(row[0].value)
+		var units := mini(qty, floori(game.stock[res] + 0.0001))
+		row[1].text = "Vendre +%d" % floori(units * game.sell_price(res))
+		row[1].disabled = game.phase != "day" or units <= 0
+		row[1].tooltip_text = "Vend %d %s (stock %d) à %.1f l'unité" % [units, res, floori(game.stock[res]), game.sell_price(res)]
+		if res != "or":
+			var cost := ceili(game.buy_price(res) * qty)
+			row[2].text = "Acheter −%d" % cost
+			row[2].disabled = game.phase != "day" or game.money < cost
+			row[2].tooltip_text = "Achète %d %s à %.1f l'unité (double du prix de revente, moins la remise d'un Marchand au Marché)" % [qty, res, game.buy_price(res)]
+
+
+## Publicité : multiplicateur de visiteurs, campagne en cours et boutons de lancement.
+func _update_publicity() -> void:
+	if pub_buttons.is_empty():
+		return
+	var lines: Array[String] = ["Visiteurs ×%s (%d point(s) de publicité)" % [("%.2f" % game.publicity_mult()).replace(".", ","), roundi(game.publicite)]]
+	if not game.campaign.is_empty():
+		var c: Dictionary = game.campaign
+		var pct := roundi(100.0 * float(c["progress"]) / float(c["def"]["travail"]))
+		var eta := game.campaign_eta()
+		lines.append("En cours : %s, %d %% · %s" % [c["def"]["nom"], pct,
+			"personne dehors : en pause" if eta == INF else "encore ~%d s" % ceili(eta)])
+	elif game.outside_workers().is_empty():
+		lines.append("Envoyez un ouvrier à l'extérieur (case Accès) pour lancer une campagne.")
+	pub_note.text = "\n".join(lines)
+	for d in game.campaign_defs():
+		var b: Button = pub_buttons[d["id"]]
+		var err := game.campaign_error(d)
+		b.text = "%s · %d" % [d["court"], int(d["cout"])]
+		b.disabled = err != ""
+		b.tooltip_text = "%s : %d argent, %s (travail %d s à l'extérieur).%s" % [d["nom"], int(d["cout"]), d["texte"], int(d["travail"]),
+			"\n" + err if err != "" else ""]
+
+
+# --- Choix d'un ouvrier : cartes d'action ciblées, Agence d'intérim ----------------
+
+## rows : [carte, texte du bouton, erreur ("" si possible), action]. En journée, la partie est en pause pendant le choix.
+func _open_picker(title: String, subtitle: String, rows: Array) -> void:
+	if picker_root == null:
+		var o := _overlay()
+		picker_root = o[0]
+		picker_box = o[1]
+	ui.move_child(picker_root, -1)
+	if not picker_root.visible and game.phase == "day":
+		picker_speed = speed
+		_set_speed(0.0)
+	picker_root.visible = true
+	_clear(picker_box)
+	picker_box.add_child(Composants.label(title, "TitrePanneau"))
+	if subtitle != "":
+		var s := Composants.label(subtitle, "TexteSecondaire")
+		s.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		s.custom_minimum_size.x = 560
+		picker_box.add_child(s)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(580, mini(440, rows.size() * 52 + 8))
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	picker_box.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 6)
+	scroll.add_child(list)
+	for r in rows:
+		list.add_child(_picker_row(r[0], r[1], r[2], r[3]))
+	var close := Composants.bouton("Annuler", "BoutonSecondaire")
+	close.pressed.connect(_close_picker)
+	picker_box.add_child(close)
+
+
+func _close_picker() -> void:
+	if picker_root and picker_root.visible:
+		picker_root.visible = false
+		if picker_speed >= 0.0:
+			_set_speed(picker_speed)
+			picker_speed = -1.0
+
+
+func _picker_row(card: GameState.Card, button_text: String, err: String, cb: Callable) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	row.tooltip_text = _card_full_tooltip(card)
+	var cat: Dictionary = UiTokens.CATEGORIES[card.metier["categorie"]]
+	var dot := Composants.pastille(cat["couleur"], Composants.icone_metier(str(card.metier["id"])), 32)
+	dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(dot)
+	var who := VBoxContainer.new()
+	who.add_theme_constant_override("separation", -2)
+	who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(who)
+	var nm := Composants.label(card.nom)
+	nm.add_theme_font_override("font", UiTokens.police_corps(800))
+	who.add_child(nm)
+	var traits: Array[String] = []
+	for t in game.trait_defs(card):
+		traits.append(t["nom"])
+	var jl := Composants.label("%s · N%d · salaire %d%s" % [card.metier["nom"], card.niveau, game.salary(card),
+		(" · " + ", ".join(traits)) if not traits.is_empty() else ""], "TexteSecondaire")
+	jl.add_theme_font_size_override("font_size", 12)
+	jl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	jl.custom_minimum_size.x = 340
+	who.add_child(jl)
+	var b := Composants.bouton(button_text if err == "" else _short_reason(err), "BoutonPrincipal")
+	b.custom_minimum_size = Vector2(150, 34)
+	b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	b.disabled = err != ""
+	b.tooltip_text = err
+	b.pressed.connect(cb)
+	row.add_child(b)
+	return row
+
+
+## Rupture de contrat : l'ouvrier à licencier. Promotion : l'ouvrier, puis son amélioration.
+func _open_action_picker(card: GameState.Card) -> void:
+	var fire: bool = card.action["effet"].has("licencier")
+	var rows := []
+	for c in game.all_employees():
+		var err := game.action_target_error(card, c)
+		if fire:
+			rows.append([c, "Licencier", err, func():
+				game.play_action(card, c)
+				_close_picker()])
+		else:
+			rows.append([c, "Choisir", err, _open_promotion.bind(card, c)])
+	_open_picker(card.action["nom"].to_upper(), card.action["texte"] + " La carte quitte ensuite votre deck.", rows)
+
+
+func _open_promotion(card: GameState.Card, target: GameState.Card) -> void:
+	_clear(picker_box)
+	picker_box.add_child(Composants.label("PROMOTION : %s" % target.nom.to_upper(), "TitrePanneau"))
+	var s := Composants.label("%s, niveau %d. Choisissez son amélioration :" % [target.metier["nom"], target.niveau], "TexteSecondaire")
+	picker_box.add_child(s)
+	for opt in game.upgrade_options(target):
+		var ob := Composants.bouton("%s — %s" % [opt["nom"], opt.get("texte", _effect_text(opt["effet"]))], "BoutonSecondaire")
+		ob.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		ob.custom_minimum_size = Vector2(560, 0)
+		ob.pressed.connect(func():
+			game.play_action(card, target, opt)
+			_close_picker())
+		picker_box.add_child(ob)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	picker_box.add_child(row)
+	var back := Composants.bouton("Autre ouvrier", "BoutonSecondaire")
+	back.pressed.connect(_open_action_picker.bind(card))
+	row.add_child(back)
+	var close := Composants.bouton("Annuler", "BoutonSecondaire")
+	close.pressed.connect(_close_picker)
+	row.add_child(close)
+
+
+## Agence d'intérim : choisir l'ouvrier cédé en échange de `take` (ouvrier du marché).
+func _open_swap_picker(take: GameState.Card) -> void:
+	var rows := []
+	for c in game.all_employees():
+		rows.append([c, "Céder · %d" % game.swap_cost(c, take), game.swap_error(c, take), func():
+			game.swap_worker(c, take)
+			_close_picker()])
+	var A: Dictionary = game.data["buildings"]["agence"]
+	_open_picker("AGENCE D'INTÉRIM", "Pour prendre %s (%s), choisissez l'ouvrier qui part : il rejoint le marché à sa place. Coût : %d de frais + prix d'embauche de %s (%d) − %d %% du prix de l'ouvrier cédé." % [
+		take.nom, take.metier["nom"], int(A["frais"]), take.nom, game.hire_cost(take), roundi(float(A["reprise"]) * 100)], rows)
+
+
+## Raison courte à écrire sur un bouton désactivé (le détail reste dans l'infobulle).
+func _short_reason(err: String) -> String:
+	for pair in [["Logement plein", "Logement plein"], ["pas votre tour", "Pas votre tour"], ["Déjà un échange", "Déjà échangé"], ["Déjà", "Déjà embauché"],
+			["terrain", "Sur le terrain"], ["dernier", "Dernier ouvrier"],
+			["argent", "Pas assez d'argent"], ["spectateur", "Spectateur"], ["n'ouvre", "Marché fermé"]]:
+		if pair[0] in err:
+			return pair[1]
+	return err.left(22)
 
 
 func _player_dot(col: Color) -> Control:
@@ -3276,7 +3908,7 @@ func _rebuild_contracts() -> void:
 		b.add_theme_constant_override("icon_max_width", 22)
 		b.add_theme_color_override("icon_normal_color", biome_colors[def["biome"]])
 		b.text = "%s (%s)\nInstaller dans un enclos" % [def["nom"], biome_noms[def["biome"]]]
-		b.tooltip_text = "Enclos fermé par des clôtures d'enclos terminées.\n" + _requirements_text(def).replace("[b]", "").replace("[/b]", "")
+		b.tooltip_text = "Cliquez pour voir où l'installer : un enclos clôturé (même partagé) ou le parc libre de l'enceinte.\n" + _requirements_text(def).replace("[b]", "").replace("[/b]", "")
 		b.button_pressed = build_choice.get("def") == def
 		b.pressed.connect(func():
 			if build_choice.get("def") == def:

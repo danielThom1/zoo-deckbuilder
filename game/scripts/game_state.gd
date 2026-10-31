@@ -71,6 +71,9 @@ class Animal:
 	var arrived := false
 	var fed := true  # a encore des rations en réserve (sinon il a faim et ne compte pas)
 	var food := 0.0  # rations en réserve, une journée au maximum
+	var key := Vector2i(-9, -9)  # identifie l'enclos (plus petite case) ; (-1, -1) = le parc libre de l'enceinte
+	var park := false  # vit en liberté dans l'enceinte, hors des enclos
+	var pattern_tiles: Array[Vector2i] = []  # cases de son motif (réservées : un autre animal ne peut pas les reprendre)
 
 
 var mt: Match
@@ -83,6 +86,8 @@ var traits_by_id := {}
 var positive_ids := {}
 var money := 0.0
 var influence := 0.0
+var publicite := 0.0  # points de publicité gagnés par les campagnes terminées (pour toute la partie)
+var campaign := {}  # campagne en cours : {"def": définition, "progress": travail fait}
 var stock := {"bois": 0.0, "pierre": 0.0, "or": 0.0}
 
 # Partagés par la partie
@@ -146,6 +151,7 @@ var level_choices: Array = []  # [{"card": Card, "options": [...]}] : une améli
 var action_fx := {}  # effets du jour des cartes d'action jouées (productivite, visiteurs)
 var prime_left := 0  # déploiements sans salaire offerts par la carte Prime aujourd'hui
 var bought_action := false  # carte d'action achetée cette nuit
+var swapped_tonight := false  # échange fait à l'Agence d'intérim cette nuit
 var _zoo_cache_version := -1
 var _zoo_cache := {}
 var _aura_cache: Array = []  # émetteurs d'aura du pas en cours (voir _tick_player)
@@ -400,12 +406,18 @@ func draw_hand(extra := 0) -> void:
 	version += 1
 
 
-## Joue une carte d'action de la main : son effet vaut pour la journée, la carte retourne à la défausse le soir.
-func play_action(card: Card) -> bool:
-	if phase != "day" or not card.is_action() or card.deployed or not hand.has(card):
+## Joue une carte d'action de la main. Usage unique : son effet s'applique, puis la carte quitte le deck.
+## Rupture de contrat et Promotion visent un ouvrier (`target`) ; Promotion applique l'amélioration `option`,
+## choisie parmi upgrade_options(target).
+func play_action(card: Card, target: Card = null, option := {}) -> bool:
+	if phase != "day" or not card.is_action() or not hand.has(card):
 		return false
-	card.deployed = true  # jouée : elle reste en main jusqu'au soir
 	var fx: Dictionary = card.action["effet"]
+	if card.action.get("cible", false) and action_target_error(card, target) != "":
+		return false
+	if fx.has("ameliorer") and not upgrade_options(target).has(option):
+		return false
+	hand.erase(card)
 	for k in ["productivite", "visiteurs"]:
 		if fx.has(k):
 			action_fx[k] = float(action_fx.get(k, 1.0)) * float(fx[k])
@@ -416,11 +428,31 @@ func play_action(card: Card) -> bool:
 	if fx.has("pioche"):
 		draw_hand(int(fx["pioche"]))
 	if fx.has("xp"):
-		for w in workers:
-			gain_xp(w.card, float(fx["xp"]))
-	say("Carte jouée : %s. %s" % [card.action["nom"], card.action["texte"]])
+		for c in all_employees():
+			gain_xp(c, float(fx["xp"]))
+	if fx.has("licencier"):
+		for pile in [deck, discard, hand]:
+			pile.erase(target)
+		say("%s a été licencié." % target.nom)
+	if fx.has("ameliorer"):
+		_apply_upgrade_effect(target, option)
+		pending_upgrade = {}
+	say("Carte jouée : %s. %s" % [card.action["nom"], card.action["texte"]] if not card.action.get("cible", false) \
+		else "Carte jouée : %s." % card.action["nom"])
 	version += 1
 	return true
+
+
+## Pourquoi un ouvrier ne peut pas être visé par cette carte d'action ("" s'il le peut).
+func action_target_error(card: Card, target: Card) -> String:
+	if target == null or not all_employees().has(target):
+		return "Choisissez un de vos ouvriers"
+	if card.action["effet"].has("licencier"):
+		if target.deployed:
+			return "Sur le terrain aujourd'hui"
+		if employees() <= 1:
+			return "Votre dernier ouvrier"
+	return ""
 
 
 # --- Déploiement et ordres ---------------------------------------------------
@@ -571,9 +603,20 @@ func order(targets: Array, target: Vector2i) -> void:
 		if map.in_camp(target.x, target.y) and job == "marchand":
 			_station(w, "trade", null, target)
 			continue
+		if site and site.done and site.def_id() == "comptoir":
+			if job == "marchand":
+				_station(w, "trade", site, target)
+			else:
+				say("Seul un Marchand peut tenir le Marché.")
+			continue
 		var animal := animal_at(target)
 		if animal and job == "soigneur":
 			_station(w, "care", animal, target)
+			continue
+		if (map.in_camp(target.x, target.y) or in_depot(target)) and w.carry > 0.0:
+			# Clic droit sur le camp ou un entrepôt : l'ouvrier y dépose sa charge.
+			w.task = {"type": "deposit"}
+			_set_path(w, target)
 			continue
 		var tgt := target
 		if site and site.def_id() == "mine":
@@ -648,6 +691,13 @@ func _update_worker(w: Worker, dt: float) -> void:
 		var gain := lobbying_rate(w.card) * unpaid_mult(w) * float(bonus_effects().get("lobbying", 1.0)) * dt
 		influence += gain
 		day_stats["influence"] += gain
+		if not campaign.is_empty():
+			campaign["progress"] += campaign_rate(w.card) * unpaid_mult(w) * dt
+			if campaign["progress"] >= float(campaign["def"]["travail"]):
+				publicite += float(campaign["def"]["points"])
+				say("Campagne terminée : %s. Visiteurs ×%.2f." % [campaign["def"]["nom"], publicity_mult()])
+				campaign = {}
+				version += 1
 		return
 	if w.pause_left > 0.0:
 		w.pause_left -= dt
@@ -679,6 +729,10 @@ func _update_worker(w: Worker, dt: float) -> void:
 				cared_today[w.task["obj"]] = true
 			elif w.task["kind"] == "formation":
 				_train(w, dt)
+		"deposit":
+			if in_depot(w.tile()):
+				_unload(w)
+			w.task = {}
 		"lobby":
 			if w.tile() == map.exit_tile:
 				w.offmap = true
@@ -724,16 +778,20 @@ func _update_extract(w: Worker, dt: float) -> void:
 					_retarget(w)
 		"to_depot":
 			if in_depot(w.tile()):
-				if w.carry > 0.0:
-					stock[w.carry_type] += w.carry
-					day_stats[w.carry_type] += w.carry
-				w.carry = 0.0
+				_unload(w)
 				task["phase"] = "to_resource"
 				var tg: Vector2i = task["target"]
 				if map.extractible(tg.x, tg.y) != task["res"]:
 					_retarget(w)
 				else:
 					_set_path(w, tg)
+
+
+func _unload(w: Worker) -> void:
+	if w.carry > 0.0:
+		stock[w.carry_type] += w.carry
+		day_stats[w.carry_type] += w.carry
+	w.carry = 0.0
 
 
 ## La case est épuisée : l'ouvrier passe à la case de même ressource la plus proche (rayon 10).
@@ -1344,6 +1402,48 @@ func has_species(id: String) -> bool:
 	return contracts.any(func(d): return d["id"] == id) or animals.any(func(a): return a.def["id"] == id)
 
 
+## Agence d'intérim : échanger `give` (un de vos ouvriers) contre `take` (un ouvrier du marché).
+func agency_built() -> bool:
+	return sites.any(func(s): return s.done and s.def_id() == "agence")
+
+
+func swap_cost(give: Card, take: Card) -> int:
+	var A: Dictionary = data["buildings"]["agence"]
+	return int(A["frais"]) + maxi(0, hire_cost(take) - roundi(float(A["reprise"]) * hire_cost(give)))
+
+
+func swap_error(give: Card, take: Card) -> String:
+	if phase != "night":
+		return "Le marché n'ouvre que la nuit"
+	if not agency_built():
+		return "Construisez une Agence d'intérim"
+	if mt.current_buyer() != index:
+		return "Ce n'est pas votre tour au marché"
+	if swapped_tonight:
+		return "Déjà un échange cette nuit"
+	if give == null or not all_employees().has(give):
+		return "Choisissez un de vos ouvriers"
+	if money < swap_cost(give, take):
+		return "Pas assez d'argent (%d)" % swap_cost(give, take)
+	return ""
+
+
+## L'ouvrier cédé prend la place de l'autre au marché (les joueurs suivants peuvent l'embaucher).
+func swap_worker(give: Card, take: Card) -> bool:
+	var i := market_workers.find(take)
+	if i < 0 or swap_error(give, take) != "":
+		return false
+	money -= swap_cost(give, take)
+	for pile in [deck, discard, hand]:
+		pile.erase(give)
+	market_workers[i] = give
+	discard.append(take)
+	swapped_tonight = true
+	say("Agence d'intérim : %s part, %s rejoint votre équipe (dans la défausse)." % [give.nom, take.nom])
+	mt.bump()
+	return true
+
+
 ## Licenciement par le DRH (s'il a été déployé dans la journée).
 func fire(card: Card) -> bool:
 	if phase != "night" or drh_available <= 0:
@@ -1578,7 +1678,59 @@ func is_fence(t: Vector2i) -> bool:
 
 
 ## Zone fermée par des clôtures d'enclos autour de la case t (remplissage 4 directions).
+## À défaut, dans l'enceinte du zoo : le parc libre (hors enclos et hors bâtiments) sert d'enclos.
 func enclosure_at(t: Vector2i) -> Dictionary:
+	var enc := _fenced_enclosure(t)
+	if enc["closed"] or not map.in_bounds(t.x, t.y) or is_fence(t):
+		return enc
+	return _park_enclosure(t, enc["reason"])
+
+
+func _park_enclosure(t: Vector2i, reason: String) -> Dictionary:
+	var interior: Dictionary = zoo_status()["interior"]
+	if not interior.has(t) or site_at(t) != null:
+		return {"closed": false, "reason": reason}
+	var seen := {t: true}
+	var stack: Array[Vector2i] = [t]
+	var dirs: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+	while not stack.is_empty():
+		var p: Vector2i = stack.pop_back()
+		for d in dirs:
+			var q := p + d
+			if seen.has(q) or not interior.has(q) or is_fence(q):
+				continue
+			seen[q] = true
+			stack.append(q)
+	var tiles: Array[Vector2i] = []
+	for q in seen:
+		if site_at(q) == null:
+			tiles.append(q)
+	return {"closed": true, "tiles": tiles, "park": true}
+
+
+## Identifiant d'un enclos : sa plus petite case (ordre ligne puis colonne), ou (-1, -1) pour le parc libre.
+func enclosure_key(enc: Dictionary) -> Vector2i:
+	if enc.get("park", false):
+		return Vector2i(-1, -1)
+	var best: Vector2i = enc["tiles"][0]
+	for t in enc["tiles"]:
+		if t.y < best.y or (t.y == best.y and t.x < best.x):
+			best = t
+	return best
+
+
+## Cases d'un enclos libres pour un nouveau motif (hors motifs des animaux déjà installés).
+func free_enclosure_tiles(enc: Dictionary) -> Array:
+	var key := enclosure_key(enc)
+	var used := {}
+	for a in animals:
+		if a.key == key:
+			for p in a.pattern_tiles:
+				used[p] = true
+	return enc["tiles"].filter(func(p): return not used.has(p))
+
+
+func _fenced_enclosure(t: Vector2i) -> Dictionary:
 	if not map.in_bounds(t.x, t.y) or is_fence(t):
 		return {"closed": false, "reason": "Visez l'intérieur d'un enclos"}
 	var seen := {t: true}
@@ -1678,12 +1830,22 @@ func animal_error(def: Dictionary, enc: Dictionary) -> String:
 	for t in tiles:
 		if map.in_camp(t.x, t.y):
 			return "L'enclos ne peut pas contenir le camp"
-		for a in animals:
-			if a.tiles.has(t):
-				return "Enclos déjà occupé par : %s" % a.def["nom"]
-	if tiles.size() < int(def["taille"]):
-		return "Enclos trop petit (%d / %d cases)" % [tiles.size(), int(def["taille"])]
-	var ps := pattern_status(def, tiles)
+	# Enclos partagé : la surface doit couvrir tous les animaux ; un prédateur reste seul, et jamais en liberté.
+	var predator: bool = def.get("special", "") == "predateur"
+	if predator and enc.get("park", false):
+		return "Un prédateur a besoin d'un enclos clôturé"
+	var key := enclosure_key(enc)
+	var need := int(def["taille"])
+	var mates := 0
+	for a in animals:
+		if a.key == key:
+			if predator or a.def.get("special", "") == "predateur":
+				return "Un prédateur ne partage pas son enclos (%s)" % a.def["nom"]
+			need += int(a.def["taille"])
+			mates += 1
+	if tiles.size() < need:
+		return "Enclos trop petit (%d / %d cases%s)" % [tiles.size(), need, " avec les %d animal(aux) déjà là" % mates if mates > 0 else ""]
+	var ps := pattern_status(def, free_enclosure_tiles(enc))
 	if not ps["found"]:
 		return "Motif absent" if ps["missing"] >= 99 else "Motif absent (au mieux, %d case(s) à aménager)" % ps["missing"]
 	return ""
@@ -1697,6 +1859,9 @@ func install_animal(def: Dictionary, t: Vector2i) -> String:
 	var a := Animal.new()
 	a.def = def
 	a.tiles.assign(enc["tiles"])
+	a.key = enclosure_key(enc)
+	a.park = enc.get("park", false)
+	a.pattern_tiles.assign(pattern_status(def, free_enclosure_tiles(enc))["tiles"])
 	animals.append(a)
 	contracts.erase(def)
 	say("%s : enclos validé, l'animal arrive cette nuit." % def["nom"])
@@ -1935,23 +2100,94 @@ func attractiveness(only = null) -> int:
 	return total
 
 
-## Publicité : l'influence attire plus de visiteurs, avec un rendement décroissant.
+## Publicité : les campagnes terminées attirent plus de visiteurs, avec un rendement décroissant.
 func publicity_mult() -> float:
-	var P: Dictionary = data["buildings"]["zoo"]["publicite"]
-	return 1.0 + float(P["max"]) * influence / (influence + float(P["demi_influence"]))
+	var P: Dictionary = data["buildings"]["publicite"]
+	return 1.0 + float(P["max"]) * publicite / (publicite + float(P["demi_points"]))
+
+
+func campaign_defs() -> Array:
+	return data["buildings"]["publicite"]["campagnes"]
+
+
+## Avancement d'une campagne par seconde pour un ouvrier hors carte : 1 + son efficacité de lobbying.
+func campaign_rate(card: Card) -> float:
+	return 1.0 + efficiency(card, "lobbying")
+
+
+func outside_workers() -> Array:
+	return workers.filter(func(w): return w.offmap)
+
+
+func campaign_error(def: Dictionary) -> String:
+	if phase != "day":
+		return "Uniquement en journée"
+	if not campaign.is_empty():
+		return "Campagne en cours : %s" % campaign["def"]["nom"]
+	if outside_workers().is_empty():
+		return "Envoyez d'abord un ouvrier à l'extérieur (case Accès)"
+	if money < float(def["cout"]):
+		return "Pas assez d'argent (%d)" % int(def["cout"])
+	return ""
+
+
+## Lance une campagne publicitaire (payée tout de suite) : les ouvriers dehors la réalisent sans perdre d'influence.
+func launch_campaign(def: Dictionary) -> bool:
+	if campaign_error(def) != "":
+		return false
+	money -= float(def["cout"])
+	campaign = {"def": def, "progress": 0.0}
+	say("Campagne lancée : %s. Vos ouvriers à l'extérieur s'en occupent." % def["nom"])
+	version += 1
+	return true
+
+
+## Secondes restantes d'une campagne au rythme des ouvriers actuellement dehors (INF si personne).
+func campaign_eta() -> float:
+	if campaign.is_empty():
+		return 0.0
+	var rate := 0.0
+	for w in outside_workers():
+		rate += campaign_rate(w.card) * unpaid_mult(w)
+	return (float(campaign["def"]["travail"]) - float(campaign["progress"])) / rate if rate > 0.0 else INF
+
+
+## Marchands à leur poste : au camp (obj null) ou au bâtiment Marché (obj = le chantier terminé).
+func _traders() -> Array:
+	return workers.filter(func(w): return w.task.get("kind") == "trade" and w.path.is_empty() and w.tile() == w.task["tile"])
 
 
 func marchand_present() -> bool:
-	return workers.any(func(w): return w.task.get("kind") == "trade" and w.path.is_empty() and map.in_camp(w.tile().x, w.tile().y))
+	return not _traders().is_empty()
 
 
-## Plein tarif avec un Marchand au comptoir (+25 % s'il est Négociateur), sinon taux réduit.
+func market_built() -> bool:
+	return sites.any(func(s): return s.done and s.def_id() == "comptoir")
+
+
+## Taux de vente du stock : réduit sans personne, 70 % avec le bâtiment Marché, plein tarif avec un Marchand au camp,
+## 125 % avec un Marchand au Marché (Négociateur : +25 %).
 func sell_rate() -> float:
+	var C: Dictionary = data["buildings"]["comptoir"]
 	var rate := float(data["buildings"]["zoo"]["vente_sans_marchand"])
-	for w in workers:
-		if w.task.get("kind") == "trade" and w.path.is_empty() and map.in_camp(w.tile().x, w.tile().y):
-			rate = maxf(rate, 1.25 if has_capacity(w.card, "negociateur") else 1.0)
+	if market_built():
+		rate = maxf(rate, float(C["vente_batiment"]))
+	for w in _traders():
+		var r := float(C["vente_marchand"]) if w.task["obj"] != null else 1.0
+		if has_capacity(w.card, "negociateur"):
+			r += float(C["negociateur_vente"])
+		rate = maxf(rate, r)
 	return rate
+
+
+## Remise à l'achat : un Marchand au bâtiment Marché achète 30 % moins cher (Négociateur : 10 % de plus).
+func buy_mult() -> float:
+	var C: Dictionary = data["buildings"]["comptoir"]
+	var m := 1.0
+	for w in _traders():
+		if w.task["obj"] != null:
+			m = minf(m, float(C["achat_marchand"]) - (float(C["negociateur_achat"]) if has_capacity(w.card, "negociateur") else 0.0))
+	return m
 
 
 ## Vend le bois et la pierre du stock (l'or est gardé pour les contrats).
@@ -1960,9 +2196,9 @@ func sell_price(res: String) -> float:
 	return float(data["buildings"]["conversion"][res]) * sell_rate() * float(event_effects().get("prix", {}).get(res, 1.0))
 
 
-## Prix d'achat d'une unité de bois ou de pierre (double du prix de revente de base, sans Marchand ni événement).
+## Prix d'achat d'une unité (double du prix de revente de base), moins la remise d'un Marchand au bâtiment Marché.
 func buy_price(res: String) -> float:
-	return float(data["buildings"]["conversion"][res]) * float(data["buildings"]["marche"]["prix_achat_materiaux"])
+	return float(data["buildings"]["conversion"][res]) * float(data["buildings"]["marche"]["prix_achat_materiaux"]) * buy_mult()
 
 
 func buy_material(res: String, qty: int) -> bool:
@@ -1972,6 +2208,19 @@ func buy_material(res: String, qty: int) -> bool:
 	money -= cost
 	stock[res] += qty
 	say("Achat : %d %s pour %d." % [qty, res, int(cost)])
+	version += 1
+	return true
+
+
+## Vend une quantité choisie d'une ressource (panneau Marché).
+func sell_amount(res: String, qty: int) -> bool:
+	var units := mini(qty, floori(stock[res] + 0.0001))
+	if phase != "day" or units <= 0:
+		return false
+	var gain := floorf(units * sell_price(res))
+	stock[res] -= units
+	money += gain
+	say("Vente : %d %s pour %d%s." % [units, res, int(gain), "" if sell_rate() >= 1.0 else " (taux réduit : postez un Marchand)"])
 	version += 1
 	return true
 
@@ -2291,6 +2540,14 @@ func affinity_bonus() -> float:
 	var bonus := 0.0
 	for c in per_cont:
 		bonus += maxi(0, per_cont[c] - 1) * float(data["animals"]["affinite_continent"]["par_espece"])
+	# Animaux d'un même type partageant un enclos (ou le parc libre) : +5 % par animal en plus.
+	var groups := {}
+	for a in zoo_status().get("animals", []):
+		if a.arrived and a.fed and a.key != Vector2i(-9, -9):
+			var k := "%s|%s" % [str(a.key), a.def.get("type", "")]
+			groups[k] = groups.get(k, 0) + 1
+	for k in groups:
+		bonus += maxi(0, groups[k] - 1) * float(data["animals"]["affinite_type"]["par_animal"])
 	return bonus
 
 
@@ -2359,8 +2616,24 @@ func debug_build_zoo(o: Vector2i) -> void:
 	version += 1
 
 
+## Animal sous la case : d'abord celui dont le motif couvre la case, sinon le premier de l'enclos clôturé.
 func animal_at(t: Vector2i) -> Animal:
+	var fallback: Animal = null
 	for a in animals:
-		if a.tiles.has(t):
+		if a.pattern_tiles.has(t):
 			return a
-	return null
+		if fallback == null and not a.park and a.tiles.has(t):
+			fallback = a
+	return fallback
+
+
+## Nombre d'autres animaux du même type (aérien, terrestre, aquatique) dans le même enclos.
+func shared_type_count(a: Animal) -> int:
+	return animals.filter(func(o): return o != a and o.key == a.key and o.key != Vector2i(-9, -9) \
+		and o.def.get("type", "") == a.def.get("type", "")).size()
+
+
+## Multiplicateur d'attractivité d'un animal dû au bonus de nuit (type ou continent mis à l'honneur).
+func animal_attract_mult(a: Animal) -> float:
+	return float(bonus_effects().get("attractivite_type", {}).get(a.def.get("type", ""), 1.0)) \
+		* float(bonus_effects().get("attractivite_continent", {}).get(a.def.get("continent", ""), 1.0))

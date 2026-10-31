@@ -29,7 +29,8 @@
     "_note": "Draft par tours : cartes_par_joueur tours ; à chaque tour, cartes_par_tour cartes révélées (au moins une par joueur), chacun en prend une à tour de rôle, le premier à choisir tourne. Chaque carte tire sa catégorie selon ces probabilités (≈ 1 cadre et 2 qualifiés par joueur en moyenne).",
     "cartes_par_joueur": 10,
     "cartes_par_tour": 4,
-    "probabilites": { "peu_qualifie": 0.70, "qualifie": 0.20, "cadre": 0.10 }
+    "probabilites": { "peu_qualifie": 0.70, "qualifie": 0.20, "cadre": 0.10 },
+    "defauts_debut": { "negatif_en_plus": 1.0, "positif_en_moins": 0.5, "_note": "Premiers tours du draft plus faibles : au 1er tour, un défaut de plus (probabilité 1) et une qualité de moins (probabilité 0,5) ; l'effet décroît jusqu'à 0 au dernier tour." }
   },
 
   "generation_traits": {
@@ -58,7 +59,7 @@
 
     { "id": "drh",         "nom": "DRH",               "categorie": "cadre", "cout": 12, "salaire": 3, "vitesse": 1.0, "efficacite": { "defaut": 0.6 }, "capacite": "S'il a été déployé dans la journée, peut licencier 1 ouvrier la nuit (deck, main ou défausse)." },
     { "id": "lobbyiste",   "nom": "Lobbyiste",         "categorie": "cadre", "cout": 12, "salaire": 3, "vitesse": 1.0, "efficacite": { "defaut": 0.6, "lobbying": 1.0 }, "capacite": "Lobbying : quitte la carte par l'accès route et rapporte +1 influence par minute tant qu'il est dehors." },
-    { "id": "marchand",    "nom": "Marchand",          "categorie": "cadre", "cout": 10, "salaire": 3, "vitesse": 1.0, "efficacite": { "defaut": 0.6 }, "capacite": "Au Camp : convertit bois/pierre en argent selon buildings.json > conversion." },
+    { "id": "marchand",    "nom": "Marchand",          "categorie": "cadre", "cout": 10, "salaire": 3, "vitesse": 1.0, "efficacite": { "defaut": 0.6 }, "capacite": "Au Camp : vend le stock au plein tarif. Au Marché : vente à 125 % et achats 30 % moins chers." },
     { "id": "vendeur",     "nom": "Vendeur de souvenirs","categorie": "cadre", "cout": 10, "salaire": 2, "vitesse": 1.0, "efficacite": { "defaut": 0.6 }, "capacite": "Boutique où il a travaillé : revenus souvenirs ×2 la nuit." },
     { "id": "formateur",   "nom": "Formateur",         "categorie": "cadre", "cout": 14, "salaire": 3, "vitesse": 1.0, "efficacite": { "defaut": 0.6 }, "capacite": "Posté au Centre de formation : les ouvriers qui s'y forment gagnent 2 fois plus d'expérience." },
     { "id": "animateur",   "nom": "Animateur",         "categorie": "cadre", "cout": 12, "salaire": 3, "vitesse": 1.0, "efficacite": { "defaut": 0.6, "animer": 2.0 }, "capacite": "Au Kiosque d'animation : spectacles, +6 d'attractivité (un autre ouvrier : +3)." },
@@ -84,7 +85,7 @@
     { "id": "maladroit",     "nom": "Maladroit",     "effet": { "construire": 0.8 } },
     { "id": "paresseux",     "nom": "Paresseux",     "effet": {}, "texte": "S'arrête 15 s toutes les 60 s de travail" },
     { "id": "gourmand",      "nom": "Gourmand",      "effet": { "salaire": 1 } },
-    { "id": "rabat_joie",    "nom": "Rabat-joie",    "effet": {}, "aura": { "rayon": 1.5, "bonus": -0.10 }, "texte": "−10 % de productivité aux ouvriers adjacents" },
+    { "id": "rabat_joie",    "nom": "Rabat-joie",    "effet": {}, "aura": { "rayon": 3, "bonus": -0.10 }, "texte": "−10 % de productivité aux autres ouvriers dans un rayon de 3 cases" },
     { "id": "col_blanc",     "nom": "Col blanc",     "effet": {}, "categories": ["cadre"], "texte": "Refuse tout travail manuel" },
     { "id": "distrait",      "nom": "Distrait",      "effet": {}, "texte": "10 % de chance par minute d'abandonner sa tâche (redevient inactif)" },
     { "id": "tetu",          "nom": "Têtu",          "effet": { "choix_ameliorations": 2 }, "texte": "Améliorations : choix entre 2 au lieu de 3" },
@@ -119,13 +120,15 @@
     "manoeuvre": { "niveau": 3, "vers": ["bucheron", "macon", "mineur", "terrassier", "porteur", "animalier", "agent_entretien"] }
   },
 
-  "_note_actions": "Cartes d'action : achetées au marché de nuit (1 par nuit), elles vont dans la défausse puis dans la main comme les ouvriers. Jouer une carte (gratuit) applique son effet pour la journée ; elle retourne à la défausse le soir. Elles ne comptent pas dans le logement.",
+  "_note_actions": "Cartes d'action : achetées au marché de nuit (1 par nuit), elles vont dans la défausse puis dans la main comme les ouvriers. Usage unique : jouée (gratuitement), la carte applique son effet puis quitte le deck. cible : la carte demande de choisir un ouvrier. Elles ne comptent pas dans le logement.",
   "cartes_action": [
-    { "id": "heures_sup",       "nom": "Heures sup",          "cout": 8,  "effet": { "productivite": 1.25 }, "texte": "Aujourd'hui, tous vos ouvriers travaillent 25 % plus vite." },
-    { "id": "prime",            "nom": "Prime",               "cout": 6,  "effet": { "prime": 2 },           "texte": "Les 2 prochains ouvriers déployés aujourd'hui ne coûtent pas de salaire (rendement plein)." },
-    { "id": "portes_ouvertes",  "nom": "Portes ouvertes",     "cout": 10, "effet": { "visiteurs": 1.5 },     "texte": "Aujourd'hui, 50 % de visiteurs en plus." },
-    { "id": "livraison",        "nom": "Livraison",           "cout": 7,  "effet": { "bois": 10, "pierre": 10 }, "texte": "Reçoit immédiatement 10 bois et 10 pierre." },
-    { "id": "recrutement",      "nom": "Recrutement express", "cout": 6,  "effet": { "pioche": 2 },          "texte": "Piochez 2 cartes de plus aujourd'hui." },
-    { "id": "formation_express","nom": "Formation express",   "cout": 9,  "effet": { "xp": 1 },              "texte": "Chaque ouvrier déployé gagne 1 jour d'expérience." }
+    { "id": "heures_sup",       "nom": "Heures sup",          "cout": 8,  "effet": { "productivite": 1.4 },  "texte": "Aujourd'hui, tous vos ouvriers travaillent 40 % plus vite." },
+    { "id": "prime",            "nom": "Prime",               "cout": 4,  "effet": { "prime": 4 },           "texte": "Les 4 prochains ouvriers déployés aujourd'hui ne coûtent pas de salaire (rendement plein)." },
+    { "id": "portes_ouvertes",  "nom": "Portes ouvertes",     "cout": 10, "effet": { "visiteurs": 2.0 },     "texte": "Aujourd'hui, deux fois plus de visiteurs." },
+    { "id": "livraison",        "nom": "Livraison",           "cout": 6,  "effet": { "bois": 30, "pierre": 25 }, "texte": "Reçoit immédiatement 30 bois et 25 pierre." },
+    { "id": "recrutement",      "nom": "Recrutement express", "cout": 5,  "effet": { "pioche": 3 },          "texte": "Piochez 3 cartes de plus aujourd'hui." },
+    { "id": "formation_express","nom": "Formation express",   "cout": 8,  "effet": { "xp": 2 },              "texte": "Tous vos ouvriers, deck compris, gagnent 2 jours d'expérience." },
+    { "id": "licenciement",     "nom": "Rupture de contrat",  "cout": 3,  "effet": { "licencier": true }, "cible": true, "texte": "Licenciez l'ouvrier de votre choix (sauf ceux sur le terrain)." },
+    { "id": "promotion",        "nom": "Promotion",           "cout": 8,  "effet": { "ameliorer": true }, "cible": true, "texte": "Un ouvrier de votre choix gagne une amélioration (choix parmi 3)." }
   ]
 }
