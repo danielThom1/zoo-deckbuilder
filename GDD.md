@@ -181,7 +181,8 @@ Liste complète : `data/workers.json`.
 - **Kiosque d'animation** (tenu) : +3 d'attractivité × l'efficacité « animer » (**Animateur** : +6).
 - **Nouveaux métiers** : Animalier et Agent d'entretien (peu qualifiés), Animateur (cadre).
 - **IA** : elle construit la cuisine dès le premier animal, sur la place libre du parc la plus proche de l'entrée, choisie au moment de construire : la réserver d'avance empêchait les enclos de tenir dans un petit parc. Elle affecte un nourrisseur pour 4 animaux, et un agent d'entretien quand la propreté passe sous 75. Sans Paysagiste ni Terrassier, elle n'achète que des animaux dont le motif existe déjà près du camp. Elle ne construit ni snack ni kiosque.
-- **Pas encore fait** : usure et réparations, Vétérinaire, grands projets (Aquarium, Vivarium, Volière), amélioration des enclos, bureau de communication.
+- **Maladies (lot K)** : chaque nuit, un animal peut tomber malade : 3 % de base, +15 % s'il a eu faim dans la journée, +8 % si la propreté est sous 40, +25 % si un animal de son enclos est déjà malade (contagion). Un animal malade **ne compte pas dans l'attractivité**. Seul le **Soigneur**, posté dans l'enclos (clic droit), le guérit : 60 points de soin, soit environ une minute. L'événement Épidémie rend un animal malade de la même façon. Le bilan de nuit liste les nouveaux malades, et le monde les signale par un carré orange. L'IA envoie son Soigneur aux malades en priorité. Il n'y a donc pas de Vétérinaire : le Soigneur tient ce rôle.
+- **Pas encore fait** : usure et réparations, grands projets (Aquarium, Vivarium, Volière), amélioration des enclos, bureau de communication.
 
 ### 7.2 Personnel, événements, bonus et milieu de partie (v3)
 - **Personnel obligatoire** : pas de billetterie sans quelqu'un au **guichet** (clic droit sur l'Entrée), pas de souvenirs sans quelqu'un à la **boutique**. N'importe quel ouvrier peut tenir ces postes, y compris un Col blanc ou un ouvrier déployé gratuitement, puisque la recette dépend de la présence et non du rendement. La recette est proportionnelle au temps de présence et devient pleine dès la moitié de la journée. Un Vendeur double les souvenirs.
@@ -196,6 +197,7 @@ Liste complète : `data/workers.json`.
 ## 8. Terrain et aménagement (système type *Harmonies*)
 
 - Types de case : **Prairie, Forêt, Eau, Roche, Sable**, plus la **Montagne** (infranchissable, décor) et la **Mine d'or** (unique).
+- **Enclos contre le mur (lot K)** : le mur de l'enceinte peut servir de côté à un enclos. La zone doit alors être bordée par au moins une clôture d'enclos, et ne pas toucher l'entrée (sinon c'est l'allée du parc). On économise ainsi les clôtures de ce côté. Visuellement, une palissade ne se raccorde au mur que si l'enclos qu'elle ferme utilise ce mur. L'IA adosse ses enclos aux murs, mais jamais devant l'entrée, ni contre les murs d'un petit parc évolutif qui seront démolis.
 - **Ressources épuisables** : une forêt contient 25 bois et devient une prairie une fois rasée ; une roche contient 40 pierres et devient du sable. L'or est inépuisable. L'ouvrier passe tout seul à la case voisine (rayon 10). Les ressources proches s'épuisent, ce qui rend utiles les **entrepôts** près des ressources lointaines.
 - **Hors de l'enceinte** : la mine d'or et l'entrepôt ne peuvent pas être construits dans l'enceinte du zoo.
 - **Or** : il se vend 7 l'unité, contre 0,5 pour le bois et 0,8 pour la pierre. Un mineur rapporte environ 3 fois plus en or qu'un bûcheron en bois. Une mine proche du camp devient une vraie stratégie.

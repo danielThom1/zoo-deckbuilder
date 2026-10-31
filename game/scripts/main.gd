@@ -387,26 +387,43 @@ func _draw() -> void:
 	var m := game.map
 	# Camp de base (sous les chantiers d'agrandissement)
 	_draw_camp()
-	# Routes : chemins de terre arrondis (bord sombre puis dessus clair), ponts de planches
+	# Routes : chemin de terre bordé (bande claire usée au centre, cailloux) ; allées pavées dans l'enceinte
 	var roads: Array[Vector2i] = []
 	for y in m.h:
 		for x in m.w:
 			if m.road[m.idx(x, y)] or m.bridge[m.idx(x, y)]:
 				roads.append(Vector2i(x, y))
+	var interior: Dictionary = game.zoo_status()["interior"]
 	var ex := Vector2(m.exit_tile) * TILE
-	for pass_i in 2:
-		var col: Color = UiTokens.CHEMIN.darkened(0.22) if pass_i == 0 else UiTokens.CHEMIN
-		var half := 5.2 if pass_i == 0 else 4.2
-		draw_line(ex + Vector2(TILE / 2, TILE / 2), ex + Vector2(TILE / 2, TILE * 2.4), col, half * 2)
+	var dirt := [UiTokens.CHEMIN.darkened(0.38), UiTokens.CHEMIN, UiTokens.CHEMIN.lightened(0.16)]
+	var paved := [Color("B8A67E"), UiTokens.ALLEE_ZOO, Color("FBF3DE")]
+	var halves := [5.6, 4.6, 1.5]
+	for pass_i in 3:
+		draw_line(ex + Vector2(TILE / 2, TILE / 2), ex + Vector2(TILE / 2, TILE * 2.4), dirt[pass_i], halves[pass_i] * 2)
 		for t in roads:
 			if m.bridge[m.idx(t.x, t.y)]:
 				continue
+			var pal: Array = paved if interior.has(t) else dirt
 			var c := (Vector2(t) + Vector2(0.5, 0.5)) * TILE
-			draw_circle(c, half, col)
+			draw_circle(c, halves[pass_i], pal[pass_i])
 			for d in [Vector2i(1, 0), Vector2i(0, 1)]:
 				var q: Vector2i = t + d
 				if m.in_bounds(q.x, q.y) and (m.road[m.idx(q.x, q.y)] or m.bridge[m.idx(q.x, q.y)]):
-					draw_line(c, c + Vector2(d) * TILE, col, half * 2)
+					draw_line(c, c + Vector2(d) * TILE, pal[pass_i], halves[pass_i] * 2)
+	for t in roads:
+		if m.bridge[m.idx(t.x, t.y)]:
+			continue
+		var c := (Vector2(t) + Vector2(0.5, 0.5)) * TILE
+		var h := (t.x * 73856093) ^ (t.y * 19349663)
+		if interior.has(t):
+			# joints des dalles
+			draw_line(c + Vector2(-3.5, -1), c + Vector2(3.5, -1), Color(0.55, 0.47, 0.32, 0.35), 0.6)
+			draw_line(c + Vector2(-1.5, -1), c + Vector2(-1.5, 3), Color(0.55, 0.47, 0.32, 0.35), 0.6)
+			draw_line(c + Vector2(2, -4), c + Vector2(2, -1), Color(0.55, 0.47, 0.32, 0.35), 0.6)
+		else:
+			# cailloux
+			draw_circle(c + Vector2(float(h % 7) - 3.0, float((h / 7) % 7) - 3.0), 0.7, UiTokens.CHEMIN.darkened(0.45))
+			draw_circle(c + Vector2(float((h / 49) % 7) - 3.0, float((h / 343) % 7) - 3.0), 0.55, Color("F0D8A8"))
 	for t in roads:
 		if m.bridge[m.idx(t.x, t.y)]:
 			_draw_bridge(t)
@@ -600,8 +617,12 @@ func _draw_site(s: GameState.Site) -> void:
 		return
 	# Chantier en cours : dalle claire, planches en biais, contour en pointillés, barre de progression
 	if id in ["cloture", "enclos"]:
-		draw_rect(r.grow(-4), Color(color, 0.35))
-		draw_rect(r.grow(-4), Color(1, 1, 1, 0.6), false, 1.0)
+		var c := r.get_center()
+		for d in [Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(0, -1)]:
+			var o := game.site_at(s.rect.position + d)
+			if o and o.def_id() in ["cloture", "enclos"]:
+				draw_dashed_line(c, c + Vector2(d) * TILE / 2, Color(color, 0.75), 1.2, 2.0)
+		draw_rect(Rect2(c - Vector2(1.8, 1.8), Vector2(3.6, 3.6)), Color(color.darkened(0.3), 0.8))
 		_progress(r, ratio)
 		return
 	draw_rect(r.grow(-1), Color(color, 0.28))
@@ -803,6 +824,9 @@ func _draw_animal(a: GameState.Animal, index: int, now: float) -> void:
 	if not a.arrived or _image("res://ui/animaux/%s.svg" % a.def["id"]) == null:
 		_draw_pin(center + Vector2(0, -2), icon, col.darkened(0.15))
 	var txt: String = a.def["nom"]
+	if a.sick:
+		txt += " (malade !)"
+		_draw_pin(center + Vector2(9, -4), "ui_invalide", UiTokens.DEFAUT, 0.8)
 	if not a.arrived:
 		txt += " (arrive cette nuit)"
 	elif not a.fed:
@@ -815,10 +839,25 @@ func _draw_animal(a: GameState.Animal, index: int, now: float) -> void:
 const TENUES := [Color("E04A4A"), Color("3A6AE0"), Color("E8B020"), Color("8A4AD0"), Color("F2F2F2"), Color("18A88A"), Color("E8782A")]
 
 
+## Visiteur : ombre, jambes, tenue colorée, tête ; un sur quatre est un enfant, quelques ballons.
 func _draw_visitor(pos: Vector2, k: int) -> void:
-	draw_circle(pos, 2.4, Color(0.1, 0.08, 0.05, 0.75))
-	draw_circle(pos, 1.8, TENUES[(k * 5 + 3) % TENUES.size()])
-
+	var child := k % 4 == 1
+	var sc := 0.72 if child else 1.0
+	var t := Time.get_ticks_msec() / 1000.0 + k * 0.37
+	var step := sin(t * 9.0) * 0.6 * sc
+	var shirt: Color = TENUES[(k * 5 + 3) % TENUES.size()]
+	var skin: Color = [Color("F2C9A0"), Color("D9A06E"), Color("A8714A"), Color("6E4630")][(k * 7 + 1) % 4]
+	draw_set_transform(pos + Vector2(0.6, 2.6 * sc), 0.0, Vector2(1.6, 0.6))
+	draw_circle(Vector2.ZERO, 1.8 * sc, Color(0, 0, 0, 0.22))
+	draw_set_transform(Vector2.ZERO)
+	draw_line(pos + Vector2(-0.7 * sc, 0.6 * sc), pos + Vector2(-0.7 * sc + step, 2.6 * sc), Color("3A3048"), 0.9 * sc)
+	draw_line(pos + Vector2(0.7 * sc, 0.6 * sc), pos + Vector2(0.7 * sc - step, 2.6 * sc), Color("3A3048"), 0.9 * sc)
+	draw_rect(Rect2(pos + Vector2(-1.4, -1.8) * sc, Vector2(2.8, 2.8) * sc), shirt)
+	draw_circle(pos + Vector2(0, -2.8) * sc, 1.25 * sc, skin)
+	if k % 9 == 4:
+		var b := pos + Vector2(2.6, -8.0 + sin(t * 2.0) * 0.4)
+		draw_line(pos + Vector2(1.2, -1.2), b, Color(0.2, 0.2, 0.2, 0.6), 0.5)
+		draw_circle(b, 1.6, TENUES[(k + 2) % TENUES.size()])
 
 func _progress(r: Rect2, ratio: float) -> void:
 	draw_rect(Rect2(r.position.x + 2, r.end.y - 4, r.size.x - 4, 2.5), Color(0, 0, 0, 0.6))
@@ -826,27 +865,82 @@ func _progress(r: Rect2, ratio: float) -> void:
 
 
 ## Enceinte (mur blanc à poteaux) ou enclos (palissade de bois) : segments vers les voisins identiques.
+## Enceinte : mur de pierre claire (ombre, chaperon, piliers). Enclos : palissade de bois à double lisse.
+## Une palissade ne rejoint le mur que si l'enclos qu'elle ferme utilise ce mur comme côté.
 func _draw_fence(s: GameState.Site, color: Color) -> void:
-	var c := (Vector2(s.rect.position) + Vector2(0.5, 0.5)) * TILE
+	var p := s.rect.position
+	var c := (Vector2(p) + Vector2(0.5, 0.5)) * TILE
 	var wall := s.def_id() == "cloture"
-	var width := 3.2 if wall else 2.2
+	var links := _wall_links()
 	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
-		var o := game.site_at(s.rect.position + d)
-		if o and o.done and o.def_id() == s.def_id():
-			draw_line(c + Vector2(1, 1.5), c + Vector2(d) * TILE / 2 + Vector2(1, 1.5), Color(0, 0, 0, 0.22), width)
-			draw_line(c, c + Vector2(d) * TILE / 2, color.darkened(0.35), width + 1.2)
-			draw_line(c, c + Vector2(d) * TILE / 2, color, width)
-		elif not wall and o and o.done and o.def_id() == "cloture":
-			# palissade d'enclos accrochée au mur de l'enceinte : jusqu'au poteau du mur
-			draw_line(c + Vector2(1, 1.5), c + Vector2(d) * TILE + Vector2(1, 1.5), Color(0, 0, 0, 0.22), width)
-			draw_line(c, c + Vector2(d) * TILE, color.darkened(0.35), width + 1.2)
-			draw_line(c, c + Vector2(d) * TILE, color, width)
+		var o := game.site_at(p + d)
+		if o == null or not o.done:
+			continue
+		var reach := 0.0
+		if o.def_id() == s.def_id():
+			reach = 0.5
+		elif not wall and o.def_id() in ["cloture", "entree"] and links.has(p):
+			reach = 1.0  # palissade accrochée au mur
+		if reach == 0.0:
+			continue
+		var e := c + Vector2(d) * TILE * reach
+		var side := Vector2(-d.y, d.x)
+		if wall:
+			draw_line(c + Vector2(1.2, 2.0), e + Vector2(1.2, 2.0), Color(0, 0, 0, 0.25), 4.4)
+			draw_line(c, e, Color("A79F8E"), 4.6)
+			draw_line(c + Vector2(0, -0.8), e + Vector2(0, -0.8), color, 3.0)
+			draw_line(c + Vector2(0, -1.6), e + Vector2(0, -1.6), Color("FFFFFF", 0.7), 0.8)
+		else:
+			draw_line(c + Vector2(1, 1.6), e + Vector2(1, 1.6), Color(0, 0, 0, 0.2), 3.0)
+			for off in [-1.3, 1.3]:
+				draw_line(c + side * off, e + side * off, color.darkened(0.3), 1.6)
+				draw_line(c + side * off + Vector2(0, -0.4), e + side * off + Vector2(0, -0.4), color.lightened(0.15), 0.8)
+			var mid := c.lerp(e, 0.5) if reach == 0.5 else c.lerp(e, 0.5)
+			draw_rect(Rect2(mid - Vector2(1.1, 1.1), Vector2(2.2, 2.2)), color.darkened(0.45))
 	if wall:
-		draw_circle(c, 2.6, color.darkened(0.3))
-		draw_circle(c, 1.8, color)
+		draw_circle(c + Vector2(0.8, 1.2), 2.9, Color(0, 0, 0, 0.22))
+		draw_circle(c, 3.0, Color("A79F8E"))
+		draw_circle(c + Vector2(0, -0.6), 2.2, color)
 	else:
-		draw_rect(Rect2(c - Vector2(2, 2), Vector2(4, 4)), color.darkened(0.35))
+		draw_rect(Rect2(c - Vector2(1.9, 1.9), Vector2(3.8, 3.8)), color.darkened(0.45))
+		draw_rect(Rect2(c - Vector2(1.2, 1.9), Vector2(2.4, 1.2)), color.lightened(0.2))
 
+
+## Palissades qui ferment un enclos en s'appuyant sur le mur de l'enceinte (animal installé ou réservé).
+var _links_version := -1
+var _links := {}
+
+
+func _wall_links() -> Dictionary:
+	if _links_version == game.version:
+		return _links
+	_links_version = game.version
+	_links = {}
+	var zones: Array = []
+	for a in game.animals:
+		if not a.park:
+			zones.append(a.tiles)
+	for r in game.pending_installs:
+		var enc := game.enclosure_at(r["tile"])
+		if enc.get("closed", false) and not enc.get("park", false):
+			zones.append(enc["tiles"])
+	for tiles in zones:
+		var fences: Array[Vector2i] = []
+		var uses_wall := false
+		for t in tiles:
+			for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				var q: Vector2i = t + d
+				var o := game.site_at(q)
+				if o == null:
+					continue
+				if o.def_id() == "enclos":
+					fences.append(q)
+				elif o.def_id() in ["cloture", "entree"]:
+					uses_wall = true
+		if uses_wall:
+			for f in fences:
+				_links[f] = true
+	return _links
 
 ## Évaluation de l'enclos sous la souris (mise en cache tant que la case survolée ne change pas).
 func _enc_eval(t: Vector2i) -> Dictionary:
@@ -2989,6 +3083,8 @@ func _rebuild_night() -> void:
 	var lines: Array[String] = []
 	for nm in r["arrivals"]:
 		lines.append("[color=#7CF29A]Arrivée au zoo : %s[/color]" % nm)
+	for nm in r.get("malades", []):
+		lines.append("[color=#E8782A]■ Malade : %s (envoyez un Soigneur dans son enclos)[/color]" % nm)
 	if inc["visitors"] > 0:
 		lines.append("%d visiteurs (%d repartis faute de place), %.1f présents en moyenne%s" % [inc["visitors"], inc["lost"], inc["avg_present"],
 			" · affinités +%d %%" % roundi(inc.get("affinity", 0.0) * 100) if inc.get("affinity", 0.0) > 0.0 else ""])

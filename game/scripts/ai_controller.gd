@@ -253,6 +253,7 @@ func update(dt: float) -> void:
 	_place_wants()
 	_try_install()
 	_staff_posts()
+	_heal_sick()
 	_reassign_idle_extractors()
 	for w in g.workers:
 		if not w.offmap and w.task.is_empty() and w.path.is_empty():
@@ -694,17 +695,24 @@ func _compute_plan(def: Dictionary) -> Dictionary:
 			if a * b >= taille and fits.any(func(f): return f.x <= a and f.y <= b):
 				dims.append(Vector2i(a, b))
 	dims.sort_custom(func(p, q): return p.x * p.y < q.x * q.y or (p.x * p.y == q.x * q.y and absi(p.x - p.y) < absi(q.x - q.y)))
-	var inner := zoo_rect.grow(-1)
+	var walls := _usable_walls()
+	# Devant l'entrée, on laisse le passage aux visiteurs.
+	var gate := Rect2i(entrance - Vector2i(1, 2), Vector2i(4, 5))
 	var best := {}
 	var best_cost := INF
 	for d in dims.slice(0, 3):
-		for y in range(inner.position.y, inner.end.y - d.y - 1):
-			for x in range(inner.position.x, inner.end.x - d.x - 1):
+		for y in range(zoo_rect.position.y, zoo_rect.end.y - d.y - 1):
+			for x in range(zoo_rect.position.x, zoo_rect.end.x - d.x - 1):
 				var outer := Rect2i(x, y, d.x + 2, d.y + 2)
+				if outer.intersects(gate):
+					continue
 				var interior := outer.grow(-1)
 				var ok := true
 				var shared := 0
 				for t in _ring(outer):
+					if walls.has(t):
+						shared += 2  # le mur de l'enceinte sert de côté : aucune clôture à construire
+						continue
 					if fence_tiles.has(t):
 						shared += 1  # clôture commune avec un enclos voisin
 						continue
@@ -720,12 +728,28 @@ func _compute_plan(def: Dictionary) -> Dictionary:
 				if conv == null:
 					continue
 				# Moins d'aménagements, clôtures partagées et enclos tassés contre les murs : on garde de la place.
-				var wall_dist := mini(mini(x - inner.position.x, y - inner.position.y), mini(inner.end.x - outer.end.x, inner.end.y - outer.end.y))
+				var wall_dist := maxi(0, mini(mini(x - zoo_rect.position.x, y - zoo_rect.position.y), mini(zoo_rect.end.x - outer.end.x, zoo_rect.end.y - outer.end.y)))
 				var cost: float = _conv_cost(conv) * 2.0 - shared * 0.6 + wall_dist * 0.4
 				if cost < best_cost:
 					best_cost = cost
 					best = {"def": def, "interior": interior, "ring": _ring(outer), "conv": conv}
 	return best
+
+
+## Cases du mur de l'enceinte qu'un enclos peut prendre comme côté : pas l'entrée, et pas les murs
+## du petit parc évolutif qui seront démolis à l'agrandissement.
+func _usable_walls() -> Dictionary:
+	var out := {}
+	var keep := {}
+	if target_rect.size != Vector2i.ZERO and not expanded:
+		for t in _ring(target_rect):
+			keep[t] = true
+	for t in _ring(zoo_rect):
+		if t == entrance or t == entrance + Vector2i(1, 0):
+			continue
+		if keep.is_empty() or keep.has(t):
+			out[t] = true
+	return out
 
 
 func _has_landscaper() -> bool:
@@ -815,7 +839,7 @@ func _ensure_plans() -> void:
 func _try_install() -> void:
 	for p in plans.duplicate():
 		var ring: Array = p["ring"]
-		if not ring.all(func(t): return g.is_fence(t)):
+		if not ring.all(func(t): return g.is_fence(t) or g.is_wall(t)):
 			continue
 		var interior: Rect2i = p["interior"]
 		if _rect_tiles(interior).any(func(t): return g.site_at(t) != null):
@@ -904,8 +928,9 @@ func _wants() -> Array:
 			var step = _conversion_step(GameMap.TERRAINS[g.map.get_t(c[0].x, c[0].y)], c[1])
 			if g.site_at(c[0]) == null and step != null:
 				out.append(["amenagement", step, c[0]])
+		var walls := _usable_walls()
 		for t in p["ring"]:
-			if g.site_at(t) == null:
+			if g.site_at(t) == null and not walls.has(t):
 				out.append(["batiment", g.building_def("enclos"), t])
 	# 3 bis. Cuisine dès le premier animal (zoo ouvert : il faut livrer les rations), puis local d'entretien
 	# quand le parc commence à se salir.
@@ -1113,10 +1138,10 @@ func _assign(w: GameState.Worker) -> void:
 			g.order([w], shop.rect.position)
 			return
 	if job == "soigneur" and not survival:
-		for a in g.animals:
-			if a.arrived and not g.cared_today.has(a):
-				g.order([w], a.tiles[0])
-				return
+		var patient = _patient()
+		if patient:
+			g.order([w], patient.tiles[0])
+			return
 	# Campagne publicitaire à mener (en cours ou voulue) : un ouvrier part à l'extérieur s'il n'y a personne.
 	if not g.workers.any(func(o): return o.offmap or o.task.get("type") == "lobby") and not w.unpaid and g.workers.size() >= 4 \
 		and (not g.campaign.is_empty() or not _campaign_wanted().is_empty()):
@@ -1199,6 +1224,32 @@ func _road_plan_to(front: Vector2i, park: Rect2i) -> Array[Vector2i]:
 				came[q] = p
 				queue.append(q)
 	return []
+
+
+## Animal à soigner : un malade que personne ne soigne, sinon un animal pas encore soigné aujourd'hui.
+func _patient():
+	var treated := {}
+	for o in g.workers:
+		if o.task.get("kind") == "care":
+			treated[o.task["obj"]] = true
+	for a in g.animals:
+		if a.arrived and a.sick and not treated.has(a):
+			return a
+	for a in g.animals:
+		if a.arrived and not g.cared_today.has(a) and not treated.has(a):
+			return a
+	return null
+
+
+## Un malade attend : un Soigneur posté auprès d'un animal en bonne santé change d'enclos.
+func _heal_sick() -> void:
+	var waiting := g.sick_animals().filter(func(a): return not g.workers.any(func(o): return o.task.get("obj") == a))
+	if waiting.is_empty():
+		return
+	for o in g.workers:
+		if o.task.get("kind") == "care" and not o.task["obj"].sick:
+			g.order([o], waiting[0].tiles[0])
+			return
 
 
 ## Une fois le zoo ouvert, quelqu'un tient le guichet et la boutique (sinon pas de recettes).

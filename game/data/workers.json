@@ -56,7 +56,7 @@
     { "id": "charpentier", "nom": "Charpentier",       "categorie": "qualifie", "cout": 8,  "salaire": 2, "vitesse": 1.0, "efficacite": { "defaut": 1.0, "construire_bois": 1.8 } },
     { "id": "paysagiste",  "nom": "Paysagiste",        "categorie": "qualifie", "cout": 9,  "salaire": 2, "vitesse": 1.0, "efficacite": { "defaut": 1.0, "amenager": 2.0 } },
     { "id": "cantonnier",  "nom": "Cantonnier",        "categorie": "qualifie", "cout": 7,  "salaire": 2, "vitesse": 1.1, "efficacite": { "defaut": 1.0, "construire_route": 2.5 } },
-    { "id": "soigneur",    "nom": "Soigneur",          "categorie": "qualifie", "cout": 10, "salaire": 2, "vitesse": 1.0, "efficacite": { "defaut": 0.9, "construire_enclos": 1.6 }, "capacite": "Un enclos où il a travaillé dans la journée : +2 visiteurs la nuit" },
+    { "id": "soigneur",    "nom": "Soigneur",          "categorie": "qualifie", "cout": 10, "salaire": 2, "vitesse": 1.0, "efficacite": { "defaut": 0.9, "construire_enclos": 1.6, "soigner": 1.0 }, "capacite": "Posté dans un enclos (clic droit) : soigne les animaux malades et donne +2 d'attractivité à l'animal soigné ce jour-là." },
 
     { "id": "drh",         "nom": "DRH",               "categorie": "cadre", "cout": 12, "salaire": 3, "vitesse": 1.0, "efficacite": { "defaut": 0.6 }, "capacite": "S'il a été déployé dans la journée, peut licencier 1 ouvrier la nuit (deck, main ou défausse)." },
     { "id": "lobbyiste",   "nom": "Lobbyiste",         "categorie": "cadre", "cout": 12, "salaire": 3, "vitesse": 1.0, "efficacite": { "defaut": 0.6, "lobbying": 1.0 }, "capacite": "Lobbying : quitte la carte par l'accès route et rapporte +1 influence par minute tant qu'il est dehors." },

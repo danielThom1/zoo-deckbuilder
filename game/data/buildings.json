@@ -141,6 +141,7 @@
     "proprete": { "salete_par_visiteur_minute": 0.3, "nettoyage_par_minute": 12, "seuils": [[60, 0.85], [30, 0.6]], "_note": "Propreté du parc de 0 à 100. Les visiteurs présents la font baisser ; un ouvrier du Local d'entretien la remonte. En dessous des seuils, la demande de visiteurs est multipliée (×0,85 sous 60, ×0,6 sous 30)." },
     "bonus_predateur": 2,
     "bonus_soigneur": 2,
+    "maladie": { "_note": "Chaque nuit, chaque animal peut tomber malade (plus souvent s'il a eu faim dans la journée ou si le parc est sale), et un malade peut contaminer les animaux de son enclos. Un animal malade ne compte pas dans l'attractivité. Seul un Soigneur posté dans l'enclos le guérit (soin_travail points, 1 par seconde à efficacité 1).", "proba_nuit": 0.03, "proba_faim": 0.15, "proba_sale": 0.08, "seuil_sale": 40, "contagion": 0.25, "soin_travail": 60 },
     "mult_vendeur": 2.0,
     "vente_sans_marchand": 0.5,
     "condition_ouverture": "Enceinte fermée + Entrée + au moins 1 animal à l'intérieur + route de l'Accès à l'Entrée"

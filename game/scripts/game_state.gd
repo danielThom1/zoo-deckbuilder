@@ -75,6 +75,9 @@ class Animal:
 	var key := Vector2i(-9, -9)  # identifie l'enclos (plus petite case) ; (-1, -1) = le parc libre de l'enceinte
 	var park := false  # vit en liberté dans l'enceinte, hors des enclos
 	var pattern_tiles: Array[Vector2i] = []  # cases de son motif (réservées : un autre animal ne peut pas les reprendre)
+	var sick := false  # malade : ne compte pas dans l'attractivité tant qu'un Soigneur ne l'a pas guéri
+	var heal := 0.0  # soins reçus (points de travail du Soigneur)
+	var starved := false  # a eu faim aujourd'hui (risque de maladie accru la nuit)
 
 
 var mt: Match
@@ -145,7 +148,6 @@ var staffed_time := {}  # Site (entrée, boutique) -> secondes de présence d'un
 var vendeur_time := {}  # Site (boutique) -> secondes de présence d'un Vendeur aujourd'hui
 var night_bonus := {}  # bonus choisi cette nuit (actif demain)
 var day_bonus := {}  # bonus actif aujourd'hui
-var sick_animal: Animal = null  # événement « Épidémie »
 var night_action_used := false
 var pending_upgrade := {}  # {"card": Card, "options": [...]} pendant le choix d'une amélioration
 var level_choices: Array = []  # [{"card": Card, "options": [...]}] : une amélioration gratuite à choisir par niveau gagné
@@ -741,7 +743,15 @@ func _update_worker(w: Worker, dt: float) -> void:
 				if w.task["kind"] == "shop" and w.card.metier["id"] == "vendeur":
 					vendeur_time[w.task["obj"]] = vendeur_time.get(w.task["obj"], 0.0) + dt
 			elif w.task["kind"] == "care":
-				cared_today[w.task["obj"]] = true
+				var pet: Animal = w.task["obj"]
+				cared_today[pet] = true
+				if pet.sick and can_heal(w.card):
+					pet.heal += efficiency_at(w, "soigner") * dt
+					if pet.heal >= float(data["buildings"]["zoo"]["maladie"]["soin_travail"]):
+						pet.sick = false
+						pet.heal = 0.0
+						say("%s est guéri." % pet.def["nom"])
+						version += 1
 			elif w.task["kind"] == "formation":
 				_train(w, dt)
 		"deposit":
@@ -1266,6 +1276,7 @@ func _end_day_player() -> void:
 			a.food = food_capacity(a.def)  # il arrive avec une journée de rations
 			arrivals.append(a.def["nom"])
 	var income := _close_zoo_day()  # les recettes ont été encaissées pendant la journée
+	var fallen_ill := _roll_diseases()
 	version += 1  # invalide le cache de l'enceinte (nouveaux animaux)
 	# Emprunt du jour : remboursé automatiquement, quitte à passer en négatif.
 	if loan_today:
@@ -1289,7 +1300,7 @@ func _end_day_player() -> void:
 			level_ups.append(card)
 			level_choices.append({"card": card, "options": _upgrade_pool(card)})
 	night_report = {"day": day, "stats": day_stats.duplicate(), "level_ups": level_ups, "deployed": workers.size(),
-		"arrivals": arrivals, "income": income}
+		"arrivals": arrivals, "income": income, "malades": fallen_ill}
 	workers.clear()
 	for c in hand:
 		c.deployed = false  # cartes d'action jouées comprises
@@ -1306,7 +1317,6 @@ func _start_day_player() -> void:
 	vendeur_time.clear()
 	day_bonus = night_bonus
 	night_bonus = {}
-	sick_animal = null
 	pending_upgrade = {}
 	action_fx = {}
 	prime_left = 0
@@ -1793,6 +1803,7 @@ func _planned_enclosure(t: Vector2i) -> Dictionary:
 	var stack: Array[Vector2i] = [t]
 	var dirs: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 	var unfinished := false
+	var gate := false
 	while not stack.is_empty():
 		var p: Vector2i = stack.pop_back()
 		for d in dirs:
@@ -1803,12 +1814,16 @@ func _planned_enclosure(t: Vector2i) -> Dictionary:
 				continue
 			if is_fence(q):
 				continue
+			if is_wall(q) or (site_at(q) != null and site_at(q).def_id() in ["cloture", "entree"]):
+				if site_at(q).def_id() == "entree":
+					gate = true
+				continue
 			if _is_fence_site(q):
 				unfinished = true
 				continue
 			seen[q] = true
 			stack.append(q)
-	if not unfinished:
+	if not unfinished or gate:
 		return {}
 	var tiles: Array[Vector2i] = []
 	tiles.assign(seen.keys())
@@ -1884,24 +1899,38 @@ func free_enclosure_tiles(enc: Dictionary) -> Array:
 	return enc["tiles"].filter(func(p): return not used.has(p))
 
 
+## Les murs de l'enceinte peuvent servir de côté à un enclos : la zone doit alors toucher au moins une
+## clôture d'enclos, et pas l'entrée (sinon c'est l'allée du parc, pas un enclos).
 func _fenced_enclosure(t: Vector2i) -> Dictionary:
-	if not map.in_bounds(t.x, t.y) or is_fence(t):
+	var open_msg := "Enclos non fermé : entourez la zone de clôtures d'enclos terminées (le mur de l'enceinte peut servir de côté)"
+	if not map.in_bounds(t.x, t.y) or is_fence(t) or is_wall(t):
 		return {"closed": false, "reason": "Visez l'intérieur d'un enclos"}
 	var seen := {t: true}
 	var stack: Array[Vector2i] = [t]
 	var dirs: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+	var fenced := false
+	var gate := false
 	while not stack.is_empty():
 		var p: Vector2i = stack.pop_back()
 		for d in dirs:
 			var q := p + d
 			if not map.in_bounds(q.x, q.y):
-				return {"closed": false, "reason": "Enclos non fermé : entourez la zone de clôtures d'enclos terminées"}
-			if seen.has(q) or is_fence(q):
+				return {"closed": false, "reason": open_msg}
+			if seen.has(q):
+				continue
+			if is_fence(q):
+				fenced = true
+				continue
+			if is_wall(q):
+				if site_at(q).def_id() == "entree":
+					gate = true
 				continue
 			if seen.size() >= 120:
-				return {"closed": false, "reason": "Enclos non fermé : entourez la zone de clôtures d'enclos terminées"}
+				return {"closed": false, "reason": open_msg}
 			seen[q] = true
 			stack.append(q)
+	if not fenced or gate:
+		return {"closed": false, "reason": open_msg}
 	var tiles: Array[Vector2i] = []
 	tiles.assign(seen.keys())
 	return {"closed": true, "tiles": tiles}
@@ -2046,6 +2075,42 @@ func food_capacity(def: Dictionary) -> float:
 
 ## Les animaux ne dépendent de la Cuisine qu'une fois le zoo ouvert au public (enceinte, entrée, animal et
 ## route) : avant, le fournisseur les nourrit. Cela évite de s'endetter avant les premiers revenus.
+func can_heal(card: Card) -> bool:
+	return card.metier["efficacite"].has("soigner")
+
+
+func sick_animals() -> Array:
+	return animals.filter(func(a): return a.arrived and a.sick)
+
+
+## La nuit : risque de maladie (faim dans la journée, parc sale), puis contagion dans un même enclos.
+## Renvoie les noms des animaux tombés malades.
+func _roll_diseases() -> Array[String]:
+	var M: Dictionary = data["buildings"]["zoo"]["maladie"]
+	var out: Array[String] = []
+	var already := animals.filter(func(a): return a.sick)
+	for a in animals:
+		if not a.arrived or a.sick:
+			continue
+		var p := float(M["proba_nuit"])
+		if a.starved:
+			p += float(M["proba_faim"])
+		if proprete < float(M["seuil_sale"]):
+			p += float(M["proba_sale"])
+		var contact := already.any(func(o): return not o.park and not a.park and o.key == a.key)
+		if contact:
+			p += float(M["contagion"])
+		if rng.randf() < p:
+			a.sick = true
+			a.heal = 0.0
+			out.append(a.def["nom"])
+	for a in animals:
+		a.starved = false
+	if not out.is_empty():
+		say("Animaux malades : %s. Envoyez un Soigneur dans leur enclos." % ", ".join(out))
+	return out
+
+
 func food_due() -> bool:
 	return zoo_status()["open"] and not visitor_path().is_empty()
 
@@ -2070,6 +2135,8 @@ func _animals_eat(dt: float) -> void:
 		else:
 			a.food = food_capacity(a.def)
 		a.fed = a.food > 0.0
+		if not a.fed:
+			a.starved = true
 
 
 ## Rations qui manquent pour remplir toutes les réserves (zoo ouvert seulement).
@@ -2237,7 +2304,7 @@ func attractiveness(only = null) -> int:
 	var extra := 0
 	var Z: Dictionary = data["buildings"]["zoo"]
 	for a in (animals if only == null else only):
-		if not a.arrived or not a.fed or (a == sick_animal and not cared_today.has(a)):
+		if not a.arrived or not a.fed or a.sick:
 			continue
 		species[a.def["id"]] = a.def
 		if a.def.get("special", "") == "predateur":

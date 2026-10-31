@@ -421,7 +421,9 @@ func _apply_event() -> void:
 		if fx.get("epidemie", false):
 			var arrived := p.animals.filter(func(a): return a.arrived)
 			if not arrived.is_empty():
-				p.sick_animal = pick(arrived)
+				var victim = pick(arrived)
+				victim.sick = true
+				victim.heal = 0.0
 		if not current_event.is_empty():
 			p.say("Événement : %s. %s" % [current_event["nom"], current_event["texte"]])
 

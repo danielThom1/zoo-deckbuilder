@@ -277,7 +277,8 @@ func _init() -> void:
 	gz.end_day()
 	gz.start_next_day()
 	gz.mt.current_event = {}  # pas d'événement aléatoire pendant ce test
-	gz.sick_animal = null
+	for an in gz.animals:
+		an.sick = false
 	var live := gz.zoo_live()
 	check(live["open"] and live["attract"] == 4, "le Zèbre est arrivé : zoo ouvert, attractivité %d" % live["attract"])
 	for i in 1500:
@@ -314,7 +315,8 @@ func _init() -> void:
 	gvz.end_day()
 	gvz.start_next_day()
 	gvz.mt.current_event = {}
-	gvz.sick_animal = null
+	for an in gvz.animals:
+		an.sick = false
 	var Zd: Dictionary = data["buildings"]["zoo"]
 	var cap := gvz.visitor_capacity()
 	check(cap > 0 and cap == int(gvz.zoo_status()["interior"].size() / float(Zd["cases_par_visiteur"])),

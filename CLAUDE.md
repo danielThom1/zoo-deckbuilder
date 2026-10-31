@@ -56,6 +56,10 @@ Jeu de gestion vu du dessus : deckbuilding d'ouvriers + construction d'un zoo. P
   - `tools/croquis.py` : outils communs (courbes à l'encre doublée, aplats, hachures, `droit_max` pour les segments droits des bâtiments, `ecrire_svg` avec son `.import` svg/scale 2 + mipmaps). Générateurs déterministes : `tools/personnages.py`, `tools/animaux.py` (38 espèces de profil → `game/ui/animaux/<id>.svg`, par familles : quadrupède paramétré, oiseau perché, échassier, manchot, reptile, phoque, loutre, primate, petit dressé), `tools/batiments.py` (12 bâtiments + `camp_1` à `camp_3` → `game/ui/batiments/`, 32 unités par case + 14 au-dessus de l'emprise).
   - Jeu : `_image(chemin)` (cache, null si absente : repli sur l'ancien dessin) ; contrats avec l'animal sur un disque clair à côté du motif (`_animal_picture`), fiche animal illustrée ; dans le monde, l'illustration de l'espèce marche et se retourne (`_draw_animal`), bâtiments, entrée et camp dessinés (`_draw_building_image`, le feu du camp reste animé).
   - Planche de contrôle : `godot --path game --script res://tests/planche_images.gd -- --animaux|--batiments --shot=C:/chemin/x.png`. Après un `python tools/…py`, relancer `godot --headless --path game --import`.
+- **Lot K (31/10, PC fixe)** :
+  - Graphismes : routes en chemin de terre bordé (bande claire, cailloux) et allées pavées dans l'enceinte ; visiteurs en petits personnages (jambes animées, enfants plus petits, ballons) dans `_draw_visitor` ; mur d'enceinte en pierre à chaperon et piliers, palissade d'enclos à double lisse (`_draw_fence`) ; clôtures en chantier en pointillés.
+  - Le mur de l'enceinte peut fermer un enclos (`_fenced_enclosure`, `_planned_enclosure` : il faut au moins une clôture d'enclos et ne pas toucher l'entrée). Raccord palissade → mur dessiné seulement si l'enclos utilise le mur (`_wall_links`, cache par `game.version`). IA : enclos adossés aux murs (`_usable_walls`, zone de l'entrée exclue, murs du petit parc évolutif exclus).
+  - Maladies : `Animal.sick`, `heal`, `starved`, `_roll_diseases()` la nuit (faim, saleté, contagion par enclos), soins par le Soigneur posté (`can_heal`, efficacité `soigner`), Épidémie qui rend malade, `zoo.maladie` dans `buildings.json`, ligne « Malade » au bilan de nuit, pastille orange dans le monde. IA : `_patient()`, `_heal_sick()`.
 - **Équilibrage repoussé** à la fin des fonctionnalités (demande du 31/10) : ne lancer que `sim_test` et des captures d'ici là.
 - Pièges Godot rencontrés : une erreur de script en `--headless` **bloque** le processus (le débogueur attend) au lieu de quitter : lancer les tests avec `timeout 240 godot …` ; `TextureRect` → régler `expand_mode` **avant** `texture`/`size` (sinon taille native 96 px) ; `FontVariation.variation_opentype` attend la clé `name_to_tag("wght")`, pas la chaîne `"wght"`.
 
@@ -77,7 +81,9 @@ Note : le jeu est en 2D vu du dessus (`main.gd` dessine la carte, `game/ui/terra
 3. Garder le double codage couleur + forme partout ; vérifier avec la check-list §9 du HANDOFF.
 
 ## Commandes
-Godot n'est pas dans le PATH : l'exécutable est `C:\Users\danie\zoodeck\Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64_console.exe` (noté `godot` ci-dessous).
+Godot n'est pas dans le PATH (noté `godot` ci-dessous). Selon le PC :
+- PC portable : `C:\Users\danie\zoodeck\Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64_console.exe`
+- PC fixe (dépôt dans `C:\Users\danie\Godot`) : `C:\Users\danie\Godot\Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64_console.exe` (si le chemin long pose problème, une copie courte : `C:\Users\danie\AppData\Local\Temp\gd\Godot_v4.7.2-stable_win64_console.exe`).
 ```
 godot --headless --path game --script res://tests/sim_test.gd                        # ~40 s
 godot --headless --path game --script res://tests/balance_sim.gd -- --parties=32 --dt=1.0   # ~7 min (4 processus en parallèle, --jobs=N pour changer)
