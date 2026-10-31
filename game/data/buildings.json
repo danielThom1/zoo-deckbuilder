@@ -103,12 +103,12 @@
     ]
   },
   "marche": {
-    "_note": "Marché de nuit commun aux joueurs. Chaque nuit : 1 ouvrier et 1 contrat maximum par joueur, dans l'ordre d'influence. Une carte non achetée est retirée au hasard chaque nuit pour faire tourner le marché.",
+    "_note": "Marché de nuit commun aux joueurs. Chaque nuit : 1 ouvrier et 1 contrat maximum par joueur, dans l'ordre d'influence. Ouvriers et cartes d'action : une carte non achetée est retirée au hasard chaque nuit. Les contrats ne tournent pas : seul un contrat acheté est remplacé, au jour suivant.",
     "ouvriers": 5,
     "contrats": 4,
     "actions": 3,
     "actions_par_nuit": 1,
-    "contrats_par_nuit": 2,
+    "contrats_par_nuit": 1,
     "surcout_2e_contrat": 0.5,
     "hausse_prix_par_animal": 0.15,
     "prix_achat_materiaux": 2.0,
@@ -127,7 +127,7 @@
   "zoo": {
     "_note": "Les visiteurs arrivent par l'Accès, marchent sur les routes (le camp sert de carrefour) jusqu'à l'Entrée, font la queue, entrent au débit du guichet, paient un billet (et des souvenirs si la boutique est tenue), restent un moment puis repartent. La réputation gagnée chaque nuit dépend du nombre moyen de visiteurs présents dans le zoo.",
     "visiteurs_par_point_attractivite": 6,
-    "billet": 2.0,
+    "billet": 1.6,
     "debit_guichet_par_minute": 24,
     "duree_visite_s": 180,
     "duree_visite_ecart_s": 90,

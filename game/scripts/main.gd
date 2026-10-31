@@ -48,6 +48,7 @@ var game: GameState  # le joueur affiché (vous, ou la première IA en mode spec
 var spectator := false
 var view_buttons: Array = []
 var night_clock := 0.0
+var last_phase := ""
 var args := {}
 var font: Font
 var camera: Camera2D
@@ -75,6 +76,8 @@ var build_buttons := []  # [Button, kind, def]
 var drag_start: Variant = null  # position écran du début de sélection
 var drag_end := Vector2.ZERO
 var drag_add := false
+var drag_sites := false  # Ctrl + glisser : bâtiments et chantiers seulement
+var last_click := {"at": 0, "tile": Vector2i(-99, -99)}  # double-clic sur un tracé
 var panning := false
 var speed := 1.0
 var acc := 0.0
@@ -181,6 +184,10 @@ var end_reopen: Button
 var end_built := false
 var night_peek := false  # la nuit, « Voir mon zoo » masque l'écran du marché
 var night_return: Button
+var peek_panel: PanelContainer  # la nuit, « Voir mon zoo » : motifs des contrats du marché
+var peek_list: VBoxContainer
+var peek_version := -1
+var peek_hint := {}  # contrat montré sur la carte : {"def", "tiles", "missing"}
 var night_chips := {}
 var day_hud: Array[Control] = []  # masqués la nuit et sur l'écran de fin
 var end_dismissed := false
@@ -395,7 +402,7 @@ func _draw() -> void:
 	for t in roads:
 		if m.bridge[m.idx(t.x, t.y)]:
 			_draw_bridge(t)
-	_label("Accès", ex + Vector2(TILE / 2, TILE * 3.1), 10)
+	_draw_town_hall(ex + Vector2(TILE / 2, TILE * 3.6))
 	# Intérieur de l'enceinte du zoo : allées plus claires
 	for t in game.zoo_status()["interior"]:
 		draw_rect(Rect2(Vector2(t) * TILE, Vector2(TILE, TILE)), Color(UiTokens.ALLEE_ZOO, 0.16))
@@ -441,6 +448,17 @@ func _draw() -> void:
 		for p in w.path:
 			pts.append((Vector2(p) + Vector2(0.5, 0.5)) * TILE)
 		draw_polyline(pts, Color(1, 1, 1, 0.55), 1.5)
+
+	# Ordres en file (Maj + clic droit) des ouvriers sélectionnés : numérotés, reliés en pointillés
+	for w: GameState.Worker in selected:
+		var prev := w.pos * TILE if w.path.is_empty() else (Vector2(w.path[-1]) + Vector2(0.5, 0.5)) * TILE
+		for k in w.queue.size():
+			var q := (Vector2(w.queue[k]) + Vector2(0.5, 0.5)) * TILE
+			draw_dashed_line(prev, q, Color(UiTokens.SELECTION, 0.7), 1.0, 3.0)
+			draw_circle(q, 4.2, Color(0, 0, 0, 0.6))
+			draw_circle(q, 3.6, UiTokens.SELECTION)
+			draw_string(font, q + Vector2(-2.2, 2.4), str(k + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 7, Color("1E1406"))
+			prev = q
 
 	# Zone d'influence des ouvriers sélectionnés (Charismatique, Contremaître, Rabat-joie)
 	for w: GameState.Worker in selected:
@@ -508,9 +526,14 @@ func _draw() -> void:
 			draw_circle(p + Vector2(r, -r), 3.2, Color.WHITE)
 			draw_circle(p + Vector2(r, -r), 2.5, UiTokens.PAUSE)
 		elif w.task.is_empty() and w.path.is_empty():
-			draw_circle(p + Vector2(r, -r), 3.4, Color.WHITE)
-			draw_circle(p + Vector2(r, -r), 2.7, UiTokens.INACTIF)
-			draw_string(font, p + Vector2(r - 3, -r + 2.6), "!", HORIZONTAL_ALIGNMENT_CENTER, 6, 7, Color("1E1406"))
+			# Inactif : des « z » qui montent en grossissant au-dessus de la tête
+			for k in 3:
+				var zf := fmod(now * 0.7 + k / 3.0 + w.card.id * 0.13, 1.0)
+				var zp := p + Vector2(3.0 + zf * 5.0, -9.0 - zf * 9.0)
+				var size := int(5.0 + zf * 4.0)
+				var za := sin(zf * PI)
+				draw_string_outline(font, zp, "z", HORIZONTAL_ALIGNMENT_LEFT, -1, size, 2, Color(0.1, 0.07, 0.15, 0.8 * za))
+				draw_string(font, zp, "z", HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(1, 1, 1, za))
 
 	if facing.size() > game.workers.size() + 20:
 		facing.clear()  # ouvriers des journées passées
@@ -524,6 +547,7 @@ func _draw() -> void:
 
 	if build_choice.get("kind") == "animal":
 		_draw_animal_hints()
+	_draw_peek_hint()
 	# Case survolée, ou aperçu du bâtiment à placer
 	var hover := _hover_tile()
 	if build_choice.get("kind") == "animal":
@@ -589,11 +613,11 @@ func _draw_site(s: GameState.Site) -> void:
 			"cloture", "enclos":
 				_draw_fence(s, color)
 			"entree":
-				_draw_gate(r)
+				_draw_turned(r, s.def.get("pivote", false), func(rr): _draw_gate(rr))
 			"grand_arbre", "rocher_obs", "bassin_profond", "abri_chaud":
 				_draw_decor(r, id)
 			_:
-				_draw_building(r, id, color)
+				_draw_turned(r, s.def.get("pivote", false), func(rr): _draw_building(rr, id, color))
 		if building_short.has(id) and r.has_point(_screen_to_world(get_viewport().get_mouse_position())):
 			_label(building_short[id], r.get_center() + Vector2(0, r.size.y / 2 + 9), 9)
 		return
@@ -808,6 +832,44 @@ func _draw_decor(r: Rect2, id: String) -> void:
 			draw_rect(Rect2(b.position, Vector2(b.size.x, b.size.y / 2)), Color("C8783E"))
 			draw_line(b.position + Vector2(0, b.size.y / 2), b.position + Vector2(b.size.x, b.size.y / 2), Color("E8A060"), 1.2)
 			draw_circle(b.get_center() + Vector2(0, 4), 1.6, Color("FFC040"))
+
+
+## Mairie de la ville, au bout de la route d'Accès : c'est là que partent les ouvriers en lobbying (et les campagnes).
+func _draw_town_hall(base: Vector2) -> void:
+	var w := TILE * 2.6
+	var h := TILE * 1.3
+	var body := Rect2(base - Vector2(w / 2, h), Vector2(w, h))
+	draw_rect(Rect2(body.position + Vector2(3, 3), body.size), Color(0, 0, 0, 0.3))
+	draw_rect(body, Color("E8DCC0"))
+	draw_rect(Rect2(body.position + Vector2(0, h - 3), Vector2(w, 3)), Color("B8A880"))
+	# colonnes et porte
+	for k in 4:
+		var x := body.position.x + 5.0 + k * (w - 10.0) / 3.0
+		draw_rect(Rect2(x - 1.3, body.position.y + 2.5, 2.6, h - 5.5), Color("FBF4E2"))
+		draw_line(Vector2(x + 1.3, body.position.y + 2.5), Vector2(x + 1.3, body.end.y - 3), Color(0.5, 0.42, 0.3, 0.4), 0.6)
+	draw_rect(Rect2(base + Vector2(-3, -9), Vector2(6, 6)), Color("6A4426"))
+	# fronton et drapeau
+	var roof := PackedVector2Array([body.position + Vector2(-3, 0), body.position + Vector2(w + 3, 0), body.position + Vector2(w / 2, -9)])
+	draw_colored_polygon(roof, Color("C85A3A"))
+	draw_polyline(roof + PackedVector2Array([roof[0]]), Color("7A3020"), 1.0)
+	var mast := body.position + Vector2(w / 2, -9)
+	draw_line(mast, mast + Vector2(0, -9), Color("5A4636"), 0.8)
+	var wave := sin(Time.get_ticks_msec() / 300.0) * 0.8
+	draw_colored_polygon(PackedVector2Array([mast + Vector2(0, -9), mast + Vector2(6, -7.5 + wave), mast + Vector2(0, -6)]), UiTokens.RESSOURCES["influence"]["couleur"])
+	_draw_pin(body.position + Vector2(w + 2, -2), "ressource_influence", UiTokens.RESSOURCES["influence"]["couleur"])
+	_label("Ville · lobbying", base + Vector2(0, 10), 10)
+
+
+## Dessine un bâtiment tourné d'un quart de tour si besoin : on dessine dans le rectangle d'origine (non tourné),
+## puis la transformation le fait pivoter autour du centre de son emprise.
+func _draw_turned(r: Rect2, turned: bool, draw_fn: Callable) -> void:
+	if not turned:
+		draw_fn.call(r)
+		return
+	var c := r.get_center()
+	draw_set_transform(c, PI / 2.0)
+	draw_fn.call(Rect2(-Vector2(r.size.y, r.size.x) / 2.0, Vector2(r.size.y, r.size.x)))
+	draw_set_transform(Vector2.ZERO)
 
 
 ## Entrée du zoo : deux piliers et un portique.
@@ -1212,6 +1274,7 @@ func _unhandled_input(event: InputEvent) -> void:
 					drag_start = event.position
 					drag_end = event.position
 					drag_add = event.shift_pressed
+					drag_sites = event.ctrl_pressed
 			MOUSE_BUTTON_MIDDLE:
 				panning = true
 			MOUSE_BUTTON_RIGHT:
@@ -1221,7 +1284,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				var targets := selected.filter(func(w): return game.workers.has(w))
 				if not targets.is_empty():
 					var t := _screen_to_world(event.position) / TILE
-					game.order(targets, Vector2i(floori(t.x), floori(t.y)))
+					game.order(targets, Vector2i(floori(t.x), floori(t.y)), event.shift_pressed)
 	elif event is InputEventKey and event.pressed and not event.echo:
 		match event.physical_keycode:
 			KEY_ESCAPE:
@@ -1234,6 +1297,8 @@ func _unhandled_input(event: InputEvent) -> void:
 					selected_animal = null
 			KEY_DELETE, KEY_BACKSPACE:
 				_delete_selection()
+			KEY_R:
+				_rotate_build()
 			KEY_SPACE:
 				_set_speed(1.0 if speed == 0.0 else 0.0)
 			KEY_1:
@@ -1283,6 +1348,20 @@ func _set_build(choice: Dictionary) -> void:
 		entry[0].button_pressed = not choice.is_empty() and entry[2] == choice["def"]
 
 
+## R : tourne d'un quart de tour le bâtiment à poser (entrée du zoo, bâtiments non carrés).
+func _rotate_build() -> void:
+	if build_choice.get("kind") != "batiment":
+		return
+	var def: Dictionary = build_choice["def"]
+	var t: Array = def.get("taille", [1, 1])
+	if int(t[0]) == int(t[1]) or def.get("sur", "") == "camp":
+		return
+	var turned := def.duplicate()
+	turned["taille"] = [t[1], t[0]]
+	turned["pivote"] = not def.get("pivote", false)
+	build_choice["def"] = turned
+
+
 func _is_paint_build() -> bool:
 	return not build_choice.is_empty() and (build_choice["kind"] == "amenagement" or build_choice["def"].get("peinture", false))
 
@@ -1318,12 +1397,40 @@ func _try_place(t: Vector2i, first_click: bool) -> void:
 func _finish_selection() -> void:
 	var start: Vector2 = drag_start
 	drag_start = null
+	var click := start.distance_to(drag_end) < 5
+	var ct := Vector2i((_screen_to_world(drag_end) / TILE).floor())
+	# Maj + clic sur un bâtiment ou un chantier : l'ajoute à la sélection multiple (ou l'en retire)
+	if click and drag_add and game.site_at(ct) != null and selected.is_empty():
+		var st := game.site_at(ct)
+		if selected_site and not selected_sites.has(selected_site):
+			selected_sites.append(selected_site)
+		selected_site = null
+		if selected_sites.has(st):
+			selected_sites.erase(st)
+		else:
+			selected_sites.append(st)
+		_update_info()
+		return
+	# Double-clic sur une clôture, un mur ou une route : tout le tracé relié
+	var now := Time.get_ticks_msec()
+	if click and last_click["tile"] == ct and now - int(last_click["at"]) < 400 and game.site_at(ct) != null:
+		last_click = {"at": 0, "tile": Vector2i(-99, -99)}
+		var chain := _connected_sites(game.site_at(ct))
+		if chain.size() > 1:
+			selected.clear()
+			selected_site = null
+			selected_sites = chain
+			selected_animal = null
+			_update_info()
+			return
+	if click:
+		last_click = {"at": now, "tile": ct}
 	if not drag_add:
 		selected.clear()
 	selected_site = null
 	selected_sites.clear()
 	selected_animal = null
-	if start.distance_to(drag_end) < 5:
+	if click:
 		var wp := _screen_to_world(drag_end) / TILE
 		var best: GameState.Worker = null
 		var best_d := 0.6
@@ -1340,9 +1447,10 @@ func _finish_selection() -> void:
 				selected_animal = game.animal_at(t)
 	else:
 		var rect := Rect2(_screen_to_world(start) / TILE, Vector2.ZERO).expand(_screen_to_world(drag_end) / TILE)
-		for w in game.workers:
-			if not w.offmap and rect.has_point(w.pos) and not selected.has(w):
-				selected.append(w)
+		if not drag_sites:
+			for w in game.workers:
+				if not w.offmap and rect.has_point(w.pos) and not selected.has(w):
+					selected.append(w)
 		# Sans ouvrier dans le rectangle : on sélectionne les bâtiments et chantiers touchés (Suppr pour les retirer).
 		if selected.is_empty():
 			for site in game.sites:
@@ -1352,6 +1460,24 @@ func _finish_selection() -> void:
 				selected_site = selected_sites[0]
 				selected_sites.clear()
 	_update_info()
+
+
+## Éléments reliés de même type (segments de clôture, de mur, de route…) à partir de l'un d'eux.
+func _connected_sites(first: GameState.Site) -> Array:
+	var id := first.def_id()
+	var out := [first]
+	var seen := {first: true}
+	var k := 0
+	while k < out.size() and out.size() < 400:
+		var cur: GameState.Site = out[k]
+		k += 1
+		for t in [cur.rect.position]:
+			for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				var o := game.site_at(t + d)
+				if o and not seen.has(o) and o.def_id() == id:
+					seen[o] = true
+					out.append(o)
+	return out
 
 
 ## Suppr : démolit les bâtiments terminés et annule les chantiers sélectionnés (remboursés selon l'avancement).
@@ -1402,6 +1528,11 @@ func _process(delta: float) -> void:
 	if mt == null:
 		_screenshot_check()
 		return
+	# Chaque nouvelle journée commence en pause : on prépare ses ordres, puis on lance le temps.
+	if mt.phase != last_phase:
+		if mt.phase == "day" and last_phase != "" and not spectator:
+			_set_speed(0.0)
+		last_phase = mt.phase
 	_pan_keys(delta)
 	if mt.phase == "draft" and mt.is_ai(mt.current_drafter()):
 		ai_timer += delta
@@ -1502,6 +1633,10 @@ func _auto_play() -> void:
 		game.end_day()
 		if args.has("etape"):  # --etape=ouvriers : avance la nuit jusqu'à cette étape (captures)
 			mt.night_goto(args["etape"], game.index)
+		if args.has("peek"):  # --peek : « Voir mon zoo » avec le premier contrat montré sur la carte
+			night_peek = true
+			if args["peek"] != "aucun":
+				_toggle_peek_hint(game.market_contracts[0])
 	selected = ws.slice(0, 1 if args.has("un") else 2)
 
 
@@ -1618,7 +1753,8 @@ func _build_ui() -> void:
 	help.focus_mode = Control.FOCUS_NONE
 	help.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	help.custom_minimum_size = Vector2(32, 32)
-	help.tooltip_text = "Clic gauche : sélectionner (glisser pour plusieurs)\nClic droit : déplacer, extraire, construire, tenir un poste, lobbying (case Accès)\nMenu de gauche : placer un bâtiment (glisser pour routes et clôtures), Échap pour arrêter\nMolette : zoom · ZQSD : vue · Espace : pause"
+	help.tooltip_text = "Clic gauche : sélectionner (glisser pour plusieurs)\nClic droit : déplacer, extraire, construire, tenir un poste, lobbying (case Accès) · Maj + clic droit : enchaîner un ordre après la tâche en cours
+Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter un bâtiment · double-clic : tout un tracé de clôture, mur ou route · Suppr : démolir\nMenu de gauche : placer un bâtiment (glisser pour routes et clôtures, R pour tourner l'entrée), Échap pour arrêter\nMolette : zoom · ZQSD : vue · Espace : pause"
 	hb.add_child(help)
 
 	event_label = Label.new()
@@ -2550,6 +2686,12 @@ func _update_hud() -> void:
 		night_peek = false
 	night_root.visible = game.phase == "night" and not mt.game_over and not night_peek
 	night_return.visible = game.phase == "night" and night_peek and not mt.game_over
+	peek_panel.visible = night_return.visible and not game.market_contracts.is_empty()
+	if peek_panel.visible and peek_version != game.version:
+		peek_version = game.version
+		_rebuild_peek()
+	if not night_return.visible:
+		peek_hint = {}
 	if mt.game_over and not end_built:
 		end_built = true
 		_rebuild_end()
@@ -2862,6 +3004,27 @@ func _build_night_ui() -> void:
 	night_return.visible = false
 	night_return.pressed.connect(func(): night_peek = false)
 	ui.add_child(night_return)
+	peek_panel = PanelContainer.new()
+	peek_panel.add_theme_stylebox_override("panel", UiTokens.panel(UiTokens.PANNEAU_MILIEU, UiTokens.OR, 10, 2, 10))
+	peek_panel.anchor_left = 1.0
+	peek_panel.anchor_right = 1.0
+	peek_panel.offset_left = -330
+	peek_panel.offset_right = -16
+	peek_panel.offset_top = 64
+	peek_panel.visible = false
+	ui.add_child(peek_panel)
+	var pv := VBoxContainer.new()
+	pv.add_theme_constant_override("separation", 8)
+	peek_panel.add_child(pv)
+	pv.add_child(Composants.label("CONTRATS DU MARCHÉ", "TitrePanneau"))
+	var pn := Composants.label("Motifs à reproduire (tournés ou retournés). Cliquez un contrat pour voir sur la carte où son motif existe déjà.", "TexteSecondaire")
+	pn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	pn.custom_minimum_size.x = 290
+	pn.add_theme_font_size_override("font_size", 12)
+	pv.add_child(pn)
+	peek_list = VBoxContainer.new()
+	peek_list.add_theme_constant_override("separation", 6)
+	pv.add_child(peek_list)
 	night_next = Composants.bouton("", "BoutonPrincipal")
 	night_next.custom_minimum_size = Vector2(230, 44)
 	night_next.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -3352,6 +3515,68 @@ func _rebuild_night() -> void:
 	night_text.text = "\n".join(lines)
 
 
+## « Voir mon zoo » la nuit : une ligne par contrat du marché (motif, taille, aménagement requis).
+func _rebuild_peek() -> void:
+	_clear(peek_list)
+	for def in game.market_contracts:
+		var b := Button.new()
+		b.toggle_mode = true
+		b.button_pressed = peek_hint.get("def") == def
+		b.custom_minimum_size = Vector2(296, 0)
+		b.focus_mode = Control.FOCUS_NONE
+		b.add_theme_stylebox_override("normal", UiTokens.chip(Color(biome_colors[def["biome"]], 0.22), 8, 6))
+		b.add_theme_stylebox_override("hover", UiTokens.chip(Color(biome_colors[def["biome"]], 0.36), 8, 6))
+		b.add_theme_stylebox_override("pressed", UiTokens.chip(Color(UiTokens.OR, 0.3), 8, 6))
+		var h := HBoxContainer.new()
+		h.add_theme_constant_override("separation", 10)
+		h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		h.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		h.offset_left = 8
+		b.add_child(h)
+		var pat := _pattern_view(def, 13.0)
+		pat.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		pat.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		h.add_child(pat)
+		var txt := Composants.label("%s\n%s · ≥ %d cases%s" % [def["nom"], biome_noms[def["biome"]], int(def["taille"]),
+			"\n+ " + game.building_def(def["decor"])["nom"] if def.has("decor") else ""])
+		txt.add_theme_font_size_override("font_size", 13)
+		txt.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		txt.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		h.add_child(txt)
+		b.pressed.connect(_toggle_peek_hint.bind(def))
+		peek_list.add_child(b)
+		b.custom_minimum_size.y = maxf(54.0, pat.custom_minimum_size.y + 12.0)
+
+
+## Montre (ou cache) sur la carte le meilleur emplacement du motif : dans l'enceinte si elle existe, sinon près du camp.
+func _toggle_peek_hint(def: Dictionary) -> void:
+	if peek_hint.get("def") == def:
+		peek_hint = {}
+	else:
+		var zone: Array = []
+		var interior: Dictionary = game.zoo_status()["interior"]
+		var used := {}
+		for a in game.animals:
+			for t in a.pattern_tiles:
+				used[t] = true
+		if not interior.is_empty():
+			zone = interior.keys().filter(func(t): return game.site_at(t) == null and not used.has(t))
+		else:
+			var c := game.map.camp.get_center()
+			for y in range(c.y - 14, c.y + 15):
+				for x in range(c.x - 14, c.x + 15):
+					if game.map.in_bounds(x, y) and not game.map.in_camp(x, y) and game.site_at(Vector2i(x, y)) == null:
+						zone.append(Vector2i(x, y))
+		var ps := game.pattern_status(def, zone)
+		peek_hint = {"def": def, "tiles": ps["tiles"], "missing": ps["missing"]}
+		if not ps["tiles"].is_empty():
+			var mid := Vector2.ZERO
+			for t in ps["tiles"]:
+				mid += Vector2(t) + Vector2(0.5, 0.5)
+			camera.position = mid / ps["tiles"].size() * TILE
+	peek_version = -1
+
+
 ## Bouton principal de la nuit : passer son tour au marché, garder le premier bonus, ou passer au jour suivant.
 func _on_night_next() -> void:
 	if mt.market_stage():
@@ -3507,6 +3732,21 @@ func _build_proposal() -> void:
 			game.say(err)
 
 
+func _draw_peek_hint() -> void:
+	if peek_hint.is_empty():
+		return
+	var ok: bool = peek_hint["missing"] == 0
+	var col := Color("7CF29A") if ok else UiTokens.DEFAUT
+	var pulse := 0.6 + 0.4 * sin(Time.get_ticks_msec() / 260.0)
+	for t in peek_hint["tiles"]:
+		draw_rect(Rect2(Vector2(t) * TILE, Vector2(TILE, TILE)), Color(col, 0.3 * pulse))
+		draw_rect(Rect2(Vector2(t) * TILE + Vector2(1.5, 1.5), Vector2(TILE - 3, TILE - 3)), col, false, 1.5)
+	if not peek_hint["tiles"].is_empty():
+		var t0: Vector2i = peek_hint["tiles"][0]
+		_label("%s : %s" % [peek_hint["def"]["nom"], "motif présent" if ok else "%d case(s) à aménager" % peek_hint["missing"]],
+			(Vector2(t0) + Vector2(0.5, -0.6)) * TILE, 10)
+
+
 func _draw_animal_hints() -> void:
 	var pulse := 0.6 + 0.4 * sin(Time.get_ticks_msec() / 260.0)
 	for h in animal_hints:
@@ -3613,7 +3853,9 @@ func _update_trade() -> void:
 		var row: Array = trade_rows[res]
 		var qty := int(row[0].value)
 		var units := mini(qty, floori(game.stock[res] + 0.0001))
-		row[1].text = "Vendre +%d" % floori(units * game.sell_price(res))
+		# Moins que la quantité choisie en stock : on affiche ce qui sera vraiment vendu, et pour combien
+		var gain := floori(units * game.sell_price(res))
+		row[1].text = "Vendre +%d" % gain if units >= qty else "Vendre %d · +%d" % [units, gain]
 		row[1].disabled = game.phase != "day" or units <= 0
 		row[1].tooltip_text = "Vend %d %s (stock %d) à %.1f l'unité" % [units, res, floori(game.stock[res]), game.sell_price(res)]
 		if res != "or":

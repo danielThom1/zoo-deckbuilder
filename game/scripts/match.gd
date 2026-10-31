@@ -310,15 +310,15 @@ func end_day() -> void:
 	phase = "night"
 	for p in players:
 		p._end_day_player()
-	# Ordre de passage : influence (cachée), puis la plus grande superficie de zoo, puis le hasard.
+	# Ordre de passage : influence (cachée, au dixième près, comme affichée) ; à égalité, le hasard.
 	var keys := {}
 	for i in players.size():
-		keys[i] = [players[i].influence, players[i].zoo_area(), rng.randf()]
+		keys[i] = [snappedf(players[i].influence, 0.1), rng.randf()]
 	var order: Array = range(players.size())
 	order.sort_custom(func(a, b):
 		var ka: Array = keys[a]
 		var kb: Array = keys[b]
-		for k in 3:
+		for k in ka.size():
 			if not is_equal_approx(ka[k], kb[k]):
 				return ka[k] > kb[k]
 		return false)
@@ -511,8 +511,6 @@ func _refresh_market(for_day: int, rotate: bool) -> void:
 	if rotate:
 		if not market_workers.is_empty():
 			market_workers.remove_at(rng.randi_range(0, market_workers.size() - 1))
-		if not market_contracts.is_empty():
-			market_contracts.remove_at(rng.randi_range(0, market_contracts.size() - 1))
 		if not market_actions.is_empty():
 			market_actions.remove_at(rng.randi_range(0, market_actions.size() - 1))
 	while market_workers.size() < int(m["ouvriers"]):

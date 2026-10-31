@@ -38,6 +38,7 @@ class Worker:
 	var minute_clock := 0.0
 	var pause_left := 0.0
 	var offmap := false  # parti en lobbying par l'accès route
+	var queue: Array[Vector2i] = []  # ordres suivants (Maj + clic droit), exécutés une fois la tâche finie
 	var unpaid := false  # déployé gratuitement : rendement réduit
 
 	func tile() -> Vector2i:
@@ -650,9 +651,22 @@ func recall(w: Worker) -> void:
 		say("%s revient par la route d'accès." % w.card.nom)
 
 
-func order(targets: Array, target: Vector2i) -> void:
+## Ordre donné aux ouvriers. enqueue (Maj + clic droit) : un ouvrier occupé le garde pour plus tard (file d'ordres),
+## un ouvrier libre l'exécute tout de suite ; sans enqueue, un nouvel ordre remplace la file.
+func order(targets: Array, target: Vector2i, enqueue := false) -> void:
 	if phase != "day" or not map.in_bounds(target.x, target.y):
 		return
+	if enqueue:
+		var now := []
+		for w: Worker in targets:
+			if w.task.is_empty() and w.path.is_empty() and w.queue.is_empty():
+				now.append(w)
+			else:
+				w.queue.append(target)
+		targets = now
+	else:
+		for w: Worker in targets:
+			w.queue.clear()
 	var site := site_at(target)
 	for w: Worker in targets:
 		_bring_back(w)
@@ -805,6 +819,8 @@ func _update_worker(w: Worker, dt: float) -> void:
 		_move(w, dt)
 		return
 	if w.task.is_empty():
+		if not w.queue.is_empty():
+			order([w], w.queue.pop_front(), true)  # ordre suivant de la file
 		return
 	match w.task["type"]:
 		"extract":
@@ -1525,7 +1541,7 @@ func buy_contract(def: Dictionary) -> bool:
 	mt.record_purchase(index, def)
 	say("Contrat acheté : %s. Construisez-lui un enclos." % def["nom"])
 	if not mt.is_ai(index) and contracts_tonight >= int(data["buildings"]["marche"]["contrats_par_nuit"]):
-		mt.pass_turn()
+		mt.pass_turn()  # un contrat par tour : au joueur suivant
 	mt.bump()
 	return true
 

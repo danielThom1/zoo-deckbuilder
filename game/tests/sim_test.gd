@@ -224,9 +224,8 @@ func _init() -> void:
 	var base_price := int(second["cout"].get("argent", 0))
 	var expected := roundi(base_price * (1.0 + 0.15 * 1) * 1.5)
 	check(int(gk.contract_cost(second).get("argent", 0)) == expected, "2e contrat : prix x1,15 (1 animal) x1,5 (2e de la nuit) = %d (base %d)" % [expected, base_price])
-	check(gk.buy_contract(second), "2e contrat de la nuit accepté")
-	check(gk.contract_error(gk.market_contracts[0]) != "", "3e contrat refusé (le tour passe après 2 contrats)")
-	check(gk.mt.night_taken.filter(func(t): return t["joueur"] == gk.index).size() == 2, "achats de la nuit visibles de tous")
+	check(gk.contract_error(second) != "", "un seul contrat par tour : le tour est passé")
+	check(gk.mt.night_taken.filter(func(t): return t["joueur"] == gk.index).size() == 1, "achats de la nuit visibles de tous")
 	gk.contracts.erase(second)
 	gk.mt.night_goto("ouvriers")
 	check(gk.mt.night_stage == "ouvriers" and gk.mt.current_buyer() == gk.index, "étape Ouvriers : à votre tour")
@@ -305,7 +304,7 @@ func _init() -> void:
 	for i in 1300:
 		gz.tick(GameState.TICK)
 	var admitted: int = gz.visit["admitted"]
-	check(admitted > 0 and is_equal_approx(gz.visit["tickets"], admitted * 2.0), "guichet tenu : %d visiteurs entrés, billets %d" % [admitted, int(gz.visit["tickets"])])
+	check(admitted > 0 and is_equal_approx(gz.visit["tickets"], admitted * float(data["buildings"]["zoo"]["billet"])), "guichet tenu : %d visiteurs entrés, billets %d" % [admitted, int(gz.visit["tickets"])])
 	check(gz.money > money_mid, "les billets sont encaissés pendant la journée")
 	gz.end_day()
 	var inc: Dictionary = gz.night_report["income"]
@@ -1046,6 +1045,50 @@ func _init() -> void:
 	v_r["decor"] = "rocher_obs"
 	v_r["motif"] = [[0, 0, "Prairie"]]
 	check("Rocher" in v_g.animal_error(v_r, v_enc), "aménagement requis absent : %s" % v_g.animal_error(v_r, v_enc))
+
+	print("Lot O : entrée tournée, ordres enchaînés :")
+	var o_g := _fresh_day(data, 3131)
+	var o_def: Dictionary = o_g.building_def("entree").duplicate()
+	o_def["taille"] = [1, 2]
+	o_def["pivote"] = true
+	var o_o := Vector2i(4, 4)
+	o_g.stock["bois"] = 200.0
+	o_g.stock["pierre"] = 200.0
+	o_g.money = 200.0
+	for y in range(o_o.y, o_o.y + 7):
+		for x in range(o_o.x, o_o.x + 8):
+			o_g.map.set_t(x, y, GameMap.PRAIRIE)
+			o_g._terrain_updated(Vector2i(x, y))
+	var o_built: Array = [o_g.place("batiment", o_def, Vector2i(o_o.x, o_o.y + 2))]
+	check(o_built[0] != null and o_built[0].rect.size == Vector2i(1, 2), "entrée tournée : emprise 1 × 2")
+	for y in range(o_o.y, o_o.y + 7):
+		for x in range(o_o.x, o_o.x + 8):
+			var border := x == o_o.x or x == o_o.x + 7 or y == o_o.y or y == o_o.y + 6
+			if border and o_g.site_at(Vector2i(x, y)) == null:
+				o_built.append(o_g.place("batiment", o_g.building_def("cloture"), Vector2i(x, y)))
+	for st in o_built:
+		if st:
+			st.work = st.travail()
+			o_g._complete(st)
+	check(o_g.zoo_status()["interior"].size() == 30, "enceinte fermée par une entrée verticale (%d cases)" % o_g.zoo_status()["interior"].size())
+
+	var q_g := _fresh_day(data, 5151)
+	q_g.stock["bois"] = 50.0
+	var q_card: GameState.Card = q_g.hand.filter(func(c): return not c.is_action())[0]
+	q_g.deploy(q_card)
+	var q_w := q_g.worker_of(q_card)
+	var q_site := q_g.place("batiment", q_g.building_def("enclos"), q_g.map.camp.position + Vector2i(-2, 0))
+	var q_forest := _nearest(q_g.map, GameMap.FORET)
+	q_g.order([q_w], q_site.rect.position)
+	q_g.order([q_w], q_forest, true)
+	check(q_w.task.get("type") == "build" and q_w.queue == [q_forest], "Maj + clic droit : l'extraction attend la fin du chantier")
+	for i in 3000:
+		q_g.tick(GameState.TICK)
+		if q_w.task.get("type") == "extract":
+			break
+	check(q_site.done and q_w.task.get("type") == "extract" and q_w.queue.is_empty(), "chantier fini : l'ouvrier enchaîne sur la récolte")
+	q_g.order([q_w], q_site.rect.position)
+	check(q_w.queue.is_empty(), "un nouvel ordre sans Maj vide la file")
 
 	print("\n%s" % ("TOUS LES TESTS PASSENT" if failures == 0 else "%d ÉCHEC(S)" % failures))
 	quit(failures)

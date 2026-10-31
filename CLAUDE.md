@@ -75,6 +75,13 @@ Jeu de gestion vu du dessus : deckbuilding d'ouvriers + construction d'un zoo. P
   - Ouvriers au travail : `_work_anim` (outil selon la tâche) et `_draw_work` (hache, pioche, marteau, pelle, balai, seau, plan, livre ; copeaux, poussière, éclats d'or, cœurs, étoiles, pièces), corps tourné vers l'ouvrage.
   - Mur d'enceinte en pierres décalées, piliers aux angles seulement (`_draw_wall`) ; palissade en bois, un poteau par case (`_draw_palisade`, `_post`) ; ombre des clôtures dans l'enclos.
   - Shader du terrain : feuillus lobés et conifères étoilés, blocs de roche à facettes (fissures, mousse), filons d'or qui scintillent sur sol ocre, montagnes à deux pics (`pic()`, neige dentelée, strates).
+- **Lot O (31/10)** :
+  - Nuit : `contrats_par_nuit` à 1 (le tour passe après l'achat), contrats du marché non renouvelés (`_refresh_market` ne retire plus de contrat), égalité d'influence au hasard (`snappedf(influence, 0.1)`). « Voir mon zoo » : panneau des motifs (`peek_panel`, `_rebuild_peek`, `_toggle_peek_hint`, `_draw_peek_hint`), capture `--endday --peek[=aucun]`.
+  - Chaque journée commence en pause (`last_phase` dans `_process`). Marché : le bouton Vendre affiche la quantité réellement vendue. Billet à 1,6 (au lieu de 2).
+  - Mairie « Ville · lobbying » au bout de la route d'Accès (`_draw_town_hall`). Ouvrier inactif : « z z z » animés.
+  - Bâtiments non carrés orientables (touche R pendant la pose, `_rotate_build` : définition copiée avec `taille` inversée et `pivote`, dessin par `_draw_turned`).
+  - Sélection : Ctrl + glisser (bâtiments seulement), Maj + clic (ajoute ou retire), double-clic (tout le tracé relié, `_connected_sites`). Ordres enchaînés : Maj + clic droit, `Worker.queue`, `order(targets, tile, enqueue)`, pastilles numérotées sur la carte.
+  - `docs/prompt_claude_design_graphismes.md` : prompt pour faire produire par Claude Design toutes les images du jeu (formats, tailles, liste).
 - **Équilibrage repoussé** à la fin des fonctionnalités (demande du 31/10) : ne lancer que `sim_test` et des captures d'ici là.
 - Pièges Godot rencontrés : une erreur de script en `--headless` **bloque** le processus (le débogueur attend) au lieu de quitter : lancer les tests avec `timeout 240 godot …` ; `TextureRect` → régler `expand_mode` **avant** `texture`/`size` (sinon taille native 96 px) ; `FontVariation.variation_opentype` attend la clé `name_to_tag("wght")`, pas la chaîne `"wght"`.
 
