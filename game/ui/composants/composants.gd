@@ -28,6 +28,29 @@ const ICONES_BATIMENTS := {
 
 # ------------------------------------------------------------------ icônes et petits éléments
 
+static var _portraits := {}
+
+
+## Portrait dessiné d'un personnage (res://ui/portraits/<id>.svg), mis en cache.
+static func texture_portrait(perso_id: String) -> Texture2D:
+	if not _portraits.has(perso_id):
+		var chemin := "res://ui/portraits/%s.svg" % perso_id
+		_portraits[perso_id] = load(chemin) if ResourceLoader.exists(chemin) else null
+	return _portraits[perso_id]
+
+
+static func portrait_rect(perso_id: String, taille: Vector2) -> TextureRect:
+	var tr := TextureRect.new()
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	tr.texture = texture_portrait(perso_id)
+	tr.custom_minimum_size = taille
+	tr.size = taille
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return tr
+
+
 static func icone_metier(metier_id: String) -> String:
 	return ICONES_METIERS.get(metier_id, "metier_" + metier_id)
 
@@ -204,6 +227,7 @@ static func donnees_ouvrier(g: GameState, card: GameState.Card) -> Dictionary:
 	for u in card.upgrade_names:
 		noms.append([u, "amelioration"])
 	return {"nom": card.nom.to_upper(), "metier": card.metier["nom"], "metier_icone": icone_metier(card.metier["id"]),
+		"portrait": g.perso_of(card)["id"],
 		"categorie": card.metier["categorie"], "niveau": card.niveau, "salaire": g.salary(card),
 		"qualites": qualites, "defauts": defauts, "traits_noms": noms}
 
@@ -239,7 +263,7 @@ static func carte_ouvrier(d: Dictionary, etat := "normale", taille := "main", bo
 	carte.add_theme_stylebox_override("panel", sb_carte)
 	racine.add_child(carte)
 
-	# Portrait : haut de carte teinté par catégorie, accessoire du métier au centre
+	# Portrait : haut de carte teinté par catégorie, personnage dessiné, pastille du métier
 	var portrait := Panel.new()
 	var sb_port := StyleBoxFlat.new()
 	sb_port.bg_color = cat["portrait"]
@@ -249,8 +273,14 @@ static func carte_ouvrier(d: Dictionary, etat := "normale", taille := "main", bo
 	portrait.clip_contents = true
 	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	placer(carte, portrait, Vector2(2, 2), Vector2(t.x - 4, hp))
-	var accessoire := icone_rect(d["metier_icone"], Vector2(54, 54), Color(cat["couleur"]).darkened(0.15))
-	placer(portrait, accessoire, Vector2((t.x - 4 - 54) / 2.0, hp - 64), Vector2(54, 54))
+	if d.has("portrait") and texture_portrait(d["portrait"]) != null:
+		placer(portrait, portrait_rect(d["portrait"], Vector2(t.x - 4, hp)), Vector2.ZERO, Vector2(t.x - 4, hp))
+		var pm := pastille(Color(cat["couleur"]).darkened(0.1), d["metier_icone"], 28, cat["portrait"])
+		pm.tooltip_text = d["metier"]
+		placer(portrait, pm, Vector2(4, hp - 32), Vector2(28, 28))
+	else:
+		var accessoire := icone_rect(d["metier_icone"], Vector2(54, 54), Color(cat["couleur"]).darkened(0.15))
+		placer(portrait, accessoire, Vector2((t.x - 4 - 54) / 2.0, hp - 64), Vector2(54, 54))
 
 	# Badge catégorie : couleur + icône de forme + libellé (jamais la couleur seule)
 	var badge := PanelContainer.new()

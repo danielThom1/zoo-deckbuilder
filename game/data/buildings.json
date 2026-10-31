@@ -61,7 +61,7 @@
     { "id": "maison",     "nom": "Maison d'ouvriers",    "taille": [2, 2], "travail": 180,  "type_travail": "construire_bois",  "cout": { "bois": 12, "pierre": 4 }, "effet": { "logement": 4 } },
     { "id": "entrepot",   "nom": "Entrepôt",             "taille": [2, 2], "travail": 160,  "type_travail": "construire_bois",  "cout": { "bois": 10, "pierre": 6 }, "effet": { "stockage": true }, "hors_enceinte": true },
     { "id": "comptoir",   "nom": "Marché",               "taille": [2, 2], "travail": 120,  "type_travail": "construire_bois",  "cout": { "bois": 10, "pierre": 4 }, "effet": { "commerce": true }, "unique": true, "_note_effet": "Vente du stock à 70 % sans personne. Tenu par un Marchand (clic droit) : vente à 125 % et achat de bois et de pierre 30 % moins cher (Négociateur : +25 % de vente et −10 % d'achat en plus)." },
-    { "id": "agence",     "nom": "Agence d'intérim",     "taille": [2, 2], "travail": 140,  "type_travail": "construire_bois",  "cout": { "bois": 12, "pierre": 6 }, "effet": { "echange": true }, "unique": true, "_note_effet": "La nuit, à votre tour au marché, échange un de vos ouvriers contre un ouvrier du marché (une fois par nuit, en plus de l'embauche, sans place de logement). Coût : voir la section agence." },
+    { "id": "agence",     "nom": "Agence d'intérim",     "taille": [2, 2], "travail": 140,  "type_travail": "construire_bois",  "cout": { "bois": 12, "pierre": 6 }, "effet": { "echange": true }, "unique": true, "_note_effet": "En journée, une fois par jour : remplace un ouvrier sur le terrain par une carte de sa pioche ou de sa défausse. Coût : voir la section agence." },
     { "id": "mine",       "nom": "Mine d'or",            "taille": [2, 2], "travail": 300, "type_travail": "construire_pierre", "cout": { "bois": 10, "pierre": 15 }, "effet": { "permet_extraction": "or" }, "sur": "MineOr", "hors_enceinte": true, "_note": "Une mine par gisement (2 gisements par carte)." },
     { "id": "cloture",    "nom": "Enceinte (segment)",   "taille": [1, 1], "travail": 6,   "type_travail": "construire_pierre", "cout": { "pierre": 1 },            "effet": { "enceinte": true }, "peinture": true },
     { "id": "entree",     "nom": "Entrée du zoo",        "taille": [2, 1], "travail": 120,  "type_travail": "construire_pierre", "cout": { "pierre": 8, "bois": 4 }, "effet": { "entree_zoo": true }, "unique": true },
@@ -83,14 +83,15 @@
     "negociateur_achat": 0.1
   },
   "agence": {
-    "_note": "Échange à l'Agence d'intérim : coût = frais + prix d'embauche de l'ouvrier pris − reprise × prix d'embauche de l'ouvrier cédé (au moins les frais). L'ouvrier cédé rejoint le marché à la place de l'autre.",
-    "frais": 4,
-    "reprise": 0.5
+    "_note": "Échange à l'Agence d'intérim : coût = frais + salaire du remplaçant (celui de l'ouvrier remplacé n'est pas rendu). Le remplaçant arrive à sa place, garde sa charge et reprend sa tâche ; l'ouvrier remplacé part à la défausse.",
+    "frais": 4
   },
   "publicite": {
     "_note": "Campagnes publicitaires : lancées en journée (une à la fois) s'il y a au moins un ouvrier hors de la carte (case Accès). Payées au lancement, elles avancent tant que des ouvriers sont dehors (1 + efficacité de lobbying par seconde et par ouvrier, sans réduire l'influence) et se poursuivent le lendemain. Terminée, une campagne ajoute ses points de publicité pour toute la partie. Visiteurs × (1 + max × points / (points + demi_points)).",
     "max": 1.0,
     "demi_points": 8,
+    "remise_lobbyiste": 0.4,
+    "_note_remise": "Campagne 40 % moins chère si un ouvrier spécialisé en influence (Lobbyiste) est à l'extérieur au lancement.",
     "campagnes": [
       { "id": "affiches", "nom": "Affiches en ville", "court": "Affiches", "cout": 40,  "travail": 60,  "points": 1,  "texte": "+1 point de publicité" },
       { "id": "radio",    "nom": "Spot radio", "court": "Radio",        "cout": 120, "travail": 150, "points": 4,  "texte": "+4 points de publicité" },

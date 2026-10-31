@@ -10,6 +10,7 @@ extends Node2D
 ##   --sim=60        avance la simulation de N secondes au démarrage
 ##   --shot=img.png  enregistre une capture puis quitte
 ##   --marche        ouvre l'aperçu du marché du soir (captures)
+##   --pioche        ouvre la vue de la pioche et de la défausse
 ##   --contrat       ajoute un contrat et passe en mode installation d'animal (avec --autoplay --autozoo)
 ##   --un            avec --autoplay : un seul ouvrier sélectionné (panneau d'unité)
 ##   --zoom=2.5      zoom de la caméra (captures de détail)
@@ -76,6 +77,7 @@ var acc := 0.0
 var info_clock := 0.0
 var ai_timer := 0.0
 var hand_version := -1
+var facing := {}  # Worker -> [vue ("face", "profil", "dos"), miroir, dernière position]
 var toast_signature := ""
 var night_shown_for := -1
 var frame_count := 0
@@ -85,6 +87,7 @@ var ui: Control
 var speed_buttons := {}
 var info_text: RichTextLabel
 var btn_lobby: Button
+var btn_swap: Button
 var btn_recall: Button
 var btn_cancel_site: Button
 var btn_demolish: Button
@@ -141,6 +144,9 @@ var unit_text: RichTextLabel
 var unit_portrait_box: Control
 var unit_portrait_for: Variant = null
 var pile_label: Label
+var pile_root: ColorRect  # vue de la pioche et de la défausse (clic sur la pioche)
+var pile_box: VBoxContainer
+var loan_btn: Button
 var medallion: Control
 var end_day_btn: Button
 var build_pages := {}
@@ -292,6 +298,8 @@ func _start(watch: bool) -> void:
 		var cdef: Dictionary = game.data["animals"]["animaux"].filter(func(d): return d["palier"] == "T1" and d["id"] != "zebre")[0]
 		game.contracts.append(cdef)
 		_set_build({"kind": "animal", "def": cdef})
+	if args.has("pioche"):
+		_open_pile()
 	if args.has("marche"):
 		market_root.visible = true
 		_rebuild_market_preview()
@@ -457,28 +465,37 @@ func _draw() -> void:
 			draw_circle(w.pos * TILE, float(a["rayon"]) * TILE, Color(col, 0.08))
 			draw_arc(w.pos * TILE, float(a["rayon"]) * TILE, 0, TAU, 48, col, 1.0)
 
-	# Ouvriers : ombre, écusson couleur de catégorie avec l'icône du métier, liseré couleur du joueur, pastille d'état
+	# Ouvriers : le personnage de leur carte (face, profil ou dos selon la marche), anneau couleur du joueur,
+	# pastille du métier, pastille d'état
 	var r := TILE * 0.44
 	var player_col: Color = UiTokens.JOUEURS[game.index % UiTokens.JOUEURS.size()]
-	for w in game.workers:
+	var ws := game.workers.duplicate()
+	ws.sort_custom(func(a, b): return a.pos.y < b.pos.y)  # ceux du bas passent devant
+	for w: GameState.Worker in ws:
 		if w.offmap:
 			continue
 		var p := w.pos * TILE
-		draw_set_transform(p + Vector2(1.5, r * 1.25), 0.0, Vector2(1.0, 0.45))
-		draw_circle(Vector2.ZERO, r, Color(0, 0, 0, 0.3))
-		draw_set_transform(Vector2.ZERO)
-		if selected.has(w):
-			var pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 190.0)
-			draw_arc(p + Vector2(0, r * 0.1), r + 2.5 + pulse * 2, 0, TAU, 28, UiTokens.SELECTION, 2.0)
-		var shield := PackedVector2Array([p + Vector2(-r, -r), p + Vector2(r, -r), p + Vector2(r, r * 0.35), p + Vector2(0, r * 1.15), p + Vector2(-r, r * 0.35)])
-		draw_colored_polygon(shield, _worker_color(w.card))
-		var top := PackedVector2Array([p + Vector2(-r, -r), p + Vector2(r, -r), p + Vector2(r, -r * 0.55), p + Vector2(-r, -r * 0.55)])
-		draw_colored_polygon(top, Color(1, 1, 1, 0.16))
-		shield.append(shield[0])
-		draw_polyline(shield, player_col, 1.5, true)
+		var f: Array = facing.get(w, ["face", false, w.pos])
+		var d: Vector2 = w.pos - f[2]
+		var moving := d.length() > 0.0005
+		if moving:
+			if absf(d.x) > absf(d.y):
+				f = ["profil", d.x < 0.0, w.pos]
+			else:
+				f = ["face" if d.y > 0.0 else "dos", false, w.pos]
+		f[2] = w.pos
+		facing[w] = f
+		var ring := Color(player_col, 0.9) if not selected.has(w) else UiTokens.SELECTION
+		var pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 190.0) if selected.has(w) else 0.0
+		draw_arc(p + Vector2(0, 6.4), 5.2 + pulse * 1.5, 0, TAU, 24, ring, 1.6 if selected.has(w) else 1.0, true)
+		PersoDessin.dessiner(self, p, game.perso_of(w.card), f[0], now + w.card.id * 0.37, moving and w.pause_left <= 0.0, f[1])
+		# pastille du métier (couleur de catégorie) au-dessus de l'épaule
+		var bp := p + Vector2(-r - 0.5, -r * 0.9)
+		draw_circle(bp, 3.4, Color.WHITE)
+		draw_circle(bp, 2.8, _worker_color(w.card))
 		var ic := UiTokens.icone(Composants.icone_metier(str(w.card.metier["id"])))
 		if ic:
-			draw_texture_rect(ic, Rect2(p + Vector2(-r * 0.66, -r * 0.82), Vector2(r * 1.32, r * 1.32)), false)
+			draw_texture_rect(ic, Rect2(bp - Vector2(2.1, 2.1), Vector2(4.2, 4.2)), false)
 		if w.unpaid:
 			_label("25 %", p + Vector2(0, -r - 2), 7)
 		if w.carry > 0.0:
@@ -497,6 +514,8 @@ func _draw() -> void:
 			draw_circle(p + Vector2(r, -r), 2.7, UiTokens.INACTIF)
 			draw_string(font, p + Vector2(r - 3, -r + 2.6), "!", HORIZONTAL_ALIGNMENT_CENTER, 6, 7, Color("1E1406"))
 
+	if facing.size() > game.workers.size() + 20:
+		facing.clear()  # ouvriers des journées passées
 	# Rectangle de sélection
 	if drag_start != null:
 		var a := _screen_to_world(drag_start)
@@ -772,6 +791,11 @@ func _draw_fence(s: GameState.Site, color: Color) -> void:
 			draw_line(c + Vector2(1, 1.5), c + Vector2(d) * TILE / 2 + Vector2(1, 1.5), Color(0, 0, 0, 0.22), width)
 			draw_line(c, c + Vector2(d) * TILE / 2, color.darkened(0.35), width + 1.2)
 			draw_line(c, c + Vector2(d) * TILE / 2, color, width)
+		elif not wall and o and o.done and o.def_id() == "cloture":
+			# palissade d'enclos accrochée au mur de l'enceinte : jusqu'au poteau du mur
+			draw_line(c + Vector2(1, 1.5), c + Vector2(d) * TILE + Vector2(1, 1.5), Color(0, 0, 0, 0.22), width)
+			draw_line(c, c + Vector2(d) * TILE, color.darkened(0.35), width + 1.2)
+			draw_line(c, c + Vector2(d) * TILE, color, width)
 	if wall:
 		draw_circle(c, 2.6, color.darkened(0.3))
 		draw_circle(c, 1.8, color)
@@ -1079,6 +1103,7 @@ func _process(delta: float) -> void:
 			entry[0].disabled = game.phase != "day" or not game.can_afford(entry[2].get("cout", {}))
 		_update_trade()
 		_update_publicity()
+		_update_loan()
 		var ev: Dictionary = mt.current_event
 		event_label.visible = mt.phase == "day" and not ev.is_empty()
 		if not ev.is_empty():
@@ -1296,6 +1321,13 @@ func _build_ui() -> void:
 		for w in selected:
 			game.recall(w))
 	rv.add_child(btn_recall)
+	btn_swap = Button.new()
+	btn_swap.text = "Remplacer (Agence d'intérim)"
+	btn_swap.focus_mode = Control.FOCUS_NONE
+	btn_swap.pressed.connect(func():
+		if selected.size() == 1:
+			_open_swap_picker(selected[0]))
+	rv.add_child(btn_swap)
 	btn_cancel_site = Button.new()
 	btn_cancel_site.text = "Annuler le chantier"
 	btn_cancel_site.focus_mode = Control.FOCUS_NONE
@@ -1448,6 +1480,22 @@ func _build_ui() -> void:
 	pile_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	pile_label.add_theme_font_size_override("font_size", 13)
 	pv.add_child(pile_label)
+	pile_panel.tooltip_text = "Cliquez pour voir les cartes de la pioche et de la défausse"
+	pile_panel.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	pile_panel.gui_input.connect(func(ev: InputEvent):
+		if ev is InputEventMouseButton and ev.button_index == MOUSE_BUTTON_LEFT:
+			pile_panel.accept_event()
+			if ev.pressed:
+				_open_pile())
+	loan_btn = Composants.bouton("", "BoutonPrincipal")
+	loan_btn.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	loan_btn.offset_left = 14
+	loan_btn.offset_right = 264
+	loan_btn.offset_top = -246
+	loan_btn.offset_bottom = -210
+	loan_btn.visible = false
+	loan_btn.pressed.connect(func(): game.take_loan())
+	ui.add_child(loan_btn)
 	hand_scroll = ScrollContainer.new()
 	hand_scroll.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	hand_scroll.offset_left = 124
@@ -1955,6 +2003,7 @@ func _update_info() -> void:
 		info_text.text = "\n".join(lines)
 		btn_lobby.disabled = true
 		btn_recall.disabled = true
+		btn_swap.visible = false
 		btn_cancel_site.visible = false
 		btn_demolish.visible = not spectator
 		btn_demolish.text = "Démolir / annuler la sélection (Suppr)"
@@ -1963,6 +2012,7 @@ func _update_info() -> void:
 	if show_animal:
 		btn_lobby.disabled = true
 		btn_recall.disabled = true
+		btn_swap.visible = false
 		btn_cancel_site.visible = false
 		btn_demolish.visible = false
 		return
@@ -1976,6 +2026,11 @@ func _update_info() -> void:
 		zoo_title.text = "VOTRE ZOO" if not spectator else mt.names[game.index].to_upper()
 	btn_lobby.disabled = selected.is_empty() or game.phase != "day"
 	btn_recall.disabled = not selected.any(func(w): return w.offmap)
+	btn_swap.visible = not spectator and selected.size() == 1 and game.agency_built() and game.phase == "day"
+	if btn_swap.visible:
+		var serr := game.swap_error(selected[0], null)
+		btn_swap.disabled = not serr.begins_with("Choisissez une carte")
+		btn_swap.tooltip_text = "Échanger %s contre une carte de votre pioche ou défausse (une fois par jour)" % selected[0].card.nom if not btn_swap.disabled else serr
 	btn_cancel_site.visible = selected_site != null and not selected_site.done
 	btn_demolish.visible = not spectator and selected_site != null and selected_site.done and selected_site.kind == "batiment"
 	if selected.is_empty() and selected_site:
@@ -2113,7 +2168,7 @@ func _update_hud() -> void:
 			elif site.def_id() == "comptoir":
 				status += " : clic droit avec un Marchand (vente à 125 %, achat 30 % moins cher)"
 			elif site.def_id() == "agence":
-				status += " : la nuit, bouton « Échanger » sur un ouvrier du marché (une fois par nuit)"
+				status += " : sélectionnez un ouvrier puis « Remplacer (Agence) » pour l'échanger contre une carte du deck"
 			elif site.def_id() == "entrepot":
 				status += " : clic droit pour y déposer la charge"
 		else:
@@ -2267,8 +2322,11 @@ func _update_unit_panel() -> void:
 			if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT and not selected.is_empty():
 				_on_focus(selected[0]))
 		Composants.placer(unit_portrait_box, disc, Vector2.ZERO, Vector2(84, 84))
-		var ic := Composants.icone_rect(Composants.icone_metier(str(c.metier["id"])), Vector2(50, 50), Color(cat["couleur"]).darkened(0.15))
-		Composants.placer(disc, ic, Vector2(17, 17), Vector2(50, 50))
+		# Portrait du personnage découpé dans le disque, pastille du métier en bas à droite
+		disc.clip_children = CanvasItem.CLIP_CHILDREN_AND_DRAW
+		Composants.placer(disc, Composants.portrait_rect(game.perso_of(c)["id"], Vector2(96, 80)), Vector2(-6, 8), Vector2(96, 80))
+		var pm := Composants.pastille(Color(cat["couleur"]).darkened(0.1), Composants.icone_metier(str(c.metier["id"])), 26, cat["portrait"])
+		Composants.placer(unit_portrait_box, pm, Vector2(60, 58), Vector2(26, 26))
 		unit_name.text = c.nom.to_upper()
 		unit_job.text = "%s · %s" % [c.metier["nom"], str(cat["long"]).to_lower()]
 		for k in unit_traits.get_children():
@@ -2631,6 +2689,8 @@ func _rebuild_night() -> void:
 	_summary_row(night_summary, "ressource_billetterie", UiTokens.RESSOURCES["argent"]["couleur"], "Billetterie", "+%d" % inc["tickets"], UiTokens.POSITIF)
 	_summary_row(night_summary, "batiment_boutique", Color("E04A8A"), "Souvenirs", "+%d" % inc["souvenirs"], UiTokens.POSITIF)
 	_summary_row(night_summary, "ressource_argent", UiTokens.PAUSE, "Salaires", "−%d" % sal, UiTokens.NEGATIF)
+	if float(s.get("emprunt", 0.0)) > 0.0:
+		_summary_row(night_summary, "ressource_argent", UiTokens.NEGATIF, "Emprunt remboursé", "−%d" % roundi(float(s["emprunt"])), UiTokens.NEGATIF)
 	_summary_row(night_summary, "ressource_nourriture", UiTokens.RESSOURCES["logement"]["couleur"], "Nourriture des animaux", "−%d" % food, UiTokens.NEGATIF)
 	for res in ["bois", "pierre", "or"]:
 		if float(s[res]) >= 1.0:
@@ -2707,17 +2767,10 @@ func _rebuild_night() -> void:
 		if err != "":
 			# La raison du refus est écrite sur le bouton, et détaillée au survol.
 			hire_text = ("Manque %d" % ceili(cost - game.money)) if game.money < cost and not full else _short_reason(err)
-		# Agence d'intérim : second bouton pour échanger un de ses ouvriers contre celui-ci.
-		var swap_err := "" if spectator or not game.agency_built() else game.swap_error(null, card)
-		var swap_ok := swap_err.begins_with("Choisissez")
-		var extra := ["Échanger", not swap_ok, _open_swap_picker.bind(card)] if swap_err != "" else []
-		var w := _card_widget(card, hire_text, err != "", game.hire.bind(card), extra)
+		var w := _card_widget(card, hire_text, err != "", game.hire.bind(card))
 		w.tooltip_text = (err + "\n" if err != "" else "") + w.tooltip_text
-		var btns := w.find_children("*", "Button", true, false)
-		for b in btns:
+		for b in w.find_children("*", "Button", true, false):
 			b.tooltip_text = err if err != "" else "Embaucher %s pour %d argent" % [card.nom, cost]
-		if btns.size() > 1:
-			btns[1].tooltip_text = "Agence d'intérim : céder un de vos ouvriers pour prendre %s" % card.nom if swap_ok else swap_err
 		night_workers.add_child(w)
 	_clear(night_contracts)
 	night_contracts_note.text = "%d contrats · 2 achats au plus · dans l'ordre d'influence" % game.market_contracts.size()
@@ -3066,9 +3119,9 @@ func _update_proposal_box(def: Dictionary, interior: Dictionary) -> void:
 		lines.append("Aucun enclos ne convient. Enclos proposé en pointillés : %d clôture(s) à poser%s." % [n,
 			", puis %d case(s) à aménager (en orange)" % enclosure_proposal["missing"] if enclosure_proposal["missing"] > 0 else ""])
 		proposal_btn.visible = n > 0
-		proposal_btn.text = "Construire cet enclos · %d bois" % n
+		proposal_btn.text = ("Construire l'enclos et réserver l'animal · %d bois" if enclosure_proposal["missing"] == 0 else "Construire cet enclos · %d bois") % n
 		proposal_btn.disabled = game.stock["bois"] < n or game.phase != "day"
-		proposal_btn.tooltip_text = "Pose %d segments de clôture d'enclos (1 bois chacun). Envoyez ensuite des ouvriers (clic droit) ; une fois fermé, cliquez dedans." % n
+		proposal_btn.tooltip_text = "Pose %d segments de clôture d'enclos (1 bois chacun) en chantier. Envoyez des ouvriers (clic droit) : l'animal, réservé, arrive la nuit suivant la fin des clôtures." % n
 	elif near > 0:
 		lines.append("[color=#FFD45A]Aucun enclos ne convient tel quel : les cases orange sont à aménager (onglet Terrain).[/color]")
 	else:
@@ -3088,6 +3141,14 @@ func _build_proposal() -> void:
 			placed += 1
 	game.say("Enclos proposé : %d clôture(s) en chantier. Envoyez des ouvriers (clic droit dessus)." % placed)
 	enclosure_proposal["new"] = enclosure_proposal["new"].filter(func(t): return game.site_at(t) == null)
+	# Motif déjà présent : l'animal est réservé dans l'enclos en chantier et arrivera une fois les clôtures finies.
+	if enclosure_proposal["new"].is_empty() and enclosure_proposal["missing"] == 0 and build_choice.get("kind") == "animal":
+		var r: Rect2i = enclosure_proposal["rect"]
+		var err := game.install_animal(build_choice["def"], r.position + r.size / 2)
+		if err == "":
+			_set_build({})
+		else:
+			game.say(err)
 
 
 func _draw_animal_hints() -> void:
@@ -3183,9 +3244,9 @@ func _update_publicity() -> void:
 	for d in game.campaign_defs():
 		var b: Button = pub_buttons[d["id"]]
 		var err := game.campaign_error(d)
-		b.text = "%s · %d" % [d["court"], int(d["cout"])]
+		b.text = "%s · %d" % [d["court"], game.campaign_cost(d)]
 		b.disabled = err != ""
-		b.tooltip_text = "%s : %d argent, %s (travail %d s à l'extérieur).%s" % [d["nom"], int(d["cout"]), d["texte"], int(d["travail"]),
+		b.tooltip_text = "%s : %d argent (40 %% de moins avec un Lobbyiste dehors), %s (travail %d s à l'extérieur).%s" % [d["nom"], game.campaign_cost(d), d["texte"], int(d["travail"]),
 			"\n" + err if err != "" else ""]
 
 
@@ -3305,16 +3366,76 @@ func _open_promotion(card: GameState.Card, target: GameState.Card) -> void:
 	row.add_child(close)
 
 
-## Agence d'intérim : choisir l'ouvrier cédé en échange de `take` (ouvrier du marché).
-func _open_swap_picker(take: GameState.Card) -> void:
+## Agence d'intérim : choisir dans la pioche ou la défausse le remplaçant de l'ouvrier `w` (sur le terrain).
+func _open_swap_picker(w: GameState.Worker) -> void:
 	var rows := []
-	for c in game.all_employees():
-		rows.append([c, "Céder · %d" % game.swap_cost(c, take), game.swap_error(c, take), func():
-			game.swap_worker(c, take)
+	for c in game.swap_candidates():
+		rows.append([c, "Prendre · %d" % game.swap_cost(c), game.swap_error(w, c), func():
+			game.swap_worker(w, c)
 			_close_picker()])
-	var A: Dictionary = game.data["buildings"]["agence"]
-	_open_picker("AGENCE D'INTÉRIM", "Pour prendre %s (%s), choisissez l'ouvrier qui part : il rejoint le marché à sa place. Coût : %d de frais + prix d'embauche de %s (%d) − %d %% du prix de l'ouvrier cédé." % [
-		take.nom, take.metier["nom"], int(A["frais"]), take.nom, game.hire_cost(take), roundi(float(A["reprise"]) * 100)], rows)
+	_open_picker("AGENCE D'INTÉRIM", "Remplacer %s (%s) : le remplaçant arrive à sa place, garde sa charge et reprend sa tâche ; %s part à la défausse. Coût : %d de frais + salaire du remplaçant. Une fois par jour." % [
+		w.card.nom, w.card.metier["nom"], w.card.nom, int(game.data["buildings"]["agence"]["frais"])], rows)
+
+## Emprunt : proposé quand aucun ouvrier de la main ne peut être payé ; rappel du remboursement une fois pris.
+func _update_loan() -> void:
+	var L: Dictionary = game.data["workers"]["regles"]["emprunt"]
+	loan_btn.visible = not spectator and game.phase == "day" and (game.loan_today or game.loan_error() == "")
+	loan_btn.disabled = game.loan_today
+	loan_btn.text = ("Emprunt : −%d ce soir" % int(L["remboursement"])) if game.loan_today \
+		else "Emprunter %d (−%d ce soir)" % [int(L["montant"]), int(L["remboursement"])]
+	loan_btn.tooltip_text = "Aucun salaire payable : empruntez %d d'argent, %d seront retirés automatiquement ce soir (le solde peut devenir négatif). Une fois par jour." % [
+		int(L["montant"]), int(L["remboursement"])]
+
+
+## Pioche et défausse : ce que la main de demain peut contenir (l'ordre de la pioche reste caché).
+func _open_pile() -> void:
+	if pile_root == null:
+		var o := _overlay()
+		pile_root = o[0]
+		pile_box = o[1]
+	ui.move_child(pile_root, -1)
+	pile_root.visible = true
+	_clear(pile_box)
+	var n := game.hand_size()
+	pile_box.add_child(Composants.label("PIOCHE ET DÉFAUSSE", "TitrePanneau"))
+	var info := "Demain matin, vous piocherez %d cartes au hasard dans la pioche (l'ordre est caché)." % n
+	if game.deck.size() < n:
+		info = "La pioche (%d carte(s)) ne suffit pas pour une main de %d : demain, vous prendrez toute la pioche, puis la défausse, avec la main d'aujourd'hui, sera remélangée pour compléter." % [game.deck.size(), n]
+	var il := Composants.label(info, "TexteSecondaire")
+	il.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	il.custom_minimum_size.x = 1100
+	pile_box.add_child(il)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(1120, 560)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	pile_box.add_child(scroll)
+	var inner := VBoxContainer.new()
+	inner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	inner.add_theme_constant_override("separation", 8)
+	scroll.add_child(inner)
+	for section in [["PIOCHE", game.deck], ["DÉFAUSSE", game.discard]]:
+		var cards: Array = section[1]
+		var st := Composants.label("%s · %d" % [section[0], cards.size()], "TitrePanneau")
+		st.add_theme_font_size_override("font_size", 16)
+		inner.add_child(st)
+		var flow := HFlowContainer.new()
+		flow.add_theme_constant_override("h_separation", 10)
+		flow.add_theme_constant_override("v_separation", 10)
+		inner.add_child(flow)
+		var sorted := cards.duplicate()
+		sorted.sort_custom(func(a, b): return a.nom < b.nom)  # trié : la pioche ne révèle pas son ordre
+		for c in sorted:
+			if c.is_action():
+				flow.add_child(_action_widget(c, "Carte d'action", true, func(): pass))
+			else:
+				flow.add_child(_card_widget(c, "Salaire %d" % game.salary(c), true, func(): pass, [], "draft"))
+		if cards.is_empty():
+			flow.add_child(Composants.label("Vide", "TexteSecondaire"))
+	var close := Composants.bouton("Fermer", "BoutonPrincipal")
+	close.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	close.custom_minimum_size = Vector2(220, 36)
+	close.pressed.connect(func(): pile_root.visible = false)
+	pile_box.add_child(close)
 
 
 ## Raison courte à écrire sur un bouton désactivé (le détail reste dans l'infobulle).
@@ -3891,7 +4012,26 @@ func _contract_widget(def: Dictionary, button_text: String, err: String, cb: Cal
 func _rebuild_contracts() -> void:
 	for c in contracts_box.get_children():
 		c.queue_free()
-	contracts_box.visible = not game.contracts.is_empty()
+	contracts_box.visible = not game.contracts.is_empty() or not game.pending_installs.is_empty()
+	if not contracts_box.visible:
+		return
+	if not game.pending_installs.is_empty():
+		var pt := Composants.label("ENCLOS EN CHANTIER", "TitrePanneau")
+		pt.add_theme_font_size_override("font_size", 14)
+		contracts_box.add_child(pt)
+		for r in game.pending_installs:
+			var row := HBoxContainer.new()
+			var l := Composants.label("%s : arrive quand les clôtures sont finies" % r["def"]["nom"], "TexteSecondaire")
+			l.add_theme_font_size_override("font_size", 12)
+			l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			row.add_child(l)
+			var cb := Composants.bouton("Annuler", "BoutonSecondaire")
+			cb.add_theme_font_size_override("font_size", 12)
+			cb.tooltip_text = "Annule la réservation : le contrat revient dans les contrats à installer (les clôtures restent)"
+			cb.pressed.connect(game.cancel_pending.bind(r))
+			row.add_child(cb)
+			contracts_box.add_child(row)
 	if game.contracts.is_empty():
 		return
 	var title := Composants.label("CONTRATS À INSTALLER", "TitrePanneau")

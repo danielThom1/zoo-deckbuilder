@@ -43,7 +43,7 @@ const CATEGORIES := {
 
 # Ressources : pastille couleur + reflet, icône blanche — valeurs de tokens.json
 const RESSOURCES := {
-	"argent": {"couleur": Color("D8A010"), "reflet": Color("FFE48A"), "nom": "Argent", "glyphe": "€", "icone": "ressource_argent"},
+	"argent": {"couleur": Color("A8ADB2"), "reflet": Color("EEF0F2"), "nom": "Argent", "glyphe": "€", "icone": "ressource_argent"},
 	"bois": {"couleur": Color("C8601A"), "reflet": Color("FFB070"), "nom": "Bois", "glyphe": "B", "icone": "ressource_bois"},
 	"pierre": {"couleur": Color("4A6A98"), "reflet": Color("A8C4E8"), "nom": "Pierre", "glyphe": "P", "icone": "ressource_pierre"},
 	"or": {"couleur": Color("E8B000"), "reflet": Color("FFF09A"), "nom": "Or", "glyphe": "Or", "icone": "ressource_or"},

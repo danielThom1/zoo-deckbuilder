@@ -118,6 +118,7 @@ func on_day_start() -> void:
 				g.play_action(c)
 	var hand := g.hand.filter(func(c): return not c.is_action())
 	hand.sort_custom(func(a, b): return card_value(a) > card_value(b))
+	g.take_loan()  # seulement si aucun salaire n'est payable (voir loan_error)
 	for c in hand:
 		if g.money >= g.salary(c):
 			g.deploy(c)
@@ -179,7 +180,7 @@ func _campaign_wanted() -> Dictionary:
 		return {}
 	var best := {}
 	for d in g.campaign_defs():
-		if g.money - float(d["cout"]) * 2.0 >= _cash_floor() + float(strat["reserve"]):
+		if g.money - float(g.campaign_cost(d)) * 2.0 >= _cash_floor() + float(strat["reserve"]):
 			best = d
 	return best
 

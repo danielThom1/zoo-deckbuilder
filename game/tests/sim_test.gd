@@ -134,7 +134,9 @@ func _init() -> void:
 	var gc := _fresh_day(data, 12345)
 	gc.stock["bois"] = 100.0
 	gc.stock["pierre"] = 100.0
+	gc.money = 100.0
 	for c in gc.hand.duplicate():
+		c.traits.assign(c.traits.filter(func(t): return gc.is_positive(t)))  # 4 ouvriers manuels sans défaut, quel que soit le tirage
 		gc.deploy(c)
 	var builders := gc.workers.filter(func(w): return not w.card.traits.has("col_blanc"))
 	var camp := gc.map.camp
@@ -244,14 +246,15 @@ func _init() -> void:
 			if x == cx - 6 or x == cx - 2 or y == y0 or y == y0 + 3:
 				fences.append(gk.place("batiment", gk.building_def("enclos"), Vector2i(x, y)))
 	check(fences.all(func(f): return f != null), "%d clôtures d'enclos placées" % fences.size())
-	check(gk.install_animal(zebre, interior) != "", "refusé tant que les clôtures ne sont pas terminées")
+	check(gk.install_animal(zebre, interior) == "" and gk.pending_installs.size() == 1 and gk.animals.is_empty(),
+		"clôtures en chantier : le Zèbre est réservé, pas encore installé")
 	for f in fences:
 		f.work = f.travail()
 		gk._complete(f)
 	var enc := gk.enclosure_at(interior)
 	check(enc["closed"] and enc["tiles"].size() == 6, "enclos fermé de 6 cases")
 	check(gk.animal_error(lion, enc) != "", "Lion refusé : %s" % gk.animal_error(lion, enc))
-	check(gk.install_animal(zebre, interior) == "" and gk.contracts.is_empty(), "Zèbre installé")
+	check(gk.animals.size() == 1 and gk.pending_installs.is_empty() and gk.contracts.is_empty(), "clôtures terminées : le Zèbre s'installe")
 	check(gk.attractiveness() == 0, "pas d'attractivité avant l'arrivée")
 	gk.end_day()
 	check(gk.attractiveness() == 4, "le Zèbre arrive la nuit : attractivité %d" % gk.attractiveness())
@@ -666,7 +669,7 @@ func _init() -> void:
 	var d_bois0: float = d_g.stock["bois"]
 	check(d_g.play_action(d_liv) and is_equal_approx(d_g.stock["bois"], d_bois0 + 30.0), "Livraison : +30 bois")
 	var d_hand0 := d_g.hand.size()
-	check(d_g.play_action(d_recr) and d_g.hand.size() == d_hand0 + 2, "Recrutement express : 3 cartes piochées (la carte jouée sort de la main)")
+	check(d_g.play_action(d_recr) and d_g.hand.size() == d_hand0 + 1, "Recrutement express : 2 cartes piochées (la carte jouée sort de la main)")
 	d_g.play_action(d_prime)
 	var d_worker: GameState.Card = d_g.hand.filter(func(c): return not c.is_action() and not c.deployed)[0]
 	var d_money0 := d_g.money
@@ -713,19 +716,26 @@ func _init() -> void:
 	check(d_ag != null, "Agence d'intérim placée")
 	d_ag.work = d_ag.travail()
 	d_me._complete(d_ag)
+	var d_dep: GameState.Card = d_me.hand.filter(func(c): return not c.is_action())[0]
+	d_me.deploy(d_dep)
+	var d_w := d_me.worker_of(d_dep)
+	d_w.carry = 2.0
+	d_w.carry_type = "bois"
+	var d_take: GameState.Card = d_me.swap_candidates()[0]
+	var d_cost := d_me.swap_cost(d_take)
+	var d_m := d_me.money
+	check(d_me.swap_worker(d_w, d_take) and d_w.card == d_take and d_take.deployed and d_me.discard.has(d_dep) and not d_dep.deployed \
+		and is_equal_approx(d_me.money, d_m - d_cost) and is_equal_approx(d_w.carry, 2.0),
+		"Agence d'intérim : %s remplace %s sur le terrain pour %d, la charge est gardée" % [d_take.nom, d_dep.nom, d_cost])
+	check(not d_me.swap_worker(d_w, d_me.swap_candidates()[0]), "un seul échange par jour")
+	var d_b0: float = d_me.stock["bois"]
 	d_solo.end_day()
+	check(is_equal_approx(d_me.stock["bois"], d_b0 + 2.0), "fin de journée : la charge des ouvriers est encaissée")
 	check(d_solo.market_actions.size() == int(data["buildings"]["marche"]["actions"]), "%d cartes d'action au marché de nuit" % d_solo.market_actions.size())
 	var d_buy: GameState.Card = d_solo.market_actions[0]
 	check(d_me.buy_action(d_buy) and d_me.discard.has(d_buy) and d_me.action_cards().size() == 1, "carte d'action achetée : %s, dans la défausse" % d_buy.action["nom"])
 	check(not d_me.buy_action(d_solo.market_actions[0]), "une seule carte d'action par nuit")
-	var d_take: GameState.Card = d_solo.market_workers[0]
-	var d_give: GameState.Card = d_me.all_employees()[0]
-	var d_cost := d_me.swap_cost(d_give, d_take)
-	var d_m := d_me.money
-	check(d_me.swap_worker(d_give, d_take) and d_solo.market_workers.has(d_give) and d_me.discard.has(d_take) \
-		and not d_me.all_employees().has(d_give) and is_equal_approx(d_me.money, d_m - d_cost),
-		"Agence d'intérim : %s échangé contre %s pour %d" % [d_give.nom, d_take.nom, d_cost])
-	check(not d_me.swap_worker(d_me.all_employees()[0], d_solo.market_workers[1]), "un seul échange par nuit")
+
 	# Terrain : transformations en deux étapes (par la Prairie) pour l'IA
 	var d_ai: AIController = Match.new(data, 6262, 2, 0).ais[1]
 	check(d_ai._conversion_steps("Foret", "Eau") == 2 and d_ai._conversion_steps("Roche", "Sable") == 2 \
@@ -817,6 +827,10 @@ func _init() -> void:
 	check(fm.campaign_error(f_aff) != "", "campagne : il faut un ouvrier à l'extérieur")
 	f_out.offmap = true
 	f_out.path.clear()
+	var f_metier0: Dictionary = f_out.card.metier
+	f_out.card.metier = fm.metier_def("lobbyiste")
+	check(fm.campaign_cost(f_aff) < int(f_aff["cout"]), "campagne moins chère avec un Lobbyiste dehors (%d au lieu de %d)" % [fm.campaign_cost(f_aff), int(f_aff["cout"])])
+	f_out.card.metier = f_metier0
 	var f_inf0 := fm.influence
 	check(fm.launch_campaign(f_aff) and is_equal_approx(fm.money, 100.0 - float(f_aff["cout"])), "campagne lancée et payée (%d)" % int(f_aff["cout"]))
 	for i in 1500:
@@ -856,6 +870,50 @@ func _init() -> void:
 	fg.start_next_day()
 	check(fg.shared_type_count(fg.animals[1]) == 1, "même type dans le même enclos : 1 compagnon")
 	check(fg.affinity_bonus() >= f_bonus0 + 0.149, "affinités : continent +10 %% et type partagé +5 %% (%.2f → %.2f)" % [f_bonus0, fg.affinity_bonus()])
+	# Enclos en chantier : l'animal est réservé et n'arrive qu'une fois les clôtures terminées
+	var fq := _fresh_day(data, 2027)
+	fq.stock["bois"] = 50.0
+	var f_fence := fq.building_def("enclos")
+	var f_spot := Vector2i(-1, -1)
+	var f_camp := fq.map.camp.position
+	for y in range(f_camp.y - 12, f_camp.y):
+		for x in range(f_camp.x - 12, f_camp.x + 12):
+			var t := Vector2i(x, y)
+			if f_spot.x >= 0 or fq.placement_error("batiment", f_fence, t, false) != "":
+				continue
+			var ok := true
+			for dy in range(-1, 2):
+				for dx in range(-1, 2):
+					if fq.placement_error("batiment", f_fence, t + Vector2i(dx, dy), false) != "":
+						ok = false
+			if ok:
+				f_spot = t
+	check(f_spot.x >= 0, "emplacement libre pour un enclos d'une case")
+	for dy in range(-1, 2):
+		for dx in range(-1, 2):
+			if dx != 0 or dy != 0:
+				fq.place("batiment", f_fence, f_spot + Vector2i(dx, dy))
+	var f_one: Dictionary = f_zebre.duplicate(true)
+	f_one["id"] = "test_reserve"
+	f_one["taille"] = 1
+	f_one["motif"] = [[0, 0, GameMap.TERRAINS[fq.map.get_t(f_spot.x, f_spot.y)]]]
+	fq.contracts.append(f_one)
+	var f_n0 := fq.animals.size()
+	check(fq.enclosure_at(f_spot).get("planned", false) and fq.install_animal(f_one, f_spot) == "" and fq.animals.size() == f_n0 		and fq.pending_installs.size() == 1 and not fq.contracts.has(f_one), "enclos en chantier : l'animal est réservé, pas encore installé")
+	for st in fq.sites.duplicate():
+		if not st.done and st.def_id() == "enclos":
+			st.work = st.travail()
+			fq._complete(st)
+	check(fq.animals.size() == f_n0 + 1 and fq.pending_installs.is_empty() and fq.animals[-1].def == f_one,
+		"clôtures terminées : l'animal réservé s'installe")
+	# Emprunt quand aucun salaire n'est payable
+	var gl := _fresh_day(data, 4242)
+	for c in gl.hand:
+		c.traits.erase("econome")
+	gl.money = 0.0
+	check(gl.take_loan() and is_equal_approx(gl.money, 10.0) and not gl.take_loan(), "emprunt de 10, une fois par jour")
+	gl.end_day()
+	check(is_equal_approx(gl.money, -2.0), "le soir, 12 sont retirés : solde négatif (%.0f)" % gl.money)
 	data["events"]["proba_evenement"] = f_proba
 
 	print("IA :")

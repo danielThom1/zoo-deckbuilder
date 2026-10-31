@@ -36,13 +36,24 @@ Jeu de gestion vu du dessus : deckbuilding d'ouvriers + construction d'un zoo. P
   - Interface : aide au placement d'un contrat (`_compute_animal_hints`, `_propose_enclosure`, `_build_proposal`), fiche d'un animal au clic (`_animal_info`), sélection multiple de bâtiments au rectangle et Suppr (`selected_sites`, `_delete_selection`), raisons d'achat sur les boutons de nuit (`_short_reason`), argent et logement dans l'en-tête de nuit, « Voir mon zoo » la nuit (`night_peek`), dépôt de charge au camp ou à l'entrepôt (tâche `deposit`), quantité portée sur l'écusson, clic sur une carte qui sélectionne l'ouvrier (le clic est consommé par la carte), Rabat-joie rayon 3.
   - Option de capture `--contrat` (avec `--autoplay --autozoo`) : mode installation d'animal.
 - **Lot G (retours du 31/10, suite)** :
-  - Marché moins cher (10 bois, 4 pierre). Attention : l'icône d'argent et celle d'or sont toutes deux jaunes.
+  - Marché moins cher (10 bois, 4 pierre).
   - Publicité : campagnes payantes menées par les ouvriers hors carte (`publicite`, `campaign`, `launch_campaign`, `campaign_rate`, section `publicite` de `buildings.json`) ; `publicity_mult()` ne dépend plus de l'influence. Panneau « Publicité » à droite (`_update_publicity`). L'IA en lance quand l'argent abonde (`_campaign_wanted`) et envoie un ouvrier dehors pour la mener.
   - Cartes d'action à usage unique (`play_action` les retire de la main), effets revus, cartes ciblées Rupture de contrat et Promotion (`cible`, `action_target_error`, choix dans `_open_picker` / `_open_action_picker`, partie en pause pendant le choix ; IA : `_play_targeted`).
-  - Agence d'intérim (`agence`) : échange d'un ouvrier contre un ouvrier du marché la nuit (`swap_cost`, `swap_error`, `swap_worker`, `swapped_tonight`, bouton « Échanger » et `_open_swap_picker`).
   - Draft : premiers tours plus faibles (`make_card(categorie, faiblesse)`, `defauts_debut`).
+- **Lot H (31/10)** :
+  - Charge des ouvriers encaissée en fin de journée (`_unload` dans `_end_day_player`). Argent en gris neutre (l'or reste jaune). Recrutement express : 2 cartes.
+  - Campagnes 40 % moins chères avec un Lobbyiste dehors (`campaign_cost`, `remise_lobbyiste`).
+  - Agence d'intérim refaite : en journée, une fois par jour, remplace un ouvrier sur le terrain par une carte de la pioche ou de la défausse (`swap_candidates`, `swap_cost`, `swap_error`, `swap_worker`, `_task_target`, `swapped_today`, bouton `btn_swap` et `_open_swap_picker`).
+  - **Personnages** : 40 personnages générés par `tools/personnages.py` (déterministe) → portraits SVG au trait croquis `game/ui/portraits/<id>.svg` et `game/data/personnages.json`. Chaque carte tire un personnage (`Card.perso`, `Match._next_perso`, sans doublon avant épuisement) qui donne son nom ; `GameState.perso_of(card)` (repli par numéro de carte). Portrait sur les cartes (`Composants.texture_portrait`, `portrait_rect`, pastille du métier) et dans le panneau d'unité (disque découpé, `clip_children`). Dans le monde, `PersoDessin.dessiner()` (`game/scripts/perso_dessin.gd`) dessine le personnage de face, de profil ou de dos selon sa marche (`facing` dans main.gd), avec anneau couleur du joueur et pastille du métier.
+  - Planche de contrôle : `godot --path game --script res://tests/planche_personnages.gd -- [--figures] --shot=C:/chemin/planche.png`.
+- **Lot I (31/10)** :
+  - Ouvrier gratuit : rendement 25 % (construction comprise, c'était déjà le cas) et marche à 60 % (`deploiement_gratuit.vitesse`).
+  - Pioche cliquable (`_open_pile`, option de capture `--pioche`).
+  - Enclos prévus : zone fermée par des clôtures d'enclos en chantier (`_planned_enclosure`, `enclosure_at` renvoie `planned`) → l'animal est réservé (`pending_installs`, `_check_pending_installs` à chaque fin ou suppression de clôture, `cancel_pending`) ; le parc libre s'arrête aux clôtures en chantier. Le bouton de l'enclos proposé réserve l'animal.
+  - Palissades d'enclos raccordées au mur de l'enceinte (`_draw_fence`).
+  - Emprunt (`loan_error`, `take_loan`, `loan_today`, `regles.emprunt`, bouton `loan_btn`, ligne du bilan de nuit) ; l'IA emprunte quand elle ne peut payer personne.
 - **Équilibrage repoussé** à la fin des fonctionnalités (demande du 31/10) : ne lancer que `sim_test` et des captures d'ici là.
-- Pièges Godot rencontrés : `TextureRect` → régler `expand_mode` **avant** `texture`/`size` (sinon taille native 96 px) ; `FontVariation.variation_opentype` attend la clé `name_to_tag("wght")`, pas la chaîne `"wght"`.
+- Pièges Godot rencontrés : une erreur de script en `--headless` **bloque** le processus (le débogueur attend) au lieu de quitter : lancer les tests avec `timeout 240 godot …` ; `TextureRect` → régler `expand_mode` **avant** `texture`/`size` (sinon taille native 96 px) ; `FontVariation.variation_opentype` attend la clé `name_to_tag("wght")`, pas la chaîne `"wght"`.
 
 ## Référence visuelle
 `docs/handoff_emeraude/` :

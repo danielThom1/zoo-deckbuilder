@@ -22,6 +22,7 @@ class Card:
 	var upgrade_names: Array[String] = []
 	var last_work_tile := Vector2i(-1, -1)  # dernière case de travail (trait Matinal)
 	var action := {}  # carte d'action (workers.json > cartes_action) : pas un ouvrier, elle se joue depuis la main
+	var perso := ""  # personnage (data/personnages.json) : portrait de la carte et apparence dans le monde
 
 	func is_action() -> bool:
 		return not action.is_empty()
@@ -151,9 +152,12 @@ var level_choices: Array = []  # [{"card": Card, "options": [...]}] : une améli
 var action_fx := {}  # effets du jour des cartes d'action jouées (productivite, visiteurs)
 var prime_left := 0  # déploiements sans salaire offerts par la carte Prime aujourd'hui
 var bought_action := false  # carte d'action achetée cette nuit
-var swapped_tonight := false  # échange fait à l'Agence d'intérim cette nuit
+var swapped_today := false  # échange fait à l'Agence d'intérim aujourd'hui
+var loan_today := false  # emprunt du jour, remboursé automatiquement le soir
+var pending_installs: Array = []  # animaux réservés dans un enclos en chantier : [{"def", "tile"}]
 var _zoo_cache_version := -1
 var _zoo_cache := {}
+var _persos := {}  # id -> personnage
 var _aura_cache: Array = []  # émetteurs d'aura du pas en cours (voir _tick_player)
 var _aura_cache_valid := false
 
@@ -492,6 +496,15 @@ func deploy(card: Card, free := false) -> bool:
 	return true
 
 
+## Apparence d'une carte ouvrier ; une carte sans personnage (tests) en reçoit un d'après son numéro.
+func perso_of(card: Card) -> Dictionary:
+	var all: Array = data["personnages"]["personnages"]
+	if _persos.is_empty():
+		for p in all:
+			_persos[p["id"]] = p
+	return _persos.get(card.perso, all[card.id % all.size()])
+
+
 func worker_of(card: Card) -> Worker:
 	for w in workers:
 		if w.card == card:
@@ -668,6 +681,8 @@ func _move(w: Worker, dt: float) -> void:
 	while not w.path.is_empty() and budget > 0.0:
 		var t := w.tile()
 		var spd := speed(w.card) * map.move_speed(t.x, t.y) * speed_mult()
+		if w.unpaid:
+			spd *= float(data["workers"]["regles"]["deploiement_gratuit"].get("vitesse", 1.0))
 		if w.card.traits.has("casanier") and w.pos.distance_to(Vector2(map.camp.get_center())) > 15.0:
 			spd *= 0.7
 		var target := Vector2(w.path[0]) + Vector2(0.5, 0.5)
@@ -995,6 +1010,8 @@ func _remove_site(s: Site) -> void:
 	for t in _tiles(s.rect):
 		occupancy.erase(t)
 	version += 1
+	if s.def_id() == "enclos":
+		_check_pending_installs()
 
 
 func _tiles(r: Rect2i) -> Array[Vector2i]:
@@ -1100,6 +1117,8 @@ func _train(w: Worker, dt: float) -> void:
 
 func _complete(s: Site) -> void:
 	s.done = true
+	if s.def_id() == "enclos":
+		_check_pending_installs()
 	var p := s.rect.position
 	# Architecte / Débrouillard : une partie des ressources payées est remboursée.
 	if s.savings < 1.0:
@@ -1248,7 +1267,14 @@ func _end_day_player() -> void:
 			arrivals.append(a.def["nom"])
 	var income := _close_zoo_day()  # les recettes ont été encaissées pendant la journée
 	version += 1  # invalide le cache de l'enceinte (nouveaux animaux)
+	# Emprunt du jour : remboursé automatiquement, quitte à passer en négatif.
+	if loan_today:
+		var back := float(data["workers"]["regles"]["emprunt"]["remboursement"])
+		money -= back
+		day_stats["emprunt"] = back
+		say("Emprunt remboursé : %d (solde %d)." % [int(back), floori(money)])
 	for w in workers:
+		_unload(w)  # la charge portée est encaissée le soir
 		var card := w.card
 		card.jours_travailles += 1
 		gain_xp(card, 1.0)
@@ -1284,6 +1310,8 @@ func _start_day_player() -> void:
 	pending_upgrade = {}
 	action_fx = {}
 	prime_left = 0
+	swapped_today = false
+	loan_today = false
 	# Améliorations de niveau non choisies pendant la nuit : la première proposée est appliquée.
 	while not level_choices.is_empty():
 		var lc: Dictionary = level_choices[0]
@@ -1345,7 +1373,7 @@ func contract_cost(def: Dictionary) -> Dictionary:
 	var m: Dictionary = data["buildings"]["marche"]
 	var cost: Dictionary = def.get("cout", {}).duplicate()
 	if cost.has("argent"):
-		var mult := 1.0 + float(m["hausse_prix_par_animal"]) * (animals.size() + contracts.size())
+		var mult := 1.0 + float(m["hausse_prix_par_animal"]) * (animals.size() + contracts.size() + pending_installs.size())
 		if contracts_tonight >= 1:
 			mult *= 1.0 + float(m["surcout_2e_contrat"])
 		cost["argent"] = roundi(float(cost["argent"]) * mult)
@@ -1399,49 +1427,111 @@ func buy_contract(def: Dictionary) -> bool:
 
 
 func has_species(id: String) -> bool:
-	return contracts.any(func(d): return d["id"] == id) or animals.any(func(a): return a.def["id"] == id)
+	return contracts.any(func(d): return d["id"] == id) or animals.any(func(a): return a.def["id"] == id) \
+		or pending_installs.any(func(r): return r["def"]["id"] == id)
 
 
-## Agence d'intérim : échanger `give` (un de vos ouvriers) contre `take` (un ouvrier du marché).
+## Emprunt : possible une fois par jour quand aucun ouvrier de la main ne peut être payé.
+func loan_error() -> String:
+	if phase != "day":
+		return "Uniquement en journée"
+	if loan_today:
+		return "Déjà un emprunt aujourd'hui"
+	var waiting := hand.filter(func(c): return not c.is_action() and not c.deployed)
+	if waiting.is_empty():
+		return "Aucun ouvrier à déployer"
+	if prime_left > 0 or waiting.any(func(c): return money >= salary(c)):
+		return "Vous pouvez encore payer un ouvrier"
+	return ""
+
+
+func take_loan() -> bool:
+	if loan_error() != "":
+		return false
+	var L: Dictionary = data["workers"]["regles"]["emprunt"]
+	money += float(L["montant"])
+	loan_today = true
+	say("Emprunt de %d : %d seront retirés ce soir." % [int(L["montant"]), int(L["remboursement"])])
+	version += 1
+	return true
+
+
+## Agence d'intérim : en journée, remplacer un ouvrier sur le terrain par une carte de sa pioche ou de sa défausse.
 func agency_built() -> bool:
 	return sites.any(func(s): return s.done and s.def_id() == "agence")
 
 
-func swap_cost(give: Card, take: Card) -> int:
-	var A: Dictionary = data["buildings"]["agence"]
-	return int(A["frais"]) + maxi(0, hire_cost(take) - roundi(float(A["reprise"]) * hire_cost(give)))
+func swap_candidates() -> Array[Card]:
+	var out: Array[Card] = []
+	for pile in [deck, discard]:
+		for c in pile:
+			if not c.is_action():
+				out.append(c)
+	return out
 
 
-func swap_error(give: Card, take: Card) -> String:
-	if phase != "night":
-		return "Le marché n'ouvre que la nuit"
+## Frais de l'agence + salaire du remplaçant (celui de l'ouvrier remplacé n'est pas rendu).
+func swap_cost(take: Card) -> int:
+	return int(data["buildings"]["agence"]["frais"]) + salary(take)
+
+
+func swap_error(w: Worker, take: Card) -> String:
+	if phase != "day":
+		return "Uniquement en journée"
 	if not agency_built():
 		return "Construisez une Agence d'intérim"
-	if mt.current_buyer() != index:
-		return "Ce n'est pas votre tour au marché"
-	if swapped_tonight:
-		return "Déjà un échange cette nuit"
-	if give == null or not all_employees().has(give):
-		return "Choisissez un de vos ouvriers"
-	if money < swap_cost(give, take):
-		return "Pas assez d'argent (%d)" % swap_cost(give, take)
+	if swapped_today:
+		return "Déjà un échange aujourd'hui"
+	if w == null or not workers.has(w):
+		return "Choisissez un ouvrier sur le terrain"
+	if w.offmap:
+		return "Rappelez-le d'abord sur la carte"
+	if take == null or not swap_candidates().has(take):
+		return "Choisissez une carte de la pioche ou de la défausse"
+	if money < swap_cost(take):
+		return "Pas assez d'argent (%d)" % swap_cost(take)
 	return ""
 
 
-## L'ouvrier cédé prend la place de l'autre au marché (les joueurs suivants peuvent l'embaucher).
-func swap_worker(give: Card, take: Card) -> bool:
-	var i := market_workers.find(take)
-	if i < 0 or swap_error(give, take) != "":
+## Le remplaçant arrive à la place de l'ouvrier, garde sa charge et reprend sa tâche ; l'ouvrier remplacé
+## part à la défausse (sans expérience pour la journée).
+func swap_worker(w: Worker, take: Card) -> bool:
+	if swap_error(w, take) != "":
 		return false
-	money -= swap_cost(give, take)
-	for pile in [deck, discard, hand]:
-		pile.erase(give)
-	market_workers[i] = give
-	discard.append(take)
-	swapped_tonight = true
-	say("Agence d'intérim : %s part, %s rejoint votre équipe (dans la défausse)." % [give.nom, take.nom])
-	mt.bump()
+	money -= swap_cost(take)
+	day_stats["salaires"] += salary(take)
+	var target := _task_target(w)
+	var old := w.card
+	old.deployed = false
+	hand.erase(old)
+	discard.append(old)
+	deck.erase(take)
+	discard.erase(take)
+	take.deployed = true
+	hand.append(take)
+	w.card = take
+	w.unpaid = false
+	w.pause_left = 0.0
+	w.task = {}
+	w.path.clear()
+	swapped_today = true
+	if target.x >= 0:
+		order([w], target)
+	say("Agence d'intérim : %s remplace %s (%d)." % [take.nom, old.nom, swap_cost(take)])
+	version += 1
 	return true
+
+
+## Case visée par la tâche d'un ouvrier (pour la confier à son remplaçant), (-1, -1) s'il n'y en a pas.
+func _task_target(w: Worker) -> Vector2i:
+	match w.task.get("type", ""):
+		"extract":
+			return w.task["target"]
+		"station":
+			return w.task["tile"]
+		"build", "feed", "clean":
+			return w.task["site"].rect.position
+	return Vector2i(-1, -1)
 
 
 ## Licenciement par le DRH (s'il a été déployé dans la journée).
@@ -1679,11 +1769,75 @@ func is_fence(t: Vector2i) -> bool:
 
 ## Zone fermée par des clôtures d'enclos autour de la case t (remplissage 4 directions).
 ## À défaut, dans l'enceinte du zoo : le parc libre (hors enclos et hors bâtiments) sert d'enclos.
+## Une zone que des clôtures d'enclos encore en chantier ferment est un enclos « prévu » (planned) : l'animal y est
+## réservé et n'arrive qu'une fois les clôtures terminées.
 func enclosure_at(t: Vector2i) -> Dictionary:
 	var enc := _fenced_enclosure(t)
 	if enc["closed"] or not map.in_bounds(t.x, t.y) or is_fence(t):
 		return enc
+	var planned := _planned_enclosure(t)
+	if not planned.is_empty():
+		return planned
 	return _park_enclosure(t, enc["reason"])
+
+
+func _is_fence_site(t: Vector2i) -> bool:
+	var s := site_at(t)
+	return s != null and not s.done and s.def_id() == "enclos"
+
+
+func _planned_enclosure(t: Vector2i) -> Dictionary:
+	if _is_fence_site(t):
+		return {}
+	var seen := {t: true}
+	var stack: Array[Vector2i] = [t]
+	var dirs: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+	var unfinished := false
+	while not stack.is_empty():
+		var p: Vector2i = stack.pop_back()
+		for d in dirs:
+			var q := p + d
+			if not map.in_bounds(q.x, q.y) or seen.size() >= 120:
+				return {}
+			if seen.has(q):
+				continue
+			if is_fence(q):
+				continue
+			if _is_fence_site(q):
+				unfinished = true
+				continue
+			seen[q] = true
+			stack.append(q)
+	if not unfinished:
+		return {}
+	var tiles: Array[Vector2i] = []
+	tiles.assign(seen.keys())
+	return {"closed": true, "tiles": tiles, "planned": true}
+
+
+## Réservations : une fois les clôtures terminées, l'animal s'installe ; si le chantier est abandonné, le contrat revient.
+func _check_pending_installs() -> void:
+	for r in pending_installs.duplicate():
+		var enc := enclosure_at(r["tile"])
+		if enc.get("planned", false):
+			continue
+		pending_installs.erase(r)
+		contracts.append(r["def"])
+		if enc["closed"] and not enc.get("park", false):
+			var err := install_animal(r["def"], r["tile"])
+			if err != "":
+				say("%s ne peut pas s'installer : %s. Le contrat revient dans vos contrats." % [r["def"]["nom"], err])
+		else:
+			say("Enclos de %s abandonné : le contrat revient dans vos contrats." % r["def"]["nom"])
+	version += 1
+
+
+## Annule une réservation : le contrat revient dans les contrats à installer.
+func cancel_pending(r: Dictionary) -> void:
+	if pending_installs.has(r):
+		pending_installs.erase(r)
+		contracts.append(r["def"])
+		version += 1
 
 
 func _park_enclosure(t: Vector2i, reason: String) -> Dictionary:
@@ -1697,7 +1851,7 @@ func _park_enclosure(t: Vector2i, reason: String) -> Dictionary:
 		var p: Vector2i = stack.pop_back()
 		for d in dirs:
 			var q := p + d
-			if seen.has(q) or not interior.has(q) or is_fence(q):
+			if seen.has(q) or not interior.has(q) or is_fence(q) or _is_fence_site(q):
 				continue
 			seen[q] = true
 			stack.append(q)
@@ -1856,6 +2010,12 @@ func install_animal(def: Dictionary, t: Vector2i) -> String:
 	var err := animal_error(def, enc)
 	if err != "":
 		return err
+	if enc.get("planned", false):
+		contracts.erase(def)
+		pending_installs.append({"def": def, "tile": t})
+		say("%s : enclos réservé. L'animal arrivera la nuit suivant la fin des clôtures." % def["nom"])
+		version += 1
+		return ""
 	var a := Animal.new()
 	a.def = def
 	a.tiles.assign(enc["tiles"])
@@ -2126,16 +2286,24 @@ func campaign_error(def: Dictionary) -> String:
 		return "Campagne en cours : %s" % campaign["def"]["nom"]
 	if outside_workers().is_empty():
 		return "Envoyez d'abord un ouvrier à l'extérieur (case Accès)"
-	if money < float(def["cout"]):
-		return "Pas assez d'argent (%d)" % int(def["cout"])
+	if money < campaign_cost(def):
+		return "Pas assez d'argent (%d)" % campaign_cost(def)
 	return ""
+
+
+## Prix d'une campagne : réduit si un ouvrier spécialisé en influence (Lobbyiste) est à l'extérieur.
+func campaign_cost(def: Dictionary) -> int:
+	var c := float(def["cout"])
+	if outside_workers().any(func(w): return w.card.metier["efficacite"].has("lobbying")):
+		c *= 1.0 - float(data["buildings"]["publicite"]["remise_lobbyiste"])
+	return roundi(c)
 
 
 ## Lance une campagne publicitaire (payée tout de suite) : les ouvriers dehors la réalisent sans perdre d'influence.
 func launch_campaign(def: Dictionary) -> bool:
 	if campaign_error(def) != "":
 		return false
-	money -= float(def["cout"])
+	money -= campaign_cost(def)
 	campaign = {"def": def, "progress": 0.0}
 	say("Campagne lancée : %s. Vos ouvriers à l'extérieur s'en occupent." % def["nom"])
 	version += 1

@@ -10,7 +10,8 @@
     "salaire_par_niveau": 1,
     "bonus_par_niveau": 0.1,
     "actions_nuit": { "jour_min": 7, "par_nuit": 1, "cout_licenciement": 8, "cout_amelioration": 12, "_note": "À partir du milieu de partie, chaque nuit : licencier OU améliorer un ouvrier (choix parmi 3 améliorations), payant." },
-    "deploiement_gratuit": { "par_jour": 1, "rendement": 0.25, "_note": "Un ouvrier par jour peut être déployé sans salaire, avec un rendement de 25 % (évite les blocages sans argent)." },
+    "deploiement_gratuit": { "par_jour": 1, "rendement": 0.25, "vitesse": 0.6, "_note": "Un ouvrier par jour peut être déployé sans salaire, avec un rendement de 25 % sur toutes les tâches (construction comprise) et une marche à 60 % (évite les blocages sans argent)." },
+    "emprunt": { "montant": 10, "remboursement": 12, "_note": "Une fois par jour, si l'on ne peut payer le salaire d'aucun ouvrier de sa main : emprunt de 10, 12 retirés automatiquement le soir (le solde peut devenir négatif)." },
     "taille_deck_initial": 10,
     "salaire_paye_au_deploiement": true,
     "deploiement_en_cours_de_journee": true,
@@ -126,7 +127,7 @@
     { "id": "prime",            "nom": "Prime",               "cout": 4,  "effet": { "prime": 4 },           "texte": "Les 4 prochains ouvriers déployés aujourd'hui ne coûtent pas de salaire (rendement plein)." },
     { "id": "portes_ouvertes",  "nom": "Portes ouvertes",     "cout": 10, "effet": { "visiteurs": 2.0 },     "texte": "Aujourd'hui, deux fois plus de visiteurs." },
     { "id": "livraison",        "nom": "Livraison",           "cout": 6,  "effet": { "bois": 30, "pierre": 25 }, "texte": "Reçoit immédiatement 30 bois et 25 pierre." },
-    { "id": "recrutement",      "nom": "Recrutement express", "cout": 5,  "effet": { "pioche": 3 },          "texte": "Piochez 3 cartes de plus aujourd'hui." },
+    { "id": "recrutement",      "nom": "Recrutement express", "cout": 4,  "effet": { "pioche": 2 },          "texte": "Piochez 2 cartes de plus aujourd'hui." },
     { "id": "formation_express","nom": "Formation express",   "cout": 8,  "effet": { "xp": 2 },              "texte": "Tous vos ouvriers, deck compris, gagnent 2 jours d'expérience." },
     { "id": "licenciement",     "nom": "Rupture de contrat",  "cout": 3,  "effet": { "licencier": true }, "cible": true, "texte": "Licenciez l'ouvrier de votre choix (sauf ceux sur le terrain)." },
     { "id": "promotion",        "nom": "Promotion",           "cout": 8,  "effet": { "ameliorer": true }, "cible": true, "texte": "Un ouvrier de votre choix gagne une amélioration (choix parmi 3)." }

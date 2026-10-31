@@ -3,11 +3,8 @@ extends RefCounted
 ## Une partie : les joueurs (humain et IA), l'horloge commune, le draft par tours et le marché de nuit partagés.
 ## Chaque joueur (GameState) a sa propre copie de la carte, générée avec la même graine.
 
-const PRENOMS: Array[String] = ["Léa", "Hugo", "Jade", "Louis", "Emma", "Nathan", "Inès", "Gabin", "Chloé", "Tom",
-	"Lina", "Jules", "Manon", "Noah", "Zoé", "Adam", "Rose", "Paul", "Alice", "Sacha", "Lou", "Malo", "Nina",
-	"Théo", "Elsa", "Victor", "Margot", "Arthur", "Camille", "Basile"]
-
 var data: Dictionary
+var perso_bag: Array = []  # personnages pas encore tirés (data/personnages.json), remélangés une fois tous sortis
 var seed_value := 0
 var rng := RandomNumberGenerator.new()
 var players: Array[GameState] = []
@@ -113,7 +110,9 @@ func make_card(categorie: String, faiblesse := 0.0) -> GameState.Card:
 	var card := GameState.Card.new()
 	card.id = next_card_id
 	next_card_id += 1
-	card.nom = pick(PRENOMS)
+	var perso := _next_perso()
+	card.nom = perso["nom"]
+	card.perso = perso["id"]
 	card.metier = pick(W["metiers"].filter(func(m): return m["categorie"] == categorie))
 	var gen: Dictionary = W["generation_traits"]
 	var n_pos := int(pick_weighted(gen["nb_positifs"]))
@@ -127,6 +126,14 @@ func make_card(categorie: String, faiblesse := 0.0) -> GameState.Card:
 	_draw_traits(card, W["traits_positifs"], n_pos, gen["exclusions"])
 	_draw_traits(card, W["traits_negatifs"], n_neg, gen["exclusions"])
 	return card
+
+
+## Personnage d'une nouvelle carte : tous sortent une fois avant qu'un même visage revienne.
+func _next_perso() -> Dictionary:
+	if perso_bag.is_empty():
+		perso_bag = data["personnages"]["personnages"].duplicate()
+		shuffle(perso_bag)
+	return perso_bag.pop_back()
 
 
 ## Carte d'action (workers.json > cartes_action) : une carte du deck qui n'est pas un ouvrier.
@@ -319,7 +326,6 @@ func end_day() -> void:
 		p.bought_action = false
 		p.contracts_tonight = 0
 		p.night_action_used = false
-		p.swapped_tonight = false
 	# Bonus de nuit : seul le premier en influence choisit, et le bonus s'applique à tous le lendemain.
 	var pool: Array = data["events"]["bonus_nuit"].duplicate()
 	shuffle(pool)
