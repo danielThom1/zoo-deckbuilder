@@ -205,62 +205,18 @@ func _ready() -> void:
 		_show_menu()
 
 
+## Menu principal (MenuPrincipal) : la carte de la graine choisie en fond, réglages de la partie à droite.
 func _show_menu() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
-	var bg := ColorRect.new()
-	bg.color = UiTokens.PANNEAU_BAS
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	bg.theme = UiTokens.build_theme()
-	layer.add_child(bg)
-	var v := VBoxContainer.new()
-	v.position = Vector2(96, 96)
-	v.add_theme_constant_override("separation", 14)
-	bg.add_child(v)
-	var title := Label.new()
-	title.text = "ZOO\nDECKBUILDER"
-	title.theme_type_variation = "TitreEcran"
-	title.add_theme_font_size_override("font_size", 46)
-	title.add_theme_color_override("font_color", UiTokens.OR)
-	v.add_child(title)
-	var tag := Label.new()
-	tag.text = "Recrutez, construisez, attirez les visiteurs."
-	tag.add_theme_color_override("font_color", UiTokens.TEXTE_SECONDAIRE)
-	v.add_child(tag)
-	var gap := Control.new()
-	gap.custom_minimum_size = Vector2(0, 60)
-	v.add_child(gap)
-	var seed_row := HBoxContainer.new()
-	v.add_child(seed_row)
-	var seed_lbl := Label.new()
-	seed_lbl.text = "Graine de la carte (vide = au hasard) : "
-	seed_row.add_child(seed_lbl)
-	var seed_edit := LineEdit.new()
-	seed_edit.custom_minimum_size = Vector2(160, 0)
-	seed_row.add_child(seed_edit)
-	var choices := [
-		["Jouer contre l'IA", false, "Vous et 3 IA : draft par tours de 4 cartes puis partie complète.", true],
-		["Regarder des IA jouer", true, "4 IA aux stratégies différentes, en accéléré (x8). Boutons « Voir » pour passer d'un zoo à l'autre.", false],
-	]
-	for c in choices:
-		var b := Button.new()
-		b.text = c[0]
-		b.custom_minimum_size = Vector2(380, 52)
-		b.add_theme_font_size_override("font_size", 18)
-		if c[3]:
-			b.theme_type_variation = "BoutonPrincipal"
-		b.tooltip_text = c[2]
-		b.pressed.connect(func():
-			if seed_edit.text.strip_edges().is_valid_int():
-				args["seed"] = seed_edit.text.strip_edges()
-			layer.queue_free()
-			_start(c[1]))
-		v.add_child(b)
-		var hint := Label.new()
-		hint.text = c[2]
-		hint.add_theme_color_override("font_color", UiTokens.TEXTE_SECONDAIRE)
-		hint.add_theme_font_size_override("font_size", 13)
-		v.add_child(hint)
+	var menu := MenuPrincipal.new()
+	layer.add_child(menu)
+	menu.lancer.connect(func(watch: bool, graine: int, adversaires: int):
+		args["seed"] = str(graine)
+		args["joueurs"] = str(4 if watch else adversaires + 1)
+		layer.queue_free()
+		_start(watch))
+
 
 ## Stratégies des IA en mode spectateur (mêmes réglages que les simulations d'équilibrage).
 const WATCH_STRATEGIES := [
@@ -1096,7 +1052,10 @@ func _try_place(t: Vector2i, first_click: bool) -> void:
 	var kind: String = build_choice["kind"]
 	var def: Dictionary = build_choice["def"]
 	if kind == "animal":
+		var in_park: bool = game.enclosure_at(t).get("park", false)
 		var aerr := game.install_animal(def, t)
+		if aerr == "" and in_park:
+			game.say("%s : enclos posé en chantier autour, l'animal y est réservé. Envoyez des ouvriers (clic droit)." % def["nom"])
 		if aerr != "":
 			game.say(aerr)
 		else:
@@ -3156,99 +3115,22 @@ func _compute_animal_hints(def: Dictionary, propose: bool) -> void:
 			animal_hints.append({"tiles": ps["tiles"], "ok": err == "", "missing": ps["missing"], "park": enc.get("park", false)})
 	if propose:
 		enclosure_proposal = {}
-		if not animal_hints.any(func(h): return h["ok"]):
+		if not animal_hints.any(func(h): return h["ok"] and not h["park"]):
 			_propose_enclosure(def, interior)
 	_update_proposal_box(def, interior)
 
 
-## Cherche un petit enclos rectangulaire libre dans l'enceinte où le motif existe déjà (sinon le plus proche),
-## en réutilisant les clôtures d'enclos existantes.
-func _propose_enclosure(def: Dictionary, interior: Dictionary) -> void:
-	if interior.is_empty():
-		return
-	var need := int(def["taille"])
-	var occupied := {}  # enclos clôturés déjà habités : on ne construit pas dedans
-	for a in game.animals:
-		if not a.park:
-			for t in a.tiles:
-				occupied[t] = true
-		for t in a.pattern_tiles:
-			occupied[t] = true
-	var lo := Vector2i(1 << 20, 1 << 20)
-	var hi := Vector2i(-1, -1)
-	for t in interior:
-		lo = Vector2i(mini(lo.x, t.x), mini(lo.y, t.y))
-		hi = Vector2i(maxi(hi.x, t.x), maxi(hi.y, t.y))
-	var fence_def := game.building_def("enclos")
-	var ring_cache := {}
-	var free := func(t: Vector2i) -> bool:
-		return interior.has(t) and game.site_at(t) == null and not occupied.has(t) and not game.map.in_camp(t.x, t.y)
-	var ring_ok := func(t: Vector2i) -> bool:
-		if not ring_cache.has(t):
-			ring_cache[t] = interior.has(t) and not occupied.has(t) and (game.is_fence(t) or game.placement_error("batiment", fence_def, t, false) == "")
-		return ring_cache[t]
-	var sizes: Array[Vector2i] = []
-	for w in range(2, 6):
-		for h in range(2, 6):
-			if w * h >= need and w * h <= need + 6:
-				sizes.append(Vector2i(w, h))
-	sizes.sort_custom(func(a, b): return a.x * a.y < b.x * b.y or (a.x * a.y == b.x * b.y and absi(a.x - a.y) < absi(b.x - b.y)))
-	var best := {}
-	var best_score := INF
-	for sz in sizes:
-		# Le premier enclos de surface minimale où le motif existe déjà suffit.
-		if not best.is_empty() and best["missing"] == 0 and sz.x * sz.y > best["area"]:
-			break
-		for y in range(lo.y + 1, hi.y - sz.y + 1):
-			for x in range(lo.x + 1, hi.x - sz.x + 1):
-				var r := Rect2i(x, y, sz.x, sz.y)
-				var inner: Array[Vector2i] = []
-				var ok := true
-				for yy in range(r.position.y, r.end.y):
-					for xx in range(r.position.x, r.end.x):
-						var p := Vector2i(xx, yy)
-						if not free.call(p):
-							ok = false
-							break
-						inner.append(p)
-					if not ok:
-						break
-				if not ok:
-					continue
-				var ring: Array[Vector2i] = []
-				var fresh := 0
-				for yy in range(r.position.y - 1, r.end.y + 1):
-					for xx in range(r.position.x - 1, r.end.x + 1):
-						if r.has_point(Vector2i(xx, yy)):
-							continue
-						var q := Vector2i(xx, yy)
-						if not ring_ok.call(q):
-							ok = false
-							break
-						ring.append(q)
-						if not game.is_fence(q):
-							fresh += 1
-					if not ok:
-						break
-				if not ok:
-					continue
-				var ps := game.pattern_status(def, inner)
-				if ps["missing"] >= 99:
-					continue
-				var score: float = ps["missing"] * 100.0 + fresh + sz.x * sz.y * 0.5
-				if score < best_score:
-					best_score = score
-					best = {"rect": r, "ring": ring, "new": ring.filter(func(q): return not game.is_fence(q)),
-						"pattern": ps["tiles"], "missing": ps["missing"], "area": sz.x * sz.y}
-	enclosure_proposal = best
+## Enclos à construire proposé quand aucun enclos clôturé ne convient (voir GameState.enclosure_site).
+func _propose_enclosure(def: Dictionary, _interior: Dictionary) -> void:
+	enclosure_proposal = game.enclosure_site(def)
 
 
 func _update_proposal_box(def: Dictionary, interior: Dictionary) -> void:
 	proposal_box.visible = true
 	_clear(proposal_pattern)
 	proposal_pattern.add_child(_pattern_view(def, 20.0))
-	var ok := animal_hints.filter(func(h): return h["ok"]).size()
-	var near := animal_hints.size() - ok
+	var ok := animal_hints.filter(func(h): return h["ok"] and not h["park"]).size()
+	var near := animal_hints.filter(func(h): return not h["ok"]).size()
 	var lines: Array[String] = ["[b]%s[/b] · il faut %d cases et ce motif" % [def["nom"], int(def["taille"])]]
 	proposal_btn.visible = false
 	if interior.is_empty():
@@ -3259,6 +3141,8 @@ func _update_proposal_box(def: Dictionary, interior: Dictionary) -> void:
 		var n: int = enclosure_proposal["new"].size()
 		lines.append("Aucun enclos ne convient. Enclos proposé en pointillés : %d clôture(s) à poser%s." % [n,
 			", puis %d case(s) à aménager (en orange)" % enclosure_proposal["missing"] if enclosure_proposal["missing"] > 0 else ""])
+		if enclosure_proposal["missing"] == 0:
+			lines.append("Ou cliquez ailleurs dans le parc : l'enclos se pose en chantier autour de la case cliquée.")
 		proposal_btn.visible = n > 0
 		proposal_btn.text = ("Construire l'enclos et réserver l'animal · %d bois" if enclosure_proposal["missing"] == 0 else "Construire cet enclos · %d bois") % n
 		proposal_btn.disabled = game.stock["bois"] < n or game.phase != "day"
@@ -3275,17 +3159,12 @@ func _update_proposal_box(def: Dictionary, interior: Dictionary) -> void:
 func _build_proposal() -> void:
 	if enclosure_proposal.is_empty():
 		return
-	var fence_def := game.building_def("enclos")
-	var placed := 0
-	for t in enclosure_proposal["new"]:
-		if game.place("batiment", fence_def, t) != null:
-			placed += 1
+	var placed := game.place_enclosure(enclosure_proposal)
 	game.say("Enclos proposé : %d clôture(s) en chantier. Envoyez des ouvriers (clic droit dessus)." % placed)
 	enclosure_proposal["new"] = enclosure_proposal["new"].filter(func(t): return game.site_at(t) == null)
 	# Motif déjà présent : l'animal est réservé dans l'enclos en chantier et arrivera une fois les clôtures finies.
 	if enclosure_proposal["new"].is_empty() and enclosure_proposal["missing"] == 0 and build_choice.get("kind") == "animal":
-		var r: Rect2i = enclosure_proposal["rect"]
-		var err := game.install_animal(build_choice["def"], r.position + r.size / 2)
+		var err := game.install_animal(build_choice["def"], enclosure_proposal["pattern"][0])
 		if err == "":
 			_set_build({})
 		else:

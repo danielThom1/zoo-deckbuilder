@@ -864,9 +864,22 @@ func _init() -> void:
 	var f_b: Dictionary = f_zebre.duplicate(true)
 	f_b["id"] = "test_parc_b"
 	f_b["taille"] = 4
+	f_a["taille"] = 5
+	f_b["taille"] = 1
+	f_b["motif"] = [[0, 0, "Prairie"]]
 	fg.contracts.append_array([f_a, f_b])
 	var f_bonus0 := fg.affinity_bonus()
-	check(fg.install_animal(f_a, Vector2i(10, 6)) == "" and fg.install_animal(f_b, Vector2i(10, 6)) == "", "deux animaux installés ensemble dans le parc libre")
+	var f_sites0 := fg.sites.size()
+	fg.stock["bois"] = 30.0
+	check(fg.install_animal(f_a, Vector2i(10, 6)) == "" and fg.pending_installs.size() == 1 and fg.sites.size() > f_sites0,
+		"animal posé dans le parc sans clôture : %d clôture(s) en chantier, l'animal est réservé" % (fg.sites.size() - f_sites0))
+	for s in fg.sites.duplicate():
+		if not s.done and s.def_id() == "enclos":
+			s.work = s.travail()
+			fg._complete(s)
+	check(fg.pending_installs.is_empty() and fg.animals.size() == 2, "clôtures finies : l'animal s'installe")
+	var f_home: Vector2i = fg.animals[1].tiles[0]
+	check(fg.install_animal(f_b, f_home) == "", "deux animaux dans le même enclos (%s)" % fg.animal_error(f_b, fg.enclosure_at(f_home)))
 	check(fg.animals[1].pattern_tiles.all(func(t): return not fg.animals[2].pattern_tiles.has(t)), "chaque animal garde ses cases de motif")
 	fg.end_day()
 	fg.start_next_day()

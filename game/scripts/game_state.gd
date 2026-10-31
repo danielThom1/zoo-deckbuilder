@@ -2036,6 +2036,8 @@ func animal_error(def: Dictionary, enc: Dictionary) -> String:
 
 func install_animal(def: Dictionary, t: Vector2i) -> String:
 	var enc := enclosure_at(t)
+	if enc.get("park", false):
+		return _install_with_fences(def, t)
 	var err := animal_error(def, enc)
 	if err != "":
 		return err
@@ -2056,6 +2058,138 @@ func install_animal(def: Dictionary, t: Vector2i) -> String:
 	say("%s : enclos validé, l'animal arrive cette nuit." % def["nom"])
 	version += 1
 	return ""
+
+
+## Clic dans le parc sans clôture : l'animal n'y vit pas en liberté. On pose en chantier un enclos autour de la case
+## (le plus petit où son motif existe, en reprenant clôtures et mur de l'enceinte) et l'animal y est réservé.
+func _install_with_fences(def: Dictionary, t: Vector2i) -> String:
+	if phase != "day":
+		return "Installation possible uniquement de jour"
+	var site := enclosure_site(def, t)
+	if site.is_empty():
+		return "Pas de place pour un enclos autour de cette case"
+	if site["missing"] > 0:
+		return "Motif absent autour de cette case (%d case(s) à aménager)" % site["missing"]
+	var n: int = site["new"].size()
+	var cout: Dictionary = building_def("enclos").get("cout", {})
+	for k in cout:
+		if stock.get(k, 0.0) < float(cout[k]) * n:
+			return "Il faut %d %s pour clôturer cet enclos (%d segments)" % [int(cout[k]) * n, k, n]
+	place_enclosure(site)
+	var spot: Vector2i = site["pattern"][0]
+	var enc := enclosure_at(spot)
+	if not enc["closed"] or enc.get("park", false):
+		return "Enclos impossible à fermer ici"
+	return install_animal(def, spot)
+
+
+## Enclos rectangulaire à construire pour un animal dans l'enceinte : le plus petit où son motif existe (sinon le plus
+## proche, cases à aménager comptées dans missing), en reprenant les clôtures d'enclos et le mur de l'enceinte.
+## Avec around, l'enclos doit contenir cette case. Renvoie {} si rien ne convient, sinon
+## {"rect", "ring", "new" (segments à poser), "pattern", "missing", "area"}.
+func enclosure_site(def: Dictionary, around := Vector2i(-1, -1)) -> Dictionary:
+	var interior: Dictionary = zoo_status()["interior"]
+	if interior.is_empty():
+		return {}
+	var need := int(def["taille"])
+	var occupied := {}  # enclos habités ou réservés : on ne construit pas dedans
+	for a in animals:
+		if not a.park:
+			for p in a.tiles:
+				occupied[p] = true
+		for p in a.pattern_tiles:
+			occupied[p] = true
+	for r in pending_installs:
+		var penc := enclosure_at(r["tile"])
+		if penc.get("planned", false):
+			for p in penc["tiles"]:
+				occupied[p] = true
+	var lo := Vector2i(1 << 20, 1 << 20)
+	var hi := Vector2i(-1, -1)
+	for p in interior:
+		lo = Vector2i(mini(lo.x, p.x), mini(lo.y, p.y))
+		hi = Vector2i(maxi(hi.x, p.x), maxi(hi.y, p.y))
+	var fence_def := building_def("enclos")
+	var ring_cache := {}
+	var free := func(p: Vector2i) -> bool:
+		return interior.has(p) and site_at(p) == null and not occupied.has(p) and not map.in_camp(p.x, p.y)
+	var ring_ok := func(p: Vector2i) -> bool:
+		if not ring_cache.has(p):
+			var wall := is_wall(p) and site_at(p).def_id() == "cloture"
+			ring_cache[p] = wall or (interior.has(p) and not occupied.has(p) \
+				and (is_fence(p) or _is_fence_site(p) or placement_error("batiment", fence_def, p, false) == ""))
+		return ring_cache[p]
+	var sizes: Array[Vector2i] = []
+	for w in range(2, 6):
+		for h in range(2, 6):
+			if w * h >= need and w * h <= need + 6:
+				sizes.append(Vector2i(w, h))
+	sizes.sort_custom(func(a, b): return a.x * a.y < b.x * b.y or (a.x * a.y == b.x * b.y and absi(a.x - a.y) < absi(b.x - b.y)))
+	var best := {}
+	var best_score := INF
+	for sz in sizes:
+		# Le premier enclos de surface minimale où le motif existe déjà suffit.
+		if not best.is_empty() and best["missing"] == 0 and sz.x * sz.y > best["area"]:
+			break
+		var ys := range(lo.y, hi.y - sz.y + 2)
+		var xs := range(lo.x, hi.x - sz.x + 2)
+		if around.x >= 0:
+			ys = range(around.y - sz.y + 1, around.y + 1)
+			xs = range(around.x - sz.x + 1, around.x + 1)
+		for y in ys:
+			for x in xs:
+				var r := Rect2i(x, y, sz.x, sz.y)
+				var inner: Array[Vector2i] = []
+				var ok := true
+				for yy in range(r.position.y, r.end.y):
+					for xx in range(r.position.x, r.end.x):
+						var p := Vector2i(xx, yy)
+						if not free.call(p):
+							ok = false
+							break
+						inner.append(p)
+					if not ok:
+						break
+				if not ok:
+					continue
+				var ring: Array[Vector2i] = []
+				var fresh: Array[Vector2i] = []
+				var fenced := false
+				for yy in range(r.position.y - 1, r.end.y + 1):
+					for xx in range(r.position.x - 1, r.end.x + 1):
+						var q := Vector2i(xx, yy)
+						if r.has_point(q):
+							continue
+						if not ring_ok.call(q):
+							ok = false
+							break
+						ring.append(q)
+						if not is_wall(q):
+							fenced = true
+							if not is_fence(q) and not _is_fence_site(q):
+								fresh.append(q)
+					if not ok:
+						break
+				if not ok or not fenced:
+					continue
+				var ps := pattern_status(def, inner)
+				if ps["missing"] >= 99:
+					continue
+				var score: float = ps["missing"] * 100.0 + fresh.size() + sz.x * sz.y * 0.5
+				if score < best_score:
+					best_score = score
+					best = {"rect": r, "ring": ring, "new": fresh, "pattern": ps["tiles"], "missing": ps["missing"], "area": sz.x * sz.y}
+	return best
+
+
+## Pose en chantier les clôtures d'un enclos trouvé par enclosure_site. Renvoie le nombre de segments posés.
+func place_enclosure(site: Dictionary) -> int:
+	var fence_def := building_def("enclos")
+	var placed := 0
+	for p in site["new"]:
+		if place("batiment", fence_def, p) != null:
+			placed += 1
+	return placed
 
 
 ## Coût de la nourriture d'un animal pour une journée (rations × prix d'une ration).
