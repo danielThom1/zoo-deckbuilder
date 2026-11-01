@@ -1,0 +1,3434 @@
+{
+ "abri": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/abri.png",
+  "pied": [
+   61,
+   90
+  ],
+  "taille": [
+   123,
+   90
+  ]
+ },
+ "addax": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/addax.png",
+  "pied": [
+   48,
+   98
+  ],
+  "taille": [
+   97,
+   98
+  ]
+ },
+ "addax_2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/addax_2.png",
+  "pied": [
+   35,
+   96
+  ],
+  "taille": [
+   70,
+   96
+  ]
+ },
+ "aigle_royal": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/aigle_royal.png",
+  "pied": [
+   40,
+   72
+  ],
+  "taille": [
+   81,
+   72
+  ]
+ },
+ "alpaga": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/alpaga.png",
+  "pied": [
+   32,
+   98
+  ],
+  "taille": [
+   64,
+   98
+  ]
+ },
+ "ane": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/ane.png",
+  "pied": [
+   47,
+   78
+  ],
+  "taille": [
+   94,
+   78
+  ]
+ },
+ "ane_petit": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/ane_petit.png",
+  "pied": [
+   41,
+   60
+  ],
+  "taille": [
+   83,
+   60
+  ]
+ },
+ "antilope": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/antilope.png",
+  "pied": [
+   53,
+   85
+  ],
+  "taille": [
+   106,
+   85
+  ]
+ },
+ "apprenti": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/apprenti.png",
+  "pied": [
+   37,
+   177
+  ],
+  "taille": [
+   75,
+   177
+  ]
+ },
+ "arbre1": {
+  "categorie": "decor",
+  "fichier": "res://assets/bd/sprites/decor/arbre1.png",
+  "pied": [
+   50,
+   114
+  ],
+  "taille": [
+   101,
+   114
+  ]
+ },
+ "arbre2": {
+  "categorie": "decor",
+  "fichier": "res://assets/bd/sprites/decor/arbre2.png",
+  "pied": [
+   39,
+   110
+  ],
+  "taille": [
+   79,
+   110
+  ]
+ },
+ "arbre3": {
+  "categorie": "decor",
+  "fichier": "res://assets/bd/sprites/decor/arbre3.png",
+  "pied": [
+   38,
+   108
+  ],
+  "taille": [
+   77,
+   108
+  ]
+ },
+ "arbre4": {
+  "categorie": "decor",
+  "fichier": "res://assets/bd/sprites/decor/arbre4.png",
+  "pied": [
+   38,
+   108
+  ],
+  "taille": [
+   76,
+   108
+  ]
+ },
+ "arbre_sec": {
+  "categorie": "decor",
+  "fichier": "res://assets/bd/sprites/decor/arbre_sec.png",
+  "pied": [
+   35,
+   86
+  ],
+  "taille": [
+   71,
+   86
+  ]
+ },
+ "architecte": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/architecte.png",
+  "pied": [
+   52,
+   174
+  ],
+  "taille": [
+   105,
+   174
+  ]
+ },
+ "atelier": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/atelier.png",
+  "pied": [
+   67,
+   128
+  ],
+  "taille": [
+   134,
+   128
+  ]
+ },
+ "autruche": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/autruche.png",
+  "pied": [
+   50,
+   96
+  ],
+  "taille": [
+   101,
+   96
+  ]
+ },
+ "bassin": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/bassin.png",
+  "pied": [
+   48,
+   38
+  ],
+  "taille": [
+   97,
+   76
+  ]
+ },
+ "biche": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/biche.png",
+  "pied": [
+   48,
+   101
+  ],
+  "taille": [
+   96,
+   101
+  ]
+ },
+ "bucheron": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/bucheron.png",
+  "pied": [
+   61,
+   192
+  ],
+  "taille": [
+   122,
+   192
+  ]
+ },
+ "buisson": {
+  "categorie": "decor",
+  "fichier": "res://assets/bd/sprites/decor/buisson.png",
+  "pied": [
+   28,
+   51
+  ],
+  "taille": [
+   57,
+   51
+  ]
+ },
+ "cadre_valise": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/cadre_valise.png",
+  "pied": [
+   30,
+   179
+  ],
+  "taille": [
+   61,
+   179
+  ]
+ },
+ "cameraman": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/cameraman.png",
+  "pied": [
+   42,
+   178
+  ],
+  "taille": [
+   85,
+   178
+  ]
+ },
+ "camp1": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/camp1.png",
+  "pied": [
+   79,
+   122
+  ],
+  "taille": [
+   159,
+   122
+  ]
+ },
+ "camp2": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/camp2.png",
+  "pied": [
+   78,
+   117
+  ],
+  "taille": [
+   156,
+   117
+  ]
+ },
+ "camp3": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/camp3.png",
+  "pied": [
+   103,
+   146
+  ],
+  "taille": [
+   206,
+   146
+  ]
+ },
+ "cantonnier": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/cantonnier.png",
+  "pied": [
+   52,
+   191
+  ],
+  "taille": [
+   105,
+   191
+  ]
+ },
+ "capucin": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/capucin.png",
+  "pied": [
+   33,
+   72
+  ],
+  "taille": [
+   66,
+   72
+  ]
+ },
+ "capucin_petit": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/capucin_petit.png",
+  "pied": [
+   26,
+   51
+  ],
+  "taille": [
+   52,
+   51
+  ]
+ },
+ "castor": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/castor.png",
+  "pied": [
+   36,
+   43
+  ],
+  "taille": [
+   72,
+   43
+  ]
+ },
+ "cerf": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/cerf.png",
+  "pied": [
+   52,
+   105
+  ],
+  "taille": [
+   104,
+   105
+  ]
+ },
+ "chacal": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/chacal.png",
+  "pied": [
+   49,
+   53
+  ],
+  "taille": [
+   98,
+   53
+  ]
+ },
+ "chantier1": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/chantier1.png",
+  "pied": [
+   76,
+   130
+  ],
+  "taille": [
+   152,
+   130
+  ]
+ },
+ "chantier2": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/chantier2.png",
+  "pied": [
+   76,
+   137
+  ],
+  "taille": [
+   153,
+   137
+  ]
+ },
+ "charpentier": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/charpentier.png",
+  "pied": [
+   57,
+   198
+  ],
+  "taille": [
+   114,
+   198
+  ]
+ },
+ "cheval": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/cheval.png",
+  "pied": [
+   43,
+   98
+  ],
+  "taille": [
+   86,
+   98
+  ]
+ },
+ "cheval_2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/cheval_2.png",
+  "pied": [
+   50,
+   93
+  ],
+  "taille": [
+   101,
+   93
+  ]
+ },
+ "chevre": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/chevre.png",
+  "pied": [
+   49,
+   108
+  ],
+  "taille": [
+   98,
+   108
+  ]
+ },
+ "chimiste": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/chimiste.png",
+  "pied": [
+   35,
+   173
+  ],
+  "taille": [
+   70,
+   173
+  ]
+ },
+ "chimpanze": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/chimpanze.png",
+  "pied": [
+   46,
+   68
+  ],
+  "taille": [
+   92,
+   68
+  ]
+ },
+ "chimpanze_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/chimpanze_tete.png",
+  "pied": [
+   52,
+   97
+  ],
+  "taille": [
+   105,
+   97
+  ]
+ },
+ "chimpanzes": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/chimpanzes.png",
+  "pied": [
+   73,
+   62
+  ],
+  "taille": [
+   147,
+   62
+  ]
+ },
+ "chinchilla": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/chinchilla.png",
+  "pied": [
+   46,
+   73
+  ],
+  "taille": [
+   93,
+   73
+  ]
+ },
+ "chouette": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/chouette.png",
+  "pied": [
+   47,
+   97
+  ],
+  "taille": [
+   94,
+   97
+  ]
+ },
+ "contremaitre": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/contremaitre.png",
+  "pied": [
+   41,
+   192
+  ],
+  "taille": [
+   82,
+   192
+  ]
+ },
+ "crocodile": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/crocodile.png",
+  "pied": [
+   124,
+   55
+  ],
+  "taille": [
+   249,
+   55
+  ]
+ },
+ "crocodile_nage": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/crocodile_nage.png",
+  "pied": [
+   63,
+   55
+  ],
+  "taille": [
+   126,
+   55
+  ]
+ },
+ "cuisinier": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/cuisinier.png",
+  "pied": [
+   48,
+   149
+  ],
+  "taille": [
+   97,
+   149
+  ]
+ },
+ "dragon_komodo": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/dragon_komodo.png",
+  "pied": [
+   120,
+   59
+  ],
+  "taille": [
+   240,
+   59
+  ]
+ },
+ "drh": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/drh.png",
+  "pied": [
+   41,
+   204
+  ],
+  "taille": [
+   82,
+   204
+  ]
+ },
+ "drh_2": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/drh_2.png",
+  "pied": [
+   38,
+   175
+  ],
+  "taille": [
+   76,
+   175
+  ]
+ },
+ "dromadaire": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/dromadaire.png",
+  "pied": [
+   40,
+   82
+  ],
+  "taille": [
+   81,
+   82
+  ]
+ },
+ "dromadaire_petit": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/dromadaire_petit.png",
+  "pied": [
+   31,
+   77
+  ],
+  "taille": [
+   62,
+   77
+  ]
+ },
+ "elephant": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/elephant.png",
+  "pied": [
+   28,
+   77
+  ],
+  "taille": [
+   57,
+   77
+  ]
+ },
+ "elephant_famille": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/elephant_famille.png",
+  "pied": [
+   95,
+   88
+  ],
+  "taille": [
+   191,
+   88
+  ]
+ },
+ "elephant_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/elephant_tete.png",
+  "pied": [
+   65,
+   128
+  ],
+  "taille": [
+   130,
+   128
+  ]
+ },
+ "emeu": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/emeu.png",
+  "pied": [
+   47,
+   90
+  ],
+  "taille": [
+   94,
+   90
+  ]
+ },
+ "enfant_fille": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/enfant_fille.png",
+  "pied": [
+   35,
+   166
+  ],
+  "taille": [
+   71,
+   166
+  ]
+ },
+ "enfant_garcon": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/enfant_garcon.png",
+  "pied": [
+   37,
+   170
+  ],
+  "taille": [
+   75,
+   170
+  ]
+ },
+ "entree": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/entree.png",
+  "pied": [
+   95,
+   150
+  ],
+  "taille": [
+   190,
+   150
+  ]
+ },
+ "entree2": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/entree2.png",
+  "pied": [
+   48,
+   116
+  ],
+  "taille": [
+   97,
+   116
+  ]
+ },
+ "entrepot": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/entrepot.png",
+  "pied": [
+   85,
+   136
+  ],
+  "taille": [
+   171,
+   136
+  ]
+ },
+ "faon": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/faon.png",
+  "pied": [
+   29,
+   68
+  ],
+  "taille": [
+   58,
+   68
+  ]
+ },
+ "faon_petit": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/faon_petit.png",
+  "pied": [
+   27,
+   62
+  ],
+  "taille": [
+   54,
+   62
+  ]
+ },
+ "fennec": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/fennec.png",
+  "pied": [
+   49,
+   79
+  ],
+  "taille": [
+   99,
+   79
+  ]
+ },
+ "flamant": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/flamant.png",
+  "pied": [
+   39,
+   94
+  ],
+  "taille": [
+   78,
+   94
+  ]
+ },
+ "formateur": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/formateur.png",
+  "pied": [
+   39,
+   172
+  ],
+  "taille": [
+   78,
+   172
+  ]
+ },
+ "formation": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/formation.png",
+  "pied": [
+   93,
+   152
+  ],
+  "taille": [
+   186,
+   152
+  ]
+ },
+ "formatrice": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/formatrice.png",
+  "pied": [
+   47,
+   174
+  ],
+  "taille": [
+   95,
+   174
+  ]
+ },
+ "garde_forestier": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/garde_forestier.png",
+  "pied": [
+   53,
+   188
+  ],
+  "taille": [
+   106,
+   188
+  ]
+ },
+ "gazelle": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/gazelle.png",
+  "pied": [
+   39,
+   97
+  ],
+  "taille": [
+   78,
+   97
+  ]
+ },
+ "girafe": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/girafe.png",
+  "pied": [
+   37,
+   128
+  ],
+  "taille": [
+   74,
+   128
+  ]
+ },
+ "girafe_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/girafe_tete.png",
+  "pied": [
+   41,
+   123
+  ],
+  "taille": [
+   83,
+   123
+  ]
+ },
+ "girafon": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/girafon.png",
+  "pied": [
+   20,
+   80
+  ],
+  "taille": [
+   41,
+   80
+  ]
+ },
+ "gorille": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/gorille.png",
+  "pied": [
+   47,
+   90
+  ],
+  "taille": [
+   95,
+   90
+  ]
+ },
+ "gorille_marche": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/gorille_marche.png",
+  "pied": [
+   40,
+   65
+  ],
+  "taille": [
+   80,
+   65
+  ]
+ },
+ "grue": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/grue.png",
+  "pied": [
+   37,
+   97
+  ],
+  "taille": [
+   74,
+   97
+  ]
+ },
+ "guichetier": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/guichetier.png",
+  "pied": [
+   35,
+   191
+  ],
+  "taille": [
+   70,
+   191
+  ]
+ },
+ "guide": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/guide.png",
+  "pied": [
+   58,
+   175
+  ],
+  "taille": [
+   117,
+   175
+  ]
+ },
+ "guide_fanion": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/guide_fanion.png",
+  "pied": [
+   57,
+   220
+  ],
+  "taille": [
+   115,
+   220
+  ]
+ },
+ "hamster": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/hamster.png",
+  "pied": [
+   32,
+   54
+  ],
+  "taille": [
+   65,
+   54
+  ]
+ },
+ "hippopotame": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/hippopotame.png",
+  "pied": [
+   74,
+   85
+  ],
+  "taille": [
+   148,
+   85
+  ]
+ },
+ "hippopotame_petit": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/hippopotame_petit.png",
+  "pied": [
+   44,
+   55
+  ],
+  "taille": [
+   89,
+   55
+  ]
+ },
+ "icone_bois": {
+  "categorie": "objets",
+  "fichier": "res://assets/bd/sprites/objets/icone_bois.png",
+  "pied": [
+   51,
+   43
+  ],
+  "taille": [
+   102,
+   43
+  ]
+ },
+ "icone_coeurs": {
+  "categorie": "objets",
+  "fichier": "res://assets/bd/sprites/objets/icone_coeurs.png",
+  "pied": [
+   40,
+   23
+  ],
+  "taille": [
+   81,
+   23
+  ]
+ },
+ "icone_etoile": {
+  "categorie": "objets",
+  "fichier": "res://assets/bd/sprites/objets/icone_etoile.png",
+  "pied": [
+   18,
+   36
+  ],
+  "taille": [
+   36,
+   36
+  ]
+ },
+ "icone_nuage": {
+  "categorie": "objets",
+  "fichier": "res://assets/bd/sprites/objets/icone_nuage.png",
+  "pied": [
+   43,
+   31
+  ],
+  "taille": [
+   86,
+   31
+  ]
+ },
+ "icone_or": {
+  "categorie": "objets",
+  "fichier": "res://assets/bd/sprites/objets/icone_or.png",
+  "pied": [
+   48,
+   38
+  ],
+  "taille": [
+   97,
+   38
+  ]
+ },
+ "icone_pieces": {
+  "categorie": "objets",
+  "fichier": "res://assets/bd/sprites/objets/icone_pieces.png",
+  "pied": [
+   42,
+   38
+  ],
+  "taille": [
+   84,
+   38
+  ]
+ },
+ "icone_pierre": {
+  "categorie": "objets",
+  "fichier": "res://assets/bd/sprites/objets/icone_pierre.png",
+  "pied": [
+   40,
+   47
+  ],
+  "taille": [
+   80,
+   47
+  ]
+ },
+ "icone_zzz": {
+  "categorie": "objets",
+  "fichier": "res://assets/bd/sprites/objets/icone_zzz.png",
+  "pied": [
+   25,
+   29
+  ],
+  "taille": [
+   50,
+   29
+  ]
+ },
+ "iguane": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/iguane.png",
+  "pied": [
+   73,
+   48
+  ],
+  "taille": [
+   147,
+   48
+  ]
+ },
+ "infirmiere": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/infirmiere.png",
+  "pied": [
+   31,
+   175
+  ],
+  "taille": [
+   63,
+   175
+  ]
+ },
+ "interim": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/interim.png",
+  "pied": [
+   69,
+   124
+  ],
+  "taille": [
+   139,
+   124
+  ]
+ },
+ "jaguar": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/jaguar.png",
+  "pied": [
+   63,
+   81
+  ],
+  "taille": [
+   126,
+   81
+  ]
+ },
+ "jaguar_duo": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/jaguar_duo.png",
+  "pied": [
+   112,
+   101
+  ],
+  "taille": [
+   225,
+   101
+  ]
+ },
+ "jaguar_marche": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/jaguar_marche.png",
+  "pied": [
+   46,
+   79
+  ],
+  "taille": [
+   93,
+   79
+  ]
+ },
+ "jaguar_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/jaguar_tete.png",
+  "pied": [
+   50,
+   107
+  ],
+  "taille": [
+   101,
+   107
+  ]
+ },
+ "kangourou": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/kangourou.png",
+  "pied": [
+   41,
+   64
+  ],
+  "taille": [
+   82,
+   64
+  ]
+ },
+ "kangourou_2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/kangourou_2.png",
+  "pied": [
+   39,
+   61
+  ],
+  "taille": [
+   79,
+   61
+  ]
+ },
+ "lama": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/lama.png",
+  "pied": [
+   26,
+   85
+  ],
+  "taille": [
+   53,
+   85
+  ]
+ },
+ "lion": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/lion.png",
+  "pied": [
+   56,
+   63
+  ],
+  "taille": [
+   112,
+   63
+  ]
+ },
+ "lion_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/lion_tete.png",
+  "pied": [
+   59,
+   139
+  ],
+  "taille": [
+   119,
+   139
+  ]
+ },
+ "lionne": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/lionne.png",
+  "pied": [
+   35,
+   107
+  ],
+  "taille": [
+   71,
+   107
+  ]
+ },
+ "lobbyiste": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/lobbyiste.png",
+  "pied": [
+   52,
+   207
+  ],
+  "taille": [
+   104,
+   207
+  ]
+ },
+ "loup": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/loup.png",
+  "pied": [
+   54,
+   83
+  ],
+  "taille": [
+   109,
+   83
+  ]
+ },
+ "loup_marche": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/loup_marche.png",
+  "pied": [
+   43,
+   68
+  ],
+  "taille": [
+   87,
+   68
+  ]
+ },
+ "loup_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/loup_tete.png",
+  "pied": [
+   49,
+   111
+  ],
+  "taille": [
+   99,
+   111
+  ]
+ },
+ "loutre": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/loutre.png",
+  "pied": [
+   45,
+   75
+  ],
+  "taille": [
+   90,
+   75
+  ]
+ },
+ "loutre_assise": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/loutre_assise.png",
+  "pied": [
+   52,
+   85
+  ],
+  "taille": [
+   105,
+   85
+  ]
+ },
+ "loutre_petite": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/loutre_petite.png",
+  "pied": [
+   40,
+   51
+  ],
+  "taille": [
+   80,
+   51
+  ]
+ },
+ "lynx": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/lynx.png",
+  "pied": [
+   37,
+   99
+  ],
+  "taille": [
+   74,
+   99
+  ]
+ },
+ "lynx_couche": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/lynx_couche.png",
+  "pied": [
+   55,
+   48
+  ],
+  "taille": [
+   111,
+   48
+  ]
+ },
+ "lynx_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/lynx_tete.png",
+  "pied": [
+   39,
+   113
+  ],
+  "taille": [
+   79,
+   113
+  ]
+ },
+ "macon": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/macon.png",
+  "pied": [
+   67,
+   217
+  ],
+  "taille": [
+   134,
+   217
+  ]
+ },
+ "mairie": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/mairie.png",
+  "pied": [
+   63,
+   157
+  ],
+  "taille": [
+   126,
+   157
+  ]
+ },
+ "maison": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/maison.png",
+  "pied": [
+   76,
+   134
+  ],
+  "taille": [
+   152,
+   134
+  ]
+ },
+ "manchot": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/manchot.png",
+  "pied": [
+   39,
+   92
+  ],
+  "taille": [
+   78,
+   92
+  ]
+ },
+ "manchot_2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/manchot_2.png",
+  "pied": [
+   37,
+   72
+  ],
+  "taille": [
+   75,
+   72
+  ]
+ },
+ "mandrill_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/mandrill_tete.png",
+  "pied": [
+   55,
+   102
+  ],
+  "taille": [
+   111,
+   102
+  ]
+ },
+ "manoeuvre": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/manoeuvre.png",
+  "pied": [
+   50,
+   213
+  ],
+  "taille": [
+   101,
+   213
+  ]
+ },
+ "marchand": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/marchand.png",
+  "pied": [
+   57,
+   214
+  ],
+  "taille": [
+   114,
+   214
+  ]
+ },
+ "marche": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/marche.png",
+  "pied": [
+   60,
+   103
+  ],
+  "taille": [
+   121,
+   103
+  ]
+ },
+ "marmotte": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/marmotte.png",
+  "pied": [
+   28,
+   49
+  ],
+  "taille": [
+   56,
+   49
+  ]
+ },
+ "marmotte_grosse": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/marmotte_grosse.png",
+  "pied": [
+   44,
+   57
+  ],
+  "taille": [
+   88,
+   57
+  ]
+ },
+ "mine": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/mine.png",
+  "pied": [
+   72,
+   127
+  ],
+  "taille": [
+   145,
+   127
+  ]
+ },
+ "mineur": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/mineur.png",
+  "pied": [
+   49,
+   179
+  ],
+  "taille": [
+   99,
+   179
+  ]
+ },
+ "montagnes": {
+  "categorie": "decor",
+  "fichier": "res://assets/bd/sprites/decor/montagnes.png",
+  "pied": [
+   123,
+   103
+  ],
+  "taille": [
+   247,
+   103
+  ]
+ },
+ "mouton": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/mouton.png",
+  "pied": [
+   49,
+   95
+  ],
+  "taille": [
+   98,
+   95
+  ]
+ },
+ "mouton_2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/mouton_2.png",
+  "pied": [
+   44,
+   78
+  ],
+  "taille": [
+   89,
+   78
+  ]
+ },
+ "orang_outan": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/orang_outan.png",
+  "pied": [
+   38,
+   96
+  ],
+  "taille": [
+   76,
+   96
+  ]
+ },
+ "orang_outan_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/orang_outan_tete.png",
+  "pied": [
+   55,
+   106
+  ],
+  "taille": [
+   110,
+   106
+  ]
+ },
+ "ours_brun": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/ours_brun.png",
+  "pied": [
+   53,
+   97
+  ],
+  "taille": [
+   107,
+   97
+  ]
+ },
+ "ours_brun_marche": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/ours_brun_marche.png",
+  "pied": [
+   47,
+   67
+  ],
+  "taille": [
+   95,
+   67
+  ]
+ },
+ "ouvrier_brouette": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/ouvrier_brouette.png",
+  "pied": [
+   63,
+   119
+  ],
+  "taille": [
+   127,
+   119
+  ]
+ },
+ "ouvrier_brouette_arret": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/ouvrier_brouette_arret.png",
+  "pied": [
+   69,
+   187
+  ],
+  "taille": [
+   138,
+   187
+  ]
+ },
+ "ouvrier_marche_01": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/ouvrier_marche_01.png",
+  "pied": [
+   37,
+   113
+  ],
+  "taille": [
+   74,
+   113
+  ]
+ },
+ "ouvrier_marche_02": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/ouvrier_marche_02.png",
+  "pied": [
+   26,
+   117
+  ],
+  "taille": [
+   52,
+   117
+  ]
+ },
+ "ouvrier_marche_03": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/ouvrier_marche_03.png",
+  "pied": [
+   32,
+   113
+  ],
+  "taille": [
+   65,
+   113
+  ]
+ },
+ "ouvrier_marche_04": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/ouvrier_marche_04.png",
+  "pied": [
+   34,
+   113
+  ],
+  "taille": [
+   68,
+   113
+  ]
+ },
+ "ouvrier_marche_05": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/ouvrier_marche_05.png",
+  "pied": [
+   32,
+   118
+  ],
+  "taille": [
+   65,
+   118
+  ]
+ },
+ "ouvrier_marche_06": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/ouvrier_marche_06.png",
+  "pied": [
+   63,
+   119
+  ],
+  "taille": [
+   127,
+   119
+  ]
+ },
+ "ouvrier_marche_07": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/ouvrier_marche_07.png",
+  "pied": [
+   30,
+   119
+  ],
+  "taille": [
+   60,
+   119
+  ]
+ },
+ "ouvrier_marche_08": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/ouvrier_marche_08.png",
+  "pied": [
+   32,
+   120
+  ],
+  "taille": [
+   65,
+   120
+  ]
+ },
+ "ouvrier_marche_09": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/ouvrier_marche_09.png",
+  "pied": [
+   27,
+   121
+  ],
+  "taille": [
+   55,
+   121
+  ]
+ },
+ "ouvrier_marche_10": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/ouvrier_marche_10.png",
+  "pied": [
+   42,
+   114
+  ],
+  "taille": [
+   85,
+   114
+  ]
+ },
+ "ouvrier_marche_11": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/ouvrier_marche_11.png",
+  "pied": [
+   43,
+   106
+  ],
+  "taille": [
+   87,
+   106
+  ]
+ },
+ "ouvrier_marche_12": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/ouvrier_marche_12.png",
+  "pied": [
+   42,
+   113
+  ],
+  "taille": [
+   84,
+   113
+  ]
+ },
+ "ouvrier_marche_13": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/ouvrier_marche_13.png",
+  "pied": [
+   33,
+   115
+  ],
+  "taille": [
+   66,
+   115
+  ]
+ },
+ "ouvrier_marche_14": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/ouvrier_marche_14.png",
+  "pied": [
+   27,
+   113
+  ],
+  "taille": [
+   55,
+   113
+  ]
+ },
+ "ouvrier_marche_15": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/ouvrier_marche_15.png",
+  "pied": [
+   28,
+   109
+  ],
+  "taille": [
+   57,
+   109
+  ]
+ },
+ "ouvrier_marche_16": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/ouvrier_marche_16.png",
+  "pied": [
+   27,
+   106
+  ],
+  "taille": [
+   55,
+   106
+  ]
+ },
+ "ouvrier_marche_17": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/ouvrier_marche_17.png",
+  "pied": [
+   27,
+   105
+  ],
+  "taille": [
+   55,
+   105
+  ]
+ },
+ "ouvrier_seau": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/ouvrier_seau.png",
+  "pied": [
+   42,
+   188
+  ],
+  "taille": [
+   84,
+   188
+  ]
+ },
+ "panda": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/panda.png",
+  "pied": [
+   47,
+   63
+  ],
+  "taille": [
+   95,
+   63
+  ]
+ },
+ "panda_marche": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/panda_marche.png",
+  "pied": [
+   43,
+   62
+  ],
+  "taille": [
+   86,
+   62
+  ]
+ },
+ "panda_roux": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/panda_roux.png",
+  "pied": [
+   39,
+   69
+  ],
+  "taille": [
+   79,
+   69
+  ]
+ },
+ "panda_roux_marche": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/panda_roux_marche.png",
+  "pied": [
+   40,
+   46
+  ],
+  "taille": [
+   80,
+   46
+  ]
+ },
+ "panda_roux_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/panda_roux_tete.png",
+  "pied": [
+   51,
+   107
+  ],
+  "taille": [
+   102,
+   107
+  ]
+ },
+ "panda_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/panda_tete.png",
+  "pied": [
+   53,
+   97
+  ],
+  "taille": [
+   107,
+   97
+  ]
+ },
+ "panthere_neiges": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/panthere_neiges.png",
+  "pied": [
+   40,
+   63
+  ],
+  "taille": [
+   80,
+   63
+  ]
+ },
+ "panthere_neiges_petite": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/panthere_neiges_petite.png",
+  "pied": [
+   37,
+   42
+  ],
+  "taille": [
+   75,
+   42
+  ]
+ },
+ "panthere_neiges_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/panthere_neiges_tete.png",
+  "pied": [
+   43,
+   99
+  ],
+  "taille": [
+   86,
+   99
+  ]
+ },
+ "panthere_noire": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/panthere_noire.png",
+  "pied": [
+   47,
+   77
+  ],
+  "taille": [
+   95,
+   77
+  ]
+ },
+ "panthere_noire_petite": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/panthere_noire_petite.png",
+  "pied": [
+   43,
+   58
+  ],
+  "taille": [
+   87,
+   58
+  ]
+ },
+ "panthere_noire_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/panthere_noire_tete.png",
+  "pied": [
+   58,
+   104
+  ],
+  "taille": [
+   117,
+   104
+  ]
+ },
+ "paon": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/paon.png",
+  "pied": [
+   76,
+   104
+  ],
+  "taille": [
+   152,
+   104
+  ]
+ },
+ "paysagiste": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/paysagiste.png",
+  "pied": [
+   67,
+   215
+  ],
+  "taille": [
+   135,
+   215
+  ]
+ },
+ "paysagiste_fourche": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/paysagiste_fourche.png",
+  "pied": [
+   49,
+   190
+  ],
+  "taille": [
+   99,
+   190
+  ]
+ },
+ "peintre": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/peintre.png",
+  "pied": [
+   44,
+   171
+  ],
+  "taille": [
+   88,
+   171
+  ]
+ },
+ "perroquet": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/perroquet.png",
+  "pied": [
+   46,
+   106
+  ],
+  "taille": [
+   93,
+   106
+  ]
+ },
+ "phoque": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/phoque.png",
+  "pied": [
+   56,
+   86
+  ],
+  "taille": [
+   113,
+   86
+  ]
+ },
+ "phoque_2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/phoque_2.png",
+  "pied": [
+   59,
+   71
+  ],
+  "taille": [
+   119,
+   71
+  ]
+ },
+ "photographe": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/photographe.png",
+  "pied": [
+   52,
+   206
+  ],
+  "taille": [
+   105,
+   206
+  ]
+ },
+ "photographe_2": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/photographe_2.png",
+  "pied": [
+   37,
+   174
+  ],
+  "taille": [
+   74,
+   174
+  ]
+ },
+ "pompier": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/pompier.png",
+  "pied": [
+   49,
+   206
+  ],
+  "taille": [
+   99,
+   206
+  ]
+ },
+ "pont": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/pont.png",
+  "pied": [
+   71,
+   34
+  ],
+  "taille": [
+   142,
+   69
+  ]
+ },
+ "porc_epic": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/porc_epic.png",
+  "pied": [
+   59,
+   96
+  ],
+  "taille": [
+   119,
+   96
+  ]
+ },
+ "porteur": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/porteur.png",
+  "pied": [
+   79,
+   206
+  ],
+  "taille": [
+   158,
+   206
+  ]
+ },
+ "porteur_sac": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/porteur_sac.png",
+  "pied": [
+   45,
+   194
+  ],
+  "taille": [
+   90,
+   194
+  ]
+ },
+ "portrait_01": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_01.png",
+  "pied": [
+   71,
+   167
+  ],
+  "taille": [
+   143,
+   167
+  ]
+ },
+ "portrait_02": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_02.png",
+  "pied": [
+   76,
+   168
+  ],
+  "taille": [
+   153,
+   168
+  ]
+ },
+ "portrait_03": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_03.png",
+  "pied": [
+   59,
+   163
+  ],
+  "taille": [
+   119,
+   163
+  ]
+ },
+ "portrait_04": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_04.png",
+  "pied": [
+   76,
+   163
+  ],
+  "taille": [
+   153,
+   163
+  ]
+ },
+ "portrait_05": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_05.png",
+  "pied": [
+   76,
+   160
+  ],
+  "taille": [
+   153,
+   160
+  ]
+ },
+ "portrait_06": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_06.png",
+  "pied": [
+   76,
+   159
+  ],
+  "taille": [
+   153,
+   159
+  ]
+ },
+ "portrait_07": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_07.png",
+  "pied": [
+   76,
+   165
+  ],
+  "taille": [
+   153,
+   165
+  ]
+ },
+ "portrait_08": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_08.png",
+  "pied": [
+   76,
+   158
+  ],
+  "taille": [
+   153,
+   158
+  ]
+ },
+ "portrait_09": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_09.png",
+  "pied": [
+   64,
+   160
+  ],
+  "taille": [
+   129,
+   160
+  ]
+ },
+ "portrait_10": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_10.png",
+  "pied": [
+   74,
+   160
+  ],
+  "taille": [
+   149,
+   160
+  ]
+ },
+ "portrait_11": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_11.png",
+  "pied": [
+   72,
+   165
+  ],
+  "taille": [
+   144,
+   165
+  ]
+ },
+ "portrait_12": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_12.png",
+  "pied": [
+   76,
+   161
+  ],
+  "taille": [
+   153,
+   161
+  ]
+ },
+ "portrait_13": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_13.png",
+  "pied": [
+   76,
+   162
+  ],
+  "taille": [
+   153,
+   162
+  ]
+ },
+ "portrait_14": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_14.png",
+  "pied": [
+   76,
+   164
+  ],
+  "taille": [
+   153,
+   164
+  ]
+ },
+ "portrait_15": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_15.png",
+  "pied": [
+   63,
+   166
+  ],
+  "taille": [
+   127,
+   166
+  ]
+ },
+ "portrait_16": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_16.png",
+  "pied": [
+   76,
+   167
+  ],
+  "taille": [
+   153,
+   167
+  ]
+ },
+ "portrait_17": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_17.png",
+  "pied": [
+   76,
+   154
+  ],
+  "taille": [
+   153,
+   154
+  ]
+ },
+ "portrait_18": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_18.png",
+  "pied": [
+   63,
+   166
+  ],
+  "taille": [
+   126,
+   166
+  ]
+ },
+ "portrait_19": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_19.png",
+  "pied": [
+   76,
+   156
+  ],
+  "taille": [
+   153,
+   156
+  ]
+ },
+ "portrait_20": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_20.png",
+  "pied": [
+   73,
+   164
+  ],
+  "taille": [
+   147,
+   164
+  ]
+ },
+ "portrait_21": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_21.png",
+  "pied": [
+   57,
+   158
+  ],
+  "taille": [
+   115,
+   158
+  ]
+ },
+ "portrait_22": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_22.png",
+  "pied": [
+   60,
+   158
+  ],
+  "taille": [
+   120,
+   158
+  ]
+ },
+ "portrait_23": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_23.png",
+  "pied": [
+   69,
+   154
+  ],
+  "taille": [
+   139,
+   154
+  ]
+ },
+ "portrait_24": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_24.png",
+  "pied": [
+   62,
+   163
+  ],
+  "taille": [
+   124,
+   163
+  ]
+ },
+ "portrait_25": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_25.png",
+  "pied": [
+   58,
+   163
+  ],
+  "taille": [
+   117,
+   163
+  ]
+ },
+ "portrait_26": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_26.png",
+  "pied": [
+   65,
+   160
+  ],
+  "taille": [
+   130,
+   160
+  ]
+ },
+ "portrait_27": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_27.png",
+  "pied": [
+   60,
+   164
+  ],
+  "taille": [
+   120,
+   164
+  ]
+ },
+ "portrait_28": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_28.png",
+  "pied": [
+   59,
+   161
+  ],
+  "taille": [
+   118,
+   161
+  ]
+ },
+ "portrait_29": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_29.png",
+  "pied": [
+   56,
+   150
+  ],
+  "taille": [
+   113,
+   150
+  ]
+ },
+ "portrait_30": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_30.png",
+  "pied": [
+   50,
+   159
+  ],
+  "taille": [
+   101,
+   159
+  ]
+ },
+ "portrait_31": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_31.png",
+  "pied": [
+   57,
+   158
+  ],
+  "taille": [
+   114,
+   158
+  ]
+ },
+ "portrait_32": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_32.png",
+  "pied": [
+   60,
+   156
+  ],
+  "taille": [
+   120,
+   156
+  ]
+ },
+ "portrait_33": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_33.png",
+  "pied": [
+   56,
+   152
+  ],
+  "taille": [
+   113,
+   152
+  ]
+ },
+ "portrait_34": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_34.png",
+  "pied": [
+   69,
+   150
+  ],
+  "taille": [
+   139,
+   150
+  ]
+ },
+ "portrait_35": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_35.png",
+  "pied": [
+   69,
+   149
+  ],
+  "taille": [
+   139,
+   149
+  ]
+ },
+ "portrait_36": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_36.png",
+  "pied": [
+   69,
+   152
+  ],
+  "taille": [
+   139,
+   152
+  ]
+ },
+ "portrait_37": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_37.png",
+  "pied": [
+   69,
+   143
+  ],
+  "taille": [
+   139,
+   143
+  ]
+ },
+ "portrait_38": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_38.png",
+  "pied": [
+   69,
+   156
+  ],
+  "taille": [
+   139,
+   156
+  ]
+ },
+ "portrait_39": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_39.png",
+  "pied": [
+   69,
+   146
+  ],
+  "taille": [
+   139,
+   146
+  ]
+ },
+ "portrait_40": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_40.png",
+  "pied": [
+   69,
+   146
+  ],
+  "taille": [
+   139,
+   146
+  ]
+ },
+ "portrait_41": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_41.png",
+  "pied": [
+   69,
+   147
+  ],
+  "taille": [
+   139,
+   147
+  ]
+ },
+ "portrait_42": {
+  "categorie": "portraits",
+  "fichier": "res://assets/bd/sprites/portraits/portrait_42.png",
+  "pied": [
+   69,
+   146
+  ],
+  "taille": [
+   138,
+   146
+  ]
+ },
+ "randonneur": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/randonneur.png",
+  "pied": [
+   56,
+   204
+  ],
+  "taille": [
+   113,
+   204
+  ]
+ },
+ "rat_kangourou": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/rat_kangourou.png",
+  "pied": [
+   39,
+   34
+  ],
+  "taille": [
+   79,
+   34
+  ]
+ },
+ "renard": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/renard.png",
+  "pied": [
+   38,
+   87
+  ],
+  "taille": [
+   77,
+   87
+  ]
+ },
+ "renard_petit": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/renard_petit.png",
+  "pied": [
+   34,
+   70
+  ],
+  "taille": [
+   68,
+   70
+  ]
+ },
+ "renard_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/renard_tete.png",
+  "pied": [
+   42,
+   111
+  ],
+  "taille": [
+   84,
+   111
+  ]
+ },
+ "restaurant": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/restaurant.png",
+  "pied": [
+   72,
+   137
+  ],
+  "taille": [
+   145,
+   137
+  ]
+ },
+ "rhinoceros": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/rhinoceros.png",
+  "pied": [
+   61,
+   109
+  ],
+  "taille": [
+   122,
+   109
+  ]
+ },
+ "rhinoceros_petit": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/rhinoceros_petit.png",
+  "pied": [
+   28,
+   42
+  ],
+  "taille": [
+   57,
+   42
+  ]
+ },
+ "roche": {
+  "categorie": "decor",
+  "fichier": "res://assets/bd/sprites/decor/roche.png",
+  "pied": [
+   39,
+   62
+  ],
+  "taille": [
+   78,
+   62
+  ]
+ },
+ "roche_or": {
+  "categorie": "decor",
+  "fichier": "res://assets/bd/sprites/decor/roche_or.png",
+  "pied": [
+   37,
+   59
+  ],
+  "taille": [
+   74,
+   59
+  ]
+ },
+ "rochers": {
+  "categorie": "decor",
+  "fichier": "res://assets/bd/sprites/decor/rochers.png",
+  "pied": [
+   33,
+   86
+  ],
+  "taille": [
+   67,
+   86
+  ]
+ },
+ "sanglier": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/sanglier.png",
+  "pied": [
+   42,
+   67
+  ],
+  "taille": [
+   84,
+   67
+  ]
+ },
+ "sanglier_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/sanglier_tete.png",
+  "pied": [
+   49,
+   91
+  ],
+  "taille": [
+   99,
+   91
+  ]
+ },
+ "sapin1": {
+  "categorie": "decor",
+  "fichier": "res://assets/bd/sprites/decor/sapin1.png",
+  "pied": [
+   37,
+   107
+  ],
+  "taille": [
+   74,
+   107
+  ]
+ },
+ "sapin2": {
+  "categorie": "decor",
+  "fichier": "res://assets/bd/sprites/decor/sapin2.png",
+  "pied": [
+   29,
+   90
+  ],
+  "taille": [
+   59,
+   90
+  ]
+ },
+ "scene": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/scene.png",
+  "pied": [
+   63,
+   129
+  ],
+  "taille": [
+   126,
+   129
+  ]
+ },
+ "secouriste": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/secouriste.png",
+  "pied": [
+   42,
+   201
+  ],
+  "taille": [
+   85,
+   201
+  ]
+ },
+ "serpent": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/serpent.png",
+  "pied": [
+   110,
+   60
+  ],
+  "taille": [
+   220,
+   60
+  ]
+ },
+ "serveur": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/serveur.png",
+  "pied": [
+   48,
+   185
+  ],
+  "taille": [
+   96,
+   185
+  ]
+ },
+ "snack": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/snack.png",
+  "pied": [
+   60,
+   128
+  ],
+  "taille": [
+   120,
+   128
+  ]
+ },
+ "soigneur": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/soigneur.png",
+  "pied": [
+   51,
+   213
+  ],
+  "taille": [
+   103,
+   213
+  ]
+ },
+ "soigneur_2": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/soigneur_2.png",
+  "pied": [
+   37,
+   186
+  ],
+  "taille": [
+   75,
+   186
+  ]
+ },
+ "souche": {
+  "categorie": "decor",
+  "fichier": "res://assets/bd/sprites/decor/souche.png",
+  "pied": [
+   24,
+   32
+  ],
+  "taille": [
+   48,
+   32
+  ]
+ },
+ "souvenirs": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/souvenirs.png",
+  "pied": [
+   73,
+   137
+  ],
+  "taille": [
+   147,
+   137
+  ]
+ },
+ "suricate": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/suricate.png",
+  "pied": [
+   31,
+   65
+  ],
+  "taille": [
+   62,
+   65
+  ]
+ },
+ "tapir": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/tapir.png",
+  "pied": [
+   48,
+   81
+  ],
+  "taille": [
+   96,
+   81
+  ]
+ },
+ "tapir_gris": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/tapir_gris.png",
+  "pied": [
+   59,
+   90
+  ],
+  "taille": [
+   118,
+   90
+  ]
+ },
+ "tapir_petit": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/tapir_petit.png",
+  "pied": [
+   36,
+   58
+  ],
+  "taille": [
+   73,
+   58
+  ]
+ },
+ "terrassier": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/terrassier.png",
+  "pied": [
+   43,
+   106
+  ],
+  "taille": [
+   87,
+   106
+  ]
+ },
+ "tigre": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/tigre.png",
+  "pied": [
+   54,
+   70
+  ],
+  "taille": [
+   108,
+   70
+  ]
+ },
+ "tigre_duo": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/tigre_duo.png",
+  "pied": [
+   111,
+   112
+  ],
+  "taille": [
+   222,
+   112
+  ]
+ },
+ "tortue": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/tortue.png",
+  "pied": [
+   99,
+   72
+  ],
+  "taille": [
+   198,
+   72
+  ]
+ },
+ "toucan": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/toucan.png",
+  "pied": [
+   42,
+   77
+  ],
+  "taille": [
+   84,
+   77
+  ]
+ },
+ "toucan_vol": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/toucan_vol.png",
+  "pied": [
+   58,
+   54
+  ],
+  "taille": [
+   117,
+   54
+  ]
+ },
+ "varan": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/varan.png",
+  "pied": [
+   78,
+   30
+  ],
+  "taille": [
+   157,
+   30
+  ]
+ },
+ "vautour": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/vautour.png",
+  "pied": [
+   37,
+   66
+  ],
+  "taille": [
+   75,
+   66
+  ]
+ },
+ "vendeur": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/vendeur.png",
+  "pied": [
+   61,
+   214
+  ],
+  "taille": [
+   123,
+   214
+  ]
+ },
+ "veterinaire": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/veterinaire.png",
+  "pied": [
+   37,
+   177
+  ],
+  "taille": [
+   74,
+   177
+  ]
+ },
+ "visiteur_01": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/visiteur_01.png",
+  "pied": [
+   31,
+   116
+  ],
+  "taille": [
+   62,
+   116
+  ]
+ },
+ "visiteur_02": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/visiteur_02.png",
+  "pied": [
+   34,
+   128
+  ],
+  "taille": [
+   68,
+   128
+  ]
+ },
+ "visiteur_03": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/visiteur_03.png",
+  "pied": [
+   24,
+   124
+  ],
+  "taille": [
+   48,
+   124
+  ]
+ },
+ "visiteur_04": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/visiteur_04.png",
+  "pied": [
+   28,
+   115
+  ],
+  "taille": [
+   57,
+   115
+  ]
+ },
+ "visiteur_05": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/visiteur_05.png",
+  "pied": [
+   37,
+   128
+  ],
+  "taille": [
+   74,
+   128
+  ]
+ },
+ "visiteur_06": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/visiteur_06.png",
+  "pied": [
+   25,
+   111
+  ],
+  "taille": [
+   51,
+   111
+  ]
+ },
+ "visiteur_07": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/visiteur_07.png",
+  "pied": [
+   21,
+   112
+  ],
+  "taille": [
+   43,
+   112
+  ]
+ },
+ "visiteur_08": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/visiteur_08.png",
+  "pied": [
+   19,
+   111
+  ],
+  "taille": [
+   39,
+   111
+  ]
+ },
+ "visiteur_09": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/visiteur_09.png",
+  "pied": [
+   32,
+   113
+  ],
+  "taille": [
+   65,
+   113
+  ]
+ },
+ "visiteur_10": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/visiteur_10.png",
+  "pied": [
+   30,
+   110
+  ],
+  "taille": [
+   61,
+   110
+  ]
+ },
+ "visiteur_11": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/visiteur_11.png",
+  "pied": [
+   33,
+   110
+  ],
+  "taille": [
+   66,
+   110
+  ]
+ },
+ "visiteur_12": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/visiteur_12.png",
+  "pied": [
+   22,
+   108
+  ],
+  "taille": [
+   45,
+   108
+  ]
+ },
+ "visiteur_13": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/visiteur_13.png",
+  "pied": [
+   30,
+   112
+  ],
+  "taille": [
+   60,
+   112
+  ]
+ },
+ "visiteur_14": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/visiteur_14.png",
+  "pied": [
+   22,
+   113
+  ],
+  "taille": [
+   45,
+   113
+  ]
+ },
+ "visiteur_15": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/visiteur_15.png",
+  "pied": [
+   31,
+   114
+  ],
+  "taille": [
+   62,
+   114
+  ]
+ },
+ "visiteur_16": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/visiteur_16.png",
+  "pied": [
+   26,
+   110
+  ],
+  "taille": [
+   52,
+   110
+  ]
+ },
+ "visiteur_17": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/visiteur_17.png",
+  "pied": [
+   26,
+   107
+  ],
+  "taille": [
+   52,
+   107
+  ]
+ },
+ "visiteur_18": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/visiteur_18.png",
+  "pied": [
+   25,
+   100
+  ],
+  "taille": [
+   51,
+   100
+  ]
+ },
+ "visiteur_19": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/visiteur_19.png",
+  "pied": [
+   37,
+   108
+  ],
+  "taille": [
+   74,
+   108
+  ]
+ },
+ "visiteur_canne": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/visiteur_canne.png",
+  "pied": [
+   52,
+   209
+  ],
+  "taille": [
+   104,
+   209
+  ]
+ },
+ "visiteur_sweat": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/visiteur_sweat.png",
+  "pied": [
+   41,
+   207
+  ],
+  "taille": [
+   83,
+   207
+  ]
+ },
+ "visiteuse_sac": {
+  "categorie": "personnes",
+  "fichier": "res://assets/bd/sprites/personnes/visiteuse_sac.png",
+  "pied": [
+   49,
+   205
+  ],
+  "taille": [
+   99,
+   205
+  ]
+ },
+ "yak": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/yak.png",
+  "pied": [
+   44,
+   98
+  ],
+  "taille": [
+   89,
+   98
+  ]
+ },
+ "zebre": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/zebre.png",
+  "pied": [
+   46,
+   95
+  ],
+  "taille": [
+   92,
+   95
+  ]
+ },
+ "zebre_broute": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/zebre_broute.png",
+  "pied": [
+   55,
+   76
+  ],
+  "taille": [
+   111,
+   76
+  ]
+ },
+ "zebre_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux/zebre_tete.png",
+  "pied": [
+   56,
+   139
+  ],
+  "taille": [
+   112,
+   139
+  ]
+ }
+}

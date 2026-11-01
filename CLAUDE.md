@@ -2,6 +2,13 @@
 
 Jeu de gestion vu du dessus : deckbuilding d'ouvriers + construction d'un zoo. Prototype **Godot 4.7.2** dans `game/` (ouvrir `game/project.godot`). Tout le texte du jeu est en **français**. Écran de référence 1600×900.
 
+## Direction artistique en vigueur : « BD néo ligne claire » (1er novembre 2026) — INTÉGRÉE
+Remplace « Émeraude » (lots E et suivants pour le visuel ; les règles ne changent pas). Référence : `docs/handoff_bd/` (captures `jeu_*.png` = état actuel, `cible_*.png` = maquettes).
+- **Carte** : `game/scripts/rendu/` — `CarteBD` (sol en shader `sol_bd.gdshader`, détecte seul les cases modifiées), `RoutesBD` (chemins continus, allées pavées dans l'enceinte via `occuper()`, ponts), `DecorBD` (arbres, rochers, pics, roseaux triés en Y ; cases occupées par un chantier laissées nues), `SpritesBD` (sprites dessinés + tables `BATIMENTS`, `CAMPS`, `METIERS`, `ANIMAUX`, `VISITEURS`, portraits). `main.gd` : `_build_terrain()`, `_update_occupation()`, `_draw_wall()`/`_draw_palisade()` en perspective. L'ancien `ui/terrain.gdshader`, `PersoDessin` et les SVG de `ui/batiments`, `ui/animaux`, `ui/portraits` ne sont plus utilisés pour le rendu (gardés en repli).
+- **Assets** : `game/assets/bd/` (286 sprites, 77 décors, 5 textures, polices Barlow) ; manifestes `sprites_bd.json`, `decor_bd.json` ; noms : `docs/handoff_bd/captures/planche_tous_les_sprites.png`. Nouveau métier, bâtiment ou espèce → compléter les tables de `SpritesBD`.
+- **Interface** : `ui_tokens.gd` réécrit (mêmes noms ; encre `ENCRE`, papier, `SARCELLE`, accent `SELECTION` jaune, `ORANGE`, `bandeau()`, variations `TitreBandeau`, `Onglet`, `BoutonFort`), Barlow / Barlow Condensed. Barre du haut en pastilles flottantes, panneaux à bandeau sarcelle, panneau de droite en **fiche structurée** (`_rendre_fiche`, `_fiche_zoo`, `_fiche_ouvrier`, `_fiche_carte/ligne/barre`) qui remplace le panneau d'unité du bas (masqué), cadran du jour segmenté, menu sur paysage illustré.
+- Contrôle visuel : `godot --path game -- --seed=404283 --autodraft --autoplay --sim=240 --autozoo [--un|--endday|--marche|--zoom=3] --shot=capture.png`.
+
 ## Où en est le projet (30/10/2026)
 - Règles, IA et simulations d'équilibrage : faits (`GDD.md`, `game/scripts/match.gd`, `game_state.gd`, `ai_controller.gd`, rapports `rapport_equilibrage*.md`).
 - **Direction artistique « Émeraude » — étape 1 faite** (commit `490dfe0`) : `game/scripts/ui_tokens.gd` (jetons + `build_theme()`), panneaux émeraude à filet doré, boutons dorés, qualités cercle bleu / défauts carré orange, couleurs du monde, écussons d'ouvriers, placement invalide hachuré, menu restylé.

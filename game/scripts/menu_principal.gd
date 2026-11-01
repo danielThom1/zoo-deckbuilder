@@ -7,19 +7,21 @@ extends Control
 signal lancer(spectateur: bool, graine: int, adversaires: int)
 
 # Couleurs (thème Émeraude, cf. docs/handoff_emeraude/tokens.json)
-const PANNEAU := Color("0D433D")
-const PANNEAU_BAS := Color("08302C")
-const ENTETE := Color("1C7468")
-const OR := Color("E2AE62")
-const OR_SOMBRE := Color("6A4418")
-const OR_CLAIR := Color("FFF0B8")
-const BOUTON_HAUT := Color("FFD89A")
-const BOUTON_BAS := Color("C88A3A")
-const BOUTON_TEXTE := Color("1E1406")
-const TEXTE := Color("F4FAEE")
-const TEXTE_2 := Color("A6D4C8")
-const SELECTION := Color("FFD45A")
-const JOUEURS := [Color("18A88A"), Color("E8A020"), Color("3A6AE0"), Color("E04A8A")]
+# Style « BD néo ligne claire » (docs/handoff_bd) : papier blanc, encre marine, accent jaune, bandeau sarcelle
+const PANNEAU := Color("FFFFFF")
+const PANNEAU_BAS := Color("EEF4F1")
+const ENTETE := Color("13867F")
+const OR := Color("14202B")
+const OR_SOMBRE := Color("14202B")
+const OR_CLAIR := Color("1E2C45")
+const BOUTON_HAUT := Color("FFD86A")
+const BOUTON_BAS := Color("FFC93C")
+const BOUTON_TEXTE := Color("14202B")
+const TEXTE := Color("14202B")
+const TEXTE_2 := Color("4A5664")
+const SELECTION := Color("FFC93C")
+const JOUEURS := [Color("13867F"), Color("F0A020"), Color("3A6AE0"), Color("E04A8A")]
+const FOND_ILLUSTRE := "res://assets/bd/menu_fond.jpg"
 const TERRAIN := {
 	GameMap.PRAIRIE: Color("62AE34"), GameMap.FORET: Color("2E7A2C"), GameMap.EAU: Color("2B86D2"),
 	GameMap.ROCHE: Color("A8A296"), GameMap.SABLE: Color("F2D684"), GameMap.MONTAGNE: Color("8E7E6C"),
@@ -66,13 +68,13 @@ func _construire() -> void:
 	fond = TextureRect.new()
 	fond.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	fond.stretch_mode = TextureRect.STRETCH_SCALE
-	fond.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	fond.size = Vector2(2000, 2000)
+	fond.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	fond.size = Vector2(1900, 1069)
 	fond.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var sh := Shader.new()
 	sh.code = """shader_type canvas_item;
 uniform float flou = 0.0;
-uniform float sombre = 0.74;
+uniform float sombre = 1.0;
 uniform float sature = 1.12;
 void fragment() {
 	vec4 c = texture(TEXTURE, UV);
@@ -180,7 +182,7 @@ func _carte_reglages() -> Control:
 	var t := _label("NOUVELLE PARTIE", _police_espacee(police_titre, 2), 21, TEXTE)
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	th.add_child(t)
-	lbl_joueurs = _label("", police_texte, 14, TEXTE_2)
+	lbl_joueurs = _label("", police_texte, 14, Color.WHITE)
 	th.add_child(lbl_joueurs)
 
 	var m := MarginContainer.new()
@@ -282,13 +284,13 @@ func _bouton_menu(titre: String, sous_titre: String, icone: String, principal: b
 	b.focus_mode = Control.FOCUS_ALL
 	var fond_n := Color(PANNEAU_BAS, 0.78)
 	if principal:
-		b.add_theme_stylebox_override("normal", _boite(Color("E8B468"), OR_SOMBRE, 2, 35, 0, true))
+		b.add_theme_stylebox_override("normal", _boite(BOUTON_BAS, OR_SOMBRE, 2, 35, 0, true))
 		b.add_theme_stylebox_override("hover", _boite(BOUTON_HAUT, OR_CLAIR, 2, 35, 0, true))
 		b.add_theme_stylebox_override("pressed", _boite(BOUTON_BAS, OR_SOMBRE, 2, 35, 0, true))
 		b.add_theme_stylebox_override("focus", _anneau(35))
 	else:
 		b.add_theme_stylebox_override("normal", _boite(fond_n, Color(OR, 0.75), 2, 35, 0, false))
-		b.add_theme_stylebox_override("hover", _boite(Color("15584F", 0.92), OR, 2, 35, 0, false))
+		b.add_theme_stylebox_override("hover", _boite(Color("FFF4D6"), OR, 2, 35, 0, false))
 		b.add_theme_stylebox_override("pressed", _boite(PANNEAU_BAS, OR_CLAIR, 2, 35, 0, false))
 		b.add_theme_stylebox_override("focus", _anneau(35))
 	var h := HBoxContainer.new()
@@ -358,8 +360,8 @@ func _process(delta: float) -> void:
 	# Dérive lente de la carte (aller-retour) et léger zoom
 	var d := Vector2(sin(temps * 0.035) * 120.0, cos(temps * 0.027) * 80.0)
 	var z := 1.0 + 0.04 * sin(temps * 0.05)
-	fond.size = Vector2(2000, 2000) * z
-	fond.position = Vector2(800, 450) - fond.size / 2.0 + d + Vector2(140, 60)
+	fond.size = Vector2(1900, 1069) * z
+	fond.position = Vector2(800, 450) - fond.size / 2.0 + d * 0.6 + Vector2(60, 0)
 	nuages.queue_redraw()
 	if attente_graine > 0.0:
 		attente_graine -= delta
@@ -394,14 +396,9 @@ func _changer_carte(g: int) -> void:
 	apercu.texture = tex
 	var img_flou := img.duplicate()
 	img_flou.generate_mipmaps()
-	var nouvelle := ImageTexture.create_from_image(img_flou)
+	# Fond : paysage illustré (style BD) ; la carte de la graine reste visible dans l'aperçu
 	if fond.texture == null:
-		fond.texture = nouvelle
-	else:
-		var tw := create_tween()
-		tw.tween_property(fond, "modulate:a", 0.0, 0.18)
-		tw.tween_callback(func(): fond.texture = nouvelle)
-		tw.tween_property(fond, "modulate:a", 1.0, 0.35)
+		fond.texture = load(FOND_ILLUSTRE) if ResourceLoader.exists(FOND_ILLUSTRE) else ImageTexture.create_from_image(img_flou)
 	# Résumé de la carte
 	var compte := {}
 	for y in carte.h:
@@ -498,7 +495,7 @@ func _dessiner_medaillon(c: Control) -> void:
 	c.draw_circle(ctr, 56, OR_SOMBRE)
 	c.draw_circle(ctr, 54, OR)
 	c.draw_circle(ctr, 49, OR_SOMBRE)
-	c.draw_circle(ctr, 47, Color("10483F"))
+	c.draw_circle(ctr, 47, ENTETE)
 	c.draw_circle(ctr + Vector2(-8, -10), 34, Color(1, 1, 1, 0.04))
 	c.draw_arc(ctr, 42, 0, TAU, 64, Color(OR, 0.35), 1.0, true)
 	# Patte
@@ -660,14 +657,14 @@ func _theme() -> Theme:
 	t.set_color("font_hover_pressed_color", "Button", BOUTON_TEXTE)
 	t.set_stylebox("normal", "Button", _boite(Color(1, 1, 1, 0.07), Color(OR, 0.45), 1, 20, 8, false))
 	t.set_stylebox("hover", "Button", _boite(Color(1, 1, 1, 0.13), OR, 1, 20, 8, false))
-	t.set_stylebox("pressed", "Button", _boite(Color("E8B468"), OR_SOMBRE, 1, 20, 8, false))
+	t.set_stylebox("pressed", "Button", _boite(BOUTON_BAS, OR_SOMBRE, 1, 20, 8, false))
 	t.set_stylebox("hover_pressed", "Button", _boite(BOUTON_HAUT, OR_SOMBRE, 1, 20, 8, false))
 	t.set_stylebox("focus", "Button", _anneau(20))
 	t.set_color("font_color", "LineEdit", TEXTE)
 	t.set_color("caret_color", "LineEdit", SELECTION)
 	t.set_color("selection_color", "LineEdit", Color(SELECTION, 0.35))
-	t.set_stylebox("normal", "LineEdit", _boite(Color(0, 0, 0, 0.28), Color(OR, 0.6), 1, 8, 8, false))
-	t.set_stylebox("focus", "LineEdit", _boite(Color(0, 0, 0, 0.35), SELECTION, 2, 8, 8, false))
+	t.set_stylebox("normal", "LineEdit", _boite(Color.WHITE, OR, 2, 8, 8, false))
+	t.set_stylebox("focus", "LineEdit", _boite(Color.WHITE, SELECTION, 2, 8, 8, false))
 	t.set_stylebox("panel", "TooltipPanel", _boite(PANNEAU_BAS, OR, 1, 6, 8, false))
 	t.set_color("font_color", "TooltipLabel", TEXTE)
 	return t

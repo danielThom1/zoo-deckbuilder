@@ -35,8 +35,8 @@ static var _portraits := {}
 ## Portrait dessiné d'un personnage (res://ui/portraits/<id>.svg), mis en cache.
 static func texture_portrait(perso_id: String) -> Texture2D:
 	if not _portraits.has(perso_id):
-		var chemin := "res://ui/portraits/%s.svg" % perso_id
-		_portraits[perso_id] = load(chemin) if ResourceLoader.exists(chemin) else null
+		# Style BD : portrait dessiné choisi de façon stable pour ce personnage (assets/bd/sprites/portraits)
+		_portraits[perso_id] = SpritesBD.texture(SpritesBD.portrait_de(perso_id))
 	return _portraits[perso_id]
 
 
@@ -110,9 +110,9 @@ static func pastille(fond: Color, nom_icone: String, diametre: int, reflet := Co
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = fond
 	sb.set_corner_radius_all(diametre)
-	if reflet.a > 0.0:
-		sb.border_color = Color(reflet, 0.8)
-		sb.border_width_top = 2
+	sb.border_color = UiTokens.ENCRE
+	sb.set_border_width_all(2 if diametre >= 20 else 1)
+	sb.anti_aliasing = true
 	p.add_theme_stylebox_override("panel", sb)
 	p.custom_minimum_size = Vector2(diametre, diametre)
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -127,6 +127,9 @@ static func mini_pastille(est_qualite: bool, nom_icone: String, taille := 24) ->
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = UiTokens.QUALITE if est_qualite else UiTokens.DEFAUT
 	sb.set_corner_radius_all(taille / 2 if est_qualite else 3)
+	sb.border_color = UiTokens.ENCRE
+	sb.set_border_width_all(2 if taille >= 20 else 1)
+	sb.anti_aliasing = true
 	p.add_theme_stylebox_override("panel", sb)
 	p.custom_minimum_size = Vector2(taille, taille)
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -138,13 +141,11 @@ static func mini_pastille(est_qualite: bool, nom_icone: String, taille := 24) ->
 static func piece_salaire(valeur: int, orange: bool) -> Control:
 	var p := Panel.new()
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = UiTokens.DEFAUT if orange else UiTokens.OR
+	sb.bg_color = UiTokens.DEFAUT if orange else UiTokens.SELECTION
 	sb.set_corner_radius_all(16)
-	sb.border_color = UiTokens.OR_CLAIR if not orange else Color("FFC89A")
-	sb.border_width_top = 2
-	sb.shadow_color = Color(0, 0, 0, 0.35)
-	sb.shadow_size = 3
-	sb.shadow_offset = Vector2(0, 2)
+	sb.border_color = UiTokens.ENCRE
+	sb.set_border_width_all(2)
+	sb.anti_aliasing = true
 	p.add_theme_stylebox_override("panel", sb)
 	p.size = Vector2(32, 32)
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -167,8 +168,9 @@ static func pastille_texte(txt: String, fond: Color, largeur: float, y: float) -
 	p.add_theme_stylebox_override("panel", UiTokens.chip(fond, 11, 3))
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var l := label(txt)
-	l.add_theme_font_override("font", UiTokens.police_corps(800))
-	l.add_theme_font_size_override("font_size", 11)
+	l.add_theme_font_override("font", UiTokens.police_titre())
+	l.add_theme_font_size_override("font_size", 12)
+	l.add_theme_color_override("font_color", UiTokens.TEXTE_CLAIR)
 	p.add_child(l)
 	centre.add_child(p)
 	return centre
@@ -196,19 +198,31 @@ void fragment() {
 
 
 ## Jeton de ressource de la barre du haut : pastille + valeur + légende.
-static func jeton_ressource(nom_icone: String, couleur: Color, reflet: Color, legende: String) -> Dictionary:
+static func jeton_ressource(nom_icone: String, couleur: Color, reflet: Color, legende: String, sprite := "") -> Dictionary:
 	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 6)
+	h.add_theme_constant_override("separation", 4)
 	h.mouse_filter = Control.MOUSE_FILTER_PASS
-	var p := pastille(couleur, nom_icone, 30, reflet)
+	var p: Control
+	if sprite != "" and SpritesBD.existe(sprite):
+		var tr := TextureRect.new()
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		tr.texture = SpritesBD.texture(sprite)
+		tr.custom_minimum_size = Vector2(36, 32)
+		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		p = tr
+	else:
+		p = pastille(couleur, nom_icone, 30, reflet)
 	p.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(p)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", -6)
 	var valeur := label("0", "Compteur")
 	v.add_child(valeur)
-	var leg := label(legende, "TexteSecondaire")
-	leg.add_theme_font_size_override("font_size", 11)
+	var leg := label(legende.to_upper(), "TexteSecondaire")
+	leg.add_theme_font_override("font", UiTokens.police_corps(700))
+	leg.add_theme_font_size_override("font_size", 10)
 	v.add_child(leg)
 	h.add_child(v)
 	return {"racine": h, "valeur": valeur, "legende": leg}
@@ -254,13 +268,12 @@ static func carte_ouvrier(d: Dictionary, etat := "normale", taille := "main", bo
 	var carte := Panel.new()
 	carte.size = t
 	carte.mouse_filter = Control.MOUSE_FILTER_PASS
-	var sb_carte := UiTokens.panel(UiTokens.PANNEAU_MILIEU, UiTokens.DEFAUT if orange else UiTokens.OR, 10, 2, 0)
+	var sb_carte := UiTokens.panel(UiTokens.PANNEAU_MILIEU, UiTokens.DEFAUT if orange else UiTokens.ENCRE, 12, 3, 0)
 	if etat == "survol":
 		carte.position.y = -18
 		sb_carte.border_color = UiTokens.SELECTION
-		sb_carte.shadow_color = Color(UiTokens.SELECTION, 0.55)
-		sb_carte.shadow_size = 12
-		sb_carte.shadow_offset = Vector2.ZERO
+		sb_carte.shadow_color = UiTokens.ENCRE
+		sb_carte.shadow_offset = Vector2(5, 6)
 	carte.add_theme_stylebox_override("panel", sb_carte)
 	racine.add_child(carte)
 
@@ -268,14 +281,16 @@ static func carte_ouvrier(d: Dictionary, etat := "normale", taille := "main", bo
 	var portrait := Panel.new()
 	var sb_port := StyleBoxFlat.new()
 	sb_port.bg_color = cat["portrait"]
-	sb_port.corner_radius_top_left = 8
-	sb_port.corner_radius_top_right = 8
+	sb_port.corner_radius_top_left = 9
+	sb_port.corner_radius_top_right = 9
+	sb_port.border_color = UiTokens.ENCRE
+	sb_port.border_width_bottom = 3
 	portrait.add_theme_stylebox_override("panel", sb_port)
 	portrait.clip_contents = true
 	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	placer(carte, portrait, Vector2(2, 2), Vector2(t.x - 4, hp))
+	placer(carte, portrait, Vector2(3, 3), Vector2(t.x - 6, hp))
 	if d.has("portrait") and texture_portrait(d["portrait"]) != null:
-		placer(portrait, portrait_rect(d["portrait"], Vector2(t.x - 4, hp)), Vector2.ZERO, Vector2(t.x - 4, hp))
+		placer(portrait, portrait_rect(d["portrait"], Vector2(t.x - 4, hp + 10)), Vector2(0, 6), Vector2(t.x - 4, hp + 10))
 		var pm := pastille(Color(cat["couleur"]).darkened(0.1), d["metier_icone"], 28, cat["portrait"])
 		pm.tooltip_text = d["metier"]
 		placer(portrait, pm, Vector2(4, hp - 32), Vector2(28, 28))
@@ -285,12 +300,13 @@ static func carte_ouvrier(d: Dictionary, etat := "normale", taille := "main", bo
 
 	# Badge catégorie : couleur + icône de forme + libellé (jamais la couleur seule)
 	var badge := PanelContainer.new()
-	badge.add_theme_stylebox_override("panel", UiTokens.chip(cat["couleur"], 11, 2))
+	badge.add_theme_stylebox_override("panel", UiTokens.chip(cat["couleur"], 6, 2))
 	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var hb := HBoxContainer.new()
 	hb.add_theme_constant_override("separation", 3)
 	hb.add_child(icone_rect(cat["icone"], Vector2(14, 14)))
 	var lc := label(cat["court"])
+	lc.add_theme_color_override("font_color", UiTokens.TEXTE_CLAIR)
 	lc.add_theme_font_override("font", UiTokens.police_corps(800))
 	lc.add_theme_font_size_override("font_size", 10)
 	hb.add_child(lc)
@@ -305,10 +321,10 @@ static func carte_ouvrier(d: Dictionary, etat := "normale", taille := "main", bo
 	# Nom, métier · niveau
 	var y := hp + 6
 	var nom := label(d["nom"], "NomCarte")
-	nom.add_theme_font_size_override("font_size", 12)
+	nom.add_theme_font_size_override("font_size", 16)
 	nom.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	nom.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	placer(carte, nom, Vector2(6, y), Vector2(t.x - 12, 18))
+	placer(carte, nom, Vector2(6, y - 2), Vector2(t.x - 12, 20))
 	var metier := label("%s · N%d" % [d["metier"], d["niveau"]], "TexteSecondaire")
 	metier.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	metier.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -334,11 +350,11 @@ static func carte_ouvrier(d: Dictionary, etat := "normale", taille := "main", bo
 		for n in d["traits_noms"]:
 			match n[1]:
 				"qualite":
-					parts.append("[color=#8CC4FF]+%s%s[/color]" % [NBSP, n[0]])
+					parts.append("[color=#2F7FD8]+%s%s[/color]" % [NBSP, n[0]])
 				"defaut":
-					parts.append("[color=#FFB07A]−%s%s[/color]" % [NBSP, n[0]])
+					parts.append("[color=#B5452A]−%s%s[/color]" % [NBSP, n[0]])
 				_:
-					parts.append("[color=#FFD45A]★%s%s[/color]" % [NBSP, n[0]])
+					parts.append("[color=#8A6A00]★%s%s[/color]" % [NBSP, n[0]])
 		var tl := RichTextLabel.new()
 		tl.bbcode_enabled = true
 		tl.scroll_active = false
@@ -368,7 +384,7 @@ static func carte_ouvrier(d: Dictionary, etat := "normale", taille := "main", bo
 		carte.mouse_exited.connect(func():
 			if not carte.get_global_rect().has_point(carte.get_global_mouse_position()):
 				carte.position.y = 0
-				sb_carte.border_color = UiTokens.DEFAUT if orange else UiTokens.OR)
+				sb_carte.border_color = UiTokens.DEFAUT if orange else UiTokens.ENCRE)
 	# Le clic est consommé : sinon il atteindrait le monde, où un clic dans le vide désélectionne tout.
 	carte.gui_input.connect(func(ev: InputEvent):
 		if ev is InputEventMouseButton and ev.button_index == MOUSE_BUTTON_LEFT:
@@ -402,13 +418,15 @@ static func carte_action(card: GameState.Card, texte_bouton: String, desactive: 
 	var carte := Panel.new()
 	carte.size = t
 	carte.mouse_filter = Control.MOUSE_FILTER_PASS
-	carte.add_theme_stylebox_override("panel", UiTokens.panel(Color("3A2A12"), UiTokens.OR, 10, 2, 0))
+	carte.add_theme_stylebox_override("panel", UiTokens.panel(UiTokens.PAPIER, UiTokens.ENCRE, 12, 3, 0))
 	racine.add_child(carte)
 	var bandeau := Panel.new()
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = UiTokens.OR
-	sb.corner_radius_top_left = 8
-	sb.corner_radius_top_right = 8
+	sb.bg_color = UiTokens.SELECTION
+	sb.corner_radius_top_left = 9
+	sb.corner_radius_top_right = 9
+	sb.border_color = UiTokens.ENCRE
+	sb.border_width_bottom = 3
 	bandeau.add_theme_stylebox_override("panel", sb)
 	bandeau.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	placer(carte, bandeau, Vector2(2, 2), Vector2(t.x - 4, 26))

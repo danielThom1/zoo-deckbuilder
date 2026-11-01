@@ -53,6 +53,8 @@ var args := {}
 var font: Font
 var camera: Camera2D
 var terrain_sprite: Sprite2D
+var carte: CarteBD  # rendu BD de la carte : sol, routes, décor (scripts/rendu/)
+var _occupation_version := -1
 var terrain_img: Image
 var depth_img: Image
 
@@ -94,6 +96,9 @@ var frame_count := 0
 var ui: Control
 var speed_buttons := {}
 var info_text: RichTextLabel
+var info_view: VBoxContainer  # fiche structurée du panneau de droite
+var info_subtitle: Label
+var info_sig := ""
 var btn_lobby: Button
 var btn_swap: Button
 var btn_recall: Button
@@ -299,22 +304,14 @@ func _start(watch: bool) -> void:
 # --- Terrain -----------------------------------------------------------------
 
 func _build_terrain() -> void:
-	var m := game.map
-	terrain_img = Image.create_empty(m.w, m.h, false, Image.FORMAT_R8)
-	depth_img = Image.create_empty(m.w, m.h, false, Image.FORMAT_R8)
-	_fill_terrain_images()
-	terrain_sprite = Sprite2D.new()
-	terrain_sprite.texture = ImageTexture.create_from_image(terrain_img)
-	terrain_sprite.centered = false
-	terrain_sprite.scale = Vector2.ONE * TILE
-	terrain_sprite.show_behind_parent = true
-	var mat := ShaderMaterial.new()
-	mat.shader = preload("res://ui/terrain.gdshader")
-	mat.set_shader_parameter("carte", terrain_sprite.texture)
-	mat.set_shader_parameter("profondeur", ImageTexture.create_from_image(depth_img))
-	mat.set_shader_parameter("taille_carte", Vector2(m.w, m.h))
-	terrain_sprite.material = mat
-	add_child(terrain_sprite)
+	# Rendu « BD néo ligne claire » : sol en shader, routes tracées, décor trié en Y (scripts/rendu/).
+	if carte:
+		carte.queue_free()
+	carte = CarteBD.new()
+	add_child(carte)
+	move_child(carte, 0)
+	carte.construire(game.map, TILE, game.seed_value)
+	_occupation_version = -1
 
 
 ## Remplit les deux textures lues par le shader du terrain : le type de chaque case,
@@ -346,14 +343,31 @@ func _fill_terrain_images() -> void:
 
 
 ## Met à jour le terrain après un aménagement (ou un changement de zoo regardé).
+## CarteBD détecte seule les cases modifiées ; un changement de zoo regardé la reconstruit.
 func _refresh_terrain(force := false) -> void:
-	if game.terrain_changed.is_empty() and not force:
-		return
 	game.terrain_changed.clear()
-	_fill_terrain_images()
-	(terrain_sprite.texture as ImageTexture).update(terrain_img)
-	var mat := terrain_sprite.material as ShaderMaterial
-	(mat.get_shader_parameter("profondeur") as ImageTexture).update(depth_img)
+	if force:
+		_build_terrain()
+
+
+## Cases occupées (sans décor) et allées pavées de l'enceinte, mises à jour quand la partie change.
+func _update_occupation() -> void:
+	if carte == null or _occupation_version == game.version:
+		return
+	_occupation_version = game.version
+	var bati := {}
+	for st in game.sites:
+		for y in range(st.rect.position.y, st.rect.end.y):
+			for x in range(st.rect.position.x, st.rect.end.x):
+				bati[Vector2i(x, y)] = true
+	for a in game.animals:
+		for t in a.tiles:
+			if game.site_at(t) == null and not a.park:
+				pass
+	var pave := {}
+	for t in game.zoo_status()["interior"]:
+		pave[t] = true
+	carte.occuper(bati, pave)
 
 
 func _draw() -> void:
@@ -362,46 +376,9 @@ func _draw() -> void:
 	var m := game.map
 	# Camp de base (sous les chantiers d'agrandissement)
 	_draw_camp()
-	# Routes : chemin de terre bordé (bande claire usée au centre, cailloux) ; allées pavées dans l'enceinte
-	var roads: Array[Vector2i] = []
-	for y in m.h:
-		for x in m.w:
-			if m.road[m.idx(x, y)] or m.bridge[m.idx(x, y)]:
-				roads.append(Vector2i(x, y))
-	var interior: Dictionary = game.zoo_status()["interior"]
+	# Routes, ponts et allées pavées : RoutesBD (scripts/rendu/) ; ici la mairie au bout de l'accès
+	_update_occupation()
 	var ex := Vector2(m.exit_tile) * TILE
-	var dirt := [UiTokens.CHEMIN.darkened(0.38), UiTokens.CHEMIN, UiTokens.CHEMIN.lightened(0.16)]
-	var paved := [Color("B8A67E"), UiTokens.ALLEE_ZOO, Color("FBF3DE")]
-	var halves := [5.6, 4.6, 1.5]
-	for pass_i in 3:
-		draw_line(ex + Vector2(TILE / 2, TILE / 2), ex + Vector2(TILE / 2, TILE * 2.4), dirt[pass_i], halves[pass_i] * 2)
-		for t in roads:
-			if m.bridge[m.idx(t.x, t.y)]:
-				continue
-			var pal: Array = paved if interior.has(t) else dirt
-			var c := (Vector2(t) + Vector2(0.5, 0.5)) * TILE
-			draw_circle(c, halves[pass_i], pal[pass_i])
-			for d in [Vector2i(1, 0), Vector2i(0, 1)]:
-				var q: Vector2i = t + d
-				if m.in_bounds(q.x, q.y) and (m.road[m.idx(q.x, q.y)] or m.bridge[m.idx(q.x, q.y)]):
-					draw_line(c, c + Vector2(d) * TILE, pal[pass_i], halves[pass_i] * 2)
-	for t in roads:
-		if m.bridge[m.idx(t.x, t.y)]:
-			continue
-		var c := (Vector2(t) + Vector2(0.5, 0.5)) * TILE
-		var h := (t.x * 73856093) ^ (t.y * 19349663)
-		if interior.has(t):
-			# joints des dalles
-			draw_line(c + Vector2(-3.5, -1), c + Vector2(3.5, -1), Color(0.55, 0.47, 0.32, 0.35), 0.6)
-			draw_line(c + Vector2(-1.5, -1), c + Vector2(-1.5, 3), Color(0.55, 0.47, 0.32, 0.35), 0.6)
-			draw_line(c + Vector2(2, -4), c + Vector2(2, -1), Color(0.55, 0.47, 0.32, 0.35), 0.6)
-		else:
-			# cailloux
-			draw_circle(c + Vector2(float(h % 7) - 3.0, float((h / 7) % 7) - 3.0), 0.7, UiTokens.CHEMIN.darkened(0.45))
-			draw_circle(c + Vector2(float((h / 49) % 7) - 3.0, float((h / 343) % 7) - 3.0), 0.55, Color("F0D8A8"))
-	for t in roads:
-		if m.bridge[m.idx(t.x, t.y)]:
-			_draw_bridge(t)
 	_draw_town_hall(ex + Vector2(TILE / 2, TILE * 3.6))
 	# Intérieur de l'enceinte du zoo : allées plus claires
 	for t in game.zoo_status()["interior"]:
@@ -410,8 +387,10 @@ func _draw() -> void:
 	var now := Time.get_ticks_msec() / 1000.0
 	for ai_index in game.animals.size():
 		_draw_animal(game.animals[ai_index], ai_index, now)
-	# Chantiers et bâtiments
-	for s in game.sites:
+	# Chantiers et bâtiments, du fond vers l'avant
+	var sites_tries := game.sites.duplicate()
+	sites_tries.sort_custom(func(a, b): return a.rect.end.y < b.rect.end.y)
+	for s in sites_tries:
 		_draw_site(s)
 	# Plan de l'IA regardée : enceinte prévue et enclos en projet
 	if spectator and mt.ais[game.index]:
@@ -502,11 +481,13 @@ func _draw() -> void:
 				f[0] = "profil" if absf(to.x) >= absf(to.y) * 0.6 else ("face" if to.y > 0.0 else "dos")
 				f[1] = to.x < 0.0
 			body = p + Vector2(0, -absf(sin(tw * float(work["rythme"]))) * 0.9)
-		PersoDessin.dessiner(self, body, game.perso_of(w.card), f[0], tw, moving and w.pause_left <= 0.0, f[1])
+		# personnage dessiné selon le métier (scripts/rendu/sprites_bd.gd), petit balancement en marchant
+		var pas := absf(sin(tw * 9.0)) * 0.7 if moving and w.pause_left <= 0.0 else 0.0
+		SpritesBD.dessiner(self, SpritesBD.pour_metier(str(w.card.metier["id"])), body + Vector2(0, 6.2 - pas), TILE * SpritesBD.HAUTEUR_PERSONNE, f[1])
 		if not work.is_empty():
 			_draw_work(work, body, tw, f[1])
 		# pastille du métier (couleur de catégorie) au-dessus de l'épaule
-		var bp := p + Vector2(-r - 0.5, -r * 0.9)
+		var bp := p + Vector2(-r - 1.5, -r * 1.9)
 		draw_circle(bp, 3.4, Color.WHITE)
 		draw_circle(bp, 2.8, _worker_color(w.card))
 		var ic := UiTokens.icone(Composants.icone_metier(str(w.card.metier["id"])))
@@ -613,11 +594,9 @@ func _draw_site(s: GameState.Site) -> void:
 			"cloture", "enclos":
 				_draw_fence(s, color)
 			"entree":
-				_draw_turned(r, s.def.get("pivote", false), func(rr): _draw_gate(rr))
-			"grand_arbre", "rocher_obs", "bassin_profond", "abri_chaud":
-				_draw_decor(r, id)
+				_draw_gate(r)
 			_:
-				_draw_turned(r, s.def.get("pivote", false), func(rr): _draw_building(rr, id, color))
+				_draw_building(r, id, color)
 		if building_short.has(id) and r.has_point(_screen_to_world(get_viewport().get_mouse_position())):
 			_label(building_short[id], r.get_center() + Vector2(0, r.size.y / 2 + 9), 9)
 		return
@@ -631,14 +610,12 @@ func _draw_site(s: GameState.Site) -> void:
 		draw_rect(Rect2(c - Vector2(1.8, 1.8), Vector2(3.6, 3.6)), Color(color.darkened(0.3), 0.8))
 		_progress(r, ratio)
 		return
-	draw_rect(r.grow(-1), Color(color, 0.28))
-	var k := 6.0
-	while k < r.size.x + r.size.y:
-		var a := r.position + Vector2(minf(k, r.size.x), maxf(0.0, k - r.size.x))
-		var b := r.position + Vector2(maxf(0.0, k - r.size.y), minf(k, r.size.y))
-		draw_line(a, b, Color("C8A070", 0.5), 1.0)
-		k += 8.0
-	_dashed_rect(r.grow(-1), Color(1, 1, 1, 0.85))
+	# échafaudage dessiné, posé sur le bas de l'emprise
+	_dashed_rect(r.grow(-1), Color(UiTokens.ENCRE, 0.6))
+	if id in ["route", "pont"]:
+		draw_rect(r.grow(-2), Color(UiTokens.CHEMIN, 0.6))
+	else:
+		SpritesBD.dessiner_largeur(self, SpritesBD.CHANTIERS[s.id % 2], Vector2(r.get_center().x, r.end.y), minf(r.size.x, r.size.y * 1.4) * 1.05)
 	_progress(r, ratio)
 	_draw_pin(Vector2(r.get_center().x, r.position.y + 6), "ordre_construire", UiTokens.OR.darkened(0.25), 0.9)
 
@@ -687,6 +664,7 @@ func _draw_work(work: Dictionary, p: Vector2, t: float, flip: bool) -> void:
 	var sx := -1.0 if flip else 1.0
 	var hand := p + Vector2(4.6 * sx, 1.2)
 	var tool: String = work["outil"]
+	tool = ""  # les personnages dessinés tiennent déjà leur outil : seules les particules restent
 	var ph := sin(t * float(work["rythme"]))  # -1 : bras levé, +1 : coup porté
 	var bois := Color("9A6A36")
 	var ink := Color(0.12, 0.08, 0.05, 0.85)
@@ -770,6 +748,10 @@ func _draw_work(work: Dictionary, p: Vector2, t: float, flip: bool) -> void:
 
 ## Illustration générée (tools/animaux.py, tools/batiments.py), mise en cache ; null si elle n'existe pas.
 func _image(chemin: String) -> Texture2D:
+	if not images.has(chemin) and chemin.begins_with("res://ui/animaux/"):
+		var esp: Array = SpritesBD.ANIMAUX.get(chemin.get_file().get_basename(), [])
+		if not esp.is_empty() and SpritesBD.existe(esp[0]):
+			images[chemin] = SpritesBD.texture(esp[0])
 	if not images.has(chemin):
 		images[chemin] = load(chemin) if ResourceLoader.exists(chemin) else null
 	return images[chemin]
@@ -783,6 +765,13 @@ func _draw_building_image(r: Rect2, tex: Texture2D) -> void:
 
 ## Bâtiment terminé : son illustration, ou à défaut un toit à deux pans avec marqueur d'icône.
 func _draw_building(r: Rect2, id: String, color: Color) -> void:
+	var nom_sp: String = SpritesBD.BATIMENTS.get(id, "")
+	if nom_sp != "" and SpritesBD.existe(nom_sp):
+		var largeur := r.size.x * SpritesBD.LARGEUR_BATIMENT
+		if id in ["grand_arbre", "rocher_obs", "bassin_profond", "abri_chaud"]:
+			largeur = r.size.x * 1.0
+		SpritesBD.dessiner_largeur(self, nom_sp, Vector2(r.get_center().x, r.end.y - (r.size.y * 0.5 if id == "bassin_profond" else 0.0)), largeur)
+		return
 	var tex := _image("res://ui/batiments/%s.svg" % id)
 	if tex:
 		_draw_building_image(r, tex)
@@ -836,6 +825,10 @@ func _draw_decor(r: Rect2, id: String) -> void:
 
 ## Mairie de la ville, au bout de la route d'Accès : c'est là que partent les ouvriers en lobbying (et les campagnes).
 func _draw_town_hall(base: Vector2) -> void:
+	SpritesBD.dessiner_largeur(self, "mairie", base, TILE * 3.0)
+	_draw_pin(base + Vector2(TILE * 1.6, -TILE * 2.0), "ressource_influence", UiTokens.RESSOURCES["influence"]["couleur"])
+	_label("Ville · lobbying", base + Vector2(0, 10), 10)
+	return
 	var w := TILE * 2.6
 	var h := TILE * 1.3
 	var body := Rect2(base - Vector2(w / 2, h), Vector2(w, h))
@@ -874,6 +867,8 @@ func _draw_turned(r: Rect2, turned: bool, draw_fn: Callable) -> void:
 
 ## Entrée du zoo : deux piliers et un portique.
 func _draw_gate(r: Rect2) -> void:
+	SpritesBD.dessiner_largeur(self, "entree", Vector2(r.get_center().x, r.end.y), maxf(r.size.x, r.size.y) * 1.15)
+	return
 	var tex := _image("res://ui/batiments/entree.svg")
 	if tex:
 		_draw_building_image(r, tex)
@@ -941,14 +936,9 @@ func _draw_camp() -> void:
 	for s in game.sites:
 		if s.done and s.def_id() in ["camp_n2", "camp_n3"]:
 			level += 1
-	var tex := _image("res://ui/batiments/camp_%d.svg" % level)
-	if tex:
-		var full := Rect2(Vector2(m.camp.position) * TILE, Vector2(m.camp.size) * TILE)
-		_draw_building_image(full, tex)
-		var fire := full.position + Vector2(full.size.x / 2, full.size.y * 0.5)
-		var fl := 0.8 + 0.2 * sin(Time.get_ticks_msec() / 90.0)
-		draw_circle(fire, 2.8 * fl, Color("F08A20"))
-		draw_circle(fire, 1.5 * fl, Color("FFE07A"))
+	var full := Rect2(Vector2(m.camp.position) * TILE, Vector2(m.camp.size) * TILE)
+	if SpritesBD.existe(SpritesBD.CAMPS[clampi(level - 1, 0, 2)]):
+		SpritesBD.dessiner_largeur(self, SpritesBD.CAMPS[clampi(level - 1, 0, 2)], Vector2(full.get_center().x, full.end.y + 2), full.size.x * 1.15)
 		_label("Camp" + (" niv. %d" % level if level > 1 else ""), full.get_center() + Vector2(0, -full.size.y / 2 - 9), 10)
 		return
 	draw_rect(Rect2(c.position + Vector2(2, 3), c.size), Color(0, 0, 0, 0.22))
@@ -1005,7 +995,8 @@ func _draw_animal(a: GameState.Animal, index: int, now: float) -> void:
 		draw_line(center - Vector2(5, 4), center + Vector2(5, 4), Color("5A3A22"), 1.0)
 	else:
 		var body := col.darkened(0.35)
-		var tex := _image("res://ui/animaux/%s.svg" % a.def["id"])
+		var esp: Array = SpritesBD.ANIMAUX.get(str(a.def["id"]), [])
+		var tex: bool = not esp.is_empty() and SpritesBD.existe(esp[0])
 		var big := int(a.def["taille"]) >= 7
 		var count := (1 if big else 2) + (1 if a.tiles.size() >= 24 else 0) if tex else mini(2 + a.tiles.size() / 12, 3)
 		for k in count:
@@ -1019,12 +1010,8 @@ func _draw_animal(a: GameState.Animal, index: int, now: float) -> void:
 			var dir := -1.0 if p1.x < p0.x else 1.0
 			if tex:
 				# illustration du contrat, à l'échelle de l'espèce, retournée selon la marche, petit sautillement
-				var w := TILE * (1.3 + 0.09 * float(a.def["taille"]))
-				var h := w * 0.75
 				var bob := absf(sin(clock * TAU * 3.0)) * 0.8 if f > 0.0 and f < 1.0 else 0.0
-				draw_set_transform(pos + Vector2(0, TILE * 0.35 - bob), 0.0, Vector2(dir, 1.0))
-				draw_texture_rect(tex, Rect2(-w / 2, -h, w, h), false)
-				draw_set_transform(Vector2.ZERO)
+				SpritesBD.dessiner(self, esp[0], pos + Vector2(0, TILE * 0.35 - bob), TILE * float(esp[1]) * 1.15, dir < 0.0)
 				continue
 			draw_set_transform(pos + Vector2(1, 2.5), 0.0, Vector2(1.5, 0.6))
 			draw_circle(Vector2.ZERO, 3.0, Color(0, 0, 0, 0.25))
@@ -1034,7 +1021,7 @@ func _draw_animal(a: GameState.Animal, index: int, now: float) -> void:
 			draw_circle(pos + Vector2(dir * 4.2, -1.2), 1.9, body.lightened(0.15))
 	var biome := str(a.def["biome"]).to_lower()
 	var icon: String = UiTokens.BIOMES[biome]["icone"] if UiTokens.BIOMES.has(biome) else "ui_valide"
-	if not a.arrived or _image("res://ui/animaux/%s.svg" % a.def["id"]) == null:
+	if not a.arrived or SpritesBD.ANIMAUX.get(str(a.def["id"]), []).is_empty():
 		_draw_pin(center + Vector2(0, -2), icon, col.darkened(0.15))
 	var txt: String = a.def["nom"]
 	if a.sick:
@@ -1052,25 +1039,13 @@ func _draw_animal(a: GameState.Animal, index: int, now: float) -> void:
 const TENUES := [Color("E04A4A"), Color("3A6AE0"), Color("E8B020"), Color("8A4AD0"), Color("F2F2F2"), Color("18A88A"), Color("E8782A")]
 
 
-## Visiteur : ombre, jambes, tenue colorée, tête ; un sur quatre est un enfant, quelques ballons.
+## Visiteur : personnage dessiné (adultes et enfants variés), léger balancement.
 func _draw_visitor(pos: Vector2, k: int) -> void:
-	var child := k % 4 == 1
-	var sc := 0.72 if child else 1.0
+	var nom := SpritesBD.visiteur(k * 5 + 3)
 	var t := Time.get_ticks_msec() / 1000.0 + k * 0.37
-	var step := sin(t * 9.0) * 0.6 * sc
-	var shirt: Color = TENUES[(k * 5 + 3) % TENUES.size()]
-	var skin: Color = [Color("F2C9A0"), Color("D9A06E"), Color("A8714A"), Color("6E4630")][(k * 7 + 1) % 4]
-	draw_set_transform(pos + Vector2(0.6, 2.6 * sc), 0.0, Vector2(1.6, 0.6))
-	draw_circle(Vector2.ZERO, 1.8 * sc, Color(0, 0, 0, 0.22))
-	draw_set_transform(Vector2.ZERO)
-	draw_line(pos + Vector2(-0.7 * sc, 0.6 * sc), pos + Vector2(-0.7 * sc + step, 2.6 * sc), Color("3A3048"), 0.9 * sc)
-	draw_line(pos + Vector2(0.7 * sc, 0.6 * sc), pos + Vector2(0.7 * sc - step, 2.6 * sc), Color("3A3048"), 0.9 * sc)
-	draw_rect(Rect2(pos + Vector2(-1.4, -1.8) * sc, Vector2(2.8, 2.8) * sc), shirt)
-	draw_circle(pos + Vector2(0, -2.8) * sc, 1.25 * sc, skin)
-	if k % 9 == 4:
-		var b := pos + Vector2(2.6, -8.0 + sin(t * 2.0) * 0.4)
-		draw_line(pos + Vector2(1.2, -1.2), b, Color(0.2, 0.2, 0.2, 0.6), 0.5)
-		draw_circle(b, 1.6, TENUES[(k + 2) % TENUES.size()])
+	var h := TILE * (0.72 if nom.begins_with("enfant") else 0.95)
+	SpritesBD.dessiner(self, nom, pos + Vector2(0, 2.5 - absf(sin(t * 9.0)) * 0.5), h, k % 2 == 0)
+
 
 func _progress(r: Rect2, ratio: float) -> void:
 	draw_rect(Rect2(r.position.x + 2, r.end.y - 4, r.size.x - 4, 2.5), Color(0, 0, 0, 0.6))
@@ -1107,56 +1082,58 @@ func _draw_fence(s: GameState.Site, color: Color) -> void:
 		_draw_palisade(c, dirs, reaches, straight, color)
 
 
-## Mur d'enceinte vu du dessus : pierres taillées en deux rangs décalés, teintes variées, ombre portée ;
-## piliers aux angles et aux extrémités.
-func _draw_wall(c: Vector2, dirs: Array[Vector2i], reaches: Array[float], straight: bool, color: Color) -> void:
-	var dark := Color("6E6656")
-	var face := Color("D6CDB8").lerp(color, 0.3)
+## Mur d'enceinte en perspective : face avant (assises et joints), chaperon clair, piliers aux angles.
+func _draw_wall(c: Vector2, dirs: Array[Vector2i], reaches: Array[float], straight: bool, _color: Color) -> void:
+	var ink := UiTokens.ENCRE
+	var base := c + Vector2(0, TILE * 0.3)
+	var h := TILE * 0.62
+	var ep := TILE * 0.32
 	for k in dirs.size():
-		var d := Vector2(dirs[k])
-		var e := c + d * TILE * reaches[k]
-		var side := Vector2(-d.y, d.x)
-		draw_line(c + Vector2(1.6, 2.6), e + Vector2(1.6, 2.6), Color(0, 0, 0, 0.26), 6.6)
-		draw_line(c, e, dark, 6.4)
-		# deux rangs de pierres de 4 px, décalés d'une demi-pierre
-		var length := TILE * reaches[k]
-		for row in 2:
-			var off := side * (1.45 if row == 0 else -1.45)
-			var x := -2.0 if row == 0 else 0.0
-			while x < length:
-				var a := maxf(x, 0.0) + 0.35
-				var b := minf(x + 4.0, length) - 0.35
-				if b > a:
-					var hsh := absi(int((c.x + d.x * a) * 13.0 + (c.y + d.y * a) * 7.0 + row * 5.0)) % 5
-					var tone := face.darkened(0.04 * hsh) if hsh % 2 == 0 else face.lightened(0.05 * hsh)
-					draw_line(c + d * a + off, c + d * b + off, tone, 2.5)
-				x += 4.0
+		var d := dirs[k]
+		var e := base + Vector2(d) * TILE * reaches[k]
+		if d.y == 0:
+			var face := PackedVector2Array([base, e, e - Vector2(0, h), base - Vector2(0, h)])
+			draw_colored_polygon(face, Color("D8D2C2"))
+			draw_line(base - Vector2(0, h * 0.5), e - Vector2(0, h * 0.5), Color(ink, 0.45), 1.0)
+			var sx := signf(e.x - base.x) * TILE * reaches[k]
+			draw_line(base + Vector2(sx * 0.5, -h * 0.5), base + Vector2(sx * 0.5, -h), Color(ink, 0.4), 1.0)
+			draw_line(base + Vector2(sx * 0.2, 0), base + Vector2(sx * 0.2, -h * 0.5), Color(ink, 0.4), 1.0)
+			draw_line(base + Vector2(sx * 0.8, 0), base + Vector2(sx * 0.8, -h * 0.5), Color(ink, 0.4), 1.0)
+			draw_line(base, e, ink, 1.4)
+			var top := PackedVector2Array([base - Vector2(0, h), e - Vector2(0, h), e - Vector2(0, h + ep * 0.45), base - Vector2(0, h + ep * 0.45)])
+			draw_colored_polygon(top, Color("EFEADF"))
+			draw_line(top[0], top[1], ink, 1.1)
+			draw_line(top[2], top[3], ink, 1.3)
+		else:
+			var flanc := PackedVector2Array([base + Vector2(ep * 0.5, 0), e + Vector2(ep * 0.5, 0), e + Vector2(ep * 0.5, -h), base + Vector2(ep * 0.5, -h)])
+			draw_colored_polygon(flanc, Color("C2BBA9"))
+			draw_line(flanc[0], flanc[1], ink, 1.1)
+			var top2 := PackedVector2Array([base + Vector2(-ep * 0.5, -h), e + Vector2(-ep * 0.5, -h), e + Vector2(ep * 0.5, -h), base + Vector2(ep * 0.5, -h)])
+			draw_colored_polygon(top2, Color("EFEADF"))
+			draw_line(top2[0], top2[1], ink, 1.3)
+			draw_line(top2[3], top2[2], ink, 1.1)
 	if not straight:
-		var b := Rect2(c - Vector2(4.4, 4.8), Vector2(8.8, 8.8))
-		draw_rect(Rect2(b.position + Vector2(1.6, 2.4), b.size), Color(0, 0, 0, 0.28))
-		draw_rect(b, dark)
-		draw_rect(b.grow(-0.9), face)
-		draw_rect(b.grow(-2.4), face.lightened(0.18))
-		draw_rect(b.grow(-2.4), dark.lightened(0.2), false, 0.5)
+		var pil := Rect2(base + Vector2(-ep * 0.5, -h - ep * 0.5), Vector2(ep, h + ep * 0.5))
+		draw_rect(pil, Color("E4DED0"))
+		draw_rect(pil, ink, false, 1.2)
+		draw_rect(Rect2(pil.position, Vector2(pil.size.x, ep * 0.32)), Color("F6F2EA"))
+		draw_rect(Rect2(pil.position, Vector2(pil.size.x, ep * 0.32)), ink, false, 1.0)
 
 
-## Palissade d'enclos : deux lisses de bois avec reflet sur des poteaux ronds, ombre portée sur l'herbe.
+## Palissade d'enclos en perspective : deux lisses de bois encrées, poteau au centre de la case.
 func _draw_palisade(c: Vector2, dirs: Array[Vector2i], reaches: Array[float], straight: bool, _color: Color) -> void:
-	var ink := Color("3E2814")
-	var wood := Color("B07A44")
-	var light := Color("E2B474")
-	var post := Color("7A4E2A")
+	var ink := UiTokens.ENCRE
+	var base := c + Vector2(0, TILE * 0.3)
+	var hp := TILE * 0.62
 	for k in dirs.size():
-		var d := Vector2(dirs[k])
-		var e := c + d * TILE * reaches[k]
-		var side := Vector2(-d.y, d.x)
-		draw_line(c + Vector2(1.4, 2.6), e + Vector2(1.4, 2.6), Color(0, 0, 0, 0.22), 3.6)
-		var rails := [Vector2(0, -2.0), Vector2(0, 0.6)] if d.y == 0.0 else [side * -1.1, side * 1.1]
-		for off in rails:
-			draw_line(c + off, e + off, ink, 2.2, true)
-			draw_line(c + off, e + off, wood, 1.4, true)
-			draw_line(c + off + Vector2(0, -0.45), e + off + Vector2(0, -0.45), light, 0.5, true)
-	_post(c, ink, post, light, 1.9 if not straight else 1.4)
+		var e := base + Vector2(dirs[k]) * TILE * reaches[k]
+		for t in [0.35, 0.72]:
+			draw_line(base - Vector2(0, hp * t), e - Vector2(0, hp * t), ink, 3.4)
+			draw_line(base - Vector2(0, hp * t), e - Vector2(0, hp * t), Color("A0703E"), 1.8)
+	var w := TILE * (0.2 if not straight else 0.16)
+	var pt := Rect2(base + Vector2(-w / 2, -hp), Vector2(w, hp))
+	draw_rect(pt, Color("7A5230"))
+	draw_rect(pt, ink, false, 1.0)
 
 
 func _post(q: Vector2, ink: Color, wood: Color, light: Color, r: float) -> void:
@@ -1672,29 +1649,45 @@ func _build_ui() -> void:
 	layer.add_child(ui)
 
 	# Barre du haut (h 52) : jetons de ressources, course à la réputation, vitesse — capture 03
-	var top := PanelContainer.new()
-	var top_style := UiTokens.panel(UiTokens.PANNEAU_HAUT, UiTokens.OR, 0, 0, 6)
-	top_style.border_width_bottom = 1
-	top_style.content_margin_left = 14
-	top_style.content_margin_right = 14
-	top.add_theme_stylebox_override("panel", top_style)
+	# Barre du haut « BD » : pastilles blanches flottantes cernées d'encre (ressources, course, vitesse)
+	var top := MarginContainer.new()
 	top.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	top.custom_minimum_size.y = 52
+	top.offset_top = 8
+	top.offset_left = 14
+	top.offset_right = -14
+	top.custom_minimum_size.y = 50
+	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui.add_child(top)
-	var hb := HBoxContainer.new()
-	hb.add_theme_constant_override("separation", 18)
-	top.add_child(hb)
+	var bar := HBoxContainer.new()
+	bar.add_theme_constant_override("separation", 10)
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	top.add_child(bar)
+	var pastille_haut := func(sep: int) -> HBoxContainer:
+		var pc := PanelContainer.new()
+		var st := UiTokens.panel(UiTokens.PAPIER, UiTokens.ENCRE, 14, 3, 6)
+		st.content_margin_left = 10
+		st.content_margin_right = 12
+		pc.add_theme_stylebox_override("panel", st)
+		bar.add_child(pc)
+		var inner := HBoxContainer.new()
+		inner.add_theme_constant_override("separation", sep)
+		pc.add_child(inner)
+		return inner
+	var hb: HBoxContainer = pastille_haut.call(14)
 	for r in [["argent", "Argent"], ["bois", "Bois"], ["pierre", "Pierre"], ["or", "Or"], ["influence", "Influence (privée)"],
 			["logement", "Logement"], ["reputation", "Réputation"]]:
 		var res: Dictionary = UiTokens.RESSOURCES[r[0]]
-		var chip := Composants.jeton_ressource(res["icone"], res["couleur"], res["reflet"], r[1])
+		var chip := Composants.jeton_ressource(res["icone"], res["couleur"], res["reflet"], r[1], res.get("sprite", ""))
 		chip["racine"].tooltip_text = res["nom"]
 		hb.add_child(chip["racine"])
 		res_chips[r[0]] = chip
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hb.add_child(spacer)
-	var race_title := Composants.label("Course à %d" % game.objective(), "TexteSecondaire")
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bar.add_child(spacer)
+	hb = pastille_haut.call(6)
+	var race_title := Composants.label("COURSE À %d" % game.objective(), "NomCarte")
+	race_title.add_theme_font_size_override("font_size", 15)
 	race_title.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	hb.add_child(race_title)
 	var race := HBoxContainer.new()
@@ -1703,18 +1696,22 @@ func _build_ui() -> void:
 	hb.add_child(race)
 	for i in mt.players.size():
 		var pill := PanelContainer.new()
-		var ps := UiTokens.chip(UiTokens.JOUEURS[i % UiTokens.JOUEURS.size()], 15, 4)
-		ps.content_margin_left = 9
-		ps.content_margin_right = 9
+		var ps := UiTokens.chip(UiTokens.JOUEURS[i % UiTokens.JOUEURS.size()], 15, 3)
+		ps.content_margin_left = 8
+		ps.content_margin_right = 8
 		pill.add_theme_stylebox_override("panel", ps)
 		pill.tooltip_text = mt.names[i]
 		var pl := Composants.label("0", "Compteur")
 		pl.add_theme_font_size_override("font_size", 15)
-		pl.add_theme_color_override("font_color", UiTokens.BOUTON_TEXTE if i == game.index else UiTokens.TEXTE)
+		pl.add_theme_color_override("font_color", UiTokens.TEXTE_CLAIR)
+		if i == game.index:
+			ps.border_color = UiTokens.SELECTION
+			ps.set_border_width_all(3)
 		pill.add_child(pl)
 		race.add_child(pill)
 		race_labels.append([pill, pl])
 	if spectator:
+		hb = pastille_haut.call(4)
 		for i in mt.players.size():
 			var vb := Button.new()
 			vb.text = "IA %d" % (i + 1)
@@ -1725,8 +1722,9 @@ func _build_ui() -> void:
 			vb.pressed.connect(_view_player.bind(i))
 			view_buttons.append(vb)
 			hb.add_child(vb)
+	hb = pastille_haut.call(4)
 	var speeds := HBoxContainer.new()
-	speeds.add_theme_constant_override("separation", 2)
+	speeds.add_theme_constant_override("separation", 4)
 	speeds.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	hb.add_child(speeds)
 	for s in [0.0, 1.0, 2.0, 4.0, 8.0, 16.0]:
@@ -1734,7 +1732,8 @@ func _build_ui() -> void:
 		b.text = "II" if s == 0.0 else "×%d" % int(s)
 		b.toggle_mode = true
 		b.focus_mode = Control.FOCUS_NONE
-		b.custom_minimum_size = Vector2(40, 32)
+		b.custom_minimum_size = Vector2(40, 34)
+		b.theme_type_variation = "Onglet"
 		b.pressed.connect(_set_speed.bind(s))
 		speed_buttons[s] = b
 		speeds.add_child(b)
@@ -1743,48 +1742,85 @@ func _build_ui() -> void:
 	market_btn.text = "Marché du soir"
 	market_btn.focus_mode = Control.FOCUS_NONE
 	market_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	market_btn.custom_minimum_size.y = 46
+	market_btn.theme_type_variation = "BoutonPrincipal"
 	market_btn.tooltip_text = "Ouvriers, contrats et cartes d'action proposés cette nuit, dans l'ordre d'influence"
 	market_btn.pressed.connect(func():
 		market_root.visible = not market_root.visible
 		_rebuild_market_preview())
-	hb.add_child(market_btn)
+	bar.add_child(market_btn)
 	var help := Button.new()
 	help.text = "?"
 	help.focus_mode = Control.FOCUS_NONE
 	help.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	help.custom_minimum_size = Vector2(32, 32)
+	help.custom_minimum_size = Vector2(46, 46)
 	help.tooltip_text = "Clic gauche : sélectionner (glisser pour plusieurs)\nClic droit : déplacer, extraire, construire, tenir un poste, lobbying (case Accès) · Maj + clic droit : enchaîner un ordre après la tâche en cours
 Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter un bâtiment · double-clic : tout un tracé de clôture, mur ou route · Suppr : démolir\nMenu de gauche : placer un bâtiment (glisser pour routes et clôtures, R pour tourner l'entrée), Échap pour arrêter\nMolette : zoom · ZQSD : vue · Espace : pause"
-	hb.add_child(help)
+	bar.add_child(help)
 
 	event_label = Label.new()
 	event_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	event_label.offset_top = 62
+	event_label.offset_top = 70
 	event_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	event_label.add_theme_stylebox_override("normal", UiTokens.panel(UiTokens.PANNEAU_BAS, UiTokens.OR, 6, 1, 8))
-	event_label.add_theme_color_override("font_color", UiTokens.OR_CLAIR)
+	var ev_style := UiTokens.panel(UiTokens.PAPIER, UiTokens.ENCRE, 10, 3, 8)
+	ev_style.border_width_left = 14
+	ev_style.border_color = UiTokens.ENCRE
+	ev_style.content_margin_left = 14
+	event_label.add_theme_stylebox_override("normal", ev_style)
+	event_label.add_theme_color_override("font_color", UiTokens.TEXTE)
+	event_label.add_theme_font_override("font", UiTokens.police_corps(700))
 	event_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui.add_child(event_label)
 
-	# Panneau d'information à droite (zoo, ouvrier ou chantier sélectionné)
+	# Panneau d'information à droite : bandeau sarcelle + fiche en cartes (zoo, ouvrier, chantier, animal)
 	var right := PanelContainer.new()
-	right.add_theme_stylebox_override("panel", UiTokens.panel(UiTokens.PANNEAU_MILIEU, UiTokens.OR, 10, 2, 12))
+	right.add_theme_stylebox_override("panel", UiTokens.panel(UiTokens.PAPIER, UiTokens.ENCRE, 12, 3, 0))
 	right.set_anchors_and_offsets_preset(Control.PRESET_RIGHT_WIDE)
-	right.offset_left = -304
+	right.offset_left = -318
 	right.offset_right = -14
-	right.offset_top = 64
+	right.offset_top = 72
 	right.offset_bottom = -250
 	ui.add_child(right)
+	var rv0 := VBoxContainer.new()
+	rv0.add_theme_constant_override("separation", 0)
+	right.add_child(rv0)
+	var rhead := PanelContainer.new()
+	rhead.add_theme_stylebox_override("panel", UiTokens.bandeau())
+	rv0.add_child(rhead)
+	var rhb := HBoxContainer.new()
+	rhead.add_child(rhb)
+	zoo_title = Composants.label("VOTRE ZOO", "TitreBandeau")
+	zoo_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	zoo_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	rhb.add_child(zoo_title)
+	info_subtitle = Composants.label("", "")
+	info_subtitle.add_theme_color_override("font_color", Color(UiTokens.TEXTE_CLAIR, 0.9))
+	info_subtitle.add_theme_font_size_override("font_size", 13)
+	info_subtitle.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	rhb.add_child(info_subtitle)
+	var rscroll := ScrollContainer.new()
+	rscroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	rscroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	rv0.add_child(rscroll)
+	var rmargin := MarginContainer.new()
+	rmargin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for side in ["left", "right", "top", "bottom"]:
+		rmargin.add_theme_constant_override("margin_" + side, 10)
+	rmargin.add_theme_constant_override("margin_right", 14)
+	rscroll.add_child(rmargin)
 	var rv := VBoxContainer.new()
-	rv.add_theme_constant_override("separation", 6)
-	right.add_child(rv)
-	zoo_title = Composants.label("VOTRE ZOO", "TitrePanneau")
-	rv.add_child(zoo_title)
+	rv.add_theme_constant_override("separation", 8)
+	rv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rmargin.add_child(rv)
+	info_view = VBoxContainer.new()
+	info_view.add_theme_constant_override("separation", 8)
+	rv.add_child(info_view)
 	info_text = RichTextLabel.new()
 	info_text.bbcode_enabled = true
-	info_text.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	info_text.add_theme_font_size_override("normal_font_size", 13)
-	info_text.add_theme_font_size_override("bold_font_size", 14)
+	info_text.fit_content = true
+	info_text.scroll_active = false
+	info_text.add_theme_font_size_override("normal_font_size", 14)
+	info_text.add_theme_font_size_override("bold_font_size", 15)
 	rv.add_child(info_text)
 	info_extra = VBoxContainer.new()
 	info_extra.add_theme_constant_override("separation", 4)
@@ -1823,9 +1859,10 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 	rv.add_child(btn_demolish)
 	# Marché : vendre et acheter la quantité choisie (Marchand au camp ou au bâtiment Marché pour de meilleurs prix)
 	if not spectator:
-		_menu_title(rv, "Marché")
+		var cm := _fiche_carte(rv, "MARCHÉ", "metier_marchand", UiTokens.RESSOURCES["argent"]["couleur"])
+		rv = cm
 		trade_note = Composants.label("", "TexteSecondaire")
-		trade_note.add_theme_font_size_override("font_size", 11)
+		trade_note.add_theme_font_size_override("font_size", 12)
 		trade_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		rv.add_child(trade_note)
 		for res in ["bois", "pierre", "or"]:
@@ -1842,7 +1879,7 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 			spin.max_value = 999
 			spin.step = 1
 			spin.value = 10
-			spin.custom_minimum_size = Vector2(78, 0)
+			spin.custom_minimum_size = Vector2(70, 0)
 			spin.tooltip_text = "Quantité (molette ou flèches)"
 			spin.get_line_edit().add_theme_font_size_override("font_size", 12)
 			row.add_child(spin)
@@ -1859,9 +1896,9 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 			row.add_child(bb)
 			trade_rows[res] = [spin, sb, bb]
 		# Publicité : campagnes menées par les ouvriers à l'extérieur, elles seules augmentent l'affluence
-		_menu_title(rv, "Publicité")
+		rv = _fiche_carte(cm.get_parent().get_parent().get_parent(), "PUBLICITÉ", "ressource_influence", UiTokens.RESSOURCES["influence"]["couleur"])
 		pub_note = Composants.label("", "TexteSecondaire")
-		pub_note.add_theme_font_size_override("font_size", 11)
+		pub_note.add_theme_font_size_override("font_size", 12)
 		pub_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		rv.add_child(pub_note)
 		var prow := HBoxContainer.new()
@@ -1877,23 +1914,32 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 
 	# Panneau Construire à gauche (l 250) : onglets Bâtiments / Zoo / Terrain, lignes à icône et coût
 	var left := PanelContainer.new()
-	left.add_theme_stylebox_override("panel", UiTokens.panel(UiTokens.PANNEAU_MILIEU, UiTokens.OR, 10, 2, 10))
+	left.add_theme_stylebox_override("panel", UiTokens.panel(UiTokens.PAPIER, UiTokens.ENCRE, 12, 3, 0))
 	left.set_anchors_and_offsets_preset(Control.PRESET_LEFT_WIDE)
 	left.offset_left = 14
-	left.offset_right = 264
-	left.offset_top = 64
+	left.offset_right = 270
+	left.offset_top = 72
 	left.offset_bottom = -250
 	ui.add_child(left)
+	var lv0 := VBoxContainer.new()
+	lv0.add_theme_constant_override("separation", 0)
+	left.add_child(lv0)
+	var lhead := PanelContainer.new()
+	lhead.add_theme_stylebox_override("panel", UiTokens.bandeau())
+	lv0.add_child(lhead)
+	lhead.add_child(Composants.label("CONSTRUIRE", "TitreBandeau"))
+	var lmargin := MarginContainer.new()
+	lmargin.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	for side in ["left", "right", "top", "bottom"]:
+		lmargin.add_theme_constant_override("margin_" + side, 10)
+	lv0.add_child(lmargin)
 	var lv := VBoxContainer.new()
-	lv.add_theme_constant_override("separation", 6)
-	left.add_child(lv)
+	lv.add_theme_constant_override("separation", 8)
+	lmargin.add_child(lv)
 	contracts_box = VBoxContainer.new()
 	lv.add_child(contracts_box)
-	var build_title := Composants.label("CONSTRUIRE", "TitrePanneau")
-	build_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lv.add_child(build_title)
 	var tabs := HBoxContainer.new()
-	tabs.add_theme_constant_override("separation", 2)
+	tabs.add_theme_constant_override("separation", 5)
 	lv.add_child(tabs)
 	var group := ButtonGroup.new()
 	var pages := {
@@ -1908,7 +1954,9 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 		tb.button_group = group
 		tb.focus_mode = Control.FOCUS_NONE
 		tb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		tb.add_theme_font_size_override("font_size", 13)
+		tb.theme_type_variation = "Onglet"
+		tb.custom_minimum_size.y = 34
+		tb.add_theme_font_size_override("font_size", 14)
 		tabs.add_child(tb)
 		build_tabs[tab_name] = tb
 		var scroll := ScrollContainer.new()
@@ -1917,7 +1965,7 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 		lv.add_child(scroll)
 		var page := VBoxContainer.new()
 		page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		page.add_theme_constant_override("separation", 3)
+		page.add_theme_constant_override("separation", 6)
 		scroll.add_child(page)
 		build_pages[tab_name] = scroll
 		if tab_name == "Terrain":
@@ -1937,13 +1985,13 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 
 	# Bas de l'écran : pioche et défausse, main de cartes, médaillon du jour (capture 03)
 	var shade := ColorRect.new()
-	shade.color = Color(UiTokens.PANNEAU_BAS, 0.55)
+	shade.color = Color(0, 0, 0, 0)
 	shade.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	shade.offset_top = -238
 	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui.add_child(shade)
 	pile_panel = PanelContainer.new()
-	pile_panel.add_theme_stylebox_override("panel", UiTokens.panel(UiTokens.PANNEAU_MILIEU, UiTokens.OR, 10, 2, 8))
+	pile_panel.add_theme_stylebox_override("panel", UiTokens.panel(UiTokens.SARCELLE, UiTokens.ENCRE, 14, 3, 8))
 	pile_panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 	pile_panel.offset_left = 14
 	pile_panel.offset_right = 112
@@ -1953,12 +2001,14 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 	var pv := VBoxContainer.new()
 	pv.alignment = BoxContainer.ALIGNMENT_CENTER
 	pile_panel.add_child(pv)
-	var pico := Composants.icone_rect("ui_pioche", Vector2(44, 44), UiTokens.OR_CLAIR)
+	var pico := Composants.icone_rect("ui_pioche", Vector2(40, 40), UiTokens.TEXTE_CLAIR)
 	pico.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	pv.add_child(pico)
 	pile_label = Composants.label("", "")
 	pile_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	pile_label.add_theme_font_size_override("font_size", 13)
+	pile_label.add_theme_color_override("font_color", UiTokens.TEXTE_CLAIR)
+	pile_label.add_theme_font_override("font", UiTokens.police_corps(700))
+	pile_label.add_theme_font_size_override("font_size", 14)
 	pv.add_child(pile_label)
 	pile_panel.tooltip_text = "Cliquez pour voir les cartes de la pioche et de la défausse"
 	pile_panel.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
@@ -2002,13 +2052,13 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 	medallion.draw.connect(_draw_medallion)
 	ui.add_child(medallion)
 	end_day_btn = Button.new()
-	end_day_btn.text = "Terminer la journée"
-	end_day_btn.theme_type_variation = "BoutonPrincipal"
+	end_day_btn.text = "TERMINER LA JOURNÉE"
+	end_day_btn.theme_type_variation = "BoutonFort"
 	end_day_btn.focus_mode = Control.FOCUS_NONE
 	end_day_btn.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-	end_day_btn.offset_left = -190
-	end_day_btn.offset_right = -14
-	end_day_btn.offset_top = -60
+	end_day_btn.offset_left = -222
+	end_day_btn.offset_right = -18
+	end_day_btn.offset_top = -64
 	end_day_btn.offset_bottom = -18
 	end_day_btn.pressed.connect(func(): game.end_day())
 	end_day_btn.visible = not spectator
@@ -2019,7 +2069,7 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 	status_label.offset_top = -272
 	status_label.offset_bottom = -244
 	status_label.offset_left = 276
-	status_label.add_theme_stylebox_override("normal", UiTokens.panel(Color(UiTokens.PANNEAU_BAS, 0.9), Color(UiTokens.OR, 0.5), 6, 1, 6))
+	status_label.add_theme_stylebox_override("normal", UiTokens.panel(UiTokens.PAPIER, UiTokens.ENCRE, 8, 2, 6))
 	status_label.add_theme_font_size_override("font_size", 13)
 	status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui.add_child(status_label)
@@ -2075,29 +2125,43 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 func _draw_medallion() -> void:
 	var s := medallion.size
 	var c := s / 2.0
-	var r := minf(s.x, s.y) / 2.0 - 2.0
-	medallion.draw_circle(c + Vector2(0, 4), r, Color(0, 0, 0, 0.35))
-	medallion.draw_circle(c, r, UiTokens.OR_SOMBRE)
-	medallion.draw_circle(c, r - 3.0, UiTokens.PANNEAU_BAS)
+	var r := minf(s.x, s.y) / 2.0 - 6.0
+	var ink := UiTokens.ENCRE
+	medallion.draw_circle(c + Vector2(4, 4), r, ink)
+	medallion.draw_circle(c, r, UiTokens.PAPIER)
+	medallion.draw_arc(c, r, 0, TAU, 72, ink, 3.0, true)
 	var frac := clampf(1.0 - game.time / game.day_length, 0.0, 1.0) if game.phase == "day" else 0.0
-	medallion.draw_arc(c, r - 8.0, -PI / 2.0, -PI / 2.0 + TAU, 64, Color(UiTokens.OR, 0.18), 8.0, true)
-	if frac > 0.0:
-		medallion.draw_arc(c, r - 8.0, -PI / 2.0, -PI / 2.0 + TAU * frac, 64, UiTokens.OR if frac > 0.2 else UiTokens.DEFAUT, 8.0, true)
+	var n := 12
+	var r_out := r - 6.0
+	var r_in := r - 26.0
+	for i in n:
+		var a0 := -PI / 2.0 + TAU * i / n + 0.035
+		var a1 := -PI / 2.0 + TAU * (i + 1) / n - 0.035
+		var pts := PackedVector2Array()
+		for k in 7:
+			var a := lerpf(a0, a1, k / 6.0)
+			pts.append(c + Vector2(cos(a), sin(a)) * r_out)
+		for k in 7:
+			var a := lerpf(a1, a0, k / 6.0)
+			pts.append(c + Vector2(cos(a), sin(a)) * r_in)
+		var on := float(i) / n < frac
+		medallion.draw_colored_polygon(pts, (UiTokens.SELECTION if frac > 0.2 else UiTokens.ORANGE) if on else Color("DDE6E3"))
+		pts.append(pts[0])
+		medallion.draw_polyline(pts, ink, 2.0, true)
+	medallion.draw_arc(c, r_in, 0, TAU, 64, ink, 2.5, true)
 	var titre := UiTokens.police_titre()
-	var chiffres := UiTokens.police_corps(800)
 	var left := maxf(0.0, game.day_length - game.time)
-	medallion.draw_string(titre, Vector2(0, c.y - 18), "JOUR %d" % game.day, HORIZONTAL_ALIGNMENT_CENTER, s.x, 14, UiTokens.OR_CLAIR)
-	medallion.draw_string(chiffres, Vector2(0, c.y + 14), "%d:%02d" % [int(left) / 60, int(left) % 60] if game.phase == "day" else "Nuit",
-		HORIZONTAL_ALIGNMENT_CENTER, s.x, 30, UiTokens.TEXTE)
-	medallion.draw_string(UiTokens.police_corps(400), Vector2(0, c.y + 34), "puis la nuit" if game.phase == "day" else "",
-		HORIZONTAL_ALIGNMENT_CENTER, s.x, 12, UiTokens.TEXTE_SECONDAIRE)
+	medallion.draw_string(titre, Vector2(0, c.y - 14), "JOUR %d" % game.day, HORIZONTAL_ALIGNMENT_CENTER, s.x, 15, ink)
+	medallion.draw_string(titre, Vector2(0, c.y + 16), "%d:%02d" % [int(left) / 60, int(left) % 60] if game.phase == "day" else "NUIT",
+		HORIZONTAL_ALIGNMENT_CENTER, s.x, 32, ink)
 
 
 func _menu_title(parent: Control, text: String) -> void:
 	var l := Label.new()
 	l.text = text.to_upper()
-	l.add_theme_color_override("font_color", UiTokens.OR)
-	l.add_theme_font_size_override("font_size", 14)
+	l.add_theme_color_override("font_color", UiTokens.TEXTE)
+	l.add_theme_font_override("font", UiTokens.police_titre())
+	l.add_theme_font_size_override("font_size", 16)
 	parent.add_child(l)
 
 
@@ -2106,18 +2170,10 @@ func _build_button(parent: Control, kind: String, def: Dictionary) -> void:
 	var b := Button.new()
 	b.toggle_mode = true
 	b.focus_mode = Control.FOCUS_NONE
-	b.custom_minimum_size = Vector2(0, 52)
-	var flat := StyleBoxFlat.new()
-	flat.bg_color = Color(1, 1, 1, 0.04)
-	flat.set_corner_radius_all(6)
-	var hover := StyleBoxFlat.new()
-	hover.bg_color = Color(1, 1, 1, 0.12)
-	hover.border_color = UiTokens.OR
-	hover.border_width_left = 3
-	hover.set_corner_radius_all(6)
-	var pressed := hover.duplicate()
-	pressed.border_color = UiTokens.SELECTION
-	pressed.bg_color = Color(UiTokens.SELECTION, 0.18)
+	b.custom_minimum_size = Vector2(0, 54)
+	var flat := UiTokens._button(UiTokens.PAPIER, Color("C9D2D0"), 10)
+	var hover := UiTokens._button(Color("FFF8E6"), UiTokens.ENCRE, 10)
+	var pressed := UiTokens._button(Color("FFF4D6"), UiTokens.ENCRE, 10, true)
 	b.add_theme_stylebox_override("normal", flat)
 	b.add_theme_stylebox_override("hover", hover)
 	b.add_theme_stylebox_override("pressed", pressed)
@@ -2132,7 +2188,30 @@ func _build_button(parent: Control, kind: String, def: Dictionary) -> void:
 	var col: Color = building_colors.get(def["id"], UiTokens.ENTETE)
 	if kind == "amenagement":
 		col = terrain_colors[GameMap.TERRAINS.find(str(def["vers"]))]
-	var ico := Composants.pastille(col.darkened(0.15), Composants.icone_batiment(def["id"]), 36)
+	var ico: Control
+	var vignette: String = SpritesBD.BATIMENTS.get(def["id"], "")
+	if def["id"] in ["camp_n2", "camp_n3"]:
+		vignette = SpritesBD.CAMPS[1 if def["id"] == "camp_n2" else 2]
+	elif def["id"] == "pont":
+		vignette = "pont"
+	if kind != "amenagement" and vignette != "" and SpritesBD.existe(vignette):
+		var cadre := PanelContainer.new()
+		var cs := UiTokens._button(Color("E7F2DA"), UiTokens.ENCRE, 8)
+		cs.set_border_width_all(2)
+		cs.set_content_margin_all(2)
+		cadre.add_theme_stylebox_override("panel", cs)
+		cadre.custom_minimum_size = Vector2(50, 42)
+		cadre.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var vt := TextureRect.new()
+		vt.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		vt.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		vt.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		vt.texture = SpritesBD.texture(vignette)
+		vt.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cadre.add_child(vt)
+		ico = cadre
+	else:
+		ico = Composants.pastille(col.darkened(0.15), Composants.icone_batiment(def["id"]), 38)
 	ico.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(ico)
 	var mid := VBoxContainer.new()
@@ -2142,7 +2221,8 @@ func _build_button(parent: Control, kind: String, def: Dictionary) -> void:
 	mid.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(mid)
 	var nm := Composants.label(def["nom"].replace(" (segment)", ""))
-	nm.add_theme_font_size_override("font_size", 13)
+	nm.add_theme_font_override("font", UiTokens.police_corps(700))
+	nm.add_theme_font_size_override("font_size", 14)
 	nm.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	mid.add_child(nm)
 	var costs := HBoxContainer.new()
@@ -2157,6 +2237,8 @@ func _build_button(parent: Control, kind: String, def: Dictionary) -> void:
 			var ds := StyleBoxFlat.new()
 			ds.bg_color = res["couleur"]
 			ds.set_corner_radius_all(5)
+			ds.border_color = UiTokens.ENCRE
+			ds.set_border_width_all(1)
 			dot.add_theme_stylebox_override("panel", ds)
 			dot.custom_minimum_size = Vector2(10, 10)
 			dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -2167,8 +2249,8 @@ func _build_button(parent: Control, kind: String, def: Dictionary) -> void:
 			costs.add_child(cv)
 	if cost.is_empty():
 		costs.add_child(Composants.label("gratuit", "TexteSecondaire"))
-	var dur := Composants.label("%d:%02d" % [int(def["travail"]) / 60, int(def["travail"]) % 60], "TexteSecondaire")
-	dur.add_theme_font_size_override("font_size", 12)
+	var dur := Composants.label("%d:%02d" % [int(def["travail"]) / 60, int(def["travail"]) % 60], "NomCarte")
+	dur.add_theme_font_size_override("font_size", 15)
 	dur.tooltip_text = "Durée pour un ouvrier à 100 %"
 	row.add_child(dur)
 	var tip: Array[String] = ["%s : %s" % [def["nom"], game.cost_text(cost) if not cost.is_empty() else "gratuit"], "Travail : %d" % int(def["travail"])]
@@ -2243,7 +2325,7 @@ func _rebuild_market_preview() -> void:
 
 func _overlay() -> Array:
 	var root := ColorRect.new()
-	root.color = UiTokens.VOILE_NUIT
+	root.color = Color(UiTokens.MARINE, 0.6)
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_STOP
 	root.visible = false
@@ -2263,13 +2345,13 @@ func _overlay() -> Array:
 
 func _traits_bbcode(card: GameState.Card) -> String:
 	if card.traits.is_empty() and card.upgrade_names.is_empty():
-		return "[color=#9aa0ab]Aucun trait[/color]"
+		return "[color=#4A5664]Aucun trait[/color]"
 	var parts: Array[String] = []
 	for t in game.trait_defs(card):
 		var pos := game.is_positive(t["id"])
 		parts.append("[color=%s]%s %s[/color]" % ["#3A8AE8" if pos else "#E8782A", "● +" if pos else "■ −", t["nom"]])
 	for u in card.upgrade_names:
-		parts.append("[color=#FFD45A]★ %s[/color]" % u)
+		parts.append("[color=#8A6A00]★ %s[/color]" % u)
 	return "  ".join(parts)
 
 
@@ -2340,7 +2422,7 @@ Le cadre ne travaille pas aujourd'hui (pas de salaire) et part à la défausse."
 			widget = Composants.carte_ouvrier(d, "hors_carte", "main", [["Rappeler", "BoutonSecondaire", spectator, _on_recall.bind(w)]],
 				["LOBBYING", Color("6A3AB0")], _on_focus.bind(w))
 		else:
-			var tag := ["GRATUIT 25" + Composants.NBSP + "%", Color("18A88A")] if w and w.unpaid else ["SUR LE TERRAIN", Color("1A2422")]
+			var tag := ["GRATUIT 25" + Composants.NBSP + "%", Color("18A88A")] if w and w.unpaid else ["SUR LE TERRAIN", UiTokens.MARINE]
 			widget = Composants.carte_ouvrier(d, "deployee", "main", [["Localiser", "BoutonSecondaire", false, _on_focus.bind(w)]],
 				tag, _on_focus.bind(w))
 		widget.tooltip_text = _card_full_tooltip(card)
@@ -2413,12 +2495,12 @@ func _rebuild_draft() -> void:
 	for i in round_order.size():
 		var nom := mt.names[round_order[i]]
 		if i < pos_in_round:
-			order.append("[color=#6E8F86]%s[/color]" % nom)
+			order.append("[color=#4A5664]%s[/color]" % nom)
 		elif i == pos_in_round:
-			order.append("[color=#FFD45A][b]%s[/b][/color]" % nom)
+			order.append("[color=#8A6A00][b]%s[/b][/color]" % nom)
 		else:
 			order.append(nom)
-	draft_order_lbl.text = "Ordre du tour : %s\n[color=#A6D4C8]%d cartes révélées, une chacun. Le premier à choisir change à chaque tour.%s[/color]" % [
+	draft_order_lbl.text = "Ordre du tour : %s\n[color=#4A5664]%d cartes révélées, une chacun. Le premier à choisir change à chaque tour.%s[/color]" % [
 		"  ›  ".join(order), mt.draft_round_size(),
 		" La dernière carte revient d'office au dernier joueur." if mt.draft_round_size() == mt.players.size() else " Les cartes restantes sont défaussées."]
 	for card in mt.draft_pool:
@@ -2474,6 +2556,9 @@ func _update_info() -> void:
 	if not show_animal and info_extra_for != null:
 		info_extra_for = null
 		_clear(info_extra)
+	info_text.visible = show_animal
+	info_subtitle.text = ""
+	var fiche: Array = []
 	if show_animal:
 		_animal_info(selected_animal)
 	elif selected.is_empty() and selected_sites.size() > 1:
@@ -2482,36 +2567,41 @@ func _update_info() -> void:
 		for x in selected_sites:
 			var key: String = ("Chantier : " if not x.done else "") + str(x.def["nom"])
 			counts[key] = counts.get(key, 0) + 1
-		var lines: Array[String] = ["[b]Sélection[/b]"]
+		fiche.append(["carte", "SÉLECTION", "ui_valide", UiTokens.SARCELLE])
 		for k in counts:
-			lines.append("%d × %s" % [counts[k], k])
-		lines.append("\n[color=#A6D4C8]Suppr : démolit les bâtiments (sans remboursement) et annule les chantiers (remboursés à 100 %% s'ils n'ont pas commencé, 50 %% sinon).[/color]")
-		info_text.text = "\n".join(lines)
-		btn_lobby.disabled = true
-		btn_recall.disabled = true
+			fiche.append(["ligne", "", Color(), k, "× %d" % counts[k]])
+		fiche.append(["texte", "Suppr : démolit les bâtiments (sans remboursement) et annule les chantiers (remboursés à 100 % s'ils n'ont pas commencé, 50 % sinon)."])
+		btn_lobby.visible = false
+		btn_recall.visible = false
 		btn_swap.visible = false
 		btn_cancel_site.visible = false
 		btn_demolish.visible = not spectator
 		btn_demolish.text = "Démolir / annuler la sélection (Suppr)"
+		_rendre_fiche(fiche)
 		return
 	btn_demolish.text = "Démolir (sans remboursement)"
 	if show_animal:
-		btn_lobby.disabled = true
-		btn_recall.disabled = true
+		btn_lobby.visible = false
+		btn_recall.visible = false
 		btn_swap.visible = false
 		btn_cancel_site.visible = false
 		btn_demolish.visible = false
+		_rendre_fiche([])
 		return
 	if selected.size() > 1:
 		zoo_title.text = "%d OUVRIERS" % selected.size()
 	elif selected.size() == 1:
 		zoo_title.text = "OUVRIER"
+		info_subtitle.text = "%d sur %d" % [game.workers.find(selected[0]) + 1, game.workers.size()]
 	elif selected_site:
 		zoo_title.text = "BÂTIMENT" if selected_site.done else "CHANTIER"
 	else:
 		zoo_title.text = "VOTRE ZOO" if not spectator else mt.names[game.index].to_upper()
+		info_subtitle.text = "partie terminée" if mt.game_over else "jour %d" % mt.day
+	btn_lobby.visible = not selected.is_empty()
 	btn_lobby.disabled = selected.is_empty() or game.phase != "day"
-	btn_recall.disabled = not selected.any(func(w): return w.offmap)
+	btn_recall.visible = selected.any(func(w): return w.offmap)
+	btn_recall.disabled = not btn_recall.visible
 	btn_swap.visible = not spectator and selected.size() == 1 and game.agency_built() and game.phase == "day"
 	if btn_swap.visible:
 		var serr := game.swap_error(selected[0], null)
@@ -2520,81 +2610,411 @@ func _update_info() -> void:
 	btn_cancel_site.visible = selected_site != null and not selected_site.done
 	btn_demolish.visible = not spectator and selected_site != null and selected_site.done and selected_site.kind == "batiment"
 	if selected.is_empty() and selected_site:
-		var s := selected_site
-		var builders := game.workers.filter(func(w): return w.task.get("site") == s).size()
-		var lines: Array[String] = ["[b]%s[/b]" % s.def["nom"]]
-		if s.done:
-			lines.append("Terminé")
-			match s.def_id():
+		var st := selected_site
+		var builders := game.workers.filter(func(w): return w.task.get("site") == st).size()
+		fiche.append(["image", SpritesBD.BATIMENTS.get(st.def_id(), "chantier1" if not st.done else "")])
+		fiche.append(["titre", str(st.def["nom"]), "Terminé" if st.done else "Chantier en cours"])
+		if st.done:
+			fiche.append(["carte", "EFFET", Composants.icone_batiment(st.def_id()), UiTokens.SARCELLE])
+			match st.def_id():
 				"maison":
-					lines.append("Logement +%d" % int(s.def["effet"]["logement"]))
+					fiche.append(["ligne", "ressource_logement", UiTokens.RESSOURCES["logement"]["couleur"], "Logement", "+%d" % int(st.def["effet"]["logement"])])
 				"entrepot":
-					lines.append("Dépôt de ressources : les ouvriers y rapportent leur charge s'il est plus proche que le camp.")
+					fiche.append(["texte", "Dépôt de ressources : les ouvriers y rapportent leur charge s'il est plus proche que le camp."])
 				"mine":
-					lines.append("Clic droit avec des ouvriers pour extraire de l'or.")
+					fiche.append(["texte", "Clic droit avec des ouvriers pour extraire de l'or."])
+				_:
+					fiche.append(["texte", str(st.def.get("_note_effet", "Bâtiment en service."))])
 		else:
-			lines.append("Chantier : %d / %d" % [int(s.work), int(s.travail())])
-			lines.append("Ouvriers dessus : %d" % builders)
-			lines.append("Coût payé : %s" % game.cost_text(s.paid))
-			lines.append("[color=#9aa0ab]Clic droit avec des ouvriers sélectionnés pour y travailler. L'avancement est conservé d'un jour à l'autre.[/color]")
-		info_text.text = "\n".join(lines)
+			fiche.append(["carte", "AVANCEMENT", "ordre_construire", UiTokens.ORANGE])
+			fiche.append(["barre", "Travail", clampf(st.work / st.travail(), 0.0, 1.0), "%d / %d" % [int(st.work), int(st.travail())], UiTokens.SELECTION])
+			fiche.append(["ligne", "metier_contremaitre", UiTokens.SARCELLE, "Ouvriers dessus", str(builders)])
+			fiche.append(["ligne", "ressource_argent", UiTokens.RESSOURCES["argent"]["couleur"], "Coût payé", game.cost_text(st.paid) if not st.paid.is_empty() else "—"])
+			fiche.append(["texte", "Clic droit avec des ouvriers sélectionnés pour y travailler. L'avancement est conservé d'un jour à l'autre."])
+		_rendre_fiche(fiche)
 		return
 	if selected.is_empty():
-		var z := game.zoo_live()
-		var zoo_line := ""
-		if z["open"]:
-			zoo_line = "[color=#7fc97f]Zoo ouvert[/color] · attractivité %d · publicité +%d %%\n" % [z["attract"], roundi((z["pub"] - 1.0) * 100)]
-			zoo_line += "Visiteurs : %d sur la route, %d en file, %d / %d dans le zoo\n" % [z["road"], z["queue"], z["inside"], z["capacity"]]
-			if z["inside"] >= z["capacity"] and z["queue"] > 0:
-				zoo_line += "[color=#ffb09a]Parc plein : la file attend. Agrandissez l'enceinte pour accueillir plus de monde.[/color]\n"
-			zoo_line += "Aujourd'hui : %d entrés, %d repartis (file pleine)\nRecettes : billets %d, souvenirs %d\n" % [z["admitted"], z["lost"], z["tickets"], z["souvenirs"]]
-			zoo_line += "Demande ≈ %d visiteurs/jour · guichet %d/min\n" % [roundi(z["demand_day"]), roundi(z["guichet_min"])]
-			var hungry := game.animals.filter(func(a): return a.arrived and not a.fed).size()
-			if game.affinity_bonus() > 0.0:
-				zoo_line += "Affinités de continent : réputation +%d %%\n" % roundi(game.affinity_bonus() * 100)
-			zoo_line += "Propreté %d %%%s · rations à livrer %d%s" % [roundi(game.proprete),
-				" [color=#ffb09a](visiteurs en baisse : Local d'entretien)[/color]" if game.cleanliness_mult() < 1.0 else "",
-				ceili(game.rations_needed()), " · [color=#ffb09a]%d animal(aux) affamé(s) : Cuisine des animaux ![/color]" % hungry if hungry > 0 else ""]
-			if z["guichet_min"] <= 0.0:
-				zoo_line += "\n[color=#f08080]Personne au guichet : les visiteurs attendent dehors ![/color]"
-		else:
-			zoo_line = "[color=#f08080]Zoo fermé[/color] : %s" % z["reason"]
-		if not game.day_bonus.is_empty():
-			zoo_line += "\nBonus du jour : %s (%s)" % [game.day_bonus["nom"], game.day_bonus["texte"]]
-		var who := ("[b]%s[/b] — %s\n" % [mt.names[game.index], "partie terminée" if mt.game_over else "jour %d" % mt.day]) if spectator else ""
-		info_text.text = who + "[b]Aucune sélection[/b]\n%s\n\n[color=#9aa0ab]Déployez un ouvrier depuis votre main, puis clic droit sur une forêt, une roche, un chantier ou la case Accès (lobbying). Postes : Marchand sur le camp, Vendeur sur une boutique, Soigneur dans un enclos.[/color]\n\nGraine de la carte : %d\nDeck : %d   Défausse : %d" % [zoo_line, game.seed_value, game.deck.size(), game.discard.size()]
+		_fiche_zoo(fiche)
+		_rendre_fiche(fiche)
 		return
 	if selected.size() > 1:
-		var lines: Array[String] = ["[b]%d ouvriers[/b]" % selected.size()]
+		fiche.append(["carte", "ÉQUIPE", "metier_contremaitre", UiTokens.SARCELLE])
 		for w in selected:
-			lines.append("%s : %s" % [w.card.nom, _task_text(w)])
-		info_text.text = "\n".join(lines)
+			fiche.append(["ligne", Composants.icone_metier(str(w.card.metier["id"])), UiTokens.CATEGORIES[w.card.metier["categorie"]]["couleur"], w.card.nom, _task_text(w)])
+		_rendre_fiche(fiche)
 		return
 	var w: GameState.Worker = selected[0]
 	var c := w.card
+	fiche.append(["ouvrier", w])
+	fiche.append(["carte", "TÂCHE", "ordre_construire", UiTokens.ORANGE])
+	fiche.append(["texte_fort", _task_text(w)])
+	var cap := game.carry_capacity(c)
+	fiche.append(["barre", "Charge", clampf(w.carry / maxf(1.0, cap), 0.0, 1.0), "%.1f / %d" % [w.carry, cap], UiTokens.RESSOURCES.get(w.carry_type, {"couleur": UiTokens.ORANGE})["couleur"]])
+	if w.task.get("type") == "build":
+		var bs: GameState.Site = w.task["site"]
+		fiche.append(["barre", "Chantier", clampf(bs.work / bs.travail(), 0.0, 1.0), "%d %%" % roundi(100.0 * bs.work / bs.travail()), UiTokens.SELECTION])
+	fiche.append(["ordres"])
+	fiche.append(["carte", "RENDEMENT", "qualite_rapide", UiTokens.QUALITE])
+	fiche.append(["ligne", "qualite_rapide", UiTokens.QUALITE, "Vitesse", "%.2f case/s" % game.speed(c)])
+	for e in [["ressource_bois", "bois", "Bois", "extraire_bois"], ["ressource_pierre", "pierre", "Pierre", "extraire_pierre"], ["ressource_or", "or", "Or", "extraire_or"],
+			["ressource_influence", "influence", "Lobbying", "lobbying"]]:
+		fiche.append(["coef", e[0], UiTokens.RESSOURCES[e[1]]["couleur"], e[2], game.efficiency(c, e[3])])
+	fiche.append(["coef", "ordre_construire", UiTokens.ORANGE, "Construire (bois)", game.efficiency(c, "construire_bois")])
+	fiche.append(["coef", "ordre_construire", UiTokens.ORANGE, "Construire (pierre)", game.efficiency(c, "construire_pierre")])
+	fiche.append(["coef", "ordre_amenager", UiTokens.SARCELLE, "Aménager", game.efficiency(c, "amenager")])
+	fiche.append(["coef", "batiment_route", UiTokens.SARCELLE, "Routes", game.efficiency(c, "construire_route")])
+	fiche.append(["carte", "CARRIÈRE", "ui_ameliorer", UiTokens.RESSOURCES["reputation"]["couleur"]])
+	fiche.append(["ligne", "ressource_argent", UiTokens.RESSOURCES["argent"]["couleur"], "Salaire", "%d / jour" % game.salary(c)])
 	var team := game.aura_mult(w)
-	var auras: Array[String] = []
+	if not is_equal_approx(team, 1.0):
+		fiche.append(["ligne", "metier_contremaitre", UiTokens.SARCELLE, "Bonus d'équipe reçu", "%+d %%" % roundi((team - 1.0) * 100)])
 	for a in game.auras_of(c):
-		auras.append("%+d %% aux autres (rayon %s)" % [roundi(float(a["bonus"]) * 100), str(a["rayon"])])
-	info_text.text = "\n".join([
-		"[b]%s[/b]" % c.nom,
-		"[color=#e9b949]%s · Niv. %d[/color]" % [c.metier["nom"], c.niveau],
-		_traits_bbcode(c),
-		"",
-		"Tâche : %s" % _task_text(w),
-		"Charge : %.1f / %d" % [w.carry, game.carry_capacity(c)],
-		"",
-		"Vitesse : %.2f case/s" % game.speed(c),
-		"Bois : x%.2f   Pierre : x%.2f" % [game.efficiency(c, "extraire_bois"), game.efficiency(c, "extraire_pierre")],
-		"Or : x%.2f   Lobbying : x%.2f" % [game.efficiency(c, "extraire_or"), game.efficiency(c, "lobbying")],
-		"Construire bois x%.2f   pierre x%.2f" % [game.efficiency(c, "construire_bois"), game.efficiency(c, "construire_pierre")],
-		"Aménager x%.2f   Routes x%.2f" % [game.efficiency(c, "amenager"), game.efficiency(c, "construire_route")],
-		"Bonus d'équipe reçu : %+d %%" % roundi((team - 1.0) * 100),
-		("Effet de zone : " + ", ".join(auras)) if not auras.is_empty() else "",
-		"Salaire : %d" % game.salary(c),
-		"Expérience : %.1f / %d jours (niveau suivant)%s" % [c.xp, roundi(game.xp_next_level(c)),
-			"  ×%.1f" % game.xp_mult(c) if game.xp_mult(c) != 1.0 else ""] if c.niveau < 4 else "Niveau maximum",
-	])
+		fiche.append(["ligne", "ressource_reputation", UiTokens.SARCELLE, "Effet de zone (rayon %s)" % str(a["rayon"]), "%+d %%" % roundi(float(a["bonus"]) * 100)])
+	if c.niveau < 4:
+		var nxt := maxf(1.0, game.xp_next_level(c))
+		fiche.append(["barre", "Expérience", clampf(c.xp / nxt, 0.0, 1.0), "%.1f / %d j%s" % [c.xp, roundi(nxt), "  ×%.1f" % game.xp_mult(c) if game.xp_mult(c) != 1.0 else ""], UiTokens.RESSOURCES["reputation"]["couleur"]])
+	else:
+		fiche.append(["texte", "Niveau maximum atteint."])
+	_rendre_fiche(fiche)
+
+
+## Fiche « votre zoo » (aucune sélection) : état, visiteurs, recettes du jour, entretien, alertes, bonus.
+func _fiche_zoo(fiche: Array) -> void:
+	var z := game.zoo_live()
+	var hungry := game.animals.filter(func(a): return a.arrived and not a.fed).size()
+	fiche.append(["etat", z["open"], "Zoo ouvert" if z["open"] else "Zoo fermé", "" if z["open"] else str(z["reason"])])
+	if z["open"]:
+		fiche.append(["chiffres", [["%d" % z["attract"], "attractivité", "ressource_reputation", UiTokens.RESSOURCES["reputation"]["couleur"]],
+			["+%d %%" % roundi((z["pub"] - 1.0) * 100), "publicité", "ressource_influence", UiTokens.RESSOURCES["influence"]["couleur"]]]])
+		fiche.append(["carte", "VISITEURS", "ressource_visiteurs", UiTokens.SARCELLE])
+		fiche.append(["barre", "Dans le zoo", clampf(float(z["inside"]) / maxf(1.0, z["capacity"]), 0.0, 1.0), "%d / %d" % [z["inside"], z["capacity"]],
+			UiTokens.ORANGE if z["inside"] >= z["capacity"] else UiTokens.SELECTION])
+		fiche.append(["ligne", "batiment_route", UiTokens.CHEMIN.darkened(0.3), "Sur la route", str(z["road"])])
+		fiche.append(["ligne", "batiment_entree_zoo", UiTokens.SARCELLE, "En file d'attente", str(z["queue"])])
+		fiche.append(["ligne", "ressource_visiteurs", UiTokens.QUALITE, "Demande estimée", "≈ %d / jour" % roundi(z["demand_day"])])
+		fiche.append(["ligne", "metier_vendeur_souvenirs", UiTokens.SARCELLE, "Guichet", "%d / min" % roundi(z["guichet_min"])])
+		fiche.append(["carte", "AUJOURD'HUI", "ressource_argent", UiTokens.RESSOURCES["argent"]["couleur"]])
+		fiche.append(["chiffres", [["%d" % z["admitted"], "entrés", "ui_valide", UiTokens.QUALITE], ["%d" % z["lost"], "repartis", "ui_invalide", UiTokens.ORANGE]]])
+		fiche.append(["ligne", "ressource_billetterie", UiTokens.RESSOURCES["argent"]["couleur"], "Billets", "%d" % z["tickets"]])
+		fiche.append(["ligne", "batiment_boutique", Color("E06A5A"), "Souvenirs", "%d" % z["souvenirs"]])
+		fiche.append(["carte", "ENTRETIEN", "ordre_amenager", UiTokens.SARCELLE])
+		fiche.append(["barre", "Propreté", clampf(game.proprete / 100.0, 0.0, 1.0), "%d %%" % roundi(game.proprete),
+			UiTokens.ORANGE if game.cleanliness_mult() < 1.0 else UiTokens.QUALITE])
+		fiche.append(["ligne", "ressource_nourriture", Color("8A6A30"), "Rations à livrer", "%d" % ceili(game.rations_needed())])
+		if game.affinity_bonus() > 0.0:
+			fiche.append(["ligne", "ressource_reputation", UiTokens.RESSOURCES["reputation"]["couleur"], "Affinités de continent", "+%d %%" % roundi(game.affinity_bonus() * 100)])
+		if z["inside"] >= z["capacity"] and z["queue"] > 0:
+			fiche.append(["alerte", "Parc plein : la file attend. Agrandissez l'enceinte pour accueillir plus de monde."])
+		if z["guichet_min"] <= 0.0:
+			fiche.append(["alerte", "Personne au guichet : les visiteurs attendent dehors !"])
+		if game.cleanliness_mult() < 1.0:
+			fiche.append(["alerte", "Propreté insuffisante : moins de visiteurs (Local d'entretien)."])
+		if hungry > 0:
+			fiche.append(["alerte", "%d animal(aux) affamé(s) : Cuisine des animaux !" % hungry])
+	if not game.day_bonus.is_empty():
+		fiche.append(["bonus", str(game.day_bonus["nom"]), str(game.day_bonus["texte"])])
+	fiche.append(["texte", "Déployez un ouvrier depuis votre main, puis clic droit sur une forêt, une roche, un chantier ou la case Accès (lobbying). Postes : Marchand sur le camp, Vendeur sur une boutique, Soigneur dans un enclos."])
+	fiche.append(["pied", "Graine %d · Pioche %d · Défausse %d" % [game.seed_value, game.deck.size(), game.discard.size()]])
+
+
+## Carte de la fiche de droite : cadre clair cerné d'encre, en-tête à pastille d'icône ; renvoie le corps.
+func _fiche_carte(parent: Control, titre: String, icone: String, couleur: Color) -> VBoxContainer:
+	var pc := PanelContainer.new()
+	var st := UiTokens._button(UiTokens.PAPIER_2, UiTokens.ENCRE, 10)
+	st.set_content_margin_all(8)
+	st.content_margin_left = 10
+	pc.add_theme_stylebox_override("panel", st)
+	parent.add_child(pc)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 5)
+	pc.add_child(v)
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 7)
+	v.add_child(head)
+	if icone != "":
+		var pa := Composants.pastille(couleur, icone, 24)
+		pa.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		head.add_child(pa)
+	var t := Composants.label(titre, "NomCarte")
+	t.add_theme_font_size_override("font_size", 16)
+	t.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	head.add_child(t)
+	var body := VBoxContainer.new()
+	body.add_theme_constant_override("separation", 4)
+	v.add_child(body)
+	return body
+
+
+func _fiche_ligne(parent: Control, icone: String, couleur: Color, texte: String, valeur: String, vcol := UiTokens.TEXTE) -> void:
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 7)
+	parent.add_child(h)
+	if icone != "":
+		var pa := Composants.pastille(couleur, icone, 20)
+		pa.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		h.add_child(pa)
+	var l := Composants.label(texte)
+	l.add_theme_font_size_override("font_size", 14)
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	h.add_child(l)
+	var v := Composants.label(valeur, "Compteur")
+	v.add_theme_font_size_override("font_size", 15)
+	v.add_theme_color_override("font_color", vcol)
+	v.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	v.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	h.add_child(v)
+
+
+func _fiche_barre(parent: Control, texte: String, ratio: float, valeur: String, couleur: Color) -> void:
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 8)
+	parent.add_child(h)
+	var l := Composants.label(texte)
+	l.add_theme_font_override("font", UiTokens.police_corps(700))
+	l.add_theme_font_size_override("font_size", 14)
+	l.custom_minimum_size.x = 78
+	h.add_child(l)
+	var bar := ProgressBar.new()
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(0, 14)
+	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var bg := UiTokens._button(UiTokens.PAPIER, UiTokens.ENCRE, 7)
+	bg.set_content_margin_all(0)
+	var fg := StyleBoxFlat.new()
+	fg.bg_color = couleur
+	fg.set_corner_radius_all(5)
+	fg.set_expand_margin_all(-2)
+	bar.add_theme_stylebox_override("background", bg)
+	bar.add_theme_stylebox_override("fill", fg)
+	bar.value = ratio * 100.0
+	h.add_child(bar)
+	var v := Composants.label(valeur, "Compteur")
+	v.add_theme_font_size_override("font_size", 14)
+	v.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	h.add_child(v)
+
+
+## Construit la fiche de droite à partir d'une liste d'éléments ; ne refait rien si elle n'a pas changé.
+func _rendre_fiche(fiche: Array) -> void:
+	var parts: Array[String] = []
+	for e in fiche:
+		for x in e:
+			parts.append(("W%d" % x.card.id) if x is GameState.Worker else str(x))
+		parts.append("|")
+	var sig := "".join(parts) + str(game.phase)
+	if sig == info_sig:
+		return
+	info_sig = sig
+	_clear(info_view)
+	var corps: Control = info_view
+	for e in fiche:
+		match e[0]:
+			"carte":
+				corps = _fiche_carte(info_view, e[1], e[2], e[3])
+			"ligne":
+				_fiche_ligne(corps, e[1], e[2], e[3], e[4])
+			"coef":
+				var k: float = e[4]
+				_fiche_ligne(corps, e[1], e[2], e[3], "×%.2f" % k, UiTokens.POSITIF if k > 1.001 else (UiTokens.NEGATIF if k < 0.999 else UiTokens.TEXTE))
+			"barre":
+				_fiche_barre(corps, e[1], e[2], e[3], e[4])
+			"texte", "pied":
+				var l := Composants.label(e[1], "TexteSecondaire")
+				l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+				l.add_theme_font_size_override("font_size", 12 if e[0] == "pied" else 13)
+				corps.add_child(l)
+			"texte_fort":
+				var l2 := Composants.label(e[1])
+				l2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+				l2.add_theme_font_override("font", UiTokens.police_corps(700))
+				l2.add_theme_font_size_override("font_size", 14)
+				corps.add_child(l2)
+			"titre":
+				var t := Composants.label(str(e[1]).to_upper(), "NomCarte")
+				t.add_theme_font_size_override("font_size", 22)
+				t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+				t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+				info_view.add_child(t)
+				var st2 := Composants.label(e[2], "TexteSecondaire")
+				st2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+				info_view.add_child(st2)
+				corps = info_view
+			"image":
+				if e[1] != "" and SpritesBD.existe(e[1]):
+					var tr := TextureRect.new()
+					tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+					tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+					tr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+					tr.texture = SpritesBD.texture(e[1])
+					tr.custom_minimum_size = Vector2(0, 110)
+					info_view.add_child(tr)
+			"etat":
+				var pc := PanelContainer.new()
+				var st := UiTokens._button(UiTokens.QUALITE if e[1] else UiTokens.ORANGE, UiTokens.ENCRE, 10, true)
+				st.set_content_margin_all(8)
+				pc.add_theme_stylebox_override("panel", st)
+				info_view.add_child(pc)
+				var hb := HBoxContainer.new()
+				hb.add_theme_constant_override("separation", 8)
+				pc.add_child(hb)
+				hb.add_child(Composants.icone_rect("ui_valide" if e[1] else "ui_invalide", Vector2(24, 24)))
+				var vv := VBoxContainer.new()
+				vv.add_theme_constant_override("separation", 0)
+				vv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				hb.add_child(vv)
+				var t3 := Composants.label(str(e[2]).to_upper(), "NomCarte")
+				t3.add_theme_font_size_override("font_size", 19)
+				t3.add_theme_color_override("font_color", UiTokens.TEXTE_CLAIR)
+				vv.add_child(t3)
+				if e[3] != "":
+					var r3 := Composants.label(e[3])
+					r3.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+					r3.add_theme_color_override("font_color", UiTokens.TEXTE_CLAIR)
+					r3.add_theme_font_size_override("font_size", 13)
+					vv.add_child(r3)
+				corps = info_view
+			"chiffres":
+				var g := HBoxContainer.new()
+				g.add_theme_constant_override("separation", 8)
+				corps.add_child(g)
+				for ch in e[1]:
+					var cp := PanelContainer.new()
+					var cs := UiTokens._button(UiTokens.PAPIER, UiTokens.ENCRE, 9)
+					cs.set_content_margin_all(6)
+					cp.add_theme_stylebox_override("panel", cs)
+					cp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+					g.add_child(cp)
+					var ch_h := HBoxContainer.new()
+					ch_h.add_theme_constant_override("separation", 6)
+					cp.add_child(ch_h)
+					var pa := Composants.pastille(ch[3], ch[2], 26)
+					pa.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+					ch_h.add_child(pa)
+					var cv := VBoxContainer.new()
+					cv.add_theme_constant_override("separation", -4)
+					ch_h.add_child(cv)
+					var big := Composants.label(ch[0], "NomCarte")
+					big.add_theme_font_size_override("font_size", 22)
+					cv.add_child(big)
+					var small := Composants.label(ch[1], "TexteSecondaire")
+					small.add_theme_font_size_override("font_size", 12)
+					cv.add_child(small)
+			"alerte", "bonus":
+				var ap := PanelContainer.new()
+				var ast := UiTokens._button(Color("FFF1E4") if e[0] == "alerte" else Color("FFF6D6"), UiTokens.ENCRE, 9)
+				ast.set_content_margin_all(7)
+				ap.add_theme_stylebox_override("panel", ast)
+				info_view.add_child(ap)
+				var ah := HBoxContainer.new()
+				ah.add_theme_constant_override("separation", 8)
+				ap.add_child(ah)
+				var mark: Control = Composants.mini_pastille(false, "ui_invalide", 22) if e[0] == "alerte" else Composants.pastille(UiTokens.SELECTION, "ressource_reputation", 22)
+				mark.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+				ah.add_child(mark)
+				var at := Composants.label(e[1] if e[0] == "alerte" else "BONUS DU JOUR · " + str(e[1]).to_upper())
+				at.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+				at.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				at.add_theme_font_override("font", UiTokens.police_corps(700) if e[0] == "alerte" else UiTokens.police_titre())
+				at.add_theme_font_size_override("font_size", 13 if e[0] == "alerte" else 15)
+				if e[0] == "bonus":
+					var bv := VBoxContainer.new()
+					bv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+					ah.add_child(bv)
+					bv.add_child(at)
+					var bt := Composants.label(e[2])
+					bt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+					bt.add_theme_font_size_override("font_size", 13)
+					bv.add_child(bt)
+				else:
+					ah.add_child(at)
+			"ouvrier":
+				_fiche_ouvrier(e[1])
+				corps = info_view
+			"ordres":
+				var grid := GridContainer.new()
+				grid.columns = 3
+				grid.add_theme_constant_override("h_separation", 6)
+				grid.add_theme_constant_override("v_separation", 6)
+				info_view.add_child(grid)
+				for o in [["ordre_abattre", "Abattre", "bois"], ["ordre_extraire", "Extraire", "pierre"], ["ressource_or", "Or", "or"],
+						["ordre_lobbying", "Lobbying", "lobby"], ["ordre_rappeler", "Rappeler", "camp"], ["ui_suivant", "Localiser", "voir"]]:
+					var b := Button.new()
+					b.text = o[1]
+					b.icon = UiTokens.icone(o[0])
+					b.expand_icon = true
+					b.add_theme_constant_override("icon_max_width", 20)
+					b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+					b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+					b.add_theme_color_override("icon_normal_color", UiTokens.ENCRE)
+					b.add_theme_color_override("icon_hover_color", UiTokens.ENCRE)
+					b.add_theme_color_override("icon_pressed_color", UiTokens.ENCRE)
+					b.add_theme_font_size_override("font_size", 13)
+					b.custom_minimum_size = Vector2(0, 56)
+					b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+					b.focus_mode = Control.FOCUS_NONE
+					b.disabled = spectator or game.phase != "day"
+					if o[2] == "voir":
+						b.disabled = false
+						b.pressed.connect(func():
+							if not selected.is_empty():
+								_on_focus(selected[0]))
+					else:
+						b.pressed.connect(_unit_order.bind(o[2]))
+					grid.add_child(b)
+				corps = info_view
+
+
+## En-tête de la fiche d'un ouvrier : portrait dessiné, nom, métier, catégorie (couleur + forme), traits.
+func _fiche_ouvrier(w: GameState.Worker) -> void:
+	var c := w.card
+	var cat: Dictionary = UiTokens.CATEGORIES[c.metier["categorie"]]
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 10)
+	info_view.add_child(h)
+	var cadre := PanelContainer.new()
+	var cs := UiTokens._button(cat["portrait"], UiTokens.ENCRE, 10)
+	cs.set_border_width_all(3)
+	cs.set_content_margin_all(0)
+	cadre.add_theme_stylebox_override("panel", cs)
+	cadre.custom_minimum_size = Vector2(84, 96)
+	cadre.clip_contents = true
+	h.add_child(cadre)
+	cadre.add_child(Composants.portrait_rect(game.perso_of(c)["id"], Vector2(84, 96)))
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 3)
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(v)
+	var nm := Composants.label(c.nom.to_upper(), "NomCarte")
+	nm.add_theme_font_size_override("font_size", 24)
+	nm.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	v.add_child(nm)
+	var lmax := int(game.data["workers"]["regles"]["niveau_max"])
+	var job := Composants.label("%s · niv. %d  %s" % [c.metier["nom"], c.niveau, "★".repeat(c.niveau) + "☆".repeat(maxi(0, lmax - c.niveau))])
+	job.add_theme_font_size_override("font_size", 13)
+	v.add_child(job)
+	var badge := PanelContainer.new()
+	badge.add_theme_stylebox_override("panel", UiTokens.chip(cat["couleur"], 6, 2))
+	badge.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	var bl := Composants.label("%s %s" % [cat["forme"], cat["court"]])
+	bl.add_theme_font_override("font", UiTokens.police_corps(800))
+	bl.add_theme_font_size_override("font_size", 12)
+	bl.add_theme_color_override("font_color", UiTokens.TEXTE_CLAIR)
+	badge.add_child(bl)
+	v.add_child(badge)
+	var traits := HFlowContainer.new()
+	traits.add_theme_constant_override("h_separation", 6)
+	traits.add_theme_constant_override("v_separation", 3)
+	info_view.add_child(traits)
+	for t in game.trait_defs(c):
+		var pos := game.is_positive(t["id"])
+		traits.add_child(_trait_chip(Composants.icone_trait(t["id"], pos), t["nom"], pos))
+	for u in c.upgrade_names:
+		var l := Composants.label("★ " + u)
+		l.add_theme_font_size_override("font_size", 12)
+		l.add_theme_color_override("font_color", Color("8A6A00"))
+		traits.add_child(l)
 
 
 func _update_hud() -> void:
@@ -2622,7 +3042,8 @@ func _update_hud() -> void:
 		for m in game.messages:
 			var l := Label.new()
 			l.text = m["text"]
-			l.add_theme_stylebox_override("normal", _panel_style(Color(0, 0, 0, 0.75), Color(0, 0, 0, 0), 6))
+			l.add_theme_stylebox_override("normal", UiTokens.panel(UiTokens.PAPIER, UiTokens.ENCRE, 10, 3, 8))
+			l.add_theme_font_override("font", UiTokens.police_corps(700))
 			toast_box.add_child(l)
 
 	var hover := _hover_tile()
@@ -2784,7 +3205,8 @@ func _build_unit_panel() -> void:
 
 
 func _update_unit_panel() -> void:
-	var show := selected.size() == 1 and game.phase == "day"
+	# La fiche de l'ouvrier est désormais dans le panneau de droite (maquette « Néo ligne claire »).
+	var show := false
 	unit_panel.visible = show
 	# Le panneau d'unité pousse la pioche et la main vers la droite (cotes de la capture 03).
 	pile_panel.offset_left = 372.0 if show else 14.0
@@ -2951,7 +3373,7 @@ func _clear(node: Node) -> void:
 
 func _build_night_ui() -> void:
 	night_root = ColorRect.new()
-	night_root.color = Color(0.02, 0.05, 0.12, 0.8)
+	night_root.color = Color("DCE4EE", 0.95)
 	night_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	night_root.mouse_filter = Control.MOUSE_FILTER_STOP
 	night_root.visible = false
@@ -2984,7 +3406,7 @@ func _build_night_ui() -> void:
 	# Argent et logement bien en vue : ce sont eux qui décident des achats de la nuit
 	for r in [["argent", "Argent disponible"], ["logement", "Logement"]]:
 		var res: Dictionary = UiTokens.RESSOURCES[r[0]]
-		var chip := Composants.jeton_ressource(res["icone"], res["couleur"], res["reflet"], r[1])
+		var chip := Composants.jeton_ressource(res["icone"], res["couleur"], res["reflet"], r[1], res.get("sprite", ""))
 		chip["valeur"].add_theme_font_size_override("font_size", 24)
 		chip["racine"].size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		hb.add_child(chip["racine"])
@@ -3119,7 +3541,7 @@ func _build_night_ui() -> void:
 
 func _step_pill(text: String, state: String) -> Control:
 	var pill := PanelContainer.new()
-	var bg := Color(UiTokens.ENTETE, 0.9) if state == "fait" else (UiTokens.OR if state == "courant" else Color(0, 0, 0, 0))
+	var bg := Color(UiTokens.ENTETE, 0.9) if state == "fait" else (UiTokens.SELECTION if state == "courant" else Color(0, 0, 0, 0))
 	var sb := UiTokens.chip(bg, 16, 5)
 	sb.content_margin_left = 12
 	sb.content_margin_right = 12
@@ -3279,7 +3701,7 @@ func _rebuild_night() -> void:
 		var i: int = mt.night_order[k]
 		var pill := PanelContainer.new()
 		var mine := i == game.index
-		var ps := UiTokens.chip(UiTokens.OR if mine else Color(1, 1, 1, 0.06), 16, 4)
+		var ps := UiTokens.chip(UiTokens.SELECTION if mine else Color(UiTokens.ENCRE, 0.06), 16, 4)
 		if mt.market_stage() and k == mt.night_turn:
 			ps.border_color = UiTokens.SELECTION if not mine else Color.WHITE
 			ps.set_border_width_all(3)
@@ -3386,7 +3808,7 @@ func _rebuild_night() -> void:
 		bar.custom_minimum_size = Vector2(0, 5)
 		bar.max_value = game.objective()
 		bar.value = rep
-		bar.add_theme_stylebox_override("background", UiTokens.chip(Color(1, 1, 1, 0.08), 3, 0))
+		bar.add_theme_stylebox_override("background", UiTokens.chip(Color(UiTokens.ENCRE, 0.08), 3, 0))
 		bar.add_theme_stylebox_override("fill", UiTokens.chip(col, 3, 0))
 		rv.add_child(bar)
 		night_rep_rows.add_child(row)
@@ -3419,12 +3841,12 @@ func _rebuild_night() -> void:
 		btn.add_theme_font_size_override("font_size", 16)
 		btn.tooltip_text = err
 		btn.disabled = spectator or err != ""
-		var normal := UiTokens.chip(Color(1, 1, 1, 0.05), 8, 8)
+		var normal := UiTokens.chip(Color(UiTokens.ENCRE, 0.05), 8, 8)
 		if chosen:
 			normal = UiTokens.chip(Color(UiTokens.OR, 0.14), 8, 8)
 			normal.border_color = UiTokens.SELECTION
 			normal.set_border_width_all(2)
-		var hover := UiTokens.chip(Color(1, 1, 1, 0.12), 8, 8)
+		var hover := UiTokens.chip(Color(UiTokens.ENCRE, 0.12), 8, 8)
 		hover.border_color = UiTokens.OR
 		hover.set_border_width_all(1)
 		btn.add_theme_stylebox_override("normal", normal)
@@ -3501,7 +3923,7 @@ func _rebuild_night() -> void:
 	# Journal : arrivées, achats des adversaires, alertes
 	var lines: Array[String] = []
 	for nm in r["arrivals"]:
-		lines.append("[color=#7CF29A]Arrivée au zoo : %s[/color]" % nm)
+		lines.append("[color=#1F7A4A]Arrivée au zoo : %s[/color]" % nm)
 	for nm in r.get("malades", []):
 		lines.append("[color=#E8782A]■ Malade : %s (envoyez un Soigneur dans son enclos)[/color]" % nm)
 	if inc["visitors"] > 0:
@@ -3509,9 +3931,9 @@ func _rebuild_night() -> void:
 			" · affinités +%d %%" % roundi(inc.get("affinity", 0.0) * 100) if inc.get("affinity", 0.0) > 0.0 else ""])
 	lines.append("%d ouvrier(s) déployé(s) aujourd'hui" % r["deployed"])
 	for l in mt.log:
-		lines.append("[color=#E9B949]%s[/color]" % l)
+		lines.append("[color=#8A6A00]%s[/color]" % l)
 	if game.employees() >= game.housing():
-		lines.append("[color=#FFB09A]Logement plein (%d / %d) : construisez une maison d'ouvriers pour embaucher.[/color]" % [game.employees(), game.housing()])
+		lines.append("[color=#B5452A]Logement plein (%d / %d) : construisez une maison d'ouvriers pour embaucher.[/color]" % [game.employees(), game.housing()])
 	night_text.text = "\n".join(lines)
 
 
@@ -3692,9 +4114,9 @@ func _update_proposal_box(def: Dictionary, interior: Dictionary) -> void:
 		", plus un [b]%s[/b] dans l'enclos" % game.building_def(def["decor"])["nom"] if def.has("decor") else ""]]
 	proposal_btn.visible = false
 	if interior.is_empty():
-		lines.append("[color=#FFB09A]Fermez d'abord l'enceinte du zoo avec son entrée : les animaux vivent à l'intérieur.[/color]")
+		lines.append("[color=#B5452A]Fermez d'abord l'enceinte du zoo avec son entrée : les animaux vivent à l'intérieur.[/color]")
 	elif ok > 0:
-		lines.append("[color=#7CF29A]%d emplacement(s) possible(s), en vert : cliquez dedans pour installer.[/color]" % ok)
+		lines.append("[color=#1F7A4A]%d emplacement(s) possible(s), en vert : cliquez dedans pour installer.[/color]" % ok)
 	elif not enclosure_proposal.is_empty():
 		var n: int = enclosure_proposal["new"].size()
 		lines.append("Aucun enclos ne convient. Enclos proposé en pointillés : %d clôture(s) à poser%s." % [n,
@@ -3708,9 +4130,9 @@ func _update_proposal_box(def: Dictionary, interior: Dictionary) -> void:
 		proposal_btn.disabled = not game.can_afford(cost) or game.phase != "day"
 		proposal_btn.tooltip_text = "Pose %d segments de clôture d'enclos (1 bois chacun) en chantier. Envoyez des ouvriers (clic droit) : l'animal, réservé, arrive la nuit suivant la fin des clôtures." % n
 	elif near > 0:
-		lines.append("[color=#FFD45A]Aucun enclos ne convient tel quel : les cases orange sont à aménager (onglet Terrain).[/color]")
+		lines.append("[color=#8A6A00]Aucun enclos ne convient tel quel : les cases orange sont à aménager (onglet Terrain).[/color]")
 	else:
-		lines.append("[color=#FFB09A]Pas de place libre pour un enclos dans l'enceinte : agrandissez-la.[/color]")
+		lines.append("[color=#B5452A]Pas de place libre pour un enclos dans l'enceinte : agrandissez-la.[/color]")
 	if near > 0 and ok > 0:
 		lines.append("En orange : %d enclos presque prêt(s) (cases à aménager)." % near)
 	proposal_label.text = "\n".join(lines)
@@ -3785,7 +4207,7 @@ func _animal_picture(id: String, taille: Vector2) -> Control:
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var halo := Panel.new()
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(1, 1, 1, 0.16)
+	sb.bg_color = Color(UiTokens.ENCRE, 0.16)
 	sb.set_corner_radius_all(int(taille.y))
 	halo.add_theme_stylebox_override("panel", sb)
 	halo.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -3809,23 +4231,23 @@ func _animal_info(a: GameState.Animal) -> void:
 		"[b]%s[/b] · palier %s" % [d["nom"], d["palier"]],
 		"[color=%s]%s[/color] · %s · %s" % [biome_colors[d["biome"]].to_html(false), biome_noms[d["biome"]], game.continent_name(d.get("continent", "")), game.type_name(d.get("type", ""))],
 		"",
-		"État : %s" % ("arrive cette nuit" if not a.arrived else ("[color=#7CF29A]nourri[/color]" if a.fed else "[color=#FFB09A]a faim : il ne compte plus dans l'attractivité[/color]")),
+		"État : %s" % ("arrive cette nuit" if not a.arrived else ("[color=#1F7A4A]nourri[/color]" if a.fed else "[color=#B5452A]a faim : il ne compte plus dans l'attractivité[/color]")),
 		"Attractivité : [b]%d[/b]%s" % [int(d["reputation"]), " (×%.2f avec les bonus)" % mult if not is_equal_approx(mult, 1.0) else ""],
 		"Nourriture : %d rations / jour · réserve %.0f / %.0f" % [roundi(game.rations_per_day(d)), a.food, game.food_capacity(d)],
 		("En liberté dans le parc (%d cases)" if a.park else "Enclos : %d cases") % a.tiles.size() + " · il lui en faut %d" % int(d["taille"]),
 	]
 	var same := game.animals.filter(func(o): return o != a and o.arrived and o.def.get("continent", "") == d.get("continent", "")).size()
 	if same > 0:
-		lines.append("[color=#FFD45A]Affinité : %d autre(s) animal(aux) d'%s dans le zoo[/color]" % [same, game.continent_name(d.get("continent", ""))])
+		lines.append("[color=#8A6A00]Affinité : %d autre(s) animal(aux) d'%s dans le zoo[/color]" % [same, game.continent_name(d.get("continent", ""))])
 	var nb := game.continent_neighbours(a)
 	if not nb.is_empty():
-		lines.append("[color=#FFD45A]Voisins d'%s : %s (+%d d'attractivité)[/color]" % [game.continent_name(d.get("continent", "")),
+		lines.append("[color=#8A6A00]Voisins d'%s : %s (+%d d'attractivité)[/color]" % [game.continent_name(d.get("continent", "")),
 			", ".join(nb.map(func(o): return o.def["nom"])), nb.size() * int(game.data["animals"]["voisinage_continent"]["points"])])
 	if d.has("decor"):
 		lines.append("Aménagement requis : %s" % game.building_def(d["decor"])["nom"])
 	var mates := game.shared_type_count(a)
 	if mates > 0:
-		lines.append("[color=#FFD45A]Enclos partagé : %d autre(s) animal(aux) %s ici (+%d %% de réputation)[/color]" % [
+		lines.append("[color=#8A6A00]Enclos partagé : %d autre(s) animal(aux) %s ici (+%d %% de réputation)[/color]" % [
 			mates, game.type_name(d.get("type", "")), roundi(mates * float(game.data["animals"]["affinite_type"]["par_animal"]) * 100)])
 	info_text.text = "\n".join(lines)
 	if info_extra_for != a:
@@ -4139,7 +4561,7 @@ func _rep_on_night(i: int, offset: int) -> int:
 func _employee_row(card: GameState.Card, cost_up: int, cost_fire: int) -> Control:
 	var cat: Dictionary = UiTokens.CATEGORIES[card.metier["categorie"]]
 	var box := PanelContainer.new()
-	var bs := UiTokens.chip(Color(1, 1, 1, 0.05) if card != action_card else Color(UiTokens.OR, 0.1), 8, 6)
+	var bs := UiTokens.chip(Color(UiTokens.ENCRE, 0.05) if card != action_card else Color(UiTokens.OR, 0.1), 8, 6)
 	box.add_theme_stylebox_override("panel", bs)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 6)
@@ -4217,7 +4639,7 @@ func _employee_row(card: GameState.Card, cost_up: int, cost_fire: int) -> Contro
 
 func _build_end_ui() -> void:
 	end_root = ColorRect.new()
-	end_root.color = Color(0.03, 0.14, 0.12, 0.74)
+	end_root.color = Color(UiTokens.PAPIER_2, 0.92)
 	end_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	end_root.mouse_filter = Control.MOUSE_FILTER_STOP
 	end_root.visible = false
@@ -4264,7 +4686,7 @@ func _rebuild_end() -> void:
 	sub.offset_top = 124
 	sub.offset_bottom = 152
 	sub.add_theme_font_size_override("normal_font_size", 17)
-	sub.text = "[center]%s %s [color=#FFD45A]%d[/color] de réputation au soir du jour %d[/center]" % [
+	sub.text = "[center]%s %s [color=#8A6A00]%d[/color] de réputation au soir du jour %d[/center]" % [
 		mt.names[w], "atteint" if reached else "termine en tête avec", mt.players[w].reputation(), mt.day]
 	end_root.add_child(sub)
 	# Podium : 2e, 1er, 3e, 4e
@@ -4289,7 +4711,7 @@ func _rebuild_end() -> void:
 		var ds := StyleBoxFlat.new()
 		ds.bg_color = col
 		ds.set_corner_radius_all(48)
-		ds.border_color = UiTokens.OR_CLAIR if rank == 0 else Color(1, 1, 1, 0.75)
+		ds.border_color = UiTokens.SELECTION if rank == 0 else UiTokens.ENCRE
 		ds.set_border_width_all(4)
 		ds.shadow_color = Color(0, 0, 0, 0.4)
 		ds.shadow_size = 8
@@ -4352,7 +4774,7 @@ func _rebuild_end() -> void:
 	for t in [[str(species.size()), "espèces", UiTokens.POSITIF], ["%d" % biomes.size(), "biomes sur %d" % biome_noms.size(), UiTokens.SELECTION],
 			[str(_visitors_total(me)), "visiteurs cumulés", Color("C8A8F0")], [str(game.all_employees().size()), "ouvriers dans le deck", Color("8CC4FF")]]:
 		var tile := PanelContainer.new()
-		tile.add_theme_stylebox_override("panel", UiTokens.chip(Color(1, 1, 1, 0.06), 8, 8))
+		tile.add_theme_stylebox_override("panel", UiTokens.chip(Color(UiTokens.ENCRE, 0.06), 8, 8))
 		tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var tv := VBoxContainer.new()
 		tv.add_theme_constant_override("separation", -2)
@@ -4501,11 +4923,11 @@ func _requirements_text(def: Dictionary, tiles = null) -> String:
 	var parts: Array[String] = []
 	parts.append("[color=%s]%s %d / %d cases[/color]" % ["#7fc97f" if size_ok else "#f08080", "✓" if size_ok else "✗", tiles.size(), int(def["taille"])])
 	if ps["found"]:
-		parts.append("[color=#7fc97f]✓ motif présent[/color]")
+		parts.append("[color=#1F7A4A]✓ motif présent[/color]")
 	elif ps["missing"] < 99:
-		parts.append("[color=#f08080]✗ motif : %d case(s) à aménager (en orange)[/color]" % ps["missing"])
+		parts.append("[color=#B5452A]✗ motif : %d case(s) à aménager (en orange)[/color]" % ps["missing"])
 	else:
-		parts.append("[color=#f08080]✗ motif : enclos trop étroit[/color]")
+		parts.append("[color=#B5452A]✗ motif : enclos trop étroit[/color]")
 	return " · ".join(parts)
 
 

@@ -1,0 +1,929 @@
+{
+ "elements": {
+  "acacia_1": {
+   "fichier": "res://assets/bd/decor/acacia_1.png",
+   "groupe": "arbre",
+   "pied": [
+    93,
+    101
+   ],
+   "taille": [
+    197,
+    117
+   ]
+  },
+  "acacia_2": {
+   "fichier": "res://assets/bd/decor/acacia_2.png",
+   "groupe": "arbre",
+   "pied": [
+    108,
+    115
+   ],
+   "taille": [
+    225,
+    133
+   ]
+  },
+  "acacia_3": {
+   "fichier": "res://assets/bd/decor/acacia_3.png",
+   "groupe": "arbre",
+   "pied": [
+    123,
+    124
+   ],
+   "taille": [
+    253,
+    144
+   ]
+  },
+  "baobab_1": {
+   "fichier": "res://assets/bd/decor/baobab_1.png",
+   "groupe": "arbre",
+   "pied": [
+    79,
+    142
+   ],
+   "taille": [
+    162,
+    160
+   ]
+  },
+  "baobab_2": {
+   "fichier": "res://assets/bd/decor/baobab_2.png",
+   "groupe": "arbre",
+   "pied": [
+    90,
+    157
+   ],
+   "taille": [
+    183,
+    177
+   ]
+  },
+  "bouleau_1": {
+   "fichier": "res://assets/bd/decor/bouleau_1.png",
+   "groupe": "arbre",
+   "pied": [
+    47,
+    103
+   ],
+   "taille": [
+    99,
+    115
+   ]
+  },
+  "bouleau_2": {
+   "fichier": "res://assets/bd/decor/bouleau_2.png",
+   "groupe": "arbre",
+   "pied": [
+    49,
+    110
+   ],
+   "taille": [
+    105,
+    123
+   ]
+  },
+  "bouleau_3": {
+   "fichier": "res://assets/bd/decor/bouleau_3.png",
+   "groupe": "arbre",
+   "pied": [
+    49,
+    119
+   ],
+   "taille": [
+    108,
+    133
+   ]
+  },
+  "buisson_1": {
+   "fichier": "res://assets/bd/decor/buisson_1.png",
+   "groupe": "buisson",
+   "pied": [
+    31,
+    39
+   ],
+   "taille": [
+    67,
+    48
+   ]
+  },
+  "buisson_2": {
+   "fichier": "res://assets/bd/decor/buisson_2.png",
+   "groupe": "buisson",
+   "pied": [
+    35,
+    42
+   ],
+   "taille": [
+    74,
+    53
+   ]
+  },
+  "buisson_3": {
+   "fichier": "res://assets/bd/decor/buisson_3.png",
+   "groupe": "buisson",
+   "pied": [
+    37,
+    45
+   ],
+   "taille": [
+    79,
+    56
+   ]
+  },
+  "buisson_4": {
+   "fichier": "res://assets/bd/decor/buisson_4.png",
+   "groupe": "buisson",
+   "pied": [
+    39,
+    49
+   ],
+   "taille": [
+    84,
+    59
+   ]
+  },
+  "buisson_sec_1": {
+   "fichier": "res://assets/bd/decor/buisson_sec_1.png",
+   "groupe": "buisson",
+   "pied": [
+    27,
+    34
+   ],
+   "taille": [
+    58,
+    42
+   ]
+  },
+  "buisson_sec_2": {
+   "fichier": "res://assets/bd/decor/buisson_sec_2.png",
+   "groupe": "buisson",
+   "pied": [
+    30,
+    39
+   ],
+   "taille": [
+    65,
+    47
+   ]
+  },
+  "buisson_sec_3": {
+   "fichier": "res://assets/bd/decor/buisson_sec_3.png",
+   "groupe": "buisson",
+   "pied": [
+    33,
+    42
+   ],
+   "taille": [
+    70,
+    52
+   ]
+  },
+  "feu_de_camp": {
+   "fichier": "res://assets/bd/decor/feu_de_camp.png",
+   "groupe": "objet",
+   "pied": [
+    29,
+    42
+   ],
+   "taille": [
+    58,
+    54
+   ]
+  },
+  "feuillu_automne_1": {
+   "fichier": "res://assets/bd/decor/feuillu_automne_1.png",
+   "groupe": "arbre",
+   "pied": [
+    52,
+    103
+   ],
+   "taille": [
+    113,
+    118
+   ]
+  },
+  "feuillu_automne_2": {
+   "fichier": "res://assets/bd/decor/feuillu_automne_2.png",
+   "groupe": "arbre",
+   "pied": [
+    61,
+    110
+   ],
+   "taille": [
+    126,
+    126
+   ]
+  },
+  "feuillu_automne_3": {
+   "fichier": "res://assets/bd/decor/feuillu_automne_3.png",
+   "groupe": "arbre",
+   "pied": [
+    50,
+    116
+   ],
+   "taille": [
+    119,
+    133
+   ]
+  },
+  "feuillu_automne_4": {
+   "fichier": "res://assets/bd/decor/feuillu_automne_4.png",
+   "groupe": "arbre",
+   "pied": [
+    59,
+    122
+   ],
+   "taille": [
+    132,
+    139
+   ]
+  },
+  "feuillu_chene_1": {
+   "fichier": "res://assets/bd/decor/feuillu_chene_1.png",
+   "groupe": "arbre",
+   "pied": [
+    45,
+    101
+   ],
+   "taille": [
+    106,
+    116
+   ]
+  },
+  "feuillu_chene_2": {
+   "fichier": "res://assets/bd/decor/feuillu_chene_2.png",
+   "groupe": "arbre",
+   "pied": [
+    52,
+    111
+   ],
+   "taille": [
+    117,
+    127
+   ]
+  },
+  "feuillu_chene_3": {
+   "fichier": "res://assets/bd/decor/feuillu_chene_3.png",
+   "groupe": "arbre",
+   "pied": [
+    50,
+    116
+   ],
+   "taille": [
+    119,
+    133
+   ]
+  },
+  "feuillu_chene_4": {
+   "fichier": "res://assets/bd/decor/feuillu_chene_4.png",
+   "groupe": "arbre",
+   "pied": [
+    62,
+    119
+   ],
+   "taille": [
+    135,
+    136
+   ]
+  },
+  "feuillu_hetre_1": {
+   "fichier": "res://assets/bd/decor/feuillu_hetre_1.png",
+   "groupe": "arbre",
+   "pied": [
+    45,
+    101
+   ],
+   "taille": [
+    106,
+    116
+   ]
+  },
+  "feuillu_hetre_2": {
+   "fichier": "res://assets/bd/decor/feuillu_hetre_2.png",
+   "groupe": "arbre",
+   "pied": [
+    52,
+    111
+   ],
+   "taille": [
+    117,
+    127
+   ]
+  },
+  "feuillu_hetre_3": {
+   "fichier": "res://assets/bd/decor/feuillu_hetre_3.png",
+   "groupe": "arbre",
+   "pied": [
+    50,
+    116
+   ],
+   "taille": [
+    119,
+    133
+   ]
+  },
+  "feuillu_hetre_4": {
+   "fichier": "res://assets/bd/decor/feuillu_hetre_4.png",
+   "groupe": "arbre",
+   "pied": [
+    62,
+    119
+   ],
+   "taille": [
+    135,
+    136
+   ]
+  },
+  "feuillu_or_1": {
+   "fichier": "res://assets/bd/decor/feuillu_or_1.png",
+   "groupe": "arbre",
+   "pied": [
+    53,
+    103
+   ],
+   "taille": [
+    114,
+    118
+   ]
+  },
+  "feuillu_or_2": {
+   "fichier": "res://assets/bd/decor/feuillu_or_2.png",
+   "groupe": "arbre",
+   "pied": [
+    54,
+    111
+   ],
+   "taille": [
+    119,
+    127
+   ]
+  },
+  "feuillu_or_3": {
+   "fichier": "res://assets/bd/decor/feuillu_or_3.png",
+   "groupe": "arbre",
+   "pied": [
+    52,
+    114
+   ],
+   "taille": [
+    121,
+    131
+   ]
+  },
+  "feuillu_or_4": {
+   "fichier": "res://assets/bd/decor/feuillu_or_4.png",
+   "groupe": "arbre",
+   "pied": [
+    59,
+    121
+   ],
+   "taille": [
+    132,
+    138
+   ]
+  },
+  "feuillu_sombre_1": {
+   "fichier": "res://assets/bd/decor/feuillu_sombre_1.png",
+   "groupe": "arbre",
+   "pied": [
+    47,
+    101
+   ],
+   "taille": [
+    108,
+    116
+   ]
+  },
+  "feuillu_sombre_2": {
+   "fichier": "res://assets/bd/decor/feuillu_sombre_2.png",
+   "groupe": "arbre",
+   "pied": [
+    50,
+    113
+   ],
+   "taille": [
+    115,
+    129
+   ]
+  },
+  "feuillu_sombre_3": {
+   "fichier": "res://assets/bd/decor/feuillu_sombre_3.png",
+   "groupe": "arbre",
+   "pied": [
+    57,
+    116
+   ],
+   "taille": [
+    126,
+    133
+   ]
+  },
+  "feuillu_sombre_4": {
+   "fichier": "res://assets/bd/decor/feuillu_sombre_4.png",
+   "groupe": "arbre",
+   "pied": [
+    55,
+    125
+   ],
+   "taille": [
+    128,
+    142
+   ]
+  },
+  "fougere_1": {
+   "fichier": "res://assets/bd/decor/fougere_1.png",
+   "groupe": "herbe",
+   "pied": [
+    28,
+    25
+   ],
+   "taille": [
+    56,
+    29
+   ]
+  },
+  "fougere_2": {
+   "fichier": "res://assets/bd/decor/fougere_2.png",
+   "groupe": "herbe",
+   "pied": [
+    31,
+    28
+   ],
+   "taille": [
+    62,
+    32
+   ]
+  },
+  "herbes_hautes_1": {
+   "fichier": "res://assets/bd/decor/herbes_hautes_1.png",
+   "groupe": "herbe",
+   "pied": [
+    18,
+    45
+   ],
+   "taille": [
+    38,
+    48
+   ]
+  },
+  "herbes_hautes_2": {
+   "fichier": "res://assets/bd/decor/herbes_hautes_2.png",
+   "groupe": "herbe",
+   "pied": [
+    24,
+    49
+   ],
+   "taille": [
+    57,
+    52
+   ]
+  },
+  "herbes_hautes_3": {
+   "fichier": "res://assets/bd/decor/herbes_hautes_3.png",
+   "groupe": "herbe",
+   "pied": [
+    22,
+    51
+   ],
+   "taille": [
+    37,
+    54
+   ]
+  },
+  "pic_1": {
+   "fichier": "res://assets/bd/decor/pic_1.png",
+   "groupe": "montagne",
+   "pied": [
+    61,
+    97
+   ],
+   "taille": [
+    121,
+    100
+   ]
+  },
+  "pic_2": {
+   "fichier": "res://assets/bd/decor/pic_2.png",
+   "groupe": "montagne",
+   "pied": [
+    67,
+    94
+   ],
+   "taille": [
+    133,
+    97
+   ]
+  },
+  "pic_3": {
+   "fichier": "res://assets/bd/decor/pic_3.png",
+   "groupe": "montagne",
+   "pied": [
+    80,
+    117
+   ],
+   "taille": [
+    151,
+    120
+   ]
+  },
+  "pic_4": {
+   "fichier": "res://assets/bd/decor/pic_4.png",
+   "groupe": "montagne",
+   "pied": [
+    80,
+    131
+   ],
+   "taille": [
+    157,
+    134
+   ]
+  },
+  "pic_5": {
+   "fichier": "res://assets/bd/decor/pic_5.png",
+   "groupe": "montagne",
+   "pied": [
+    83,
+    144
+   ],
+   "taille": [
+    164,
+    147
+   ]
+  },
+  "pic_6": {
+   "fichier": "res://assets/bd/decor/pic_6.png",
+   "groupe": "montagne",
+   "pied": [
+    94,
+    158
+   ],
+   "taille": [
+    185,
+    161
+   ]
+  },
+  "pic_7": {
+   "fichier": "res://assets/bd/decor/pic_7.png",
+   "groupe": "montagne",
+   "pied": [
+    104,
+    167
+   ],
+   "taille": [
+    196,
+    170
+   ]
+  },
+  "pic_8": {
+   "fichier": "res://assets/bd/decor/pic_8.png",
+   "groupe": "montagne",
+   "pied": [
+    106,
+    127
+   ],
+   "taille": [
+    204,
+    130
+   ]
+  },
+  "pin_1": {
+   "fichier": "res://assets/bd/decor/pin_1.png",
+   "groupe": "arbre",
+   "pied": [
+    47,
+    124
+   ],
+   "taille": [
+    99,
+    136
+   ]
+  },
+  "pin_2": {
+   "fichier": "res://assets/bd/decor/pin_2.png",
+   "groupe": "arbre",
+   "pied": [
+    50,
+    133
+   ],
+   "taille": [
+    106,
+    146
+   ]
+  },
+  "pin_3": {
+   "fichier": "res://assets/bd/decor/pin_3.png",
+   "groupe": "arbre",
+   "pied": [
+    53,
+    142
+   ],
+   "taille": [
+    113,
+    156
+   ]
+  },
+  "pin_4": {
+   "fichier": "res://assets/bd/decor/pin_4.png",
+   "groupe": "arbre",
+   "pied": [
+    51,
+    151
+   ],
+   "taille": [
+    115,
+    166
+   ]
+  },
+  "pin_5": {
+   "fichier": "res://assets/bd/decor/pin_5.png",
+   "groupe": "arbre",
+   "pied": [
+    54,
+    160
+   ],
+   "taille": [
+    121,
+    176
+   ]
+  },
+  "rocher_1": {
+   "fichier": "res://assets/bd/decor/rocher_1.png",
+   "groupe": "rocher",
+   "pied": [
+    17,
+    18
+   ],
+   "taille": [
+    39,
+    26
+   ]
+  },
+  "rocher_2": {
+   "fichier": "res://assets/bd/decor/rocher_2.png",
+   "groupe": "rocher",
+   "pied": [
+    23,
+    23
+   ],
+   "taille": [
+    53,
+    33
+   ]
+  },
+  "rocher_3": {
+   "fichier": "res://assets/bd/decor/rocher_3.png",
+   "groupe": "rocher",
+   "pied": [
+    29,
+    26
+   ],
+   "taille": [
+    66,
+    37
+   ]
+  },
+  "rocher_4": {
+   "fichier": "res://assets/bd/decor/rocher_4.png",
+   "groupe": "rocher",
+   "pied": [
+    34,
+    33
+   ],
+   "taille": [
+    78,
+    46
+   ]
+  },
+  "rocher_5": {
+   "fichier": "res://assets/bd/decor/rocher_5.png",
+   "groupe": "rocher",
+   "pied": [
+    35,
+    35
+   ],
+   "taille": [
+    86,
+    49
+   ]
+  },
+  "rocher_6": {
+   "fichier": "res://assets/bd/decor/rocher_6.png",
+   "groupe": "rocher",
+   "pied": [
+    44,
+    42
+   ],
+   "taille": [
+    102,
+    58
+   ]
+  },
+  "rocher_or_1": {
+   "fichier": "res://assets/bd/decor/rocher_or_1.png",
+   "groupe": "rocher",
+   "pied": [
+    36,
+    42
+   ],
+   "taille": [
+    85,
+    56
+   ]
+  },
+  "rocher_or_2": {
+   "fichier": "res://assets/bd/decor/rocher_or_2.png",
+   "groupe": "rocher",
+   "pied": [
+    43,
+    42
+   ],
+   "taille": [
+    101,
+    58
+   ]
+  },
+  "rondins": {
+   "fichier": "res://assets/bd/decor/rondins.png",
+   "groupe": "objet",
+   "pied": [
+    34,
+    36
+   ],
+   "taille": [
+    71,
+    43
+   ]
+  },
+  "roseaux_1": {
+   "fichier": "res://assets/bd/decor/roseaux_1.png",
+   "groupe": "berge",
+   "pied": [
+    14,
+    56
+   ],
+   "taille": [
+    27,
+    59
+   ]
+  },
+  "roseaux_2": {
+   "fichier": "res://assets/bd/decor/roseaux_2.png",
+   "groupe": "berge",
+   "pied": [
+    18,
+    58
+   ],
+   "taille": [
+    33,
+    61
+   ]
+  },
+  "roseaux_3": {
+   "fichier": "res://assets/bd/decor/roseaux_3.png",
+   "groupe": "berge",
+   "pied": [
+    20,
+    58
+   ],
+   "taille": [
+    32,
+    61
+   ]
+  },
+  "sapin_1": {
+   "fichier": "res://assets/bd/decor/sapin_1.png",
+   "groupe": "arbre",
+   "pied": [
+    39,
+    112
+   ],
+   "taille": [
+    86,
+    123
+   ]
+  },
+  "sapin_2": {
+   "fichier": "res://assets/bd/decor/sapin_2.png",
+   "groupe": "arbre",
+   "pied": [
+    47,
+    121
+   ],
+   "taille": [
+    98,
+    133
+   ]
+  },
+  "sapin_3": {
+   "fichier": "res://assets/bd/decor/sapin_3.png",
+   "groupe": "arbre",
+   "pied": [
+    45,
+    130
+   ],
+   "taille": [
+    100,
+    143
+   ]
+  },
+  "saule_1": {
+   "fichier": "res://assets/bd/decor/saule_1.png",
+   "groupe": "arbre",
+   "pied": [
+    57,
+    105
+   ],
+   "taille": [
+    125,
+    120
+   ]
+  },
+  "saule_2": {
+   "fichier": "res://assets/bd/decor/saule_2.png",
+   "groupe": "arbre",
+   "pied": [
+    62,
+    113
+   ],
+   "taille": [
+    135,
+    129
+   ]
+  },
+  "souche_1": {
+   "fichier": "res://assets/bd/decor/souche_1.png",
+   "groupe": "objet",
+   "pied": [
+    18,
+    22
+   ],
+   "taille": [
+    39,
+    27
+   ]
+  },
+  "souche_2": {
+   "fichier": "res://assets/bd/decor/souche_2.png",
+   "groupe": "objet",
+   "pied": [
+    20,
+    26
+   ],
+   "taille": [
+    44,
+    32
+   ]
+  },
+  "tente_1": {
+   "fichier": "res://assets/bd/decor/tente_1.png",
+   "groupe": "objet",
+   "pied": [
+    47,
+    56
+   ],
+   "taille": [
+    120,
+    70
+   ]
+  },
+  "tente_2": {
+   "fichier": "res://assets/bd/decor/tente_2.png",
+   "groupe": "objet",
+   "pied": [
+    53,
+    64
+   ],
+   "taille": [
+    136,
+    80
+   ]
+  },
+  "termitiere_1": {
+   "fichier": "res://assets/bd/decor/termitiere_1.png",
+   "groupe": "rocher",
+   "pied": [
+    23,
+    57
+   ],
+   "taille": [
+    62,
+    65
+   ]
+  },
+  "termitiere_2": {
+   "fichier": "res://assets/bd/decor/termitiere_2.png",
+   "groupe": "rocher",
+   "pied": [
+    27,
+    66
+   ],
+   "taille": [
+    73,
+    76
+   ]
+  }
+ },
+ "px_par_case": 120
+}
