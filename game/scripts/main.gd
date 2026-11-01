@@ -239,7 +239,7 @@ func _show_menu() -> void:
 
 ## Stratégies des IA en mode spectateur (mêmes réglages que les simulations d'équilibrage).
 const WATCH_STRATEGIES := [
-	{"nom": "Petit parc", "taille_zoo": "petit"}, {"nom": "Grand parc", "taille_zoo": "grand"},
+	{"nom": "Rush or", "rush_or": true}, {"nom": "Grand parc", "taille_zoo": "grand"},
 	{"nom": "Parc évolutif", "taille_zoo": "evolutif"}, {"nom": "Gros contrats", "preference_palier": 2.2, "reserve": 15},
 ]
 
@@ -2382,7 +2382,7 @@ func _card_widget(card: GameState.Card, button_text: String, disabled: bool, cb:
 
 ## Infobulle complète d'une carte ouvrier : identité, traits nommés, capacité et effets.
 func _card_full_tooltip(card: GameState.Card) -> String:
-	return "%s · %s, niveau %d · salaire %d\n%s\n%s" % [card.nom, card.metier["nom"], card.niveau, game.salary(card),
+	return "%s · %s, niveau %d · salaire %d\n%s\n%s" % [card.nom, game.job_name(card), card.niveau, game.salary(card),
 		RegEx.create_from_string("\\[[^\\]]*\\]").sub(_traits_bbcode(card), "", true), _card_tooltip(card)]
 
 
@@ -2509,7 +2509,7 @@ func _rebuild_draft() -> void:
 	for p in mt.players.size():
 		var names: Array[String] = []
 		for c in mt.drafted[p]:
-			names.append("%s ([color=%s]%s[/color])" % [c.nom, category_colors[c.metier["categorie"]].to_html(false), c.metier["nom"]])
+			names.append("%s ([color=%s]%s[/color])" % [c.nom, category_colors[c.metier["categorie"]].to_html(false), game.job_name(c)])
 		lines.append("[b]%s[/b] (%d) : %s" % [mt.names[p], names.size(), ", ".join(names)])
 	draft_picks.text = "\n".join(lines)
 
@@ -2991,7 +2991,7 @@ func _fiche_ouvrier(w: GameState.Worker) -> void:
 	nm.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	v.add_child(nm)
 	var lmax := int(game.data["workers"]["regles"]["niveau_max"])
-	var job := Composants.label("%s · niv. %d  %s" % [c.metier["nom"], c.niveau, "★".repeat(c.niveau) + "☆".repeat(maxi(0, lmax - c.niveau))])
+	var job := Composants.label("%s · niv. %d  %s" % [game.job_name(c), c.niveau, "★".repeat(c.niveau) + "☆".repeat(maxi(0, lmax - c.niveau))])
 	job.add_theme_font_size_override("font_size", 13)
 	v.add_child(job)
 	var badge := PanelContainer.new()
@@ -3242,7 +3242,7 @@ func _update_unit_panel() -> void:
 		var pm := Composants.pastille(Color(cat["couleur"]).darkened(0.1), Composants.icone_metier(str(c.metier["id"])), 26, cat["portrait"])
 		Composants.placer(unit_portrait_box, pm, Vector2(60, 58), Vector2(26, 26))
 		unit_name.text = c.nom.to_upper()
-		unit_job.text = "%s · %s" % [c.metier["nom"], str(cat["long"]).to_lower()]
+		unit_job.text = "%s · %s" % [game.job_name(c), str(cat["long"]).to_lower()]
 		for k in unit_traits.get_children():
 			k.queue_free()
 		for t in game.trait_defs(c):
@@ -3874,7 +3874,7 @@ func _rebuild_night() -> void:
 		var wn := Composants.label(card.nom)
 		wn.add_theme_font_override("font", UiTokens.police_corps(800))
 		who.add_child(wn)
-		var wj := Composants.label("%s · salaire %d" % [card.metier["nom"], game.salary(card)], "TexteSecondaire")
+		var wj := Composants.label("%s · salaire %d" % [game.job_name(card), game.salary(card)], "TexteSecondaire")
 		wj.add_theme_font_size_override("font_size", 12)
 		who.add_child(wj)
 		head.add_child(who)
@@ -3910,7 +3910,7 @@ func _rebuild_night() -> void:
 	_clear(night_fire)
 	for card in game.all_employees():
 		var row := HBoxContainer.new()
-		var nl := Composants.label("%s · %s" % [card.nom, card.metier["nom"]])
+		var nl := Composants.label("%s · %s" % [card.nom, game.job_name(card)])
 		nl.add_theme_font_size_override("font_size", 13)
 		nl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(nl)
@@ -4371,7 +4371,7 @@ func _picker_row(card: GameState.Card, button_text: String, err: String, cb: Cal
 	var traits: Array[String] = []
 	for t in game.trait_defs(card):
 		traits.append(t["nom"])
-	var jl := Composants.label("%s · N%d · salaire %d%s" % [card.metier["nom"], card.niveau, game.salary(card),
+	var jl := Composants.label("%s · N%d · salaire %d%s" % [game.job_name(card), card.niveau, game.salary(card),
 		(" · " + ", ".join(traits)) if not traits.is_empty() else ""], "TexteSecondaire")
 	jl.add_theme_font_size_override("font_size", 12)
 	jl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -4434,7 +4434,7 @@ func _open_action_picker(card: GameState.Card) -> void:
 func _open_promotion(card: GameState.Card, target: GameState.Card) -> void:
 	_clear(picker_box)
 	picker_box.add_child(Composants.label("PROMOTION : %s" % target.nom.to_upper(), "TitrePanneau"))
-	var s := Composants.label("%s, niveau %d. Choisissez son amélioration :" % [target.metier["nom"], target.niveau], "TexteSecondaire")
+	var s := Composants.label("%s, niveau %d. Choisissez son amélioration :" % [game.job_name(target), target.niveau], "TexteSecondaire")
 	picker_box.add_child(s)
 	for opt in game.upgrade_options(target):
 		var ob := Composants.bouton("%s — %s" % [opt["nom"], opt.get("texte", _effect_text(opt["effet"]))], "BoutonSecondaire")
@@ -4463,7 +4463,7 @@ func _open_swap_picker(w: GameState.Worker) -> void:
 			game.swap_worker(w, c)
 			_close_picker()])
 	_open_picker("AGENCE D'INTÉRIM", "Remplacer %s (%s) : le remplaçant arrive à sa place, garde sa charge et reprend sa tâche ; %s part à la défausse. Coût : %d de frais + salaire du remplaçant. Une fois par jour." % [
-		w.card.nom, w.card.metier["nom"], w.card.nom, int(game.data["buildings"]["agence"]["frais"])], rows)
+		w.card.nom, game.job_name(w.card), w.card.nom, int(game.data["buildings"]["agence"]["frais"])], rows)
 
 ## Emprunt : proposé quand aucun ouvrier de la main ne peut être payé ; rappel du remboursement une fois pris.
 func _update_loan() -> void:
@@ -4583,7 +4583,7 @@ func _employee_row(card: GameState.Card, cost_up: int, cost_fire: int) -> Contro
 	var traits: Array[String] = []
 	for t in game.trait_defs(card):
 		traits.append(t["nom"])
-	var jl := Composants.label("%s · N%d%s" % [card.metier["nom"], card.niveau, (" · " + ", ".join(traits)) if not traits.is_empty() else ""], "TexteSecondaire")
+	var jl := Composants.label("%s · N%d%s" % [game.job_name(card), card.niveau, (" · " + ", ".join(traits)) if not traits.is_empty() else ""], "TexteSecondaire")
 	jl.add_theme_font_size_override("font_size", 11)
 	jl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	jl.custom_minimum_size.x = 170

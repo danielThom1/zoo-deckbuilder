@@ -18,6 +18,13 @@ const DEFAULT_STRATEGY := {
 	"mine_prioritaire": false,  # construit une mine dès le jour 2 et vit de la vente d'or
 	"camp": 0,  # niveau d'amélioration du camp visé (0, 1 ou 2) : +1 carte en main par niveau
 	"taille_zoo": "moyen",  # petit, moyen, grand, ou evolutif (petit au départ, agrandi ensuite)
+	"marche": false,  # construit le bâtiment Marché (vente à 70 %, 125 % avec un Marchand)
+	"rush_or": false,  # mine et Marché d'abord, entrepôt près de la mine, la plupart des ouvriers à l'or
+	"specialisation": false,  # chaque ouvrier va là où il est le plus efficace
+	"formation": false,  # Centre de formation tôt, ouvriers peu utiles en formation les premiers jours
+	"cartes": false,  # une carte d'action chaque nuit quand l'argent le permet
+	"affinite": false,  # contrats d'un seul continent (affinités), terrain aménagé pour eux
+	"palier_min": 1,  # 2 : plus de contrats T1 une fois les T2 disponibles (sauf premier animal)
 }
 
 const ZOO_SIZES := {"petit": Vector2i(12, 10), "moyen": Vector2i(16, 13), "grand": Vector2i(22, 16)}
@@ -92,7 +99,7 @@ func card_bonus(c: GameState.Card) -> float:
 		"animateur":
 			return -1.0  # l'IA ne construit pas de kiosque
 		"formateur":
-			return -1.5  # l'IA ne construit pas de Centre de formation
+			return 1.0 if strat["formation"] and not has.call("formateur") else -1.5  # sans Centre de formation, inutile
 	return 0.0
 
 
@@ -265,12 +272,33 @@ func _placeable_contracts() -> int:
 
 
 ## Argent minimum à garder : salaires d'une main complète + nourriture des animaux.
+## Argent à garder pour le lendemain : les salaires de la main suivante (les plus élevés de l'équipe, par prudence)
+## et la nourriture des animaux. Sans cela, l'IA ne peut plus déployer personne et sa partie s'arrête.
+var _wage_key := ""
+var _wage_cache := 0.0
+
+
 func _cash_floor() -> float:
 	var food := 0.0
 	if g.food_due():
 		for a in g.animals:
 			food += g.food_cost(a.def)
-	return 8.0 + food
+	return maxf(8.0, _wage_floor()) + food
+
+
+func _wage_floor() -> float:
+	var key := "salaires|%d" % g.version
+	if _wage_key == key:
+		return _wage_cache
+	var wages: Array = g.all_employees().map(func(c): return float(g.salary(c)))
+	wages.sort()
+	wages.reverse()
+	var total := 0.0
+	for k in mini(g.hand_size(), wages.size()):
+		total += wages[k]
+	_wage_key = key
+	_wage_cache = total
+	return total
 
 
 func on_day_end() -> void:
@@ -308,7 +336,8 @@ func update(dt: float) -> void:
 	if g.time > g.day_length - 40.0:
 		for w in g.workers:
 			if w.card.metier["id"] == "marchand" and w.task.get("kind") != "trade":
-				g.order([w], g.map.camp.get_center())
+				var market := g.sites.filter(func(s): return s.done and s.def_id() == "comptoir")
+				g.order([w], market[0].rect.position if not market.is_empty() else g.map.camp.get_center())
 	if g.money < 6.0 and g.stock["bois"] + g.stock["pierre"] + g.stock["or"] >= 5:
 		_sell_for(_cash_floor())
 
@@ -332,7 +361,7 @@ func on_night_team() -> void:
 				worst = c
 		if worst and card_value(worst) < 0.0:
 			g.fire(worst)
-			mt.log.append("%s licencie %s (%s)." % [mt.names[g.index], worst.nom, worst.metier["nom"]])
+			mt.log.append("%s licencie %s (%s)." % [mt.names[g.index], worst.nom, g.job_name(worst)])
 
 
 ## Étapes de marché de la nuit, à son tour : contrats, puis ouvriers, puis cartes d'action.
@@ -364,6 +393,8 @@ func _night_contracts() -> void:
 					continue
 				if zoo_rect.size != Vector2i.ZERO and _plan_enclosure(def).is_empty():
 					continue
+				if not _strategy_allows(def):
+					continue
 				# Sans Paysagiste ni Terrassier, aucun aménagement possible : le motif doit déjà exister.
 				if not _has_landscaper() and not _natural_fit(def):
 					continue
@@ -390,11 +421,20 @@ func _night_hire() -> void:
 				best_v = v
 				best_card = c
 		if best_card and g.hire(best_card):
-			mt.log.append("%s embauche %s (%s)." % [mt.names[g.index], best_card.nom, best_card.metier["nom"]])
+			mt.log.append("%s embauche %s (%s)." % [mt.names[g.index], best_card.nom, g.job_name(best_card)])
 
 
 ## Carte d'action : une par nuit quand l'argent abonde, 4 au plus dans le deck (sinon elles diluent la main).
 func _night_buy_action() -> void:
+	if strat["cartes"]:
+		var pick: GameState.Card = null
+		for c in mt.market_actions:
+			if g.action_error(c) == "" and g.money - float(c.action["cout"]) >= _cash_floor() \
+				and (pick == null or _action_value(c) > _action_value(pick)):
+				pick = c
+		if pick and g.buy_action(pick):
+			mt.log.append("%s achète la carte %s." % [mt.names[g.index], pick.action["nom"]])
+		return
 	if g.action_cards().size() < 4 and zoo_rect.size != Vector2i.ZERO:
 		var best_a: GameState.Card = null
 		for c in mt.market_actions:
@@ -404,6 +444,25 @@ func _night_buy_action() -> void:
 				best_a = c
 		if best_a and g.buy_action(best_a):
 			mt.log.append("%s achète la carte %s." % [mt.names[g.index], best_a.action["nom"]])
+
+
+## Filtres de contrats propres à la stratégie : un seul continent (Affinités), pas de T1 en milieu de partie (Haut de gamme).
+func _strategy_allows(def: Dictionary) -> bool:
+	var first := g.animals.is_empty() and g.contracts.is_empty()
+	if strat["affinite"] and not first:
+		var count := {}
+		for d in g.contracts + g.animals.map(func(a): return a.def):
+			count[d.get("continent", "")] = int(count.get(d.get("continent", ""), 0)) + 1
+		var main := ""
+		for k in count:
+			if main == "" or count[k] > count[main]:
+				main = k
+		if def.get("continent", "") != main:
+			return false
+	if int(strat["palier_min"]) >= 2 and not first and def["palier"] == "T1" \
+		and g.day >= int(g.data["animals"]["paliers"]["T2"]["jour_min"]):
+		return false
+	return true
 
 
 ## Part des murs de l'enceinte déjà terminés (0 à 1).
@@ -975,10 +1034,26 @@ func _wants() -> Array:
 				out.append(["batiment", g.building_def(kind_id), t])
 				n += 1
 	# 1 bis. Stratégie « Mine d'or » : la mine passe avant tout le reste.
-	if strat["mine_prioritaire"] and day >= 2 and not g.sites.any(func(s): return s.def_id() == "mine"):
+	if (strat["mine_prioritaire"] or strat["rush_or"]) and day >= 2 and not g.sites.any(func(s): return s.def_id() == "mine"):
 		var mspot := _mine_spot()
 		if mspot.x >= 0:
 			out.append(["batiment", g.building_def("mine"), mspot])
+	# 1 ter. Marché : vendre plus cher (stratégies « Marché » et « Rush or »), puis entrepôt près de la mine.
+	if (strat["marche"] or strat["rush_or"]) and day >= 2 and not g.has_building("comptoir") \
+		and (not strat["rush_or"] or g.sites.any(func(s): return s.def_id() == "mine")):
+		var cspot := _spot_near_camp(g.building_def("comptoir"))
+		if cspot.x >= 0:
+			out.append(["batiment", g.building_def("comptoir"), cspot])
+	if strat["rush_or"] and g.mine_built and not g.sites.any(func(s): return s.def_id() == "entrepot"):
+		var mine_site: GameState.Site = g.sites.filter(func(s): return s.def_id() == "mine")[0]
+		var mspot2 := _spot_near(mine_site.rect.get_center(), g.building_def("entrepot"), 2)
+		if mspot2.x >= 0:
+			out.append(["batiment", g.building_def("entrepot"), mspot2])
+	# 1 quinquies. Centre de formation (stratégie « Formation »).
+	if strat["formation"] and day >= 2 and not g.has_building("formation"):
+		var fspot := _spot_near_camp(g.building_def("formation"))
+		if fspot.x >= 0:
+			out.append(["batiment", g.building_def("formation"), fspot])
 	# 2. Enceinte et entrée.
 	if entrance.x >= 0 and g.site_at(entrance) == null:
 		out.append(["batiment", g.building_def("entree"), entrance])
@@ -1237,6 +1312,12 @@ func _assign(w: GameState.Worker) -> void:
 		lobby_today += 1
 		g.order([w], g.map.exit_tile)
 		return
+	if strat["formation"] and g.day <= 8 and w.card.niveau < 3 and not w.unpaid:
+		var school := g.sites.filter(func(s): return s.done and s.def_id() == "formation")
+		var trainees := g.workers.filter(func(o): return o.task.get("kind") == "formation").size()
+		if not school.is_empty() and trainees < (3 if w.card.metier["id"] == "formateur" else 2):
+			g.order([w], school[0].rect.position)
+			return
 	var site := _best_site_for(w)
 	if site:
 		g.order([w], site.rect.position)
@@ -1340,6 +1421,12 @@ func _heal_sick() -> void:
 
 ## Une fois le zoo ouvert, quelqu'un tient le guichet et la boutique (sinon pas de recettes).
 func _staff_posts() -> void:
+	# Zoo fermé (aucun animal arrivé) : personne au guichet ni à la boutique, ils retournent aux chantiers.
+	if not g.zoo_status()["open"]:
+		for w in g.workers:
+			if w.task.get("kind") in ["ticket", "shop"]:
+				w.task = {}
+				w.path.clear()
 	if g.animals.filter(func(a): return a.arrived).is_empty() and g.contracts.is_empty():
 		return
 	# Guichet et boutique seulement zoo ouvert : avant, personne ne vient, et ces ouvriers manqueraient aux chantiers.
@@ -1423,7 +1510,10 @@ func _best_site_for(w: GameState.Worker) -> GameState.Site:
 		var n := _builders(s)
 		if n >= cap or g.work_tiles(s).is_empty():
 			continue
-		var score := w.pos.distance_to(Vector2(s.rect.get_center())) - 8.0 * g.efficiency(w.card, s.type_travail()) + 6.0 * n
+		var eff := g.efficiency(w.card, s.type_travail())
+		if strat["specialisation"] and eff < 0.9 and _builders(s) > 0:
+			continue  # spécialisation : les chantiers aux bons ouvriers, les autres récoltent
+		var score := w.pos.distance_to(Vector2(s.rect.get_center())) - (25.0 if strat["specialisation"] else 8.0) * eff + 6.0 * n
 		if score < best_score:
 			best_score = score
 			best = s
@@ -1433,16 +1523,18 @@ func _best_site_for(w: GameState.Worker) -> GameState.Site:
 func _gather(w: GameState.Worker) -> void:
 	var needs := _needs()
 	var res := ""
-	if needs["or"] > g.stock["or"] or (strat["mine_prioritaire"] and g.mine_built):
+	if needs["or"] > g.stock["or"] or ((strat["mine_prioritaire"] or strat["rush_or"]) and g.mine_built):
 		for gold in g.map.golds:
 			# L'or finance le zoo, il ne le remplace pas : 2 mineurs tant que l'enceinte n'est pas finie.
 			var cap := 3 if strat["mine_prioritaire"] and _walls_progress() >= 1.0 else 2
+			if strat["rush_or"]:
+				cap = maxi(2, g.workers.size() - 2)  # l'économie repose sur l'or vendu au Marché
 			if g.mine_ready(gold) and (w.card.metier["id"] == "mineur" or g.workers.filter(func(o): return o.task.get("res") == "or").size() < cap):
 				g.order([w], gold)
 				return
 	var deficit_b: float = needs["bois"] - g.stock["bois"]
 	var deficit_p: float = needs["pierre"] - g.stock["pierre"]
-	if deficit_b <= 0 and deficit_p <= 0:
+	if deficit_b <= 0 and deficit_p <= 0 or strat["specialisation"]:
 		res = "bois" if g.efficiency(w.card, "extraire_bois") >= g.efficiency(w.card, "extraire_pierre") else "pierre"
 	else:
 		var wb: float = deficit_b * g.efficiency(w.card, "extraire_bois") / 6.0

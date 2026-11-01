@@ -2175,11 +2175,11 @@
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_02.png",
   "pied": [
-   76,
+   62,
    168
   ],
   "taille": [
-   153,
+   125,
    168
   ]
  },
@@ -2187,11 +2187,11 @@
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_03.png",
   "pied": [
-   59,
+   57,
    163
   ],
   "taille": [
-   119,
+   114,
    163
   ]
  },
@@ -2199,11 +2199,11 @@
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_04.png",
   "pied": [
-   76,
+   51,
    163
   ],
   "taille": [
-   153,
+   102,
    163
   ]
  },
@@ -2211,11 +2211,11 @@
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_05.png",
   "pied": [
-   76,
+   52,
    160
   ],
   "taille": [
-   153,
+   104,
    160
   ]
  },
@@ -2223,11 +2223,11 @@
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_06.png",
   "pied": [
-   76,
+   52,
    159
   ],
   "taille": [
-   153,
+   104,
    159
   ]
  },
@@ -2235,11 +2235,11 @@
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_07.png",
   "pied": [
-   76,
+   52,
    165
   ],
   "taille": [
-   153,
+   105,
    165
   ]
  },
@@ -2247,23 +2247,23 @@
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_08.png",
   "pied": [
-   76,
-   158
+   54,
+   155
   ],
   "taille": [
-   153,
-   158
+   108,
+   155
   ]
  },
  "portrait_09": {
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_09.png",
   "pied": [
-   64,
+   62,
    160
   ],
   "taille": [
-   129,
+   124,
    160
   ]
  },
@@ -2271,11 +2271,11 @@
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_10.png",
   "pied": [
-   74,
+   66,
    160
   ],
   "taille": [
-   149,
+   132,
    160
   ]
  },
@@ -2295,11 +2295,11 @@
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_12.png",
   "pied": [
-   76,
+   68,
    161
   ],
   "taille": [
-   153,
+   136,
    161
   ]
  },
@@ -2307,11 +2307,11 @@
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_13.png",
   "pied": [
-   76,
+   62,
    162
   ],
   "taille": [
-   153,
+   124,
    162
   ]
  },
@@ -2319,11 +2319,11 @@
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_14.png",
   "pied": [
-   76,
+   56,
    164
   ],
   "taille": [
-   153,
+   112,
    164
   ]
  },
@@ -2331,11 +2331,11 @@
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_15.png",
   "pied": [
-   63,
+   62,
    166
   ],
   "taille": [
-   127,
+   125,
    166
   ]
  },
@@ -2343,11 +2343,11 @@
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_16.png",
   "pied": [
-   76,
+   61,
    167
   ],
   "taille": [
-   153,
+   122,
    167
   ]
  },
@@ -2355,11 +2355,11 @@
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_17.png",
   "pied": [
-   76,
+   61,
    154
   ],
   "taille": [
-   153,
+   123,
    154
   ]
  },
@@ -2367,11 +2367,11 @@
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_18.png",
   "pied": [
-   63,
+   60,
    166
   ],
   "taille": [
-   126,
+   121,
    166
   ]
  },
@@ -2379,11 +2379,11 @@
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_19.png",
   "pied": [
-   76,
+   61,
    156
   ],
   "taille": [
-   153,
+   123,
    156
   ]
  },
@@ -2391,11 +2391,11 @@
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_20.png",
   "pied": [
-   73,
+   66,
    164
   ],
   "taille": [
-   147,
+   133,
    164
   ]
  },
@@ -2407,7 +2407,7 @@
    158
   ],
   "taille": [
-   115,
+   114,
    158
   ]
  },
@@ -2427,11 +2427,11 @@
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_23.png",
   "pied": [
-   69,
+   56,
    154
   ],
   "taille": [
-   139,
+   112,
    154
   ]
  },
@@ -2439,11 +2439,11 @@
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_24.png",
   "pied": [
-   62,
+   60,
    163
   ],
   "taille": [
-   124,
+   121,
    163
   ]
  },
@@ -2463,11 +2463,11 @@
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_26.png",
   "pied": [
-   65,
+   63,
    160
   ],
   "taille": [
-   130,
+   126,
    160
   ]
  },
@@ -2475,11 +2475,11 @@
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_27.png",
   "pied": [
-   60,
+   59,
    164
   ],
   "taille": [
-   120,
+   119,
    164
   ]
  },
@@ -2535,11 +2535,11 @@
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_32.png",
   "pied": [
-   60,
+   59,
    156
   ],
   "taille": [
-   120,
+   118,
    156
   ]
  },
@@ -2551,7 +2551,7 @@
    152
   ],
   "taille": [
-   113,
+   112,
    152
   ]
  },
@@ -2571,11 +2571,11 @@
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_35.png",
   "pied": [
-   69,
+   63,
    149
   ],
   "taille": [
-   139,
+   127,
    149
   ]
  },
@@ -2583,11 +2583,11 @@
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_36.png",
   "pied": [
-   69,
+   61,
    152
   ],
   "taille": [
-   139,
+   122,
    152
   ]
  },
@@ -2595,11 +2595,11 @@
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_37.png",
   "pied": [
-   69,
+   51,
    143
   ],
   "taille": [
-   139,
+   102,
    143
   ]
  },
@@ -2607,11 +2607,11 @@
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_38.png",
   "pied": [
-   69,
+   50,
    156
   ],
   "taille": [
-   139,
+   101,
    156
   ]
  },
@@ -2619,11 +2619,11 @@
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_39.png",
   "pied": [
-   69,
+   43,
    146
   ],
   "taille": [
-   139,
+   86,
    146
   ]
  },
@@ -2631,11 +2631,11 @@
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_40.png",
   "pied": [
-   69,
+   41,
    146
   ],
   "taille": [
-   139,
+   82,
    146
   ]
  },
@@ -2643,23 +2643,23 @@
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_41.png",
   "pied": [
-   69,
-   147
+   47,
+   142
   ],
   "taille": [
-   139,
-   147
+   94,
+   142
   ]
  },
  "portrait_42": {
   "categorie": "portraits",
   "fichier": "res://assets/bd/sprites/portraits/portrait_42.png",
   "pied": [
-   69,
+   59,
    146
   ],
   "taille": [
-   138,
+   118,
    146
   ]
  },

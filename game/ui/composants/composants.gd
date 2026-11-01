@@ -241,7 +241,7 @@ static func donnees_ouvrier(g: GameState, card: GameState.Card) -> Dictionary:
 		noms.append([t["nom"], "qualite" if pos else "defaut"])
 	for u in card.upgrade_names:
 		noms.append([u, "amelioration"])
-	return {"nom": card.nom.to_upper(), "metier": card.metier["nom"], "metier_icone": icone_metier(card.metier["id"]),
+	return {"nom": card.nom.to_upper(), "metier": g.job_name(card), "metier_icone": icone_metier(card.metier["id"]),
 		"portrait": g.perso_of(card)["id"],
 		"categorie": card.metier["categorie"], "niveau": card.niveau, "salaire": g.salary(card),
 		"qualites": qualites, "defauts": defauts, "traits_noms": noms}

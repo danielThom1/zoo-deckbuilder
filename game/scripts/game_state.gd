@@ -88,6 +88,7 @@ var seed_value := 0
 var rng := RandomNumberGenerator.new()
 var map: GameMap
 var traits_by_id := {}
+var traits_by_id_f := {}  # mêmes traits, nom au féminin (Paresseuse, Têtue…) pour les ouvrières
 var positive_ids := {}
 var money := 0.0
 var influence := 0.0
@@ -188,9 +189,11 @@ func _init(game_data: Dictionary, map_seed: int, the_match: Match, player_index:
 	map = base_map.copy() if base_map else MapGenerator.generate(data["buildings"], map_seed)
 	for t in data["workers"]["traits_positifs"]:
 		traits_by_id[t["id"]] = t
+		traits_by_id_f[t["id"]] = t if not t.has("nom_f") else _feminine(t)
 		positive_ids[t["id"]] = true
 	for t in data["workers"]["traits_negatifs"]:
 		traits_by_id[t["id"]] = t
+		traits_by_id_f[t["id"]] = t if not t.has("nom_f") else _feminine(t)
 	var partie: Dictionary = data["buildings"]["partie"]
 	money = float(partie["argent_depart"])
 	for k in partie.get("stock_depart", {}):
@@ -228,9 +231,31 @@ func make_card(categorie: String) -> Card:
 
 
 func trait_defs(card: Card) -> Array:
+	var by_id := traits_by_id_f if is_female(card) else traits_by_id
 	if action_fx.has("sans_defauts"):  # Contremaître joué (Cadence)
-		return card.traits.filter(func(id): return is_positive(id)).map(func(id): return traits_by_id[id])
-	return card.traits.map(func(id): return traits_by_id[id])
+		return card.traits.filter(func(id): return is_positive(id)).map(func(id): return by_id[id])
+	return card.traits.map(func(id): return by_id[id])
+
+
+static func _feminine(t: Dictionary) -> Dictionary:
+	var f := t.duplicate()
+	f["nom"] = t["nom_f"]
+	return f
+
+
+## Genre du personnage de la carte (data/personnages.json) : accords des messages, métiers et traits.
+func is_female(card: Card) -> bool:
+	return str(perso_of(card).get("genre", "m")) == "f"
+
+
+## Nom du métier accordé au genre de l'ouvrier ou de l'ouvrière.
+func job_name(card: Card) -> String:
+	return str(card.metier.get("nom_f", card.metier["nom"])) if is_female(card) else str(card.metier["nom"])
+
+
+## Accord : la forme masculine ou féminine selon la carte (« licencié » / « licenciée », « il » / « elle »).
+func agree(card: Card, masc: String, fem: String) -> String:
+	return fem if is_female(card) else masc
 
 
 func is_positive(trait_id: String) -> bool:
@@ -451,7 +476,7 @@ func play_action(card: Card, target: Card = null, option := {}) -> bool:
 	if fx.has("licencier"):
 		for pile in [deck, discard, hand]:
 			pile.erase(target)
-		say("%s a été licencié." % target.nom)
+		say("%s a été %s." % [target.nom, agree(target, "licencié", "licenciée")])
 	if fx.has("ameliorer"):
 		_apply_upgrade_effect(target, option)
 		pending_upgrade = {}
@@ -523,7 +548,7 @@ func play_cadre(card: Card, target: Card = null, option := "") -> bool:
 			extra = " Pas d'événement à annuler : +%d d'influence." % int(fx["influence"])
 	if fx.has("licencier_main"):
 		hand.erase(target)
-		extra = " %s a été licencié." % target.nom
+		extra = " %s a été %s." % [target.nom, agree(target, "licencié", "licenciée")]
 		draw_hand(int(fx.get("pioche", 0)))
 	say("%s joue %s.%s" % [card.nom, A["nom"], extra if extra != "" else " " + A["texte"]])
 	version += 1
@@ -678,10 +703,10 @@ func order(targets: Array, target: Vector2i, enqueue := false) -> void:
 		if site and not site.done:
 			# Un Architecte col blanc ne construit pas, mais il supervise (économie de ressources).
 			if w.card.traits.has("col_blanc") and w.card.metier["id"] != "architecte":
-				say("%s est un col blanc : il refuse le travail manuel." % w.card.nom)
+				say("%s est un col blanc : %s refuse le travail manuel." % [w.card.nom, agree(w.card, "il", "elle")])
 				continue
 			if site.kind == "amenagement" and not can_landscape(w.card):
-				say("Seuls les Paysagistes et Terrassiers aménagent le terrain (%s est %s)." % [w.card.nom, w.card.metier["nom"]])
+				say("Seuls les Paysagistes et Terrassiers aménagent le terrain (%s est %s)." % [w.card.nom, job_name(w.card)])
 				continue
 			w.task = {"type": "build", "site": site}
 			_path_to_site(w, site)
@@ -738,7 +763,7 @@ func order(targets: Array, target: Vector2i, enqueue := false) -> void:
 				say("Construisez d'abord une mine d'or sur ce gisement.")
 				continue
 			if w.card.traits.has("col_blanc"):
-				say("%s est un col blanc : il refuse le travail manuel." % w.card.nom)
+				say("%s est un col blanc : %s refuse le travail manuel." % [w.card.nom, agree(w.card, "il", "elle")])
 				continue
 			w.task = {"type": "extract", "res": res, "target": tgt, "phase": "to_resource"}
 			if w.carry > 0.0 and w.carry_type != res:
@@ -949,10 +974,10 @@ func _work_traits(w: Worker, dt: float) -> void:
 	w.minute_clock -= 60.0
 	if w.card.traits.has("paresseux"):
 		w.pause_left = 15.0
-		say("%s fait une pause (paresseux)." % w.card.nom)
+		say("%s fait une pause (%s)." % [w.card.nom, agree(w.card, "paresseux", "paresseuse")])
 	if w.card.traits.has("distrait") and rng.randf() < 0.1:
 		w.task = {}
-		say("%s a oublié ce qu'il faisait (distrait)." % w.card.nom)
+		say("%s a oublié ce qu'%s faisait (%s)." % [w.card.nom, agree(w.card, "il", "elle"), agree(w.card, "distrait", "distraite")])
 
 
 # --- Construction et aménagement --------------------------------------------
@@ -1194,7 +1219,7 @@ func _update_build(w: Worker, dt: float) -> void:
 func _refuses_near_predator(w: Worker) -> bool:
 	if not w.card.traits.has("peureux") or not near_predator(w.tile()):
 		return false
-	say("%s a peur des fauves : il refuse de travailler si près d'un prédateur." % w.card.nom)
+	say("%s a peur des fauves : %s refuse de travailler si près d'un prédateur." % [w.card.nom, agree(w.card, "il", "elle")])
 	w.task = {}
 	return true
 
@@ -1662,7 +1687,7 @@ func fire(card: Card) -> bool:
 		if pile.has(card):
 			pile.erase(card)
 			drh_available -= 1
-			say("%s a été licencié." % card.nom)
+			say("%s a été %s." % [card.nom, agree(card, "licencié", "licenciée")])
 			version += 1
 			return true
 	return false
@@ -1720,7 +1745,7 @@ func fire_paid(card: Card) -> bool:
 	for pile in [deck, discard, hand]:
 		pile.erase(card)
 	night_action_used = true
-	say("%s a été licencié (%d)." % [card.nom, cost])
+	say("%s a été %s (%d)." % [card.nom, agree(card, "licencié", "licenciée"), cost])
 	version += 1
 	return true
 
@@ -1803,7 +1828,7 @@ func _apply_upgrade_effect(card: Card, option: Dictionary) -> void:
 	match option["id"]:
 		"evolution":
 			card.metier = metier_def(option["metier"])
-			say("%s devient %s !" % [card.nom, card.metier["nom"]])
+			say("%s devient %s !" % [card.nom, job_name(card)])
 		"guerison":
 			for t in card.traits:
 				if not is_positive(t):

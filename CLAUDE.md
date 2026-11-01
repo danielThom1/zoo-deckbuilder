@@ -89,6 +89,11 @@ Remplace « Émeraude » (lots E et suivants pour le visuel ; les règles ne cha
   - Bâtiments non carrés orientables (touche R pendant la pose, `_rotate_build` : définition copiée avec `taille` inversée et `pivote`, dessin par `_draw_turned`).
   - Sélection : Ctrl + glisser (bâtiments seulement), Maj + clic (ajoute ou retire), double-clic (tout le tracé relié, `_connected_sites`). Ordres enchaînés : Maj + clic droit, `Worker.queue`, `order(targets, tile, enqueue)`, pastilles numérotées sur la carte.
   - `docs/prompt_claude_design_graphismes.md` : prompt pour faire produire par Claude Design toutes les images du jeu (formats, tailles, liste).
+- **Lot P (01/11)** :
+  - Style BD (Claude Design) intégré : branche avancée sur `emeraude-et-lots-abc`. Portraits nettoyés (morceaux de visages voisins retirés, `assets/bd/sprites/portraits`), un portrait par personnage assorti au genre et à l'âge (`SpritesBD.PORTRAIT_DE`).
+  - Genre des personnages (`genre` dans `personnages.json`, généré par `tools/personnages.py`, liste `FEMMES`). `GameState.is_female`, `job_name` (métiers au féminin, `nom_f` dans `workers.json`), `agree(card, masc, fem)` pour les messages ; traits au féminin via `traits_by_id_f` (rendus par `trait_defs`).
+  - IA : `_cash_floor` garde les salaires de la main suivante (`_wage_floor`) plus la nourriture ; guichet et boutique libérés quand le zoo est fermé.
+  - Stratégies (`DEFAULT_STRATEGY`) : `marche`, `rush_or`, `specialisation`, `formation`, `cartes`, `affinite`, `palier_min` (filtre `_strategy_allows`). `balance_sim` : nouvelle liste (Petit parc retiré), tableau « Vitesse » (taux, jour moyen de victoire, plus rapide) et record.
 - **Équilibrage repoussé** à la fin des fonctionnalités (demande du 31/10) : ne lancer que `sim_test` et des captures d'ici là.
 - Pièges Godot rencontrés : une erreur de script en `--headless` **bloque** le processus (le débogueur attend) au lieu de quitter : lancer les tests avec `timeout 240 godot …` ; `TextureRect` → régler `expand_mode` **avant** `texture`/`size` (sinon taille native 96 px) ; `FontVariation.variation_opentype` attend la clé `name_to_tag("wght")`, pas la chaîne `"wght"`.
 

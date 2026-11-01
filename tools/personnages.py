@@ -69,6 +69,10 @@ P = [
     ('lina', 'Lina', 3, 'ovale', 'long', 'chatain_clair', 'paille', 'paille', '', '', 'chemise', 'blanc', '', 'sourire', 'jeune', 'rousseur'),
     ('omar', 'Omar', 4, 'carre', 'court', 'gris', '', '', 'barbe', '', 'sweat', 'bleu', '', 'sourire', 'age', ''),
 ]
+# Prénoms féminins (le reste est masculin) : accords « elle », « licenciée », métiers et traits au féminin.
+FEMMES = {'lea', 'jade', 'emma', 'ines', 'chloe', 'manon', 'sarah', 'yasmine', 'aicha', 'margaux', 'lucie', 'clara',
+          'nadia', 'odette', 'fatou', 'elise', 'rose', 'camille', 'zoe', 'lina'}
+
 CHAMPS = ['id', 'nom', 'peau', 'visage', 'coiffure', 'cheveux', 'chapeau', 'couleur_chapeau', 'pilosite', 'lunettes',
           'vetement', 'couleur', 'couleur2', 'expression', 'age', 'extras']
 
@@ -410,6 +414,7 @@ def main():
             'coiffure': p['coiffure'], 'chapeau': p['chapeau'], 'couleur_chapeau': COULEURS.get(p['couleur_chapeau'], ''),
             'pilosite': p['pilosite'], 'lunettes': p['lunettes'] != '', 'vetement': p['vetement'],
             'couleur': COULEURS[p['couleur']], 'couleur2': COULEURS.get(p['couleur2'], sombre(COULEURS[p['couleur']])),
+            'genre': 'f' if p['id'] in FEMMES else 'm',  # accords des textes et portrait assorti
         })
     with io.open(os.path.join(RACINE, 'data', 'personnages.json'), 'w', encoding='utf-8', newline='\n') as f:
         f.write('{\n  "_note": "Généré par tools/personnages.py : ne pas modifier à la main. Chaque carte ouvrier tire un personnage (nom, portrait res://ui/portraits/<id>.svg, apparence dans le monde).",\n  "personnages": [\n')

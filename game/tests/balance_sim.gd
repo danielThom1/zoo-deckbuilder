@@ -7,15 +7,17 @@ extends SceneTree
 
 const STRATEGIES := [
 	{"nom": "Équilibrée"},
-	{"nom": "Petit parc", "taille_zoo": "petit"},
-	{"nom": "Grand parc", "taille_zoo": "grand"},
+	{"nom": "Marché", "marche": true},
+	{"nom": "Rush or", "rush_or": true},
+	{"nom": "Spécialisation", "specialisation": true},
+	{"nom": "Formation", "formation": true},
+	{"nom": "Cartes", "cartes": true},
 	{"nom": "Parc évolutif", "taille_zoo": "evolutif"},
-	{"nom": "Gros contrats", "preference_palier": 2.2, "reserve": 15},
-	{"nom": "Mine d'or", "mine_prioritaire": true},
+	{"nom": "Affinités", "affinite": true},
+	{"nom": "Haut de gamme", "preference_palier": 3.0, "palier_min": 2, "reserve": 15},
+	{"nom": "Petits contrats", "preference_palier": 0.4, "contrats_en_attente_max": 3},
+	{"nom": "Grand parc", "taille_zoo": "grand"},
 	{"nom": "Lobbying", "lobbyistes_max": 2},
-	{"nom": "Économe", "boutique": false, "mine": false},
-	{"nom": "Camp amélioré", "camp": 1},
-	{"nom": "Grand camp", "camp": 2},
 ]
 
 
@@ -157,7 +159,7 @@ func _write_report(results: Dictionary, n_games: int, dt: float, data: Dictionar
 	var stats := {}
 	for st in STRATEGIES:
 		stats[st["nom"]] = {"games": 0, "wins": 0, "rep": 0.0, "money": 0.0, "animals": 0.0, "tiers": {"T1": 0, "T2": 0, "T3": 0},
-			"employees": 0.0, "influence": 0.0, "first_buyer": 0, "visitors": 0.0}
+			"employees": 0.0, "influence": 0.0, "first_buyer": 0, "visitors": 0.0, "win_days": []}
 	var games := []
 	var rep_by_day := {}  # jour -> somme des réputations (moyenne sur tous les joueurs)
 	var money_by_day := {}
@@ -179,8 +181,9 @@ func _write_report(results: Dictionary, n_games: int, dt: float, data: Dictionar
 				s["tiers"][t] += 1
 			for nm in p["especes"]:
 				contract_counts[nm] = contract_counts.get(nm, 0) + 1
-			if i == int(r["winner"]):
+			if i == int(r["winner"]) and int(p["rep"]) >= int(data["buildings"]["partie"]["objectif_reputation"]):
 				s["wins"] += 1
+				s["win_days"].append(int(r["day"]))
 		for row in r["history"]:
 			for i in row.size():
 				var e: Dictionary = row[i]
@@ -197,6 +200,39 @@ func _write_report(results: Dictionary, n_games: int, dt: float, data: Dictionar
 	L.append("")
 	L.append("%d parties à 4 IA, objectif %d de réputation, fin forcée au jour %d, pas de simulation %.1f s." % [
 		games.size(), int(data["buildings"]["partie"]["objectif_reputation"]), int(data["buildings"]["partie"]["jour_max"]), dt])
+	L.append("")
+	L.append("## Vitesse : victoires à %d et jour de victoire" % int(data["buildings"]["partie"]["objectif_reputation"]))
+	L.append("")
+	L.append("Classement par taux de victoire, puis par jour moyen de victoire (plus tôt = mieux).")
+	L.append("")
+	L.append("| Stratégie | Victoires | Taux | Jour moyen de victoire | Victoire la plus rapide | Réputation moyenne en fin de partie |")
+	L.append("|---|---|---|---|---|---|")
+	var ranking: Array = stats.keys()
+	ranking.sort_custom(func(a, b):
+		var sa: Dictionary = stats[a]
+		var sb: Dictionary = stats[b]
+		var ra := float(sa["wins"]) / maxi(1, sa["games"])
+		var rb := float(sb["wins"]) / maxi(1, sb["games"])
+		if not is_equal_approx(ra, rb):
+			return ra > rb
+		var da: float = 99.0 if sa["win_days"].is_empty() else float(sa["win_days"].reduce(func(x, y): return x + y, 0)) / sa["win_days"].size()
+		var db: float = 99.0 if sb["win_days"].is_empty() else float(sb["win_days"].reduce(func(x, y): return x + y, 0)) / sb["win_days"].size()
+		return da < db)
+	for nom in ranking:
+		var s: Dictionary = stats[nom]
+		var n: int = maxi(1, s["games"])
+		var wd: Array = s["win_days"]
+		L.append("| %s | %d / %d | %d %% | %s | %s | %.0f |" % [nom, s["wins"], s["games"], roundi(100.0 * s["wins"] / n),
+			"—" if wd.is_empty() else "%.1f" % (float(wd.reduce(func(x, y): return x + y, 0)) / wd.size()),
+			"—" if wd.is_empty() else "jour %d" % wd.min(), s["rep"] / n])
+	var record: Dictionary = {}
+	for gm in games:
+		if record.is_empty() or gm["day"] < record["day"]:
+			record = gm
+	if not record.is_empty():
+		L.append("")
+		L.append("**Record** : partie terminée au jour %d, gagnée par %s (%d de réputation, graine %d)." % [
+			record["day"], record["winner"], record["rep"], record["seed"]])
 	L.append("")
 	L.append("## Résultats par stratégie")
 	L.append("")
