@@ -1083,6 +1083,8 @@ func placement_error(kind: String, def: Dictionary, origin: Vector2i, check_cost
 			elif id == "pont":
 				if t != GameMap.EAU:
 					return "Un pont se construit sur l'eau"
+			elif t == GameMap.EAU and id == "enclos":
+				pass  # une clôture d'enclos peut traverser l'eau (bassins des animaux aquatiques)
 			elif t == GameMap.EAU or t == GameMap.MONTAGNE:
 				return "Terrain infranchissable"
 			elif t == GameMap.MINE_OR and id != "mine":
@@ -1703,7 +1705,7 @@ func bonus_error(def: Dictionary) -> String:
 		return "Seul le premier en influence choisit (%s)" % mt.names[mt.influence_leader()]
 	if not mt.bonus_choice.is_empty():
 		return "Bonus déjà choisi : %s" % mt.bonus_choice["nom"]
-	if not mt.bonus_offer.has(def):
+	if not mt.bonus_offer.has(def) and def.get("id", "") != "aucun":
 		return "Bonus non proposé cette nuit"
 	return ""
 
@@ -2759,8 +2761,9 @@ func campaign_eta() -> float:
 
 
 ## Marchands à leur poste : au camp (obj null) ou au bâtiment Marché (obj = le chantier terminé).
+## Marchands déployés sur la carte (où qu'ils soient) : leur présence suffit à mieux vendre.
 func _traders() -> Array:
-	return workers.filter(func(w): return w.task.get("kind") == "trade" and w.path.is_empty() and w.tile() == w.task["tile"])
+	return workers.filter(func(w): return w.card.metier["id"] == "marchand" and not w.offmap)
 
 
 func marchand_present() -> bool:
@@ -2771,15 +2774,15 @@ func market_built() -> bool:
 	return sites.any(func(s): return s.done and s.def_id() == "comptoir")
 
 
-## Taux de vente du stock : réduit sans personne, 70 % avec le bâtiment Marché, plein tarif avec un Marchand au camp,
-## 125 % avec un Marchand au Marché (Négociateur : +25 %).
+## Taux de vente du stock : réduit sans Marchand, 70 % avec le bâtiment Marché, plein tarif avec un Marchand déployé,
+## 125 % avec un Marchand déployé et le bâtiment Marché (Négociateur : +25 %).
 func sell_rate() -> float:
 	var C: Dictionary = data["buildings"]["comptoir"]
 	var rate := float(data["buildings"]["zoo"]["vente_sans_marchand"])
 	if market_built():
 		rate = maxf(rate, float(C["vente_batiment"]))
 	for w in _traders():
-		var r := float(C["vente_marchand"]) if w.task["obj"] != null else 1.0
+		var r := float(C["vente_marchand"]) if market_built() else 1.0
 		if has_capacity(w.card, "negociateur"):
 			r += float(C["negociateur_vente"])
 		rate = maxf(rate, r)
@@ -2791,7 +2794,7 @@ func buy_mult() -> float:
 	var C: Dictionary = data["buildings"]["comptoir"]
 	var m := 1.0
 	for w in _traders():
-		if w.task["obj"] != null:
+		if market_built():
 			m = minf(m, float(C["achat_marchand"]) - (float(C["negociateur_achat"]) if has_capacity(w.card, "negociateur") else 0.0))
 	return m
 

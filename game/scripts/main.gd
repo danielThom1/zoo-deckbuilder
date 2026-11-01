@@ -105,6 +105,7 @@ var btn_recall: Button
 var btn_cancel_site: Button
 var btn_demolish: Button
 var hand_box: HBoxContainer
+var deploy_all_btn: Button
 var toast_box: VBoxContainer
 var status_label: Label
 var night_root: Control
@@ -387,6 +388,12 @@ func _draw() -> void:
 	var now := Time.get_ticks_msec() / 1000.0
 	for ai_index in game.animals.size():
 		_draw_animal(game.animals[ai_index], ai_index, now)
+	# Animaux réservés dans un enclos en chantier : ils n'arrivent qu'après la fin des clôtures et de l'aménagement
+	for r in game.pending_installs:
+		var rc := (Vector2(r["tile"]) + Vector2(0.5, 0.5)) * TILE
+		draw_rect(Rect2(rc - Vector2(5, 4), Vector2(10, 8)), Color("A0743C", 0.7))
+		draw_rect(Rect2(rc - Vector2(5, 4), Vector2(10, 8)), Color("5A3A22"), false, 1.0)
+		_label("%s (arrive quand l'enclos sera fini)" % r["def"]["nom"], rc + Vector2(0, -12), 9)
 	# Chantiers et bâtiments, du fond vers l'avant
 	var sites_tries := game.sites.duplicate()
 	sites_tries.sort_custom(func(a, b): return a.rect.end.y < b.rect.end.y)
@@ -1039,12 +1046,21 @@ func _draw_animal(a: GameState.Animal, index: int, now: float) -> void:
 const TENUES := [Color("E04A4A"), Color("3A6AE0"), Color("E8B020"), Color("8A4AD0"), Color("F2F2F2"), Color("18A88A"), Color("E8782A")]
 
 
-## Visiteur : personnage dessiné (adultes et enfants variés), léger balancement.
+## Visiteur : petite silhouette discrète aux couleurs adoucies (à distinguer nettement des ouvriers dessinés) ;
+## un sur quatre est un enfant, plus petit.
+const TENUES_VISITEURS := [Color("C98E8E"), Color("8EA6C9"), Color("C9B98E"), Color("A88EC9"), Color("8EC9B4"), Color("C9A08E")]
+
+
 func _draw_visitor(pos: Vector2, k: int) -> void:
-	var nom := SpritesBD.visiteur(k * 5 + 3)
+	var sc := 0.7 if k % 4 == 1 else 1.0
 	var t := Time.get_ticks_msec() / 1000.0 + k * 0.37
-	var h := TILE * (0.72 if nom.begins_with("enfant") else 0.95)
-	SpritesBD.dessiner(self, nom, pos + Vector2(0, 2.5 - absf(sin(t * 9.0)) * 0.5), h, k % 2 == 0)
+	var p := pos + Vector2(0, -absf(sin(t * 8.0)) * 0.4)
+	var col: Color = TENUES_VISITEURS[(k * 5 + 3) % TENUES_VISITEURS.size()]
+	draw_set_transform(pos + Vector2(0.4, 2.0 * sc), 0.0, Vector2(1.5, 0.55))
+	draw_circle(Vector2.ZERO, 1.5 * sc, Color(0, 0, 0, 0.18))
+	draw_set_transform(Vector2.ZERO)
+	draw_rect(Rect2(p + Vector2(-1.1, -1.4) * sc, Vector2(2.2, 3.0) * sc), Color(col, 0.85))
+	draw_circle(p + Vector2(0, -2.2) * sc, 1.0 * sc, Color(0.93, 0.84, 0.74, 0.85))
 
 
 func _progress(r: Rect2, ratio: float) -> void:
@@ -1612,8 +1628,6 @@ func _auto_play() -> void:
 			mt.night_goto(args["etape"], game.index)
 		if args.has("peek"):  # --peek : « Voir mon zoo » avec le premier contrat montré sur la carte
 			night_peek = true
-			if args["peek"] != "aucun":
-				_toggle_peek_hint(game.market_contracts[0])
 	selected = ws.slice(0, 1 if args.has("un") else 2)
 
 
@@ -2026,6 +2040,16 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 	loan_btn.visible = false
 	loan_btn.pressed.connect(func(): game.take_loan())
 	ui.add_child(loan_btn)
+	# Tout déployer : chaque carte de la main payable part sur le terrain (au-dessus de la pioche)
+	deploy_all_btn = Composants.bouton("Tout déployer", "BoutonPrincipal")
+	deploy_all_btn.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	deploy_all_btn.offset_left = 16
+	deploy_all_btn.offset_right = 160
+	deploy_all_btn.offset_top = -244
+	deploy_all_btn.offset_bottom = -206
+	deploy_all_btn.tooltip_text = "Déploie toutes les cartes ouvriers de la main, tant que l'argent suffit à payer leur salaire"
+	deploy_all_btn.pressed.connect(_deploy_all)
+	ui.add_child(deploy_all_btn)
 	hand_scroll = ScrollContainer.new()
 	hand_scroll.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	hand_scroll.offset_left = 124
@@ -2081,7 +2105,7 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 	toast_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui.add_child(toast_box)
 
-	day_hud = [left, right, shade, pile_panel, hand_scroll, medallion]
+	day_hud = [left, right, shade, pile_panel, hand_scroll, medallion, deploy_all_btn]
 	_build_proposal_box()
 	_build_unit_panel()
 	_build_night_ui()
@@ -2355,10 +2379,39 @@ func _traits_bbcode(card: GameState.Card) -> String:
 	return "  ".join(parts)
 
 
+const TACHES_NOMS := {"extraire_bois": "couper du bois", "extraire_pierre": "extraire la pierre", "extraire_or": "miner l'or",
+	"construire_bois": "construire en bois", "construire_pierre": "construire en pierre", "construire_enclos": "poser les clôtures d'enclos",
+	"construire_route": "tracer les routes", "amenager": "aménager le terrain", "lobbying": "faire du lobbying en ville",
+	"guichet": "tenir le guichet", "nourrir": "nourrir les animaux", "nettoyer": "nettoyer le parc", "soigner": "soigner les animaux",
+	"animer": "animer le kiosque"}
+
+
+## Le métier en une phrase : ce qu'il fait mieux (ou moins bien) que les autres, avec son rendement.
+func _job_text(card: GameState.Card) -> String:
+	var eff: Dictionary = card.metier["efficacite"]
+	var base := float(eff.get("defaut", 1.0))
+	var best: Array[String] = []
+	for k in eff:
+		if k != "defaut" and TACHES_NOMS.has(k):
+			best.append("%s ×%s" % [TACHES_NOMS[k], ("%.1f" % float(eff[k])).replace(".", ",")])
+	var cat := str(UiTokens.CATEGORIES[card.metier["categorie"]]["long"]).to_lower()
+	if game.is_female(card) and cat.ends_with("é"):
+		cat += "e"  # qualifiée, peu qualifiée
+	var line := "Métier : %s (%s). " % [game.job_name(card), cat]
+	if best.is_empty():
+		line += "Polyvalent : rendement ×%s partout." % ("%.1f" % base).replace(".", ",")
+	else:
+		line += "Spécialité : %s ; ailleurs ×%s." % [", ".join(best), ("%.1f" % base).replace(".", ",")]
+	return line
+
+
 func _card_tooltip(card: GameState.Card) -> String:
-	var lines: Array[String] = []
+	var lines: Array[String] = [_job_text(card)]
 	if card.metier.has("capacite"):
-		lines.append(card.metier["capacite"])
+		lines.append("Capacité : " + str(card.metier["capacite"]))
+	var A := game.cadre_action(card)
+	if not A.is_empty():
+		lines.append("Jouée comme action (%s) : %s" % [A["nom"], A["texte"]])
 	for t in game.trait_defs(card):
 		var txt: String = t.get("texte", "")
 		if txt == "":
@@ -2395,6 +2448,7 @@ func _rebuild_hand() -> void:
 		var l := Composants.label("Main vide : la nuit tombe.", "TexteSecondaire")
 		hand_box.add_child(l)
 		return
+	deploy_all_btn.disabled = spectator or game.phase != "day" or not game.hand.any(func(c): return not c.is_action() and not c.deployed)
 	# Cartes Émeraude 136×216 (capture 03) : à déployer, sur le terrain, en lobbying, ou carte d'action
 	for card in game.hand:
 		if card.is_action():
@@ -2434,6 +2488,12 @@ func _action_widget(card: GameState.Card, button_text: String, disabled: bool, c
 	var w := Composants.carte_action(card, button_text, disabled, cb, "marche")
 	w.tooltip_text = "%s : %s" % [card.action["nom"], card.action["texte"]]
 	return w
+
+
+func _deploy_all() -> void:
+	for card in game.hand.duplicate():
+		if not card.is_action() and not card.deployed and game.money >= (0 if game.prime_left > 0 else game.salary(card)):
+			game.deploy(card)
 
 
 func _on_deploy(card: GameState.Card) -> void:
@@ -3439,7 +3499,7 @@ func _build_night_ui() -> void:
 	pv.add_theme_constant_override("separation", 8)
 	peek_panel.add_child(pv)
 	pv.add_child(Composants.label("CONTRATS DU MARCHÉ", "TitrePanneau"))
-	var pn := Composants.label("Motifs à reproduire (tournés ou retournés). Cliquez un contrat pour voir sur la carte où son motif existe déjà.", "TexteSecondaire")
+	var pn := Composants.label("Motifs à reproduire (tournés ou retournés) : cherchez sur la carte où les placer.", "TexteSecondaire")
 	pn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	pn.custom_minimum_size.x = 290
 	pn.add_theme_font_size_override("font_size", 12)
@@ -3856,6 +3916,13 @@ func _rebuild_night() -> void:
 		btn.add_theme_color_override("font_disabled_color", UiTokens.SELECTION if chosen else Color(UiTokens.TEXTE, 0.55))
 		btn.pressed.connect(game.pick_bonus.bind(b))
 		night_bonus_box.add_child(btn)
+	# Le premier en influence peut n'en choisir aucun
+	if mt.influence_leader() == game.index and not spectator:
+		var none := Composants.bouton("Aucun bonus : aucun ne m'intéresse", "BoutonSecondaire")
+		none.custom_minimum_size = Vector2(620, 40)
+		none.disabled = game.bonus_error(Match.NO_BONUS) != ""
+		none.pressed.connect(game.pick_bonus.bind(Match.NO_BONUS))
+		night_bonus_box.add_child(none)
 
 	# Montées de niveau : une amélioration gratuite à choisir par niveau gagné
 	_clear(night_level_rows)
@@ -3942,8 +4009,6 @@ func _rebuild_peek() -> void:
 	_clear(peek_list)
 	for def in game.market_contracts:
 		var b := Button.new()
-		b.toggle_mode = true
-		b.button_pressed = peek_hint.get("def") == def
 		b.custom_minimum_size = Vector2(296, 0)
 		b.focus_mode = Control.FOCUS_NONE
 		b.add_theme_stylebox_override("normal", UiTokens.chip(Color(biome_colors[def["biome"]], 0.22), 8, 6))
@@ -3965,7 +4030,8 @@ func _rebuild_peek() -> void:
 		txt.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		txt.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		h.add_child(txt)
-		b.pressed.connect(_toggle_peek_hint.bind(def))
+		b.mouse_default_cursor_shape = Control.CURSOR_ARROW
+		b.tooltip_text = _pattern_words(def)
 		peek_list.add_child(b)
 		b.custom_minimum_size.y = maxf(54.0, pat.custom_minimum_size.y + 12.0)
 
@@ -4110,8 +4176,7 @@ func _update_proposal_box(def: Dictionary, interior: Dictionary) -> void:
 	proposal_pattern.add_child(_pattern_view(def, 20.0))
 	var ok := animal_hints.filter(func(h): return h["ok"] and not h["park"]).size()
 	var near := animal_hints.filter(func(h): return not h["ok"]).size()
-	var lines: Array[String] = ["[b]%s[/b] · il faut %d cases et ce motif (tourné ou retourné, au choix)%s" % [def["nom"], int(def["taille"]),
-		", plus un [b]%s[/b] dans l'enclos" % game.building_def(def["decor"])["nom"] if def.has("decor") else ""]]
+	var lines: Array[String] = ["[b]%s[/b] · %s" % [def["nom"], _pattern_words(def).replace("\n", " ")]]
 	proposal_btn.visible = false
 	if interior.is_empty():
 		lines.append("[color=#B5452A]Fermez d'abord l'enceinte du zoo avec son entrée : les animaux vivent à l'intérieur.[/color]")
@@ -4269,7 +4334,7 @@ func _update_trade() -> void:
 	if trade_rows.is_empty():
 		return
 	var rate := game.sell_rate()
-	var who := "Marchand au Marché" if game.buy_mult() < 1.0 else ("Marchand au camp" if game.marchand_present() else ("bâtiment Marché" if game.market_built() else "sans Marchand"))
+	var who := "Marchand + bâtiment Marché" if game.buy_mult() < 1.0 else ("Marchand déployé" if game.marchand_present() else ("bâtiment Marché" if game.market_built() else "sans Marchand"))
 	trade_note.text = "Vente à %d %%%s (%s)" % [roundi(rate * 100), " · achat −%d %%" % roundi((1.0 - game.buy_mult()) * 100) if game.buy_mult() < 1.0 else "", who]
 	for res in trade_rows:
 		var row: Array = trade_rows[res]
@@ -4939,17 +5004,40 @@ func _pattern_view(def: Dictionary, cell := 14.0) -> Control:
 	for c in def["motif"]:
 		w = maxi(w, int(c[0]) + 1)
 		h = maxi(h, int(c[1]) + 1)
-	view.custom_minimum_size = Vector2(w, h) * cell + Vector2(2, 2)
+	var decor := str(def.get("decor", ""))
+	view.custom_minimum_size = Vector2(w, h) * cell + Vector2(2, 2) + (Vector2(cell * 1.6, 0) if decor != "" else Vector2.ZERO)
 	view.mouse_filter = Control.MOUSE_FILTER_PASS
 	view.draw.connect(func():
 		for c in def["motif"]:
 			var r := Rect2(Vector2(int(c[0]), int(c[1])) * cell + Vector2(1, 1), Vector2(cell - 2, cell - 2))
-			_draw_tile_motif(view, r, str(c[2])))
-	var names: Array[String] = []
-	for c in def["motif"]:
-		names.append(terrain_noms[GameMap.TERRAINS.find(str(c[2]))])
-	view.tooltip_text = "Motif à reproduire dans l'enclos (rotations et miroirs acceptés) : " + ", ".join(names)
+			_draw_tile_motif(view, r, str(c[2]))
+		if decor != "":
+			# l'aménagement est un bâtiment à poser dans l'enclos, en plus du motif : « + » puis son icône sur un disque
+			var x := w * cell + 2.0
+			view.draw_string(font, Vector2(x, h * cell / 2.0 + cell * 0.25), "+", HORIZONTAL_ALIGNMENT_LEFT, -1, int(cell * 0.8), UiTokens.OR)
+			var cc := Vector2(x + cell * 1.0, h * cell / 2.0)
+			view.draw_circle(cc, cell * 0.5, building_colors.get(decor, Color.GRAY))
+			var tex := UiTokens.icone(Composants.icone_batiment(decor))
+			if tex:
+				view.draw_texture_rect(tex, Rect2(cc - Vector2(cell, cell) * 0.32, Vector2(cell, cell) * 0.64), false))
+	view.tooltip_text = _pattern_words(def)
 	return view
+
+
+## Le motif en toutes lettres : nombre de cases de chaque terrain, puis l'aménagement à construire à part.
+func _pattern_words(def: Dictionary) -> String:
+	var count := {}
+	for c in def["motif"]:
+		var nm: String = terrain_noms[GameMap.TERRAINS.find(str(c[2]))]
+		count[nm] = int(count.get(nm, 0)) + 1
+	var parts: Array[String] = []
+	for nm in count:
+		parts.append("%d %s" % [count[nm], nm])
+	var txt := "Motif (tourné ou retourné) : %s, dans un enclos d'au moins %d cases." % [", ".join(parts), int(def["taille"])]
+	if def.has("decor"):
+		txt += "\nEn plus : un %s, bâtiment à poser dans l'enclos hors du motif (onglet Zoo). La case grise du motif est un terrain Roche, pas ce bâtiment." % game.building_def(def["decor"])["nom"] \
+			if def["motif"].any(func(c): return str(c[2]) == "Roche") else "\nEn plus : un %s, bâtiment à poser dans l'enclos hors du motif (onglet Zoo)." % game.building_def(def["decor"])["nom"]
+	return txt
 
 
 func _draw_tile_motif(ci: CanvasItem, r: Rect2, terrain: String) -> void:

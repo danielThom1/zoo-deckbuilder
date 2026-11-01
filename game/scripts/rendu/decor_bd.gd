@@ -160,7 +160,9 @@ func _peupler(x: int, y: int) -> void:
 			elif r.randf() < 0.8:
 				_poser(c, _choisir(r, {"rocher": 1.0}), base + j.call(0.3) + Vector2(0, 0.4 - HAUTEUR_FALAISE), 0.8)
 		GameMap.MINE_OR:
-			_poser(c, _choisir(r, {"rocher_or": 1.0}), base + Vector2(0, 0.25), 1.0)
+			# Gisement d'or : gros rocher veiné bien visible, et un second plus petit à côté
+			_poser(c, _choisir(r, {"rocher_or": 1.0}), base + Vector2(-0.12, 0.35), 1.9)
+			_poser(c, _choisir(r, {"rocher_or": 1.0}), base + Vector2(0.32, 0.4), 1.1, true)
 		GameMap.SABLE:
 			if r.randf() < 0.35:
 				_poser(c, _choisir(r, SABLE), base + j.call(0.3), r.randf_range(0.8, 1.1), r.randf() < 0.5)

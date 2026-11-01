@@ -1090,6 +1090,30 @@ func _init() -> void:
 	q_g.order([q_w], q_site.rect.position)
 	check(q_w.queue.is_empty(), "un nouvel ordre sans Maj vide la file")
 
+	print("Lot Q : eau, Marchand, bonus refusé :")
+	var w_g := _fresh_day(data, 7171)
+	var w_eau := Vector2i(-1, -1)
+	for y in w_g.map.h:
+		for x in w_g.map.w:
+			if w_eau.x < 0 and w_g.map.get_t(x, y) == GameMap.EAU and w_g.map.road[w_g.map.idx(x, y)] == 0:
+				w_eau = Vector2i(x, y)
+	w_g.stock["bois"] = 20.0
+	w_g.stock["pierre"] = 20.0
+	check(w_g.placement_error("batiment", w_g.building_def("enclos"), w_eau) == "", "une clôture d'enclos se pose sur l'eau (%s)" % w_g.placement_error("batiment", w_g.building_def("enclos"), w_eau))
+	check(w_g.placement_error("batiment", w_g.building_def("cloture"), w_eau) != "", "le mur d'enceinte, non")
+	var w_rate0 := w_g.sell_rate()
+	var w_mar: GameState.Card = b_mk.call("marchand", [])
+	w_g.hand.append(w_mar)
+	w_g.deploy(w_mar, true)
+	check(w_rate0 < 1.0 and is_equal_approx(w_g.sell_rate(), 1.0), "Marchand déployé, sans poste : plein tarif (%.2f → %.2f)" % [w_rate0, w_g.sell_rate()])
+	w_g.end_day()
+	w_g.mt.night_goto("bonus")
+	var w_lead: GameState = w_g.mt.players[w_g.mt.influence_leader()]
+	if not w_g.mt.is_ai(w_lead.index):
+		check(w_lead.pick_bonus(Match.NO_BONUS) and w_g.mt.night_stage == "equipe", "le premier en influence peut refuser tous les bonus")
+		w_g.start_next_day()
+		check(w_g.day_bonus.get("id", "") == "aucun", "aucun bonus le lendemain")
+
 	print("\n%s" % ("TOUS LES TESTS PASSENT" if failures == 0 else "%d ÉCHEC(S)" % failures))
 	quit(failures)
 

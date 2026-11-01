@@ -37,6 +37,8 @@ var night_taken: Array = []  # achats de la nuit, visibles de tous : {"etape", "
 var log: Array[String] = []  # achats des IA de la nuit
 var current_event := {}  # événement du jour (commun à tous les joueurs)
 var bonus_offer: Array = []  # bonus de nuit proposés (3)
+## Le premier en influence peut refuser tous les bonus proposés.
+const NO_BONUS := {"id": "aucun", "nom": "Aucun bonus", "texte": "Aucun bonus demain.", "effets": {}}
 var bonus_choice := {}  # bonus choisi par le premier en influence : actif le lendemain pour tous les joueurs
 var history: Array = []  # statistiques par jour et par joueur (simulations)
 
