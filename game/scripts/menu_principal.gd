@@ -43,6 +43,7 @@ var champ_graine: LineEdit
 var lbl_carte: Label
 var lbl_joueurs: Label
 var sous_titre_jouer: Label
+var sous_titre_regarder: Label
 var jetons_ia: Array = []
 var nuages: Control
 var bouton_jouer: Button
@@ -140,6 +141,7 @@ void fragment() {
 	b_jouer.pressed.connect(func(): lancer.emit(false, graine, adversaires, difficile))
 	boutons.add_child(b_jouer)
 	var b_regarder := _bouton_menu("Regarder des IA jouer", "4 IA aux stratégies différentes, en accéléré ×8", "oeil", false)
+	sous_titre_regarder = b_regarder.get_meta("sous_titre")
 	b_regarder.pressed.connect(func(): lancer.emit(true, graine, 4, difficile))
 	boutons.add_child(b_regarder)
 	var b_quitter := _bouton_menu("Quitter", "Retour au bureau", "sortie", false)
@@ -236,7 +238,8 @@ func _carte_reglages() -> Control:
 		var val: bool = opt[1]
 		bd.toggled.connect(func(on: bool):
 			if on:
-				difficile = val)
+				difficile = val
+				_maj_joueurs())
 		segd.add_child(bd)
 
 	var jetons := HBoxContainer.new()
@@ -441,7 +444,9 @@ func _maj_joueurs() -> void:
 		jetons_ia[i].modulate = Color(1, 1, 1, 1.0 if actif else 0.3)
 	lbl_joueurs.text = "%d joueurs" % (adversaires + 1)
 	if sous_titre_jouer:
-		sous_titre_jouer.text = "Vous et %d IA · draft puis partie complète" % adversaires
+		sous_titre_jouer.text = "Vous et %d IA%s · draft puis partie complète" % [adversaires, " difficiles" if difficile else ""]
+	if sous_titre_regarder:
+		sous_titre_regarder.text = "4 IA %s, en accéléré ×8" % ("difficiles (stratégies apprises)" if difficile else "aux stratégies différentes")
 
 
 func _apparition() -> void:

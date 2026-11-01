@@ -201,8 +201,10 @@ var peek_hint := {}  # contrat montré sur la carte : {"def", "tiles", "missing"
 var night_chips := {}
 var day_hud: Array[Control] = []  # masqués la nuit et sur l'écran de fin
 var end_dismissed := false
+var end_views: HBoxContainer  # carte finale : un bouton par joueur pour voir son zoo
 ## Relance demandée par l'écran de fin (« jouer », « spectateur », « menu ») : survit au rechargement de la scène.
 static var relance := ""
+static var relance_difficile := false  # « Rejouer » garde la difficulté choisie
 
 
 func _ready() -> void:
@@ -215,6 +217,8 @@ func _ready() -> void:
 		relance = ""
 		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 		args.erase("seed")
+		if relance_difficile and mode != "menu":
+			args["difficile"] = ""
 		if mode == "menu":
 			_show_menu()
 		else:
@@ -2618,6 +2622,21 @@ func _view_player(i: int) -> void:
 	_focus_zoo()
 
 
+## Fin de partie : montre la carte finale du zoo de ce joueur.
+func _watch_board(i: int) -> void:
+	end_dismissed = true
+	_view_player(i)
+	var interior: Array = game.zoo_status()["interior"].keys()
+	if not interior.is_empty():
+		var c := Vector2.ZERO
+		for t in interior:
+			c += Vector2(t)
+		camera.position = (c / interior.size() + Vector2(0.5, 0.5)) * TILE
+		camera.zoom = Vector2(1.3, 1.3)
+	elif mt.ais[i] == null:
+		camera.position = Vector2(game.map.camp.get_center()) * TILE
+
+
 ## Mode spectateur : centre la caméra sur l'enceinte prévue par l'IA regardée.
 func _focus_zoo() -> void:
 	if not spectator or mt.ais[game.index] == null:
@@ -3280,6 +3299,15 @@ func _update_hud() -> void:
 		_rebuild_end()
 	end_root.visible = mt.game_over and not end_dismissed
 	end_reopen.visible = mt.game_over and end_dismissed
+	if end_views:
+		end_views.visible = end_reopen.visible
+		if end_views.visible and end_views.get_child_count() == 0:
+			for i in mt.players.size():
+				var vb := Composants.bouton(mt.names[i], "BoutonSecondaire")
+				vb.add_theme_font_size_override("font_size", 13)
+				vb.focus_mode = Control.FOCUS_NONE
+				vb.pressed.connect(_watch_board.bind(i))
+				end_views.add_child(vb)
 	var day_view := game.phase == "day" or (mt.game_over and end_dismissed)
 	for c in day_hud:
 		c.visible = day_view
@@ -4856,6 +4884,16 @@ func _build_end_ui() -> void:
 	end_reopen.visible = false
 	end_reopen.pressed.connect(func(): end_dismissed = false)
 	ui.add_child(end_reopen)
+	# Carte finale : passer d'un zoo à l'autre
+	end_views = HBoxContainer.new()
+	end_views.add_theme_constant_override("separation", 6)
+	end_views.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	end_views.offset_top = 112
+	end_views.offset_left = -300
+	end_views.offset_right = 300
+	end_views.alignment = BoxContainer.ALIGNMENT_CENTER
+	end_views.visible = false
+	ui.add_child(end_views)
 
 
 func _rebuild_end() -> void:
@@ -4897,6 +4935,7 @@ func _rebuild_end() -> void:
 	ranking.sort_custom(func(a, b): return mt.players[a].reputation() > mt.players[b].reputation())
 	var slots := [1, 0, 2, 3]
 	var heights := [300.0, 240.0, 190.0, 140.0]
+	var me_index := game.index if not spectator else -1
 	var podium := Control.new()
 	podium.position = Vector2(110, 190)
 	podium.size = Vector2(700, 470)
@@ -4953,6 +4992,11 @@ func _rebuild_end() -> void:
 		vl.add_theme_font_size_override("font_size", 12)
 		vl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		Composants.placer(box, vl, Vector2(0, 48), Vector2(150, 18))
+		# Voir le zoo de ce joueur sur la carte finale
+		var see := Composants.bouton("Voir son zoo" if i != me_index else "Voir mon zoo", "BoutonSecondaire")
+		see.add_theme_font_size_override("font_size", 13)
+		see.pressed.connect(_watch_board.bind(i))
+		Composants.placer(box, see, Vector2(10, 74), Vector2(130, 32))
 	# Panneau « Votre partie » : chiffres clés, courbes de réputation, biomes
 	var me := game.index
 	var host := Control.new()
@@ -5110,6 +5154,7 @@ func _draw_marker(ci: CanvasItem, p: Vector2, shape: int, col: Color, s: float) 
 
 func _restart(mode: String) -> void:
 	relance = mode
+	relance_difficile = args.has("difficile")
 	get_tree().reload_current_scene()
 
 
