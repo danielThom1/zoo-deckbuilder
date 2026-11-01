@@ -68,7 +68,7 @@
     { "id": "entree",     "nom": "Entrée du zoo",        "taille": [2, 1], "travail": 120,  "type_travail": "construire_pierre", "cout": { "pierre": 8, "bois": 4 }, "effet": { "entree_zoo": true }, "unique": true },
     { "id": "enclos",     "nom": "Clôture d'enclos (segment)", "taille": [1, 1], "travail": 8, "type_travail": "construire_enclos", "cout": { "bois": 1 }, "effet": { "enclos": true }, "peinture": true, "_note": "Une zone fermée de clôtures d'enclos validée contre les exigences d'un contrat d'animal" },
     { "id": "boutique",   "nom": "Boutique de souvenirs","taille": [2, 2], "travail": 150,  "type_travail": "construire_bois",  "cout": { "bois": 8, "pierre": 4, "argent": 5 }, "effet": { "souvenirs_par_visiteur": 1.0 }, "dans_enceinte": true },
-    { "id": "formation",  "nom": "Centre de formation",  "taille": [3, 2], "travail": 240, "type_travail": "construire_pierre", "cout": { "bois": 10, "pierre": 8 }, "effet": { "capacite_formation": 3, "xp_par_minute": 0.6 }, "_note_effet": "Ouvriers postés (clic droit) : +0,4 jour d'XP par minute, ×2 si un Formateur est posté aussi. 3 places (+2 avec Pédagogue)." },
+    { "id": "formation",  "nom": "Centre de formation",  "taille": [3, 2], "travail": 240, "type_travail": "construire_pierre", "cout": { "bois": 10, "pierre": 8 }, "effet": { "capacite_formation": 4, "xp_par_minute": 0.8 }, "_note_effet": "Ouvriers postés (clic droit) : +0,4 jour d'XP par minute, ×2 si un Formateur est posté aussi. 3 places (+2 avec Pédagogue)." },
     { "id": "cuisine",    "nom": "Cuisine des animaux",  "taille": [2, 2], "travail": 80,  "type_travail": "construire_bois",  "cout": { "bois": 8, "pierre": 4 }, "effet": { "cuisine": true }, "dans_enceinte": true, "_note_effet": "Clic droit avec un ouvrier : il prépare des rations (1 argent chacune) et les livre aux animaux qui en ont besoin, en boucle. Animalier ×2." },
     { "id": "entretien",  "nom": "Local d'entretien",    "taille": [2, 2], "travail": 70,  "type_travail": "construire_bois",  "cout": { "bois": 8, "pierre": 2 }, "effet": { "entretien": true }, "dans_enceinte": true, "_note_effet": "Clic droit avec un ouvrier : il nettoie le parc en circulant dans l'enceinte. Agent d'entretien ×2." },
     { "id": "snack",      "nom": "Snack",                "taille": [2, 2], "travail": 120, "type_travail": "construire_bois",  "cout": { "bois": 10, "pierre": 4, "argent": 10 }, "effet": { "duree_visite_mult": 1.25 }, "dans_enceinte": true, "_note_effet": "Tenu par un ouvrier (clic droit) : les visiteurs qui entrent restent 25 % plus longtemps." },
@@ -156,7 +156,7 @@
 
   "reputation_autres": {
     "_note": "Autres façons de gagner de la réputation que la fréquentation. Spectacles : par journée de Kiosque tenu (× efficacité « animer » : Animateur ×2). Boutique : par unité d'argent de souvenirs vendue. Prestige politique : chaque nuit, le 1er puis le 2e en influence (s'ils ont au moins influence_min). Labels : achetés en or, avec un Marchand déployé, une fois chacun. Légendaire : un ouvrier qui atteint le niveau 5.",
-    "kiosque_par_jour": 3,
+    "kiosque_par_jour": 2,
     "boutique_par_souvenir": 0.08,
     "prestige_politique": [1, 0.5],
     "influence_min": 1,

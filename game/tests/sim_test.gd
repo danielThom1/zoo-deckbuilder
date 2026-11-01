@@ -499,7 +499,7 @@ func _init() -> void:
 		return c
 	var b_appr: GameState.Card = b_mk.call("apprenti", [])
 	b_g.gain_xp(b_appr, 1.0)
-	check(is_equal_approx(b_appr.xp, 2.0), "Apprenti : expérience ×2 (%.1f jour pour 1 jour travaillé)" % b_appr.xp)
+	check(is_equal_approx(b_appr.xp, 1.7), "Apprenti : expérience ×1,7 (%.1f jour pour 1 jour travaillé)" % b_appr.xp)
 	var b_eleve: GameState.Card = b_mk.call("manoeuvre", ["bon_eleve"])
 	b_g.gain_xp(b_eleve, 1.0)
 	check(is_equal_approx(b_eleve.xp, 1.5), "Bon élève : expérience ×1,5")

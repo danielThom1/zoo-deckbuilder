@@ -4,7 +4,7 @@ extends Control
 ## titre gravé, boutons d'action à gauche, réglages de la partie à droite avec aperçu de la carte.
 ## Ne dépend que de GameData, MapGenerator, GameMap et des polices de UiTokens.
 
-signal lancer(spectateur: bool, graine: int, adversaires: int)
+signal lancer(spectateur: bool, graine: int, adversaires: int, difficile: bool)
 
 # Couleurs (thème Émeraude, cf. docs/handoff_emeraude/tokens.json)
 # Style « BD néo ligne claire » (docs/handoff_bd) : papier blanc, encre marine, accent jaune, bandeau sarcelle
@@ -32,6 +32,7 @@ const PX := 8  # pixels par case dans l'image de fond
 
 var graine := 0
 var adversaires := 3
+var difficile := false  # IA difficile : stratégies apprises par l'IA évolutive
 var police_titre: Font
 var police_texte: Font
 var police_gras: Font
@@ -136,10 +137,10 @@ void fragment() {
 	col.add_child(boutons)
 	var b_jouer := _bouton_menu("Jouer contre l'IA", "", "jouer", true)
 	sous_titre_jouer = b_jouer.get_meta("sous_titre")
-	b_jouer.pressed.connect(func(): lancer.emit(false, graine, adversaires))
+	b_jouer.pressed.connect(func(): lancer.emit(false, graine, adversaires, difficile))
 	boutons.add_child(b_jouer)
 	var b_regarder := _bouton_menu("Regarder des IA jouer", "4 IA aux stratégies différentes, en accéléré ×8", "oeil", false)
-	b_regarder.pressed.connect(func(): lancer.emit(true, graine, 4))
+	b_regarder.pressed.connect(func(): lancer.emit(true, graine, 4, difficile))
 	boutons.add_child(b_regarder)
 	var b_quitter := _bouton_menu("Quitter", "Retour au bureau", "sortie", false)
 	b_quitter.pressed.connect(func(): get_tree().quit())
@@ -214,6 +215,29 @@ func _carte_reglages() -> Control:
 				adversaires = n
 				_maj_joueurs())
 		seg.add_child(b)
+
+	# Difficulté : IA normales, ou IA difficiles (stratégies apprises par l'IA évolutive)
+	corps.add_child(_label("Difficulté", police_texte, 14, TEXTE_2))
+	var segd := HBoxContainer.new()
+	segd.add_theme_constant_override("separation", 8)
+	corps.add_child(segd)
+	var groupe_d := ButtonGroup.new()
+	for opt in [["Normale", false, "IA aux stratégies écrites à la main"], ["Difficile", true, "IA entraînées par évolution : elles ont appris en jouant des centaines de parties"]]:
+		var bd := Button.new()
+		bd.text = opt[0]
+		bd.tooltip_text = opt[2]
+		bd.toggle_mode = true
+		bd.button_group = groupe_d
+		bd.button_pressed = opt[1] == difficile
+		bd.custom_minimum_size = Vector2(0, 40)
+		bd.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		bd.add_theme_font_override("font", police_gras)
+		bd.add_theme_font_size_override("font_size", 17)
+		var val: bool = opt[1]
+		bd.toggled.connect(func(on: bool):
+			if on:
+				difficile = val)
+		segd.add_child(bd)
 
 	var jetons := HBoxContainer.new()
 	jetons.add_theme_constant_override("separation", 8)

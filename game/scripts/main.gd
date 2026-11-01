@@ -235,8 +235,10 @@ func _show_menu() -> void:
 	add_child(layer)
 	var menu := MenuPrincipal.new()
 	layer.add_child(menu)
-	menu.lancer.connect(func(watch: bool, graine: int, adversaires: int):
+	menu.lancer.connect(func(watch: bool, graine: int, adversaires: int, difficile: bool):
 		args["seed"] = str(graine)
+		if difficile:
+			args["difficile"] = ""
 		args["joueurs"] = str(4 if watch else adversaires + 1)
 		layer.queue_free()
 		_start(watch))
@@ -253,7 +255,14 @@ func _start(watch: bool) -> void:
 	spectator = watch
 	var map_seed: int = int(args["seed"]) if args.has("seed") else randi() % 1000000000
 	var nb := int(args.get("joueurs", "4"))
-	mt = Match.new(GameData.load_all(), map_seed, nb, -1 if spectator else 0, WATCH_STRATEGIES if spectator else [])
+	var strategies: Array = WATCH_STRATEGIES if spectator else []
+	# --difficile (ou choix du menu) : les IA jouent les stratégies apprises par l'IA évolutive
+	if args.has("difficile") and FileAccess.file_exists("res://data/ia_difficile.json"):
+		var hard: Array = JSON.parse_string(FileAccess.get_file_as_string("res://data/ia_difficile.json"))["strategies"]
+		strategies = []
+		for i in nb:
+			strategies.append(null if i == 0 and not spectator else hard[(i - (0 if spectator else 1)) % hard.size()])
+	mt = Match.new(GameData.load_all(), map_seed, nb, -1 if spectator else 0, strategies)
 	game = mt.players[0]
 	RenderingServer.set_default_clear_color(UiTokens.FOND_ECRAN)
 	_build_terrain()
