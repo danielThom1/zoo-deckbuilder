@@ -18,6 +18,8 @@ const STRATEGIES := [
 	{"nom": "Petits contrats", "preference_palier": 0.4, "contrats_en_attente_max": 3},
 	{"nom": "Grand parc", "taille_zoo": "grand"},
 	{"nom": "Lobbying", "lobbyistes_max": 2},
+	{"nom": "Camp amélioré", "camp": 1},
+	{"nom": "Grand camp", "camp": 2},
 ]
 
 
@@ -121,7 +123,8 @@ func _play(gi: int, data: Dictionary, dt: float, detail: bool) -> Dictionary:
 		var p := m.players[i]
 		players.append({"nom": picks[i]["nom"], "rep": p.reputation(), "money": p.money, "animals": p.animals.size(),
 			"employees": p.employees(), "influence": p.influence, "first_buyer": first_counts[i],
-			"paliers": p.animals.map(func(a): return a.def["palier"]), "especes": p.animals.map(func(a): return a.def["nom"])})
+			"paliers": p.animals.map(func(a): return a.def["palier"]), "especes": p.animals.map(func(a): return a.def["nom"]),
+			"entrepots": p.sites.filter(func(st): return st.done and st.def_id() == "entrepot").size()})
 	var history := []
 	for row in m.history:
 		history.append(row.map(func(e): return {"day": e["day"], "rep": e["rep"], "money": e["money"], "visitors": e["visitors"]}))
@@ -159,7 +162,7 @@ func _write_report(results: Dictionary, n_games: int, dt: float, data: Dictionar
 	var stats := {}
 	for st in STRATEGIES:
 		stats[st["nom"]] = {"games": 0, "wins": 0, "rep": 0.0, "money": 0.0, "animals": 0.0, "tiers": {"T1": 0, "T2": 0, "T3": 0},
-			"employees": 0.0, "influence": 0.0, "first_buyer": 0, "visitors": 0.0, "win_days": []}
+			"employees": 0.0, "influence": 0.0, "first_buyer": 0, "visitors": 0.0, "win_days": [], "entrepots": 0.0}
 	var games := []
 	var rep_by_day := {}  # jour -> somme des réputations (moyenne sur tous les joueurs)
 	var money_by_day := {}
@@ -177,6 +180,7 @@ func _write_report(results: Dictionary, n_games: int, dt: float, data: Dictionar
 			s["employees"] += p["employees"]
 			s["influence"] += p["influence"]
 			s["first_buyer"] += int(p["first_buyer"])
+			s["entrepots"] += float(p.get("entrepots", 0))
 			for t in p["paliers"]:
 				s["tiers"][t] += 1
 			for nm in p["especes"]:
@@ -205,8 +209,8 @@ func _write_report(results: Dictionary, n_games: int, dt: float, data: Dictionar
 	L.append("")
 	L.append("Classement par taux de victoire, puis par jour moyen de victoire (plus tôt = mieux).")
 	L.append("")
-	L.append("| Stratégie | Victoires | Taux | Jour moyen de victoire | Victoire la plus rapide | Réputation moyenne en fin de partie |")
-	L.append("|---|---|---|---|---|---|")
+	L.append("| Stratégie | Victoires | Taux | Jour moyen de victoire | Victoire la plus rapide | Réputation moyenne en fin de partie | Entrepôts |")
+	L.append("|---|---|---|---|---|---|---|")
 	var ranking: Array = stats.keys()
 	ranking.sort_custom(func(a, b):
 		var sa: Dictionary = stats[a]
@@ -222,9 +226,9 @@ func _write_report(results: Dictionary, n_games: int, dt: float, data: Dictionar
 		var s: Dictionary = stats[nom]
 		var n: int = maxi(1, s["games"])
 		var wd: Array = s["win_days"]
-		L.append("| %s | %d / %d | %d %% | %s | %s | %.0f |" % [nom, s["wins"], s["games"], roundi(100.0 * s["wins"] / n),
+		L.append("| %s | %d / %d | %d %% | %s | %s | %.0f | %.1f |" % [nom, s["wins"], s["games"], roundi(100.0 * s["wins"] / n),
 			"—" if wd.is_empty() else "%.1f" % (float(wd.reduce(func(x, y): return x + y, 0)) / wd.size()),
-			"—" if wd.is_empty() else "jour %d" % wd.min(), s["rep"] / n])
+			"—" if wd.is_empty() else "jour %d" % wd.min(), s["rep"] / n, s["entrepots"] / n])
 	var record: Dictionary = {}
 	for gm in games:
 		if record.is_empty() or gm["day"] < record["day"]:

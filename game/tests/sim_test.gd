@@ -1031,7 +1031,7 @@ func _init() -> void:
 	v_tree[0].work = v_tree[0].travail()
 	v_g._complete(v_tree[0])
 	check(v_g.pending_installs.is_empty() and v_g.animals.size() == 2, "arbre terminé : l'animal s'installe")
-	check(not v_g.animals[1].pattern_tiles.has(v_tree[0].rect.position), "le motif ne passe pas sur l'aménagement")
+	check(v_g.animals[1].pattern_tiles.size() == 3, "le motif peut passer sur la case de l'aménagement")
 	v_g.end_day()
 	var v_nb := v_g.continent_neighbours(v_g.animals[0])
 	check(v_nb.size() == 1 and v_nb[0] == v_g.animals[1], "voisinage : deux animaux d'Afrique dans des enclos voisins")
@@ -1089,6 +1089,37 @@ func _init() -> void:
 	check(q_site.done and q_w.task.get("type") == "extract" and q_w.queue.is_empty(), "chantier fini : l'ouvrier enchaîne sur la récolte")
 	q_g.order([q_w], q_site.rect.position)
 	check(q_w.queue.is_empty(), "un nouvel ordre sans Maj vide la file")
+
+	# Lion du joueur : enclos de 9 cases, motif de 8, Rocher d'observation sur une case du motif
+	var l_g := _fresh_day(data, 8181)
+	l_g.debug_build_zoo(Vector2i(4, 4))
+	l_g.end_day()
+	l_g.start_next_day()
+	var l_lion: Dictionary = data["animals"]["animaux"].filter(func(d): return d["id"] == "lion")[0]
+	var l_o := Vector2i(14, 4)
+	l_g.stock["bois"] = 60.0
+	l_g.stock["pierre"] = 60.0
+	var l_rows := ["SPP", "SRP", "PPP"]
+	for y in 3:
+		for x in 3:
+			var ch: String = l_rows[y][x]
+			l_g.map.set_t(l_o.x + 1 + x, l_o.y + 1 + y, GameMap.SABLE if ch == "S" else (GameMap.ROCHE if ch == "R" else GameMap.PRAIRIE))
+			l_g._terrain_updated(Vector2i(l_o.x + 1 + x, l_o.y + 1 + y))
+	var l_sites: Array = []
+	for y in range(l_o.y, l_o.y + 5):
+		for x in range(l_o.x, l_o.x + 5):
+			if (x == l_o.x or x == l_o.x + 4 or y == l_o.y or y == l_o.y + 4) and l_g.site_at(Vector2i(x, y)) == null:
+				l_sites.append(l_g.place("batiment", l_g.building_def("enclos"), Vector2i(x, y)))
+	for st in l_sites:
+		if st:
+			st.work = st.travail()
+			l_g._complete(st)
+	var l_rock := l_g.place("batiment", l_g.building_def("rocher_obs"), l_o + Vector2i(1, 1))
+	l_rock.work = l_rock.travail()
+	l_g._complete(l_rock)
+	l_g.contracts.append(l_lion)
+	var l_enc := l_g.enclosure_at(l_o + Vector2i(2, 2))
+	check(l_enc["closed"] and l_g.animal_error(l_lion, l_enc) == "", "Lion : rocher sur une case du motif, installation possible (%s)" % l_g.animal_error(l_lion, l_enc))
 
 	print("Lot Q : eau, Marchand, bonus refusé :")
 	var w_g := _fresh_day(data, 7171)

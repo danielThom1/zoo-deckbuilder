@@ -2044,7 +2044,8 @@ func free_enclosure_tiles(enc: Dictionary) -> Array:
 		if a.key == key:
 			for p in a.pattern_tiles:
 				used[p] = true
-	return enc["tiles"].filter(func(p): return not used.has(p) and not is_decor(p))
+	# L'aménagement requis (Rocher d'observation…) peut se trouver sur une case du motif : seul le terrain compte.
+	return enc["tiles"].filter(func(p): return not used.has(p))
 
 
 ## Les murs de l'enceinte peuvent servir de côté à un enclos : la zone doit alors toucher au moins une

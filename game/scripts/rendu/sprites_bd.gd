@@ -123,7 +123,7 @@ static func visiteur(i: int) -> String:
 
 ## Portrait stable pour un personnage identifié par une chaîne (perso du jeu).
 ## Portrait de chaque personnage (data/personnages.json), choisi pour son genre et son âge ; un portrait par personnage.
-const PORTRAIT_DE := {"lea": 36, "jade": 4, "emma": 31, "ines": 21, "chloe": 25, "manon": 41, "sarah": 14, "yasmine": 17, "aicha": 8, "margaux": 10, "lucie": 30, "clara": 1, "nadia": 23, "odette": 26, "fatou": 39, "elise": 40, "rose": 5, "camille": 34, "zoe": 19, "lina": 12, "hugo": 2, "louis": 6, "nathan": 7, "gabin": 13, "tom": 37, "jules": 27, "paul": 24, "malik": 20, "theo": 32, "kenji": 16, "mamadou": 3, "bastien": 18, "marcel": 29, "samir": 42, "igor": 9, "adam": 38, "victor": 11, "noah": 28, "basile": 35, "omar": 22}
+const PORTRAIT_DE := {"lea": 36, "jade": 4, "emma": 31, "ines": 21, "chloe": 25, "manon": 41, "sarah": 14, "yasmine": 17, "aicha": 8, "margaux": 10, "lucie": 30, "clara": 1, "nadia": 23, "odette": 26, "fatou": 39, "elise": 40, "rose": 5, "camille": 34, "zoe": 19, "lina": 12, "hugo": 2, "louis": 6, "nathan": 7, "gabin": 13, "tom": 37, "jules": 27, "paul": 24, "malik": 20, "theo": 32, "kenji": 16, "mamadou": 3, "bastien": 18, "marcel": 29, "samir": 42, "igor": 9, "adam": 38, "victor": 11, "noah": 43, "basile": 35, "omar": 22}
 
 
 static func portrait_de(cle: String) -> String:

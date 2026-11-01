@@ -4984,7 +4984,7 @@ func _requirements_text(def: Dictionary, tiles = null) -> String:
 		return "≥ %d cases, motif de %d cases%s" % [int(def["taille"]), def["motif"].size(),
 			" + " + game.building_def(def["decor"])["nom"] if def.has("decor") else ""]
 	var size_ok: bool = tiles.size() >= int(def["taille"])
-	var ps := game.pattern_status(def, tiles)
+	var ps := game.pattern_status(def, game.free_enclosure_tiles(game.enclosure_at(tiles[0])) if not tiles.is_empty() else tiles)
 	var parts: Array[String] = []
 	parts.append("[color=%s]%s %d / %d cases[/color]" % ["#7fc97f" if size_ok else "#f08080", "✓" if size_ok else "✗", tiles.size(), int(def["taille"])])
 	if ps["found"]:

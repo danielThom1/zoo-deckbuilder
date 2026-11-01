@@ -73,9 +73,11 @@ func card_bonus(c: GameState.Card) -> float:
 	mine.append_array(g.all_employees())
 	mine.append_array(mt.drafted[g.index])
 	var has := func(id): return mine.any(func(o): return o.metier["id"] == id)
+	if strat["rush_or"] and job == "mineur":
+		return 1.5  # Rush or : des mineurs, beaucoup
 	match job:
 		"marchand":
-			return 1.0 if not has.call("marchand") else -1.0
+			return (2.0 if strat["rush_or"] else 1.0) if not has.call("marchand") else -1.0
 		"lobbyiste":
 			return 0.5 + 0.5 * float(strat["lobbyistes_max"])
 		"vendeur":
@@ -340,6 +342,11 @@ func update(dt: float) -> void:
 				g.order([w], market[0].rect.position if not market.is_empty() else g.map.camp.get_center())
 	if g.money < 6.0 and g.stock["bois"] + g.stock["pierre"] + g.stock["or"] >= 5:
 		_sell_for(_cash_floor())
+	# Rush or : l'or extrait est vendu au fur et à mesure (petite réserve pour les contrats), l'argent paie les matériaux.
+	if strat["rush_or"] and g.stock["or"] >= 4.0:
+		var keep := minf(float(_needs()["or"]), 6.0)
+		if g.stock["or"] - keep >= 3.0:
+			g.sell_stock({"or": keep}, ["or"])
 
 
 # --- Nuit : marché ------------------------------------------------------------
@@ -1011,6 +1018,10 @@ func _wants() -> Array:
 		var spot := _spot_near_camp(g.building_def("maison"))
 		if spot.x >= 0:
 			out.append(["batiment", g.building_def("maison"), spot])
+	# 1 bis. Entrepôt rentable : les récolteurs perdent trop de temps en allers-retours jusqu'au dépôt le plus proche.
+	var dspot := _depot_wanted()
+	if dspot.x >= 0:
+		out.append(["batiment", g.building_def("entrepot"), dspot])
 	# 1 quater. Améliorations du camp (stratégies « Camp amélioré » et « Grand camp ») : +1 carte en main par niveau.
 	for lvl in [2, 3]:
 		if lvl - 1 > int(strat["camp"]) or day < 2:
@@ -1020,6 +1031,12 @@ func _wants() -> Array:
 			if g.placement_error("batiment", g.building_def(cid), g.map.camp.position, false) == "":
 				out.append(["batiment", g.building_def(cid), g.map.camp.position])
 			break
+	# 0. Rush or : mine, entrepôt collé à la mine (trajets courts), puis Marché pour vendre l'or ; le parc attend.
+	if strat["rush_or"]:
+		var rush := _rush_wants()
+		out.append_array(rush)
+		if not _rush_ready() and day < 6:
+			return out
 	if zoo_rect.size == Vector2i.ZERO:
 		return out
 	# 1 ter. Route jusqu'à l'entrée : indispensable, les visiteurs n'arrivent que par la route.
@@ -1038,17 +1055,11 @@ func _wants() -> Array:
 		var mspot := _mine_spot()
 		if mspot.x >= 0:
 			out.append(["batiment", g.building_def("mine"), mspot])
-	# 1 ter. Marché : vendre plus cher (stratégies « Marché » et « Rush or »), puis entrepôt près de la mine.
-	if (strat["marche"] or strat["rush_or"]) and day >= 2 and not g.has_building("comptoir") \
-		and (not strat["rush_or"] or g.sites.any(func(s): return s.def_id() == "mine")):
+	# 1 ter. Marché : vendre plus cher (stratégie « Marché »).
+	if strat["marche"] and day >= 2 and not g.has_building("comptoir"):
 		var cspot := _spot_near_camp(g.building_def("comptoir"))
 		if cspot.x >= 0:
 			out.append(["batiment", g.building_def("comptoir"), cspot])
-	if strat["rush_or"] and g.mine_built and not g.sites.any(func(s): return s.def_id() == "entrepot"):
-		var mine_site: GameState.Site = g.sites.filter(func(s): return s.def_id() == "mine")[0]
-		var mspot2 := _spot_near(mine_site.rect.get_center(), g.building_def("entrepot"), 2)
-		if mspot2.x >= 0:
-			out.append(["batiment", g.building_def("entrepot"), mspot2])
 	# 1 quinquies. Centre de formation (stratégie « Formation »).
 	if strat["formation"] and day >= 2 and not g.has_building("formation"):
 		var fspot := _spot_near_camp(g.building_def("formation"))
@@ -1103,14 +1114,6 @@ func _wants() -> Array:
 	# 4. Boutique, une fois le premier animal installé.
 	if strat["boutique"] and not g.animals.is_empty() and g.site_at(shop_rect.position) == null:
 		out.append(["batiment", g.building_def("boutique"), shop_rect.position])
-	# 4 bis. Entrepôt près des ressources lointaines (les forêts et roches proches s'épuisent).
-	if day >= 3 and g.sites.filter(func(s): return s.def_id() == "entrepot").size() < 2 \
-		and not g.sites.any(func(s): return s.def_id() == "entrepot" and not s.done):
-		var far := _far_resource()
-		if far.x >= 0:
-			var espot := _spot_near(far, g.building_def("entrepot"))
-			if espot.x >= 0:
-				out.append(["batiment", g.building_def("entrepot"), espot])
 	# 5. Mine d'or si l'IA vise les gros contrats.
 	if strat["mine"] and day >= 4 and float(strat["preference_palier"]) >= 1.0 and not g.mine_built \
 		and not g.sites.any(func(s): return s.def_id() == "mine"):
@@ -1118,6 +1121,36 @@ func _wants() -> Array:
 		if spot.x >= 0:
 			out.append(["batiment", g.building_def("mine"), spot])
 	return out
+
+
+## Rush or : chantiers de l'économie de l'or, dans l'ordre (mine, entrepôt à côté, Marché).
+func _rush_wants() -> Array:
+	var out := []
+	var mine_sites := g.sites.filter(func(s): return s.def_id() == "mine")
+	if mine_sites.is_empty():
+		var mspot := _mine_spot()
+		if mspot.x >= 0:
+			out.append(["batiment", g.building_def("mine"), mspot])
+		return out
+	var mine_site: GameState.Site = mine_sites[0]
+	if not g.sites.any(func(s): return s.def_id() == "entrepot" and Vector2(s.rect.get_center()).distance_to(Vector2(mine_site.rect.get_center())) < 7.0):
+		var espot := _spot_near(mine_site.rect.get_center(), g.building_def("entrepot"), 2)
+		if espot.x >= 0:
+			out.append(["batiment", g.building_def("entrepot"), espot])
+	if not g.has_building("comptoir"):
+		var cspot := _spot_near(mine_site.rect.get_center(), g.building_def("comptoir"), 2)
+		if cspot.x < 0:
+			cspot = _spot_near_camp(g.building_def("comptoir"))
+		if cspot.x >= 0:
+			out.append(["batiment", g.building_def("comptoir"), cspot])
+	return out
+
+
+## L'économie de l'or tourne : mine, entrepôt et Marché terminés (ou pas de gisement : on joue normalement).
+func _rush_ready() -> bool:
+	if _mine_spot().x < 0 and not g.sites.any(func(s): return s.def_id() == "mine"):
+		return true
+	return g.mine_built  # l'entrepôt et le Marché se construisent ensuite, en même temps que le parc
 
 
 ## Le grand mur est fermé : on démolit les murs de l'ancien petit parc qui sont désormais à l'intérieur.
@@ -1213,6 +1246,33 @@ func _search_spot_near(c: Vector2i, def: Dictionary, r0: int) -> Vector2i:
 
 
 ## Ressource à plus de 10 cases du camp et des entrepôts : là où un entrepôt fera gagner du temps.
+## Entrepôt rentable ? Chaque charge (5 unités) coûte un aller-retour jusqu'au dépôt le plus proche. Au-delà de
+## 4 cases, ce trajet dépasse le temps d'extraction perdu à bâtir l'entrepôt en un ou deux jours : on en pose un au
+## milieu des récolteurs éloignés quand le total des distances en trop atteint 14 cases (ex. 2 ouvriers à 11 cases).
+func _depot_wanted() -> Vector2i:
+	if g.day >= int(g.data["buildings"]["partie"]["jour_max"]) - 2 or g.sites.any(func(s): return s.def_id() == "entrepot" and not s.done) 		or g.sites.filter(func(s): return s.def_id() == "entrepot").size() >= 3:
+		return Vector2i(-1, -1)
+	var depots := g.depots()
+	var excess := 0.0
+	var mid := Vector2.ZERO
+	var n := 0
+	for w in g.workers:
+		if w.task.get("type") != "extract":
+			continue
+		var t: Vector2i = w.task["target"]
+		var d := INF
+		for r in depots:
+			d = minf(d, Vector2(r.get_center()).distance_to(Vector2(t)))
+		if d > 4.0:
+			excess += d - 4.0
+			mid += Vector2(t)
+			n += 1
+	if excess < 14.0 or n == 0:
+		return Vector2i(-1, -1)
+	var c := Vector2i((mid / n).round())
+	return _spot_near(c, g.building_def("entrepot"), 1)
+
+
 func _far_resource() -> Vector2i:
 	var depots := g.depots()
 	for res in ["bois", "pierre"]:
@@ -1327,7 +1387,8 @@ func _assign(w: GameState.Worker) -> void:
 
 ## L'argent en trop achète le bois et la pierre qui manquent aux prochains chantiers.
 func _buy_materials() -> void:
-	var spare := g.money - _cash_floor() - float(strat["reserve"]) - 20.0
+	# Rush or : l'or vendu paie les matériaux, on achète plus volontiers (l'extraction de bois et de pierre est délaissée)
+	var spare := g.money - _cash_floor() - (5.0 if strat["rush_or"] else float(strat["reserve"]) + 20.0)
 	if spare <= 0.0:
 		return
 	var needs := _needs()
@@ -1528,7 +1589,8 @@ func _gather(w: GameState.Worker) -> void:
 			# L'or finance le zoo, il ne le remplace pas : 2 mineurs tant que l'enceinte n'est pas finie.
 			var cap := 3 if strat["mine_prioritaire"] and _walls_progress() >= 1.0 else 2
 			if strat["rush_or"]:
-				cap = maxi(2, g.workers.size() - 2)  # l'économie repose sur l'or vendu au Marché
+				# l'économie repose sur l'or vendu au Marché ; 3 bâtisseurs tant que l'enceinte n'est pas finie
+				cap = maxi(2, g.workers.size() - (3 if _walls_progress() < 1.0 else 2))
 			if g.mine_ready(gold) and (w.card.metier["id"] == "mineur" or g.workers.filter(func(o): return o.task.get("res") == "or").size() < cap):
 				g.order([w], gold)
 				return
