@@ -152,6 +152,20 @@
   },
 
 
+  "reputation_autres": {
+    "_note": "Autres façons de gagner de la réputation que la fréquentation. Spectacles : par journée de Kiosque tenu (× efficacité « animer » : Animateur ×2). Boutique : par unité d'argent de souvenirs vendue. Prestige politique : chaque nuit, le 1er puis le 2e en influence (s'ils ont au moins influence_min). Labels : achetés en or, avec un Marchand déployé, une fois chacun. Légendaire : un ouvrier qui atteint le niveau 5.",
+    "kiosque_par_jour": 3,
+    "boutique_par_souvenir": 0.04,
+    "prestige_politique": [1, 0.5],
+    "influence_min": 1,
+    "legendaire": 5,
+    "labels": [
+      { "id": "certifie", "nom": "Zoo certifié", "or": 8, "reputation": 5 },
+      { "id": "mecenat", "nom": "Club des mécènes", "or": 15, "reputation": 10 },
+      { "id": "excellence", "nom": "Label d'excellence", "or": 25, "reputation": 15 }
+    ]
+  },
+
   "partie": {
     "duree_jour_s": 300,
     "argent_depart": 30,
@@ -162,7 +176,7 @@
     "ordre_nourriture": "plus_cher_d_abord",
     "achats_par_nuit": { "contrats": 1, "ouvriers": 1 },
     "limite_contrats_detenus": null,
-    "objectif_reputation": 60,
-    "jour_max": 15
+    "objectif_reputation": 100,
+    "jour_max": 22
   }
 }

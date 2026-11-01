@@ -17,7 +17,7 @@
     "deploiement_en_cours_de_journee": true,
     "xp_jours_par_niveau": 2,
     "efficacite_lobbying_defaut": 0.25,
-    "niveau_max": 4,
+    "niveau_max": 5,
     "choix_ameliorations": 3,
     "efficacite_manuelle_cadre": 0.6,
     "efficacite_seconde_specialite": 1.4,

@@ -260,6 +260,13 @@ Liste complète : `data/workers.json`.
 
 ## 10. Réputation
 
+**Lot S : plusieurs façons de gagner de la réputation** (objectif porté à **100**, fin forcée au jour 22) :
+- **Fréquentation** : 0,3 × visiteurs présents en moyenne (inchangé).
+- **Spectacles et boutique** : le Kiosque tenu rapporte 3 de réputation par journée (×2 avec un Animateur), la boutique 0,04 par unité d'argent de souvenirs.
+- **Prestige politique** : chaque nuit, le premier en influence gagne +1, le deuxième +0,5 (avec au moins 1 d'influence).
+- **Labels** (une fois chacun, en or, seulement avec un Marchand déployé) : Zoo certifié (8 or, +5), Club des mécènes (15 or, +10), Label d'excellence (25 or, +15).
+- **Ouvriers légendaires** : un ouvrier qui atteint le niveau 5 rapporte +5 au parc.
+
 - Points par espèce, selon le palier : T1 = 4, T2 = 8, T3 = 14 ❓ (voir le JSON, par espèce).
 - **Bonus de diversité** (nombre de biomes distincts représentés) : 2 → +5, 3 → +12, 4 → +20, 5 → +30, 6 → +45.
 - Bonus de collection ❓ : 3 espèces du même biome → +5.

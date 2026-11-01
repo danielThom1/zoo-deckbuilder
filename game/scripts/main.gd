@@ -126,6 +126,7 @@ var night_action_flow: VBoxContainer
 var action_card: GameState.Card = null
 var event_label: Label
 var trade_rows := {}  # ressource -> [SpinBox, bouton Vendre, bouton Acheter]
+var label_buttons := {}  # label (id) -> bouton d'achat (en or, avec un Marchand)
 var trade_note: Label
 var pub_note: Label
 var pub_buttons := {}  # id de campagne -> bouton
@@ -1909,6 +1910,16 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 			bb.visible = res != "or"
 			row.add_child(bb)
 			trade_rows[res] = [spin, sb, bb]
+		# Labels : de la réputation contre de l'or, achetés par un Marchand déployé (une fois chacun)
+		var lt := Composants.label("Labels (or, avec un Marchand déployé)", "TexteSecondaire")
+		lt.add_theme_font_size_override("font_size", 12)
+		rv.add_child(lt)
+		for ld in game.label_defs():
+			var lb := Composants.bouton("", "BoutonSecondaire")
+			lb.add_theme_font_size_override("font_size", 12)
+			lb.pressed.connect(func(): game.buy_label(ld))
+			rv.add_child(lb)
+			label_buttons[ld["id"]] = lb
 		# Publicité : campagnes menées par les ouvriers à l'extérieur, elles seules augmentent l'affluence
 		rv = _fiche_carte(cm.get_parent().get_parent().get_parent(), "PUBLICITÉ", "ressource_influence", UiTokens.RESSOURCES["influence"]["couleur"])
 		pub_note = Composants.label("", "TexteSecondaire")
@@ -3730,6 +3741,12 @@ func _rebuild_night() -> void:
 	if float(s["influence"]) > 0.0:
 		_summary_row(night_summary, "ressource_influence", UiTokens.RESSOURCES["influence"]["couleur"], "Influence gagnée", "+%.1f" % s["influence"])
 	_summary_row(night_summary, "ressource_reputation", UiTokens.RESSOURCES["reputation"]["couleur"], "Réputation (fréquentation)", "+%.1f" % inc["rep_gain"], UiTokens.POSITIF)
+	if float(inc.get("rep_spectacle", 0.0)) > 0.05:
+		_summary_row(night_summary, "batiment_boutique", Color("8A4AD0"), "Réputation (spectacles, boutique)", "+%.1f" % inc["rep_spectacle"], UiTokens.POSITIF)
+	if r.has("prestige"):
+		_summary_row(night_summary, "ressource_influence", UiTokens.RESSOURCES["influence"]["couleur"], "Prestige politique (influence)", "+%.1f" % r["prestige"], UiTokens.POSITIF)
+	for nm in r.get("legendes", []):
+		_summary_row(night_summary, "ui_ameliorer", UiTokens.OR, "%s devient légendaire" % nm, "+%d" % int(game.data["buildings"]["reputation_autres"]["legendaire"]), UiTokens.POSITIF)
 	if not inc["open"]:
 		var closed := Composants.label("Zoo fermé : %s" % inc["reason"])
 		closed.add_theme_color_override("font_color", UiTokens.NEGATIF)
@@ -4333,6 +4350,12 @@ func _animal_info(a: GameState.Animal) -> void:
 func _update_trade() -> void:
 	if trade_rows.is_empty():
 		return
+	for ld in game.label_defs():
+		var lb: Button = label_buttons[ld["id"]]
+		var lerr := game.label_error(ld)
+		lb.text = "%s · %d or → +%d réputation%s" % [ld["nom"], int(ld["or"]), int(ld["reputation"]), " ✓" if game.labels_owned.has(ld["id"]) else ""]
+		lb.disabled = lerr != ""
+		lb.tooltip_text = lerr
 	var rate := game.sell_rate()
 	var who := "Marchand + bâtiment Marché" if game.buy_mult() < 1.0 else ("Marchand déployé" if game.marchand_present() else ("bâtiment Marché" if game.market_built() else "sans Marchand"))
 	trade_note.text = "Vente à %d %%%s (%s)" % [roundi(rate * 100), " · achat −%d %%" % roundi((1.0 - game.buy_mult()) * 100) if game.buy_mult() < 1.0 else "", who]

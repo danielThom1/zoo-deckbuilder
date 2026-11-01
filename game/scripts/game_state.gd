@@ -167,6 +167,7 @@ var _aura_cache_valid := false
 
 # Visiteurs (simulés pendant la journée)
 var rep_points := 0.0  # réputation accumulée (condition de victoire)
+var labels_owned := {}  # labels achetés (id -> vrai) : de la réputation contre de l'or, avec un Marchand
 var road_visitors := PackedFloat32Array()  # distance parcourue sur le chemin Accès -> Entrée
 var visitor_queue := 0  # visiteurs qui attendent au guichet
 var in_zoo: Array = []  # [{"t": temps restant, "pos": Vector2}]
@@ -1395,6 +1396,7 @@ func start_next_day() -> void:
 func _end_day_player() -> void:
 	var regles: Dictionary = data["workers"]["regles"]
 	var level_ups: Array[Card] = []
+	var legends: Array[String] = []
 	drh_available = workers.filter(func(w): return w.card.metier["id"] == "drh").size()
 	var arrivals: Array[String] = []
 	for a in animals:
@@ -1426,8 +1428,14 @@ func _end_day_player() -> void:
 			card.niveau += 1
 			level_ups.append(card)
 			level_choices.append({"card": card, "options": _upgrade_pool(card)})
+			if card.niveau >= int(regles["niveau_max"]):
+				# Légendaire : sa renommée rejaillit sur le parc
+				var lr := float(data["buildings"]["reputation_autres"]["legendaire"])
+				rep_points += lr
+				legends.append(card.nom)
+				say("%s devient %s : +%d de réputation pour le parc !" % [card.nom, agree(card, "légendaire", "légendaire"), int(lr)])
 	night_report = {"day": day, "stats": day_stats.duplicate(), "level_ups": level_ups, "deployed": workers.size(),
-		"arrivals": arrivals, "income": income, "malades": fallen_ill}
+		"arrivals": arrivals, "income": income, "malades": fallen_ill, "legendes": legends}
 	workers.clear()
 	for c in hand:
 		c.deployed = false  # cartes d'action jouées comprises
@@ -1693,6 +1701,34 @@ func fire(card: Card) -> bool:
 			version += 1
 			return true
 	return false
+
+
+func label_defs() -> Array:
+	return data["buildings"]["reputation_autres"]["labels"]
+
+
+## Un label s'achète en or, de jour, si un Marchand est déployé ; une seule fois chacun.
+func label_error(def: Dictionary) -> String:
+	if phase != "day":
+		return "Seulement de jour"
+	if labels_owned.has(def["id"]):
+		return "Déjà obtenu"
+	if _traders().is_empty():
+		return "Il faut un Marchand déployé"
+	if stock["or"] < float(def["or"]) - 0.0001:
+		return "Il faut %d or" % int(def["or"])
+	return ""
+
+
+func buy_label(def: Dictionary) -> bool:
+	if label_error(def) != "":
+		return false
+	stock["or"] -= float(def["or"])
+	labels_owned[def["id"]] = true
+	rep_points += float(def["reputation"])
+	say("Label obtenu : %s (+%d de réputation)." % [def["nom"], int(def["reputation"])])
+	version += 1
+	return true
 
 
 ## Bonus du lendemain : seul le premier en influence le choisit parmi ceux offerts, et il s'applique à tous.
@@ -3116,6 +3152,8 @@ func _update_visitors(dt: float) -> void:
 		if in_zoo[i]["t"] <= 0.0:
 			in_zoo.remove_at(i)
 	visit["presence"] += in_zoo.size() * dt
+	if not in_zoo.is_empty():
+		visit["spectacle"] = float(visit.get("spectacle", 0.0)) + kiosque_bonus() / float(building_def("kiosque")["effet"]["attractivite"]) * dt / day_length
 	# Les visiteurs salissent le parc
 	proprete = maxf(0.0, proprete - float(Z["proprete"]["salete_par_visiteur_minute"]) * in_zoo.size() * dt / 60.0)
 
@@ -3129,12 +3167,16 @@ func _close_zoo_day() -> Dictionary:
 	var affinity := affinity_bonus()
 	var gain := avg * float(data["buildings"]["zoo"]["reputation_par_visiteur_moyen"]) * (1.0 + affinity)
 	rep_points += gain
+	# Spectacles du Kiosque et ventes de la boutique : réputation en plus de la fréquentation
+	var R: Dictionary = data["buildings"]["reputation_autres"]
+	var show := float(visit.get("spectacle", 0.0)) * float(R["kiosque_par_jour"]) + float(visit["souvenirs"]) * float(R["boutique_par_souvenir"])
+	rep_points += show
 	var reason: String = z["reason"]
 	if z["open"] and visitor_path().is_empty():
 		reason = "Aucune route ne relie l'Accès à l'Entrée du zoo"
 	var out := {"open": z["open"], "reason": reason, "visitors": visit["admitted"], "lost": visit["lost"],
 		"tickets": roundi(visit["tickets"]), "souvenirs": roundi(visit["souvenirs"]), "avg_present": avg, "rep_gain": gain,
-		"affinity": affinity}
+		"affinity": affinity, "rep_spectacle": show}
 	_reset_visit()
 	return out
 

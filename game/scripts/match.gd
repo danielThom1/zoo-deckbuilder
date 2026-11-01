@@ -325,6 +325,14 @@ func end_day() -> void:
 				return ka[k] > kb[k]
 		return false)
 	night_order.assign(order)
+	# Prestige politique : le 1er puis le 2e en influence gagnent un peu de réputation (s'ils ont fait du lobbying)
+	var R: Dictionary = data["buildings"]["reputation_autres"]
+	for k in mini(order.size(), R["prestige_politique"].size()):
+		var p: GameState = players[order[k]]
+		var pts := float(R["prestige_politique"][k])
+		if p.influence >= float(R["influence_min"]):
+			p.rep_points += pts
+			p.night_report["prestige"] = pts
 	night_turn = 0
 	night_stage = NIGHT_STAGES[0]
 	night_taken.clear()

@@ -1145,6 +1145,30 @@ func _init() -> void:
 		w_g.start_next_day()
 		check(w_g.day_bonus.get("id", "") == "aucun", "aucun bonus le lendemain")
 
+	print("Lot S : autres sources de réputation :")
+	var x_g := _fresh_day(data, 9191)
+	check(x_g.objective() == 100, "objectif : 100 de réputation")
+	var x_lab: Dictionary = x_g.label_defs()[0]
+	x_g.stock["or"] = 30.0
+	check(x_g.label_error(x_lab).begins_with("Il faut un Marchand"), "label : il faut un Marchand déployé")
+	var x_mar: GameState.Card = b_mk.call("marchand", [])
+	x_g.hand.append(x_mar)
+	x_g.deploy(x_mar, true)
+	var x_rep0 := x_g.rep_points
+	check(x_g.buy_label(x_lab) and is_equal_approx(x_g.rep_points, x_rep0 + float(x_lab["reputation"])) and is_equal_approx(x_g.stock["or"], 30.0 - float(x_lab["or"])),
+		"label %s : %d or → +%d de réputation" % [x_lab["nom"], int(x_lab["or"]), int(x_lab["reputation"])])
+	check(not x_g.buy_label(x_lab), "un label ne s'achète qu'une fois")
+	var x_card: GameState.Card = x_g.all_employees()[0]
+	x_card.niveau = 4
+	x_card.xp = 8.0
+	var x_rep1 := x_g.rep_points
+	x_g.mt.players[1].influence = 5.0
+	x_g.end_day()
+	check(x_card.niveau == 5 and x_g.night_report["legendes"].has(x_card.nom), "niveau 5 : %s devient légendaire" % x_card.nom)
+	check(x_g.rep_points >= x_rep1 + 5.0, "légendaire : +5 de réputation pour le parc")
+	var x_lead: GameState = x_g.mt.players[x_g.mt.night_order[0]]
+	check(x_lead.night_report.get("prestige", 0.0) == 1.0, "prestige politique : +1 pour le premier en influence")
+
 	print("\n%s" % ("TOUS LES TESTS PASSENT" if failures == 0 else "%d ÉCHEC(S)" % failures))
 	quit(failures)
 

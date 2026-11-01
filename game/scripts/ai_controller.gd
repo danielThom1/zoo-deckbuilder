@@ -25,6 +25,7 @@ const DEFAULT_STRATEGY := {
 	"cartes": false,  # une carte d'action chaque nuit quand l'argent le permet
 	"affinite": false,  # contrats d'un seul continent (affinités), terrain aménagé pour eux
 	"palier_min": 1,  # 2 : plus de contrats T1 une fois les T2 disponibles (sauf premier animal)
+	"spectacle": false,  # Kiosque et boutique tôt, Animateur et Vendeur recherchés : la réputation par les spectacles
 }
 
 const ZOO_SIZES := {"petit": Vector2i(12, 10), "moyen": Vector2i(16, 13), "grand": Vector2i(22, 16)}
@@ -81,7 +82,7 @@ func card_bonus(c: GameState.Card) -> float:
 		"lobbyiste":
 			return 0.5 + 0.5 * float(strat["lobbyistes_max"])
 		"vendeur":
-			return 0.5 if strat["boutique"] and not has.call("vendeur") else -1.0
+			return (1.2 if strat["spectacle"] else 0.5) if strat["boutique"] and not has.call("vendeur") else -1.0
 		"contremaitre":
 			return 1.0
 		"guichetier":
@@ -99,7 +100,7 @@ func card_bonus(c: GameState.Card) -> float:
 		"agent_entretien":
 			return 0.3 if not has.call("agent_entretien") else -0.5
 		"animateur":
-			return -1.0  # l'IA ne construit pas de kiosque
+			return (1.5 if strat["spectacle"] else 0.3) if not has.call("animateur") else -1.0  # spectacles au Kiosque
 		"formateur":
 			return 1.0 if strat["formation"] and not has.call("formateur") else -1.5  # sans Centre de formation, inutile
 	return 0.0
@@ -342,9 +343,18 @@ func update(dt: float) -> void:
 				g.order([w], market[0].rect.position if not market.is_empty() else g.map.camp.get_center())
 	if g.money < 6.0 and g.stock["bois"] + g.stock["pierre"] + g.stock["or"] >= 5:
 		_sell_for(_cash_floor())
-	# Rush or : l'or extrait est vendu au fur et à mesure (petite réserve pour les contrats), l'argent paie les matériaux.
+	for ld in g.label_defs():
+		if g.label_error(ld) == "":
+			g.buy_label(ld)
+	# Rush or : l'or extrait est vendu au fur et à mesure (petite réserve pour les contrats et le prochain label),
+	# l'argent paie les matériaux.
 	if strat["rush_or"] and g.stock["or"] >= 4.0:
 		var keep := minf(float(_needs()["or"]), 6.0)
+		if g.all_employees().any(func(c): return c.metier["id"] == "marchand"):
+			for ld in g.label_defs():
+				if not g.labels_owned.has(ld["id"]):
+					keep = maxf(keep, float(ld["or"]))
+					break
 		if g.stock["or"] - keep >= 3.0:
 			g.sell_stock({"or": keep}, ["or"])
 
@@ -1111,6 +1121,12 @@ func _wants() -> Array:
 			var spot := _park_spot(g.building_def(b[0]))
 			if spot.x >= 0:
 				out.append(["batiment", g.building_def(b[0]), spot])
+	# 3 ter. Kiosque d'animation : stratégie Spectacle dès l'ouverture, sinon quand l'argent abonde.
+	if not g.has_building("kiosque") and g.zoo_status()["open"] \
+		and (strat["spectacle"] or (day >= 5 and g.money > _cash_floor() + 60.0)):
+		var kspot := _park_spot(g.building_def("kiosque"))
+		if kspot.x >= 0:
+			out.append(["batiment", g.building_def("kiosque"), kspot])
 	# 4. Boutique, une fois le premier animal installé.
 	if strat["boutique"] and not g.animals.is_empty() and g.site_at(shop_rect.position) == null:
 		out.append(["batiment", g.building_def("boutique"), shop_rect.position])
@@ -1500,6 +1516,8 @@ func _staff_posts() -> void:
 				_ensure_post(s, "ticket", 2)
 		elif s.done and s.def_id() == "boutique" and open:
 			_ensure_post(s, "shop")
+		elif s.done and s.def_id() == "kiosque" and open:
+			_ensure_post(s, "kiosque")
 		elif s.done and s.def_id() == "cuisine" and g.food_due():
 			# Un nourrisseur pour 4 animaux (l'Animalier, puis le Soigneur, puis le moins utile ailleurs)
 			var arrived := g.animals.filter(func(a): return a.arrived).size()
@@ -1548,6 +1566,8 @@ func _ensure_post(site: GameState.Site, kind: String, wanted := 1) -> void:
 			v -= 5.0
 		if kind == "ticket":
 			v -= 3.0 * (g.efficiency(w.card, "guichet") - g.efficiency(w.card, "defaut"))  # le Guichetier d'abord
+		if kind == "kiosque":
+			v -= 3.0 * (g.efficiency(w.card, "animer") - g.efficiency(w.card, "defaut"))  # l'Animateur d'abord
 		if v < best_v:
 			best_v = v
 			best = w
