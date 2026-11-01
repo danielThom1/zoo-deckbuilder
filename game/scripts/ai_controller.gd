@@ -69,6 +69,10 @@ func _init(the_match: Match, state: GameState, strategy: Dictionary) -> void:
 
 ## Bonus ajouté à la valeur de base d'une carte selon les besoins de cette IA.
 func card_bonus(c: GameState.Card) -> float:
+	return _card_bonus(c) + float(strat.get("poids_metiers", {}).get(c.metier["id"], 0.0))
+
+
+func _card_bonus(c: GameState.Card) -> float:
 	var job: String = c.metier["id"]
 	var mine: Array = []
 	mine.append_array(g.all_employees())

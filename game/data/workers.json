@@ -124,12 +124,12 @@
   "_note_actions": "Cartes d'action : achetées au marché de nuit (1 par nuit), elles vont dans la défausse puis dans la main comme les ouvriers. Usage unique : jouée (gratuitement), la carte applique son effet puis quitte le deck. cible : la carte demande de choisir un ouvrier. Elles ne comptent pas dans le logement.",
   "cartes_action": [
     { "id": "heures_sup",       "nom": "Heures sup",          "cout": 8,  "effet": { "productivite": 1.4 },  "texte": "Aujourd'hui, tous vos ouvriers travaillent 40 % plus vite." },
-    { "id": "prime",            "nom": "Prime",               "cout": 4,  "effet": { "prime": 4 },           "texte": "Les 4 prochains ouvriers déployés aujourd'hui ne coûtent pas de salaire (rendement plein)." },
+    { "id": "prime",            "nom": "Prime",               "cout": 4,  "effet": { "prime": 4, "pioche": 1 }, "texte": "Piochez 1 carte. Les 4 prochains ouvriers déployés aujourd'hui ne coûtent pas de salaire (rendement plein)." },
     { "id": "portes_ouvertes",  "nom": "Portes ouvertes",     "cout": 10, "effet": { "visiteurs": 2.0 },     "texte": "Aujourd'hui, deux fois plus de visiteurs." },
     { "id": "livraison",        "nom": "Livraison",           "cout": 6,  "effet": { "bois": 30, "pierre": 25 }, "texte": "Reçoit immédiatement 30 bois et 25 pierre." },
     { "id": "recrutement",      "nom": "Recrutement express", "cout": 4,  "effet": { "pioche": 2 },          "texte": "Piochez 2 cartes de plus aujourd'hui." },
     { "id": "formation_express","nom": "Formation express",   "cout": 8,  "effet": { "xp": 2 },              "texte": "Tous vos ouvriers, deck compris, gagnent 2 jours d'expérience." },
-    { "id": "licenciement",     "nom": "Rupture de contrat",  "cout": 3,  "effet": { "licencier": true }, "cible": true, "texte": "Licenciez l'ouvrier de votre choix (sauf ceux sur le terrain)." },
+    { "id": "licenciement",     "nom": "Rupture de contrat",  "cout": 3,  "effet": { "licencier": true, "pioche": 1 }, "cible": true, "texte": "Licenciez l'ouvrier de votre choix (sauf ceux sur le terrain), puis piochez 1 carte." },
     { "id": "promotion",        "nom": "Promotion",           "cout": 8,  "effet": { "ameliorer": true }, "cible": true, "texte": "Un ouvrier de votre choix gagne une amélioration (choix parmi 3)." }
   ]
 }

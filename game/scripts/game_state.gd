@@ -167,7 +167,10 @@ var _aura_cache_valid := false
 
 # Visiteurs (simulés pendant la journée)
 var rep_points := 0.0  # réputation accumulée (condition de victoire)
-var labels_owned := {}  # labels achetés (id -> vrai) : de la réputation contre de l'or, avec un Marchand
+var labels_owned := {}
+## Réputation gagnée par source (détail de l'écran de fin) : frequentation, spectacles, prestige, labels, legendaires.
+var rep_sources := {}
+var recruited_tonight := false  # Cabinet de recrutement utilisé cette nuit  # labels achetés (id -> vrai) : de la réputation contre de l'or, avec un Marchand
 var road_visitors := PackedFloat32Array()  # distance parcourue sur le chemin Accès -> Entrée
 var visitor_queue := 0  # visiteurs qui attendent au guichet
 var in_zoo: Array = []  # [{"t": temps restant, "pos": Vector2}]
@@ -469,8 +472,7 @@ func play_action(card: Card, target: Card = null, option := {}) -> bool:
 		if fx.has(k):
 			stock[k] += float(fx[k])
 	prime_left += int(fx.get("prime", 0))
-	if fx.has("pioche"):
-		draw_hand(int(fx["pioche"]))
+
 	if fx.has("xp"):
 		for c in all_employees():
 			gain_xp(c, float(fx["xp"]))
@@ -478,6 +480,8 @@ func play_action(card: Card, target: Card = null, option := {}) -> bool:
 		for pile in [deck, discard, hand]:
 			pile.erase(target)
 		say("%s a été %s." % [target.nom, agree(target, "licencié", "licenciée")])
+	if fx.has("pioche"):
+		draw_hand(int(fx["pioche"]))
 	if fx.has("ameliorer"):
 		_apply_upgrade_effect(target, option)
 		pending_upgrade = {}
@@ -731,6 +735,9 @@ func order(targets: Array, target: Vector2i, enqueue := false) -> void:
 			_station(w, site.def_id(), site, target)
 			continue
 		if site and site.done and site.def_id() == "boutique":
+			if workers.any(func(o): return o != w and o.task.get("kind") == "shop" and o.task.get("obj") == site):
+				say("Cette boutique est déjà tenue : un seul ouvrier par boutique (construisez-en une autre).")
+				continue
 			_station(w, "shop", site, target)
 			if job != "vendeur":
 				say("Seul un Vendeur de souvenirs double les ventes de la boutique.")
@@ -1165,7 +1172,9 @@ func _tiles(r: Rect2i) -> Array[Vector2i]:
 func work_tiles(s: Site) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
 	var inside_ok := s.kind == "batiment" and s.def_id() != "pont"
-	for t in _tiles(s.rect.grow(1)):
+	# Clôture d'enclos dans l'eau : on la monte depuis la rive ou un ponton à 2 cases au plus
+	var reach := 2 if s.def_id() == "enclos" and map.get_t(s.rect.position.x, s.rect.position.y) == GameMap.EAU else 1
+	for t in _tiles(s.rect.grow(reach)):
 		if s.rect.has_point(t) and not inside_ok:
 			continue
 		if map.passable(t.x, t.y):
@@ -1289,6 +1298,11 @@ func _complete(s: Site) -> void:
 				map.bridge[map.idx(p.x, p.y)] = 1
 				map.road[map.idx(p.x, p.y)] = 1
 				map.refresh_cell(p.x, p.y)
+			"enclos":
+				# Clôture d'enclos posée dans l'eau : un ponton le long de la clôture, pour atteindre les suivantes
+				if map.get_t(p.x, p.y) == GameMap.EAU and map.bridge[map.idx(p.x, p.y)] == 0:
+					map.bridge[map.idx(p.x, p.y)] = 2
+					map.refresh_cell(p.x, p.y)
 		version += 1
 	say("%s : terminé." % s.def["nom"])
 	# Les ouvriers de ce chantier enchaînent sur le chantier voisin du même type (routes, clôtures…).
@@ -1348,6 +1362,9 @@ func demolish(s: Site) -> bool:
 	var p := s.rect.position
 	if s.def_id() in ["route", "pont"]:
 		map.road[map.idx(p.x, p.y)] = 0
+		map.bridge[map.idx(p.x, p.y)] = 0
+		map.refresh_cell(p.x, p.y)
+	if s.def_id() == "enclos" and map.bridge[map.idx(p.x, p.y)] == 2:
 		map.bridge[map.idx(p.x, p.y)] = 0
 		map.refresh_cell(p.x, p.y)
 	for w in workers:
@@ -1432,6 +1449,7 @@ func _end_day_player() -> void:
 				# Légendaire : sa renommée rejaillit sur le parc
 				var lr := float(data["buildings"]["reputation_autres"]["legendaire"])
 				rep_points += lr
+				add_rep_source("legendaires", lr)
 				legends.append(card.nom)
 				say("%s devient %s : +%d de réputation pour le parc !" % [card.nom, agree(card, "légendaire", "légendaire"), int(lr)])
 	night_report = {"day": day, "stats": day_stats.duplicate(), "level_ups": level_ups, "deployed": workers.size(),
@@ -1502,6 +1520,39 @@ func hire_error(card: Card) -> String:
 	return ""
 
 
+## Cabinet de recrutement : prix d'une carte de la catégorie voulue, et pourquoi ce n'est pas possible ("" sinon).
+func recruit_price(categorie: String) -> int:
+	return int(building_def("cabinet")["effet"]["recrutement"][categorie])
+
+
+func recruit_error(categorie: String) -> String:
+	if not sites.any(func(s): return s.done and s.def_id() == "cabinet"):
+		return "Construisez un Cabinet de recrutement"
+	if phase != "night" or mt.night_stage != "ouvriers":
+		return "À l'étape Ouvriers de la nuit"
+	if mt.current_buyer() != index:
+		return "Ce n'est pas votre tour"
+	if recruited_tonight:
+		return "Déjà utilisé cette nuit"
+	if money < recruit_price(categorie):
+		return "Pas assez d'argent (%d)" % recruit_price(categorie)
+	return ""
+
+
+## Remplace une carte de la rangée par une carte tirée au hasard dans la catégorie choisie.
+func recruit_replace(old: Card, categorie: String) -> bool:
+	if recruit_error(categorie) != "" or not market_workers.has(old):
+		return false
+	money -= recruit_price(categorie)
+	var k := market_workers.find(old)
+	var fresh := mt.make_card(categorie)
+	market_workers[k] = fresh
+	recruited_tonight = true
+	say("Cabinet de recrutement : %s remplace %s dans la rangée." % [fresh.nom, old.nom])
+	mt.bump()
+	return true
+
+
 func hire(card: Card) -> bool:
 	if hire_error(card) != "" or not market_workers.has(card):
 		return false
@@ -1524,6 +1575,7 @@ func contract_cost(def: Dictionary) -> Dictionary:
 	var cost: Dictionary = def.get("cout", {}).duplicate()
 	if cost.has("argent"):
 		var mult := 1.0 + float(m["hausse_prix_par_animal"]) * (animals.size() + contracts.size() + pending_installs.size())
+		mult *= 1.0 + float(m.get("hausse_prix_par_jour", 0.0)) * (day - 1)  # les contrats renchérissent au fil des jours
 		if contracts_tonight >= 1:
 			mult *= 1.0 + float(m["surcout_2e_contrat"])
 		cost["argent"] = roundi(float(cost["argent"]) * mult)
@@ -1703,6 +1755,10 @@ func fire(card: Card) -> bool:
 	return false
 
 
+func add_rep_source(src: String, pts: float) -> void:
+	rep_sources[src] = float(rep_sources.get(src, 0.0)) + pts
+
+
 func label_defs() -> Array:
 	return data["buildings"]["reputation_autres"]["labels"]
 
@@ -1726,6 +1782,7 @@ func buy_label(def: Dictionary) -> bool:
 	stock["or"] -= float(def["or"])
 	labels_owned[def["id"]] = true
 	rep_points += float(def["reputation"])
+	add_rep_source("labels", float(def["reputation"]))
 	say("Label obtenu : %s (+%d de réputation)." % [def["nom"], int(def["reputation"])])
 	version += 1
 	return true
@@ -3015,12 +3072,12 @@ func guichet_rate() -> float:
 	return r
 
 
-## Multiplicateur de souvenirs à l'instant : 0 si la boutique est vide, 1 si tenue, 2 avec un Vendeur.
-func _shop_mult() -> float:
-	var interior: Dictionary = zoo_status()["interior"]
+## Multiplicateur de souvenirs d'une boutique : 0 si elle est vide, 1 si tenue, 2 avec un Vendeur (un seul ouvrier
+## par boutique ; chaque boutique vend de son côté).
+func _shop_mult(shop: Site) -> float:
 	var best := 0.0
 	for w in workers:
-		if w.task.get("kind") == "shop" and w.path.is_empty() and w.tile() == w.task["tile"] and interior.has(w.task["obj"].rect.position):
+		if w.task.get("kind") == "shop" and w.task["obj"] == shop and w.path.is_empty() and w.tile() == w.task["tile"]:
 			best = maxf(best, float(data["buildings"]["zoo"]["mult_vendeur"]) if w.card.metier["id"] == "vendeur" else 1.0)
 	return maxf(best, float(action_fx.get("boutiques", 0.0)))  # Vendeur joué (Braderie)
 
@@ -3137,9 +3194,8 @@ func _update_visitors(dt: float) -> void:
 		visit["tickets"] += ticket
 		var souv := 0.0
 		for s in sites:
-			if s.done and s.def_id() == "boutique":
-				souv = float(s.def["effet"]["souvenirs_par_visiteur"]) * _shop_mult()
-				break
+			if s.done and s.def_id() == "boutique" and interior.has(s.rect.position):
+				souv += float(s.def["effet"]["souvenirs_par_visiteur"]) * _shop_mult(s)
 		money += souv
 		visit["souvenirs"] += souv
 		var t: Vector2i = interior[rng.randi_range(0, interior.size() - 1)]
@@ -3167,10 +3223,12 @@ func _close_zoo_day() -> Dictionary:
 	var affinity := affinity_bonus()
 	var gain := avg * float(data["buildings"]["zoo"]["reputation_par_visiteur_moyen"]) * (1.0 + affinity)
 	rep_points += gain
+	add_rep_source("frequentation", gain)
 	# Spectacles du Kiosque et ventes de la boutique : réputation en plus de la fréquentation
 	var R: Dictionary = data["buildings"]["reputation_autres"]
 	var show := float(visit.get("spectacle", 0.0)) * float(R["kiosque_par_jour"]) + float(visit["souvenirs"]) * float(R["boutique_par_souvenir"])
 	rep_points += show
+	add_rep_source("spectacles", show)
 	var reason: String = z["reason"]
 	if z["open"] and visitor_path().is_empty():
 		reason = "Aucune route ne relie l'Accès à l'Entrée du zoo"
@@ -3190,8 +3248,10 @@ func affinity_bonus() -> float:
 			var c: String = a.def.get("continent", "")
 			per_cont[c] = per_cont.get(c, 0) + 1
 	var bonus := 0.0
+	# Progressif : chaque espèce de plus d'un même continent rapporte davantage (2 → +10 %, 3 → +25 %, 4 → +45 %…)
+	var steps: Array = data["animals"]["affinite_continent"]["paliers"]
 	for c in per_cont:
-		bonus += maxi(0, per_cont[c] - 1) * float(data["animals"]["affinite_continent"]["par_espece"])
+		bonus += float(steps[mini(per_cont[c], steps.size() - 1)])
 	# Animaux d'un même type partageant un enclos (ou le parc libre) : +5 % par animal en plus.
 	var groups := {}
 	for a in zoo_status().get("animals", []):

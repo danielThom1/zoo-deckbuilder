@@ -33,11 +33,11 @@ var building_colors := {
 	"route": UiTokens.CHEMIN, "pont": Color("9A6A3E"), "maison": Color("D2553A"), "entrepot": Color("8C6A48"),
 	"mine": Color("5A4636"), "cloture": UiTokens.ENCEINTE, "entree": Color("E9D5A8"), "enclos": UiTokens.CLOTURE_ENCLOS,
 	"boutique": Color("E06A5A"), "formation": Color("3A6AE0"), "cuisine": Color("D8A010"), "entretien": Color("7A8A88"),
-	"snack": Color("E8782A"), "kiosque": Color("8A4AD0"), "comptoir": Color("D8A010"), "agence": Color("4A7AC8"), "camp_n2": Color("A0743C"), "camp_n3": Color("B8864A"),
+	"snack": Color("E8782A"), "kiosque": Color("8A4AD0"), "comptoir": Color("D8A010"), "agence": Color("4A7AC8"), "cabinet": Color("6A3AB0"), "camp_n2": Color("A0743C"), "camp_n3": Color("B8864A"),
 	"grand_arbre": Color("2E7A2C"), "rocher_obs": Color("8E8A80"), "bassin_profond": Color("2B86D2"), "abri_chaud": Color("C0703A"),
 }
 var building_short := {
-	"maison": "Maison", "entrepot": "Entrepôt", "comptoir": "Marché", "agence": "Intérim", "mine": "Mine", "entree": "Entrée", "boutique": "Boutique", "formation": "Formation",
+	"maison": "Maison", "entrepot": "Entrepôt", "comptoir": "Marché", "agence": "Intérim", "cabinet": "Recrutement", "mine": "Mine", "entree": "Entrée", "boutique": "Boutique", "formation": "Formation",
 	"cuisine": "Cuisine", "entretien": "Entretien", "snack": "Snack", "kiosque": "Kiosque",
 	"camp_n2": "Camp niv. 2", "camp_n3": "Camp niv. 3",
 	"grand_arbre": "Grand arbre", "rocher_obs": "Rocher", "bassin_profond": "Bassin profond", "abri_chaud": "Abri chauffé",
@@ -125,6 +125,8 @@ var night_action_box: Control
 var night_action_flow: VBoxContainer
 var action_card: GameState.Card = null
 var event_label: Label
+var hover_card: Control  # carte affichée au survol d'un nom d'ouvrier
+var hover_src: Control
 var trade_rows := {}  # ressource -> [SpinBox, bouton Vendre, bouton Acheter]
 var label_buttons := {}  # label (id) -> bouton d'achat (en or, avec un Marchand)
 var trade_note: Label
@@ -491,7 +493,7 @@ func _draw() -> void:
 			body = p + Vector2(0, -absf(sin(tw * float(work["rythme"]))) * 0.9)
 		# personnage dessiné selon le métier (scripts/rendu/sprites_bd.gd), petit balancement en marchant
 		var pas := absf(sin(tw * 9.0)) * 0.7 if moving and w.pause_left <= 0.0 else 0.0
-		SpritesBD.dessiner(self, SpritesBD.pour_metier(str(w.card.metier["id"])), body + Vector2(0, 6.2 - pas), TILE * SpritesBD.HAUTEUR_PERSONNE, f[1])
+		SpritesBD.dessiner(self, SpritesBD.pour_metier(str(w.card.metier["id"]), game.is_female(w.card)), body + Vector2(0, 6.2 - pas), TILE * SpritesBD.HAUTEUR_PERSONNE, f[1])
 		if not work.is_empty():
 			_draw_work(work, body, tw, f[1])
 		# pastille du métier (couleur de catégorie) au-dessus de l'épaule
@@ -916,7 +918,7 @@ func _draw_bridge(t: Vector2i) -> void:
 	var horizontal := false
 	for d in [Vector2i(1, 0), Vector2i(-1, 0)]:
 		var q: Vector2i = t + d
-		if m.in_bounds(q.x, q.y) and (m.road[m.idx(q.x, q.y)] or m.bridge[m.idx(q.x, q.y)]):
+		if m.in_bounds(q.x, q.y) and (m.road[m.idx(q.x, q.y)] or m.bridge[m.idx(q.x, q.y)] == 1):
 			horizontal = true
 	var deck := r.grow_individual(0, -2, 0, -2) if horizontal else r.grow_individual(-2, 0, -2, 0)
 	draw_rect(Rect2(deck.position + Vector2(1.5, 2.5), deck.size), Color(0, 0, 0, 0.25))
@@ -1522,6 +1524,9 @@ func _process(delta: float) -> void:
 	if mt == null:
 		_screenshot_check()
 		return
+	if hover_card and (not is_instance_valid(hover_src) or not hover_src.is_visible_in_tree() \
+		or not hover_src.get_global_rect().has_point(hover_src.get_global_mouse_position())):
+		_hide_hover_card()
 	# Chaque nouvelle journée commence en pause : on prépare ses ordres, puis on lance le temps.
 	if mt.phase != last_phase:
 		if mt.phase == "day" and last_phase != "" and not spectator:
@@ -1968,7 +1973,7 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 	lv.add_child(tabs)
 	var group := ButtonGroup.new()
 	var pages := {
-		"Bâtiments": ["route", "pont", "maison", "entrepot", "comptoir", "agence", "mine", "formation", "camp_n2", "camp_n3"],
+		"Bâtiments": ["route", "pont", "maison", "entrepot", "comptoir", "agence", "cabinet", "mine", "formation", "camp_n2", "camp_n3"],
 		"Zoo": ["cloture", "entree", "enclos", "grand_arbre", "rocher_obs", "bassin_profond", "abri_chaud", "boutique", "cuisine", "entretien", "snack", "kiosque"],
 		"Terrain": [],
 	}
@@ -2397,6 +2402,39 @@ const TACHES_NOMS := {"extraire_bois": "couper du bois", "extraire_pierre": "ext
 	"animer": "animer le kiosque"}
 
 
+## Le nom d'un ouvrier, survolé, montre sa carte complète.
+func _hover_card(ctrl: Control, card: GameState.Card) -> void:
+	ctrl.mouse_filter = Control.MOUSE_FILTER_PASS
+	ctrl.mouse_default_cursor_shape = Control.CURSOR_HELP
+	ctrl.mouse_entered.connect(_show_hover_card.bind(card, ctrl))
+
+
+func _show_hover_card(card: GameState.Card, ctrl: Control) -> void:
+	_hide_hover_card()
+	var w := Composants.carte_ouvrier(Composants.donnees_ouvrier(game, card), "normale", "marche", [])
+	w.top_level = true
+	for c in [w] + w.find_children("*", "Control", true, false):
+		c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ui.add_child(w)
+	var r := ctrl.get_global_rect()
+	var vp := get_viewport_rect().size
+	var sz := w.custom_minimum_size
+	var pos := Vector2(r.end.x + 12, r.position.y - 40)
+	if pos.x + sz.x > vp.x - 8:
+		pos.x = r.position.x - sz.x - 12
+	pos.y = clampf(pos.y, 8, vp.y - sz.y - 8)
+	w.global_position = pos
+	hover_card = w
+	hover_src = ctrl
+
+
+func _hide_hover_card() -> void:
+	if hover_card and is_instance_valid(hover_card):
+		hover_card.queue_free()
+	hover_card = null
+	hover_src = null
+
+
 ## Le métier en une phrase : ce qu'il fait mieux (ou moins bien) que les autres, avec son rendement.
 func _job_text(card: GameState.Card) -> String:
 	var eff: Dictionary = card.metier["efficacite"]
@@ -2711,7 +2749,7 @@ func _update_info() -> void:
 	if selected.size() > 1:
 		fiche.append(["carte", "ÉQUIPE", "metier_contremaitre", UiTokens.SARCELLE])
 		for w in selected:
-			fiche.append(["ligne", Composants.icone_metier(str(w.card.metier["id"])), UiTokens.CATEGORIES[w.card.metier["categorie"]]["couleur"], w.card.nom, _task_text(w)])
+			fiche.append(["ligne", Composants.icone_metier(str(w.card.metier["id"])), UiTokens.CATEGORIES[w.card.metier["categorie"]]["couleur"], w.card.nom, _task_text(w), w.card])
 		_rendre_fiche(fiche)
 		return
 	var w: GameState.Worker = selected[0]
@@ -2816,7 +2854,7 @@ func _fiche_carte(parent: Control, titre: String, icone: String, couleur: Color)
 	return body
 
 
-func _fiche_ligne(parent: Control, icone: String, couleur: Color, texte: String, valeur: String, vcol := UiTokens.TEXTE) -> void:
+func _fiche_ligne(parent: Control, icone: String, couleur: Color, texte: String, valeur: String, vcol := UiTokens.TEXTE) -> Label:
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 7)
 	parent.add_child(h)
@@ -2835,6 +2873,7 @@ func _fiche_ligne(parent: Control, icone: String, couleur: Color, texte: String,
 	v.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	v.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(v)
+	return l
 
 
 func _fiche_barre(parent: Control, texte: String, ratio: float, valeur: String, couleur: Color) -> void:
@@ -2885,7 +2924,9 @@ func _rendre_fiche(fiche: Array) -> void:
 			"carte":
 				corps = _fiche_carte(info_view, e[1], e[2], e[3])
 			"ligne":
-				_fiche_ligne(corps, e[1], e[2], e[3], e[4])
+				var fl := _fiche_ligne(corps, e[1], e[2], e[3], e[4])
+				if e.size() > 5:
+					_hover_card(fl, e[5])
 			"coef":
 				var k: float = e[4]
 				_fiche_ligne(corps, e[1], e[2], e[3], "×%.2f" % k, UiTokens.POSITIF if k > 1.001 else (UiTokens.NEGATIF if k < 0.999 else UiTokens.TEXTE))
@@ -3817,7 +3858,11 @@ func _rebuild_night() -> void:
 		if err != "":
 			# La raison du refus est écrite sur le bouton, et détaillée au survol.
 			hire_text = ("Manque %d" % ceili(cost - game.money)) if game.money < cost and not full else _short_reason(err)
-		var w := _card_widget(card, hire_text, err != "", game.hire.bind(card))
+		var recruit := []
+		if game.has_building("cabinet") and not spectator:
+			recruit = ["⟳", game.recruit_error("peu_qualifie") != "" and game.recruit_error("cadre") != "" and game.recruit_error("qualifie") != "",
+				_open_recruit.bind(card)]
+		var w := _card_widget(card, hire_text, err != "", game.hire.bind(card), recruit)
 		w.tooltip_text = (err + "\n" if err != "" else "") + w.tooltip_text
 		for b in w.find_children("*", "Button", true, false):
 			b.tooltip_text = err if err != "" else "Embaucher %s pour %d argent" % [card.nom, cost]
@@ -3957,6 +4002,7 @@ func _rebuild_night() -> void:
 		who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var wn := Composants.label(card.nom)
 		wn.add_theme_font_override("font", UiTokens.police_corps(800))
+		_hover_card(wn, card)
 		who.add_child(wn)
 		var wj := Composants.label("%s · salaire %d" % [game.job_name(card), game.salary(card)], "TexteSecondaire")
 		wj.add_theme_font_size_override("font_size", 12)
@@ -3996,6 +4042,7 @@ func _rebuild_night() -> void:
 		var row := HBoxContainer.new()
 		var nl := Composants.label("%s · %s" % [card.nom, game.job_name(card)])
 		nl.add_theme_font_size_override("font_size", 13)
+		_hover_card(nl, card)
 		nl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(nl)
 		var fb := Composants.bouton("Licencier", "BoutonSecondaire")
@@ -4093,6 +4140,22 @@ func _on_night_next() -> void:
 	else:
 		game.start_next_day()
 		selected.clear()
+
+
+## Cabinet de recrutement : choisir la catégorie de la carte qui remplacera celle-ci.
+func _open_recruit(card: GameState.Card) -> void:
+	_open_picker("CABINET DE RECRUTEMENT", "Remplacer %s (%s) par une carte tirée au hasard dans la catégorie choisie. Une fois par nuit." % [
+		card.nom, game.job_name(card)], [])
+	for cat in ["peu_qualifie", "qualifie", "cadre"]:
+		var err := game.recruit_error(cat)
+		var b := Composants.bouton("%s · %d argent" % [UiTokens.CATEGORIES[cat]["long"], game.recruit_price(cat)], "BoutonPrincipal")
+		b.disabled = err != ""
+		b.tooltip_text = err
+		b.pressed.connect(func():
+			game.recruit_replace(card, cat)
+			_close_picker())
+		picker_box.add_child(b)
+		picker_box.move_child(b, picker_box.get_child_count() - 2)
 
 
 ## Achats de cette étape de la nuit (tous les joueurs), dans l'ordre.
@@ -4455,6 +4518,7 @@ func _picker_row(card: GameState.Card, button_text: String, err: String, cb: Cal
 	row.add_child(who)
 	var nm := Composants.label(card.nom)
 	nm.add_theme_font_override("font", UiTokens.police_corps(800))
+	_hover_card(nm, card)
 	who.add_child(nm)
 	var traits: Array[String] = []
 	for t in game.trait_defs(card):
@@ -4667,6 +4731,7 @@ func _employee_row(card: GameState.Card, cost_up: int, cost_fire: int) -> Contro
 	var nm := Composants.label(card.nom)
 	nm.add_theme_font_override("font", UiTokens.police_corps(800))
 	nm.add_theme_font_size_override("font_size", 13)
+	_hover_card(nm, card)
 	who.add_child(nm)
 	var traits: Array[String] = []
 	for t in game.trait_defs(card):
@@ -4875,6 +4940,18 @@ func _rebuild_end() -> void:
 		cap.add_theme_font_size_override("font_size", 12)
 		tv.add_child(cap)
 		tiles.add_child(tile)
+	# D'où vient la réputation : une barre par source
+	body.add_child(Composants.label("Votre réputation, par source", "TexteSecondaire"))
+	var total_rep := maxf(1.0, game.rep_points)
+	for src in [["frequentation", "Fréquentation (visiteurs)", "ressource_visiteurs", Color("8A6AD0")],
+			["spectacles", "Spectacles et boutique", "batiment_boutique", Color("E04A8A")],
+			["labels", "Labels (or)", "ressource_or", UiTokens.RESSOURCES["or"]["couleur"]],
+			["prestige", "Prestige politique", "ressource_influence", UiTokens.RESSOURCES["influence"]["couleur"]],
+			["legendaires", "Ouvriers légendaires", "ui_ameliorer", UiTokens.OR]]:
+		var pts := float(game.rep_sources.get(src[0], 0.0))
+		if pts < 0.05:
+			continue
+		_fiche_barre(body, "%s · %d" % [src[1], roundi(pts)], pts / total_rep, "%d %%" % roundi(100.0 * pts / total_rep), src[3])
 	body.add_child(Composants.label("Réputation jour après jour", "TexteSecondaire"))
 	var chart := Control.new()
 	chart.custom_minimum_size = Vector2(590, 200)

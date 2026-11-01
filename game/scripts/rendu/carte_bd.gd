@@ -138,7 +138,7 @@ func _process(delta: float) -> void:
 func _ecrire_case(x: int, y: int) -> void:
 	var t := map.get_t(x, y)
 	var i := map.idx(x, y)
-	var pont := map.bridge[i] != 0
+	var pont := map.bridge[i] == 1
 	var route := map.road[i] != 0 and not pont
 	img_a.set_pixel(x, y, Color(
 		1.0 if t == GameMap.EAU else 0.0,

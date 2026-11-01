@@ -15,7 +15,7 @@ var w: int
 var h: int
 var tiles := PackedInt32Array()
 var road := PackedByteArray()
-var bridge := PackedByteArray()  # un pont rend une case d'eau franchissable
+var bridge := PackedByteArray()  # 1 : pont (case d'eau franchissable, avec route) ; 2 : ponton sous une clôture d'enclos
 var res_left := PackedFloat32Array()  # ressource restante (forêts et roches s'épuisent)
 var defs: Dictionary
 var road_mult := 2.0
@@ -77,7 +77,7 @@ func def_of(x: int, y: int) -> Dictionary:
 
 
 func passable(x: int, y: int) -> bool:
-	return in_bounds(x, y) and (bridge[idx(x, y)] == 1 or bool(def_of(x, y)["franchissable"]))
+	return in_bounds(x, y) and (bridge[idx(x, y)] != 0 or bool(def_of(x, y)["franchissable"]))
 
 
 func move_speed(x: int, y: int) -> float:

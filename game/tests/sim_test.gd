@@ -782,7 +782,7 @@ func _init() -> void:
 	e_a.food = e_g.food_capacity(e_def)
 	e_g.animals.append(e_a)
 	e_g.version += 1
-	check(is_equal_approx(e_g.affinity_bonus(), 0.05), "2 animaux du même continent (%s) : réputation +5 %%" % e_g.continent_name(e_def["continent"]))
+	check(is_equal_approx(e_g.affinity_bonus(), 0.10), "2 animaux du même continent (%s) : réputation +10 %%" % e_g.continent_name(e_def["continent"]))
 	var e_att0 := e_g.attractiveness()
 	var e_bonus: Dictionary = data["events"]["bonus_nuit"].filter(func(b): return b["effets"].get("attractivite_continent", {}).has(e_def["continent"]))[0]
 	e_g.day_bonus = e_bonus

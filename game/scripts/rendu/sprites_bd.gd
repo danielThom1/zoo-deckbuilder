@@ -12,7 +12,7 @@ const MANIFESTE := "res://assets/bd/sprites_bd.json"
 ## Bâtiment terminé → sprite. Largeur dessinée = largeur de l'emprise × LARGEUR_BATIMENT.
 const BATIMENTS := {
 	"camp": "camp3", "maison": "maison", "entrepot": "entrepot", "mine": "mine", "entree": "entree",
-	"boutique": "souvenirs", "formation": "formation", "comptoir": "marche", "agence": "interim",
+	"boutique": "souvenirs", "formation": "formation", "comptoir": "marche", "agence": "interim", "cabinet": "mairie",
 	"cuisine": "restaurant", "entretien": "atelier", "snack": "snack", "kiosque": "scene", "mairie": "mairie",
 	# aménagements d'enclos
 	"grand_arbre": "arbre1", "rocher_obs": "rochers", "bassin_profond": "bassin", "abri_chaud": "abri",
@@ -25,10 +25,19 @@ const LARGEUR_BATIMENT := 1.15
 ## Métier → personnage (hauteur conseillée : 1,15 case).
 const METIERS := {
 	"manoeuvre": "manoeuvre", "bucheron": "bucheron", "macon": "macon", "mineur": "mineur", "terrassier": "terrassier",
-	"porteur": "porteur", "guichetier": "guichetier", "apprenti": "apprenti", "charpentier": "charpentier",
-	"paysagiste": "paysagiste", "cantonnier": "cantonnier", "soigneur": "soigneur", "drh": "drh", "lobbyiste": "lobbyiste",
+	"porteur": "porteur", "guichetier": "guichetier", "apprenti": "ouvrier_marche_04", "charpentier": "charpentier",
+	"paysagiste": "paysagiste", "cantonnier": "cantonnier", "soigneur": "soigneur", "drh": "cadre_valise", "lobbyiste": "lobbyiste",
 	"marchand": "marchand", "vendeur": "vendeur", "formateur": "formateur", "contremaitre": "contremaitre", "architecte": "architecte",
 	"animalier": "soigneur_2", "agent_entretien": "ouvrier_seau", "animateur": "guide_fanion",
+}
+## Métier → personnage féminin, pour les ouvrières.
+const METIERS_F := {
+	"manoeuvre": "ouvrier_marche_14", "bucheron": "ouvrier_marche_17", "macon": "ouvrier_marche_16", "mineur": "ouvrier_marche_05",
+	"terrassier": "ouvrier_marche_16", "porteur": "ouvrier_marche_17", "guichetier": "visiteur_08", "apprenti": "apprenti",
+	"charpentier": "ouvrier_marche_14", "paysagiste": "visiteur_16", "cantonnier": "ouvrier_marche_05", "soigneur": "infirmiere",
+	"drh": "drh", "lobbyiste": "drh_2", "marchand": "visiteur_06", "vendeur": "visiteur_07", "formateur": "formatrice",
+	"contremaitre": "guide", "architecte": "chimiste", "animalier": "visiteur_05", "agent_entretien": "ouvrier_marche_05",
+	"animateur": "guide",
 }
 const HAUTEUR_PERSONNE := 1.15
 
@@ -112,7 +121,9 @@ static func _dessiner_k(ci: CanvasItem, t: Texture2D, nom: String, pied_monde: V
 
 
 ## Sprite d'un ouvrier selon son métier (repli : manœuvre).
-static func pour_metier(id_metier: String) -> String:
+static func pour_metier(id_metier: String, feminin := false) -> String:
+	if feminin:
+		return METIERS_F.get(id_metier, "ouvrier_marche_14")
 	return METIERS.get(id_metier, "manoeuvre")
 
 

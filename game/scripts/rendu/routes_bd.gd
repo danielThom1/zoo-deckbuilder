@@ -36,11 +36,11 @@ func _est(x: int, y: int) -> bool:
 	if not map.in_bounds(x, y):
 		return false
 	var i := map.idx(x, y)
-	return map.road[i] != 0 or map.bridge[i] != 0
+	return map.road[i] != 0 or map.bridge[i] == 1
 
 
 func _pont(x: int, y: int) -> bool:
-	return map.in_bounds(x, y) and map.bridge[map.idx(x, y)] != 0
+	return map.in_bounds(x, y) and map.bridge[map.idx(x, y)] == 1
 
 
 func _segments() -> Array:

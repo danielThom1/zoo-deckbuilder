@@ -332,12 +332,14 @@ func end_day() -> void:
 		var pts := float(R["prestige_politique"][k])
 		if p.influence >= float(R["influence_min"]):
 			p.rep_points += pts
+			p.add_rep_source("prestige", pts)
 			p.night_report["prestige"] = pts
 	night_turn = 0
 	night_stage = NIGHT_STAGES[0]
 	night_taken.clear()
 	log.clear()
 	for p in players:
+		p.recruited_tonight = false
 		p.bought_worker = false
 		p.bought_action = false
 		p.contracts_tonight = 0
