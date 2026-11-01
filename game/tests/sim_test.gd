@@ -560,12 +560,12 @@ func _init() -> void:
 	b_g.order([b_g.worker_of(b_arch)], b_maison.rect.position)
 	for i in 300:
 		b_g.tick(GameState.TICK)
-	check(is_equal_approx(b_maison.savings, 0.75) and is_zero_approx(b_maison.work), "Architecte col blanc : il supervise sans construire")
+	check(is_equal_approx(b_maison.savings, 0.6) and is_zero_approx(b_maison.work), "Architecte col blanc : il supervise sans construire")
 	var b_bois0: float = b_g.stock["bois"]
 	b_maison.work = b_maison.travail()
 	b_g._complete(b_maison)
 	var b_refund: float = b_g.stock["bois"] - b_bois0
-	check(is_equal_approx(b_refund, floorf(float(b_maison.paid["bois"]) * 0.25)), "chantier terminé : 25 %% du bois remboursé (+%d)" % int(b_refund))
+	check(is_equal_approx(b_refund, floorf(float(b_maison.paid["bois"]) * 0.4)), "chantier terminé : 40 %% du bois remboursé (+%d)" % int(b_refund))
 	# Matinal, Peureux
 	var b_mat: GameState.Card = b_mk.call("manoeuvre", ["matinal"])
 	b_mat.last_work_tile = b_o + Vector2i(0, 3)
@@ -1149,13 +1149,19 @@ func _init() -> void:
 	var x_g := _fresh_day(data, 9191)
 	check(x_g.objective() == 100, "objectif : 100 de réputation")
 	var x_lab: Dictionary = x_g.label_defs()[0]
-	x_g.stock["or"] = 30.0
+	x_g.stock["or"] = 40.0
+	check(x_g.label_error(x_lab).begins_with("Ouvrez d'abord"), "label : impossible avant l'ouverture du zoo")
+	x_g.debug_build_zoo(Vector2i(4, 4))
+	x_g.end_day()
+	x_g.mt.night_goto("equipe")
+	x_g.start_next_day()
+	x_g.stock["or"] = 40.0
 	check(x_g.label_error(x_lab).begins_with("Il faut un Marchand"), "label : il faut un Marchand déployé")
 	var x_mar: GameState.Card = b_mk.call("marchand", [])
 	x_g.hand.append(x_mar)
 	x_g.deploy(x_mar, true)
 	var x_rep0 := x_g.rep_points
-	check(x_g.buy_label(x_lab) and is_equal_approx(x_g.rep_points, x_rep0 + float(x_lab["reputation"])) and is_equal_approx(x_g.stock["or"], 30.0 - float(x_lab["or"])),
+	check(x_g.buy_label(x_lab) and is_equal_approx(x_g.rep_points, x_rep0 + float(x_lab["reputation"])) and is_equal_approx(x_g.stock["or"], 40.0 - float(x_lab["or"])),
 		"label %s : %d or → +%d de réputation" % [x_lab["nom"], int(x_lab["or"]), int(x_lab["reputation"])])
 	check(not x_g.buy_label(x_lab), "un label ne s'achète qu'une fois")
 	var x_card: GameState.Card = x_g.all_employees()[0]

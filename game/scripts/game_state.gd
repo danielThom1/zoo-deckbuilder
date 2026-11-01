@@ -1769,6 +1769,8 @@ func label_error(def: Dictionary) -> String:
 		return "Seulement de jour"
 	if labels_owned.has(def["id"]):
 		return "Déjà obtenu"
+	if not zoo_status()["open"]:
+		return "Ouvrez d'abord votre zoo"
 	if _traders().is_empty():
 		return "Il faut un Marchand déployé"
 	if stock["or"] < float(def["or"]) - 0.0001:

@@ -106,6 +106,7 @@ var btn_cancel_site: Button
 var btn_demolish: Button
 var hand_box: HBoxContainer
 var deploy_all_btn: Button
+var rotate_btn: Button  # « Tourner (R) » pendant la pose d'un bâtiment non carré
 var toast_box: VBoxContainer
 var status_label: Label
 var night_root: Control
@@ -279,6 +280,19 @@ func _start(watch: bool) -> void:
 		var cdef: Dictionary = game.data["animals"]["animaux"].filter(func(d): return d["id"] == cid if cid != "" else (d["palier"] == "T1" and d["id"] != "zebre"))[0]
 		game.contracts.append(cdef)
 		_set_build({"kind": "animal", "def": cdef})
+	# --tourner : pose une entrée tournée (verticale) terminée près du camp et laisse l'outil en mode pose tournée
+	if args.has("tourner"):
+		_set_build({"kind": "batiment", "def": game.building_def("entree")})
+		_rotate_build()
+		game.stock["bois"] += 20
+		game.stock["pierre"] += 20
+		var gs: GameState.Site = null
+		for dx in range(3, 12):
+			if gs == null:
+				gs = game.place("batiment", build_choice["def"], game.map.camp.position + Vector2i(dx, -2))
+		if gs:
+			gs.work = gs.travail()
+			game._complete(gs)
 	# --cadre : ajoute un cadre à la main (captures du bouton « Jouer »)
 	if args.has("cadre"):
 		game.hand.append(game.make_card("cadre"))
@@ -604,7 +618,7 @@ func _draw_site(s: GameState.Site) -> void:
 			"cloture", "enclos":
 				_draw_fence(s, color)
 			"entree":
-				_draw_gate(r)
+				_draw_gate(r, s.def.get("pivote", false))
 			_:
 				_draw_building(r, id, color)
 		if building_short.has(id) and r.has_point(_screen_to_world(get_viewport().get_mouse_position())):
@@ -876,7 +890,11 @@ func _draw_turned(r: Rect2, turned: bool, draw_fn: Callable) -> void:
 
 
 ## Entrée du zoo : deux piliers et un portique.
-func _draw_gate(r: Rect2) -> void:
+func _draw_gate(r: Rect2, vertical := false) -> void:
+	if vertical:
+		# entrée tournée (verticale) : le portique vu de côté, posé sur la case du bas
+		SpritesBD.dessiner_largeur(self, "entree2", Vector2(r.get_center().x, r.end.y), r.size.x * 1.7)
+		return
 	SpritesBD.dessiner_largeur(self, "entree", Vector2(r.get_center().x, r.end.y), maxf(r.size.x, r.size.y) * 1.15)
 	return
 	var tex := _image("res://ui/batiments/entree.svg")
@@ -1293,8 +1311,6 @@ func _unhandled_input(event: InputEvent) -> void:
 					selected_animal = null
 			KEY_DELETE, KEY_BACKSPACE:
 				_delete_selection()
-			KEY_R:
-				_rotate_build()
 			KEY_SPACE:
 				_set_speed(1.0 if speed == 0.0 else 0.0)
 			KEY_1:
@@ -1308,6 +1324,10 @@ func _unhandled_input(event: InputEvent) -> void:
 # Les relâchements et mouvements sont suivis partout, même au-dessus de l'interface.
 func _input(event: InputEvent) -> void:
 	if mt == null:
+		return
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_R 		and not build_choice.is_empty() and not (get_viewport().gui_get_focus_owner() is LineEdit):
+		_rotate_build()
+		get_viewport().set_input_as_handled()
 		return
 	if event is InputEventMouseMotion:
 		if drag_start != null:
@@ -1332,6 +1352,8 @@ func _input(event: InputEvent) -> void:
 func _set_build(choice: Dictionary) -> void:
 	build_choice = choice
 	painting = false
+	if rotate_btn:
+		rotate_btn.visible = _rotatable()
 	if choice.get("kind") == "animal":
 		_compute_animal_hints(choice["def"], true)
 	else:
@@ -1345,8 +1367,15 @@ func _set_build(choice: Dictionary) -> void:
 
 
 ## R : tourne d'un quart de tour le bâtiment à poser (entrée du zoo, bâtiments non carrés).
-func _rotate_build() -> void:
+func _rotatable() -> bool:
 	if build_choice.get("kind") != "batiment":
+		return false
+	var t: Array = build_choice["def"].get("taille", [1, 1])
+	return int(t[0]) != int(t[1]) and build_choice["def"].get("sur", "") != "camp"
+
+
+func _rotate_build() -> void:
+	if not _rotatable():
 		return
 	var def: Dictionary = build_choice["def"]
 	var t: Array = def.get("taille", [1, 1])
@@ -1356,6 +1385,7 @@ func _rotate_build() -> void:
 	turned["taille"] = [t[1], t[0]]
 	turned["pivote"] = not def.get("pivote", false)
 	build_choice["def"] = turned
+	game.say("%s : %s." % [turned["nom"], "verticale" if turned["pivote"] else "horizontale"])
 
 
 func _is_paint_build() -> bool:
@@ -2056,6 +2086,17 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 	loan_btn.visible = false
 	loan_btn.pressed.connect(func(): game.take_loan())
 	ui.add_child(loan_btn)
+	rotate_btn = Composants.bouton("⟲ Tourner (R)", "BoutonPrincipal")
+	rotate_btn.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	rotate_btn.offset_left = -90
+	rotate_btn.offset_right = 90
+	rotate_btn.offset_top = 76
+	rotate_btn.offset_bottom = 114
+	rotate_btn.focus_mode = Control.FOCUS_NONE
+	rotate_btn.visible = false
+	rotate_btn.tooltip_text = "Tourne le bâtiment à poser d'un quart de tour (entrée du zoo verticale ou horizontale)"
+	rotate_btn.pressed.connect(_rotate_build)
+	ui.add_child(rotate_btn)
 	# Tout déployer : chaque carte de la main payable part sur le terrain (au-dessus de la pioche)
 	deploy_all_btn = Composants.bouton("Tout déployer", "BoutonPrincipal")
 	deploy_all_btn.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
