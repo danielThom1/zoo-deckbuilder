@@ -5051,10 +5051,6 @@ func _animal_info(a: GameState.Animal) -> void:
 		lines.append("Aménagement requis : %s" % game.building_def(d["decor"])["nom"])
 	if d.has("effet_texte"):
 		lines.append("[color=#13867F]Rare : %s[/color]" % d["effet_texte"])
-	var mates := game.shared_type_count(a)
-	if mates > 0:
-		lines.append("[color=#8A6A00]Enclos partagé : %d autre(s) animal(aux) %s ici (+%d %% de réputation)[/color]" % [
-			mates, game.type_name(d.get("type", "")), roundi(mates * float(game.data["animals"]["affinite_type"]["par_animal"]) * 100)])
 	info_text.text = "\n".join(lines)
 	if info_extra_for != a:
 		info_extra_for = a

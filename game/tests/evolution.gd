@@ -10,6 +10,9 @@ extends SceneTree
 
 const POPULATION := 16
 const PARTIES_PAR_GENOME := 6
+const PARTIES_PAR_GENOME_LONGUE := 12  # à partir de 2000 parties : moins de chance dans la sélection
+const ETUDE_LONGUE := 2000
+const ATTENTE_MAX_MS := 600000  # sans nouveau résultat pendant 10 min, les processus bloqués sont arrêtés
 const PART_FINALE := 0.1  # part des parties gardée pour la phase finale
 const EXPLORATION := 0.25  # part de choix au hasard (améliorations, cartes) pour que tout soit essayé
 const BOOLS := ["marche", "rush_or", "formation", "cartes", "spectacle", "affinite", "boutique", "mine", "specialisation", "fast_expand", "route_mine", "adaptatif", "agrandir", "meme_type"]
@@ -56,6 +59,9 @@ var jours_achat := {}
 var sources := {}
 var jours_fin: Array = []
 var record := {}
+var parties_par_genome := PARTIES_PAR_GENOME
+var objectifs_tires := {}  # objectif -> parties où il a été tiré
+var processus_bloques := 0
 
 
 func _init() -> void:
@@ -94,6 +100,14 @@ func _init() -> void:
 		noms[a["id"]] = a["nom"]
 	for c in data["workers"]["cartes_action"]:
 		noms[c["id"]] = c["nom"]
+	for o in data["buildings"]["objectifs"]["liste"]:
+		noms["obj_" + str(o["id"])] = o["texte"]
+	for b in data["events"]["bonus_nuit"]:
+		noms[str(b["id"])] = "%s (%s)" % [b["nom"], b["texte"]]
+	noms["article"] = "Article de presse (Journaliste)"
+	noms["accusation"] = "Accusation (Journaliste)"
+	noms["agence"] = "Échange à l'Agence d'intérim"
+	noms["cabinet"] = "Remplacement au Cabinet de recrutement"
 	for b in data["buildings"]["batiments"]:
 		noms[b["id"]] = b["nom"]
 	for u in data["workers"]["ameliorations_generiques"]:
@@ -105,7 +119,16 @@ func _init() -> void:
 	rng.seed = int(args.get("seed", str(Time.get_ticks_usec())))
 	total_parties = maxi(8, int(args.get("total", "200")))
 	var jobs := int(args.get("jobs", str(maxi(1, OS.get_processor_count() / 2))))
-	var par_generation: int = POPULATION * PARTIES_PAR_GENOME / 4
+	if total_parties >= ETUDE_LONGUE:
+		parties_par_genome = PARTIES_PAR_GENOME_LONGUE
+	# --fin=08:00 : l'étude s'arrête d'elle-même à temps pour jouer sa finale et écrire son rapport.
+	var budget_ms := 0
+	if args.has("fin") and ":" in str(args["fin"]):
+		var h: PackedStringArray = str(args["fin"]).split(":")
+		var now := Time.get_time_dict_from_system()
+		var secondes := int(h[0]) * 3600 + int(h[1]) * 60 - (int(now["hour"]) * 3600 + int(now["minute"]) * 60)
+		budget_ms = (secondes if secondes > 0 else secondes + 86400) * 1000
+	var par_generation: int = POPULATION * parties_par_genome / 4
 	var n_gen := maxi(1, roundi(total_parties * (1.0 - PART_FINALE)) / par_generation)
 	var finale := maxi(4, total_parties - n_gen * par_generation)
 	total_parties = n_gen * par_generation + finale
@@ -127,6 +150,13 @@ func _init() -> void:
 		print("Génération %d / %d : meilleure %d %% de victoires, jour %.1f, rép. %.0f · %d parties en %d min, reste ~%d min" % [
 			gen + 1, n_gen, roundi(100.0 * best["wins"]), best["win_day"], best["rep"], parties_jouees, int(ecoule / 60.0), int(reste / 60.0)])
 		_write_report(pop, order, scores, history, [])
+		if budget_ms > 0 and Time.get_ticks_msec() - t0 >= budget_ms * 0.88:
+			# Le temps tourne : la finale garde ce qu'il reste, à la vitesse mesurée jusqu'ici.
+			var par_ms := float(parties_jouees) / maxf(1.0, Time.get_ticks_msec() - t0)
+			finale = clampi(int(par_ms * (budget_ms - (Time.get_ticks_msec() - t0)) * 0.8), 8, finale)
+			total_parties = parties_jouees + finale
+			print("Heure de fin proche : finale de %d parties." % finale)
+			break
 		if gen < n_gen - 1:
 			pop = _next_generation(pop, order)
 	var classement := _finale(pop, order, finale, jobs)
@@ -249,12 +279,22 @@ func _jouer(matches: Array, jobs: int) -> Dictionary:
 		pids.append(OS.create_process(OS.get_executable_path(), ["--headless", "--path", ProjectSettings.globalize_path("res://"),
 			"--script", "res://tests/evolution.gd", "--", "--lot=%d" % lot, "--lots=%d" % mini(jobs, matches.size())]))
 	var results := {}
+	var dernier_resultat := Time.get_ticks_msec()
 	while results.size() < matches.size():
 		var fini := pids.all(func(p): return not OS.is_process_running(p))
 		for f in DirAccess.get_files_at(dir):
 			if f.ends_with(".res") and not results.has(f.get_basename().to_int()):
 				results[f.get_basename().to_int()] = JSON.parse_string(FileAccess.get_file_as_string(dir.path_join(f)))
+				dernier_resultat = Time.get_ticks_msec()
 		if fini:
+			break
+		# Une erreur de script bloque un processus sans le fermer : on l'arrête, l'étude continue avec les parties jouées.
+		if Time.get_ticks_msec() - dernier_resultat > ATTENTE_MAX_MS:
+			for p in pids:
+				if OS.is_process_running(p):
+					OS.kill(p)
+					processus_bloques += 1
+			print("Attention : processus bloqué(s) arrêté(s), %d partie(s) perdue(s)." % (matches.size() - results.size()))
 			break
 		OS.delay_msec(300)
 	parties_jouees += results.size()
@@ -265,7 +305,7 @@ func _jouer(matches: Array, jobs: int) -> Dictionary:
 ## vitesse de victoire, réputation finale.
 func _evaluate(pop: Array, jobs: int, gen: int) -> Array:
 	var slots: Array = []
-	for k in PARTIES_PAR_GENOME:
+	for k in parties_par_genome:
 		var idx := range(pop.size())
 		idx.shuffle()
 		slots.append_array(idx)
@@ -375,8 +415,11 @@ func _play(seed: int, genomes: Array) -> Dictionary:
 			prec = float(row[i]["rep"])
 		joueurs.append({"rep": p.rep_points, "traits": traits, "metiers": metiers, "ameliorations": ups, "batiments": bat, "gains": gains,
 			"cartes": p.journal_cartes, "contrats": p.journal_contrats, "animaux": p.animals.filter(func(a): return a.arrived).map(func(a): return a.def["id"]),
-			"continents": p.animals.filter(func(a): return a.arrived).map(func(a): return a.def["continent"]), "labels": p.labels_owned.keys(), "sources": p.rep_sources})
-	var out := {"day": m.day, "winner": m.winner, "seed": seed, "joueurs": joueurs, "offres": m.offres}
+			"continents": p.animals.filter(func(a): return a.arrived).map(func(a): return a.def["continent"]), "labels": p.labels_owned.keys(), "sources": p.rep_sources,
+			"types": p.animals.filter(func(a): return a.arrived).map(func(a): return a.def.get("type", "")),
+			"paliers": p.animals.filter(func(a): return a.arrived).map(func(a): return a.def["palier"]),
+			"objectifs": p.objectifs_faits.keys(), "bonus": p.journal_bonus, "agrandis": m.ais[i].agrandis, "parc": m.ais[i].zoo_rect.get_area()})
+	var out := {"day": m.day, "winner": m.winner, "seed": seed, "joueurs": joueurs, "offres": m.offres, "objectifs": m.objectifs.map(func(o): return o["id"])}
 	m.dispose()
 	return out
 
@@ -433,6 +476,27 @@ func _cumuler(r: Dictionary) -> void:
 			jours_achat[c["id"]] = int(jours_achat.get(c["id"], 0)) + int(c["day"])
 		for l in j["labels"]:
 			_note("labels", l, gagne, rep)
+		for o in j["objectifs"]:
+			_note("objectifs", "obj_" + str(o), gagne, rep)
+		var choisis := {}
+		for b in j["bonus"]:
+			choisis[b] = true
+		for b in choisis:
+			_note("bonus", b, gagne, rep)
+		var par_type := {}
+		for t in j["types"]:
+			par_type[t] = int(par_type.get(t, 0)) + 1
+		for t in par_type:
+			_note("types", "%s (%s)" % [t, "3 espèces et plus" if par_type[t] >= 3 else "1 ou 2 espèces"], gagne, rep)
+		var par_palier := {}
+		for t in j["paliers"]:
+			par_palier[t] = int(par_palier.get(t, 0)) + 1
+		for t in par_palier:
+			_note("raretes", "%s installé%s" % [data["animals"]["paliers"][t]["nom"], "s (2 et plus)" if par_palier[t] >= 2 else " (1)"], gagne, rep)
+		var ag := int(j["agrandis"])
+		_note("parc", "Parc agrandi %s" % ("jamais" if ag == 0 else ("1 fois" if ag == 1 else "2 fois et plus")), gagne, rep)
+		var surface := int(j["parc"])
+		_note("parc", "Parc de %s" % ("moins de 250 cases" if surface < 250 else ("250 à 449 cases" if surface < 450 else "450 cases et plus")), gagne, rep)
 		var compte := {}
 		for c in j["continents"]:
 			compte[c] = int(compte.get(c, 0)) + 1
@@ -459,6 +523,8 @@ func _cumuler(r: Dictionary) -> void:
 			_note("cartes", k, gagne, rep)
 	for k in r["offres"]:
 		offres[k] = int(offres.get(k, 0)) + int(r["offres"][k])
+	for o in r.get("objectifs", []):
+		objectifs_tires[o] = int(objectifs_tires.get(o, 0)) + 1
 
 
 func _nom(k: String) -> String:
@@ -536,7 +602,11 @@ func _write_report(pop: Array, order: Array, scores: Array, history: Array, clas
 	_synthese(L, "Cartes", "cartes")
 	_synthese(L, "Animaux", "animaux")
 	_synthese(L, "Bâtiments", "batiments")
+	_synthese(L, "Bonus de nuit", "bonus")
 	L.append("")
+	if processus_bloques > 0:
+		L.append("**Attention** : %d processus se sont bloqués et ont été arrêtés. Cherchez l'erreur de script en relançant quelques parties." % processus_bloques)
+		L.append("")
 	if fin:
 		L.append("## Classement des stratégies (phase finale)")
 		L.append("")
@@ -574,6 +644,16 @@ func _write_report(pop: Array, order: Array, scores: Array, history: Array, clas
 	_table(L, "Améliorations", "ameliorations", "Choisies %d %% du temps au hasard pendant l'apprentissage, pour que toutes soient essayées." % roundi(EXPLORATION * 100))
 	_table(L, "Bâtiments", "batiments")
 	_table(L, "Labels", "labels")
+	_table(L, "Objectifs remplis", "objectifs", "Joueurs ayant rempli cet objectif. Le taux de réussite est dans le tableau suivant.")
+	L.append("| Objectif | Parties où il est tiré | Joueurs qui l'ont rempli | Taux de réussite |")
+	L.append("|---|---|---|---|")
+	for o in data["buildings"]["objectifs"]["liste"]:
+		var tires := int(objectifs_tires.get(o["id"], 0))
+		var remplis := int(stats.get("objectifs", {}).get("obj_" + str(o["id"]), {"n": 0})["n"])
+		L.append("| %s | %d | %d | %d %% |" % [o["texte"], tires, remplis, roundi(100.0 * remplis / maxi(1, tires * 4))])
+	L.append("")
+	_table(L, "Bonus de nuit", "bonus", "Joueurs ayant choisi ce bonus au moins une fois (le premier en influence choisit).")
+	_table(L, "Taille du parc", "parc", "Agrandissements terminés et surface de l'enceinte en fin de partie.")
 	_table(L, "Cartes à usage unique et cadres joués", "cartes", "Joueurs ayant joué cette carte au moins une fois.")
 	L.append("### Effet immédiat des cartes sur la réputation gagnée")
 	L.append("")
@@ -611,6 +691,8 @@ func _write_report(pop: Array, order: Array, scores: Array, history: Array, clas
 			int(offres.get(i, 0)), nb, roundi(100.0 * nb / maxi(1, offres.get(i, 1))), "—" if nb == 0 else "%.1f" % (float(jours_achat[i]) / nb), e["n"], roundi(100.0 * p), roundi(100.0 * (p - q))])
 	L.append("")
 	_table(L, "Continents", "continents", "Selon le nombre d'espèces de ce continent en fin de partie.")
+	_table(L, "Types d'animaux", "types", "Selon le nombre d'espèces de ce type en fin de partie.")
+	_table(L, "Raretés", "raretes", "Selon les animaux installés en fin de partie.")
 	L.append("## D'où vient la réputation")
 	L.append("")
 	var tot := 0.0

@@ -253,7 +253,7 @@ Liste complète : `data/workers.json`.
 
 ### 9.1 Origines et types (v6)
 - Chaque animal a un **continent d'origine** (Afrique, Europe, Asie, Amérique, Océanie) et un **type** (terrestre, aquatique, aérien). On compte 38 espèces, dont 3 oiseaux ajoutés : Vautour, Toucan, Aigle royal.
-- **Affinités** : la réputation gagnée chaque nuit augmente de **+5 % par espèce au-delà de la première venant du même continent**. Par exemple, 3 animaux d'Afrique et 2 d'Europe donnent +15 %. Elle augmente aussi de **+5 % par animal en plus d'un même type** (aérien, terrestre, aquatique) partageant un enclos (`affinite_type`).
+- **Affinités** : la réputation gagnée chaque nuit augmente de **+5 % par espèce au-delà de la première venant du même continent**. Par exemple, 3 animaux d'Afrique et 2 d'Europe donnent +15 %.
 - **Aide au placement** : en choisissant un contrat, les enclos où l'animal peut aller sont surlignés en vert, ceux qui demandent des aménagements en orange. S'il n'y en a aucun, le jeu propose un petit enclos libre dans l'enceinte (clôtures en pointillés, bouton pour les poser).
 - **Bonus de nuit thématiques** (choisis par le premier en influence, pour tous) : Festival des oiseaux (aériens ×1,5), Journée de l'océan (aquatiques ×1,5), Semaine de l'Afrique (×1,4), de l'Europe (×1,4), des Amériques (×1,5), Asie-Océanie (×1,5), appliqués à l'attractivité des espèces concernées. Construire autour d'un continent ou d'un type devient une stratégie, et l'influence permet de la servir.
 - **Or des contrats** : l'or manquant pour un contrat s'achète en argent au moment de l'achat, au prix du marché (14 par or, le double du prix de revente). Les T3 coûtent environ 25 % d'argent de moins qu'avant (33 à 39, plus 2 à 3 or).
@@ -284,7 +284,7 @@ Liste complète : `data/workers.json`.
 ## 10 bis. Objectifs, presse (04/11)
 - **Objectifs des actionnaires** : 3 objectifs tirés après le draft (`buildings.json > objectifs`), les mêmes pour tous. Chaque joueur qui en remplit un gagne **+10 de réputation**, une fois, à la fin de la journée.
 - **Journaliste** (cadre, 12 d'embauche, 3 de salaire) : envoyé à l'extérieur, il part en reportage dans un parc rival. Le parc est sous **brouillard de guerre** : seules les cases à 6 cases ou moins de son chemin sont dévoilées, et elles le restent. Il se promène seul, ou va où on clique. **Article** (40, un par jour) : publicité du rival ×0,8 pendant 3 jours. **Accusation** (90, une par jour) : un collaborateur en vue est licencié d'office, s'il reste au rival plus de 3 collaborateurs ; un légendaire emporte ses 5 points de réputation.
-- **Bonus retirés** : diversité et collection de biomes, voisinage. Restent les paliers de continent, le bonus de type en enclos partagé et les effets des rares.
+- **Bonus retirés** : diversité et collection de biomes, voisinage. Bonus de type en enclos partagé retiré aussi. Restent les paliers de continent et les effets des rares.
 - **Snack** : visites 50 % plus longues et 1 d'argent de plus par visiteur.
 
 ## 11. IA (prototype Godot)

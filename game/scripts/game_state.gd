@@ -160,6 +160,7 @@ var action_fx := {}  # effets du jour des cartes d'action jouées (productivite,
 var prime_left := 0  # déploiements sans salaire offerts par la carte Prime aujourd'hui
 var bought_action := false  # carte d'action achetée cette nuit
 var swapped_today := false  # échange fait à l'Agence d'intérim aujourd'hui
+var journal_bonus: Array = []  # bonus de nuit choisis (étude)
 var objectifs_faits := {}  # identifiant d'objectif -> jour où il a été rempli
 var record_visiteurs := 0  # le plus de visiteurs entrés en une journée
 var presse_jours := 0  # jours de mauvaise presse restants (article d'un Journaliste rival)
@@ -996,6 +997,7 @@ func publish_article(w: Worker) -> bool:
 	var P: Dictionary = data["buildings"]["presse"]
 	money -= float(P["article"])
 	article_du_jour = true
+	journal_cartes.append({"id": "article", "day": day})
 	var cible := int(w.reportage["cible"])
 	var rival: GameState = mt.players[cible]
 	rival.presse_jours = int(P["jours_article"])
@@ -1027,6 +1029,7 @@ func accuse_worker(w: Worker, carte_id: int) -> bool:
 		return false
 	money -= float(data["buildings"]["presse"]["accusation"])
 	accusation_du_jour = true
+	journal_cartes.append({"id": "accusation", "day": day})
 	var cible := int(w.reportage["cible"])
 	var rival: GameState = mt.players[cible]
 	var cible_w: Worker = report_visibles(w).filter(func(o): return o.card.id == carte_id)[0]
@@ -1874,6 +1877,7 @@ func recruit_replace(old: Card, categorie: String) -> bool:
 	if recruit_error(categorie) != "" or not market_workers.has(old):
 		return false
 	money -= recruit_price(categorie)
+	journal_cartes.append({"id": "cabinet", "day": day})
 	var k := market_workers.find(old)
 	var fresh := mt.make_card(categorie)
 	market_workers[k] = fresh
@@ -2036,6 +2040,7 @@ func swap_error(w: Worker, take: Card) -> String:
 func swap_worker(w: Worker, take: Card) -> bool:
 	if swap_error(w, take) != "":
 		return false
+	journal_cartes.append({"id": "agence", "day": day})
 	money -= swap_cost(take)
 	day_stats["salaires"] += salary(take)
 	var target := _task_target(w)
@@ -2143,6 +2148,7 @@ func bonus_error(def: Dictionary) -> String:
 func pick_bonus(def: Dictionary) -> bool:
 	if bonus_error(def) != "":
 		return false
+	journal_bonus.append(str(def.get("id", "")))
 	mt.bonus_choice = def
 	if not mt.is_ai(index):
 		mt.confirm_bonus()
@@ -3608,14 +3614,6 @@ func affinity_bonus() -> float:
 	var steps: Array = data["animals"]["affinite_continent"]["paliers"]
 	for c in per_cont:
 		bonus += float(steps[mini(per_cont[c], steps.size() - 1)])
-	# Animaux d'un même type partageant un enclos (ou le parc libre) : +5 % par animal en plus.
-	var groups := {}
-	for a in zoo_status().get("animals", []):
-		if a.arrived and a.fed and a.key != Vector2i(-9, -9):
-			var k := "%s|%s" % [str(a.key), a.def.get("type", "")]
-			groups[k] = groups.get(k, 0) + 1
-	for k in groups:
-		bonus += maxi(0, groups[k] - 1) * float(data["animals"]["affinite_type"]["par_animal"])
 	return bonus
 
 
@@ -3706,9 +3704,6 @@ func animal_at(t: Vector2i) -> Animal:
 
 
 ## Nombre d'autres animaux du même type (aérien, terrestre, aquatique) dans le même enclos.
-func shared_type_count(a: Animal) -> int:
-	return animals.filter(func(o): return o != a and o.key == a.key and o.key != Vector2i(-9, -9) \
-		and o.def.get("type", "") == a.def.get("type", "")).size()
 
 
 ## Multiplicateur d'attractivité d'un animal dû au bonus de nuit (type ou continent mis à l'honneur).

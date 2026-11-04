@@ -916,7 +916,6 @@ func _init() -> void:
 	check(fg.animals[1].pattern_tiles.all(func(t): return not fg.animals[2].pattern_tiles.has(t)), "chaque animal garde ses cases de motif")
 	fg.end_day()
 	fg.start_next_day()
-	check(fg.shared_type_count(fg.animals[1]) == 1, "même type dans le même enclos : 1 compagnon")
 	check(fg.affinity_bonus() >= f_bonus0 + 0.149, "affinités : continent +10 %% et type partagé +5 %% (%.2f → %.2f)" % [f_bonus0, fg.affinity_bonus()])
 	# Enclos en chantier : l'animal est réservé et n'arrive qu'une fois les clôtures terminées
 	var fq := _fresh_day(data, 2027)

@@ -6,7 +6,6 @@
     "T3": { "jour_min": 1, "nom": "Rare", "reputation_base": 18, "nourriture": 6 }
   },
   "affinite_continent": { "par_espece": 0.05, "paliers": [0, 0, 0.1, 0.25, 0.45, 0.7, 1.0], "_note_paliers": "Bonus de réputation par continent selon le nombre d'espèces : 2 → +10 %, 3 → +25 %, 4 → +45 %, 5 → +70 %, 6 et plus → +100 % (remplace par_espece).", "_note": "Réputation gagnée chaque nuit +5 % par espèce au-delà de la première venant du même continent (ex. 3 animaux d'Afrique et 2 d'Europe : +15 %)." },
-  "affinite_type": { "par_animal": 0.05, "_note": "Réputation +5 % par animal en plus d'un même type (aérien, terrestre, aquatique) partageant un enclos (ou le parc libre)." },
   "continents": { "Afrique": "Afrique", "Europe": "Europe", "Asie": "Asie", "Amerique": "Amérique" },
   "types": { "herbivore": "herbivore", "predateur": "prédateur", "aquatique": "aquatique", "aerien": "aérien" },
   "biomes": ["Savane", "Foret", "Jungle", "Aquatique", "Montagne", "Desert"],
