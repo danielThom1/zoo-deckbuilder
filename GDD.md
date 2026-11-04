@@ -265,6 +265,8 @@ Liste complète : `data/workers.json`.
 - **Économie** : deck initial de 8, main de 4, récolte +25 %, chantiers −25 %. Une Maison loge un seul ouvrier (5 bois, 2 pierre, rapide). Légendaire au niveau 6. Centre de formation plus rapide à bâtir et à former. Traits accentués.
 - **Maladie** : un animal guérit seul au bout de 2 nuits, ou plus vite avec un Soigneur.
 
+- **Prestige politique** : chaque nuit, +3 pour le premier en influence, +1 pour le deuxième.
+- **Cabinet de recrutement** : remplacer une carte coûte 12 (peu qualifié), 25 (qualifié) ou 50 (cadre).
 - **Labels** : s'achètent en or à la Bourse des ressources, zoo ouvert ; le prix double sans Marchand déployé.
 
 ## 10. Réputation

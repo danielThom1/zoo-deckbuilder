@@ -2184,8 +2184,11 @@ func _park_enclosure(t: Vector2i, reason: String) -> Dictionary:
 func enclosure_key(enc: Dictionary) -> Vector2i:
 	if enc.get("park", false):
 		return Vector2i(-1, -1)
-	var best: Vector2i = enc["tiles"][0]
-	for t in enc["tiles"]:
+	var tiles: Array = enc.get("tiles", [])
+	if tiles.is_empty():
+		return Vector2i(-9, -9)  # enclos non fermé : aucune case, aucun animal
+	var best: Vector2i = tiles[0]
+	for t in tiles:
 		if t.y < best.y or (t.y == best.y and t.x < best.x):
 			best = t
 	return best
@@ -2200,7 +2203,7 @@ func free_enclosure_tiles(enc: Dictionary) -> Array:
 			for p in a.pattern_tiles:
 				used[p] = true
 	# L'aménagement requis (Rocher d'observation…) peut se trouver sur une case du motif : seul le terrain compte.
-	return enc["tiles"].filter(func(p): return not used.has(p))
+	return enc.get("tiles", []).filter(func(p): return not used.has(p))
 
 
 ## Les murs de l'enceinte peuvent servir de côté à un enclos : la zone doit alors toucher au moins une

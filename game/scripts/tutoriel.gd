@@ -14,6 +14,7 @@ const ESPECE := "bison_amerique"
 const EQUIPE := ["bucheron", "terrassier", "manoeuvre", "paysagiste", "guichetier", "charpentier", "macon", "animalier"]
 const PARC := Vector2i(10, 8)
 const ARGENT_VISE := 25
+const TRAITS_EXEMPLE := {"bucheron": ["costaud"], "terrassier": ["distrait"], "manoeuvre": ["rapide", "gourmand"]}
 
 var m  # main.gd
 var mt: Match
@@ -38,7 +39,7 @@ var rapport_jour := 0.0
 var voile: Voile
 var bulle: PanelContainer
 var queue: Queue
-var portrait_cadre: PanelContainer
+var portrait_cadre: Panel
 var portrait_image: TextureRect
 var nom_label: Label
 var texte: RichTextLabel
@@ -139,7 +140,7 @@ static func _carte(partie: Match, id: String) -> GameState.Card:
 	for d in partie.data["workers"]["metiers"]:
 		if d["id"] == id:
 			c.metier = d
-	c.traits.clear()
+	c.traits.assign(TRAITS_EXEMPLE.get(id, []))
 	return c
 
 
@@ -212,7 +213,7 @@ func _ready() -> void:
 
 
 func _construire_bulle() -> void:
-	portrait_cadre = PanelContainer.new()
+	portrait_cadre = Panel.new()
 	var ps := StyleBoxFlat.new()
 	ps.bg_color = UiTokens.ENTETE
 	ps.border_color = UiTokens.ENCRE
@@ -225,7 +226,7 @@ func _construire_bulle() -> void:
 	add_child(portrait_cadre)
 	portrait_image = TextureRect.new()
 	portrait_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	portrait_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	portrait_image.stretch_mode = TextureRect.STRETCH_SCALE
 	portrait_image.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	portrait_cadre.add_child(portrait_image)
 
@@ -333,7 +334,7 @@ func _etape_suivante() -> void:
 	var action: bool = etape.has("attendre")
 	voile.bloque = not etape.get("libre", false)
 	voile.sombre = etape.get("voile", etape.has("cible"))
-	voile.passe = action
+	voile.passe = action or etape.get("survol", false)
 	suivant.visible = not action or etape.has("fin")
 	suivant.text = "Terminer ▸" if etape.has("fin") else "Suivant ▸"
 	consigne.text = str(etape.get("consigne", "")) if action else ""
@@ -345,11 +346,11 @@ func _montrer_bulle(phrase: String) -> void:
 	var a_droite := qui != "cadre"
 	if qui == "cadre":
 		nom_label.text = "%s · %s" % [CADRE["nom"], CADRE["titre"]]
-		portrait_image.texture = Composants.texture_portrait(CADRE["perso"])
+		_cadrer_portrait(Composants.texture_portrait(CADRE["perso"]))
 	else:
 		var c: GameState.Card = _carte_de(qui)
 		nom_label.text = "%s · %s" % [c.nom, game.job_name(c)]
-		portrait_image.texture = Composants.texture_portrait(c.perso)
+		_cadrer_portrait(Composants.texture_portrait(c.perso))
 	queue.a_droite = a_droite
 	queue.queue_redraw()
 	texte.text = phrase
@@ -360,6 +361,26 @@ func _montrer_bulle(phrase: String) -> void:
 	var x := (vue.x - large) / 2.0 + 60.0
 	bulle.position.x = x
 	portrait_cadre.position.x = x + large + 28.0 if a_droite else x - 160.0
+
+
+## Place le portrait dans le disque, la tête au centre : les visages ne sont pas au milieu de leur image.
+func _cadrer_portrait(tex: Texture2D) -> void:
+	portrait_image.texture = tex
+	var img := tex.get_image()
+	var haut := img.get_height()
+	var somme := 0.0
+	var n := 0.0
+	var sommet := -1
+	for y in int(haut * 0.55):  # le haut de l'image : la tête, sans les épaules
+		for x in img.get_width():
+			if img.get_pixel(x, y).a > 0.5:
+				somme += x
+				n += 1.0
+				if sommet < 0:
+					sommet = y
+	var echelle := 150.0 / haut
+	portrait_image.size = Vector2(img.get_width(), haut) * echelle
+	portrait_image.position = Vector2(66.0 - somme / maxf(n, 1.0) * echelle, 8.0 - maxi(sommet, 0) * echelle)
 
 
 func _carte_de(metier: String) -> GameState.Card:
@@ -444,6 +465,13 @@ func dessiner_monde(canvas: CanvasItem, tuile: float) -> void:
 		var r := Rect2(Vector2(t) * tuile, Vector2(tuile, tuile))
 		canvas.draw_rect(r, Color(UiTokens.SELECTION, a))
 		canvas.draw_rect(r, UiTokens.ENCRE, false, 1.5)
+	# Bâtiment montré tel qu'il sera une fois construit
+	if etape.has("fantome"):
+		var tex := SpritesBD.texture(SpritesBD.BATIMENTS[etape["fantome"]])
+		var taille: Array = game.building_def(etape["fantome"])["taille"]
+		var cote := Vector2(int(taille[0]), int(taille[1])) * tuile
+		var pied := (Vector2(_filon()) + Vector2(0.5, 0.5)) * tuile
+		canvas.draw_texture_rect(tex, Rect2(pied - Vector2(cote.x * 0.75, cote.y * 1.1), Vector2(cote.x * 1.5, cote.y * 1.5)), false)
 
 
 # --- Outils du scénario -----------------------------------------------------------------------------------------
@@ -612,7 +640,8 @@ func _scenario() -> Array:
 		_dit("cadre", "Le [b]bois[/b], d'abord. Il se coupe dans les forêts. Il sert aux bâtiments et aux clôtures des enclos.", {"cible": _jeton("bois")}),
 		_dit("cadre", "La [b]pierre[/b] se casse dans les rochers. Murs d'enceinte, routes, bâtiments : on en manque toujours, et vos dos aussi.", {"cible": _jeton("pierre")}),
 		_dit("cadre", "L'[b]or[/b] est facultatif : on peut gagner sans. Mais il se vend très bien et peut accélérer votre développement. Il s'extrait d'un filon, une fois la [b]Mine d'or[/b] construite dessus.", {"entree": func(): _onglet("Bâtiments"), "cible": _batiments(["mine"]), "position": "bas"}),
-		_dit("cadre", "Si vos récoltes sont loin du camp, l'[b]Entrepôt[/b] sert de dépôt rapproché : moins de marche, plus de rendement. Je chronomètre.", {"cible": _batiments(["entrepot"])}),
+		_dit("cadre", "Tenez, là-bas : ce scintillement jaune, c'est un filon. Voilà ce que donne une Mine d'or une fois bâtie dessus. Comptez un bon moment de chantier, et de la marche : le chemin du camp n'est pas au budget.", {"entree": func(): _centrer(_filon()), "monde": _cases_filon, "fantome": "mine", "position": "haut"}),
+		_dit("cadre", "Si vos récoltes sont loin du camp, l'[b]Entrepôt[/b] sert de dépôt rapproché : moins de marche, plus de rendement. Je chronomètre.", {"entree": func(): _centrer(game.map.camp.get_center() + Vector2i(0, -5)), "cible": _batiments(["entrepot"])}),
 		_dit("cadre", "Le [b]Marché[/b], enfin, vous fait vendre vos ressources à meilleur prix. Avec un Marchand déployé, encore mieux : ZooLife adore les intermédiaires.", {"cible": _batiments(["comptoir"])}),
 		# --- Première récolte ---
 		_demande(func(): return "Assez parlé. Au travail ! Vos quatre ouvriers attendent au camp. Cliquez sur %s, sur sa carte ou sur la carte du monde, puis faites un [b]clic droit sur un arbre[/b]." % bucheron.call(),
@@ -657,6 +686,9 @@ func _scenario() -> Array:
 			_forcer_main(game, EQUIPE.slice(0, 4)), "cible": func(): return [m.hand_box], "position": "haut"}),
 		_dit("manoeuvre", "Payés le matin même ? Avant, c'était à la fin du mois.", {"cible": func(): return [m.hand_box], "position": "haut"}),
 		_dit("cadre", "Après diverses mésaventures antérieures : le parc de Dubaï, la grève de l'enclos à otaries, les bons d'achat à la boutique… Les ouvriers exigent désormais d'être payés le matin. Quelle époque.", {"cible": func(): return [m.hand_box], "position": "haut"}),
+		_dit("cadre", "Regardez vos cartes. Chaque ouvrier a une [b]spécialité[/b], son métier, qui le rend meilleur à certaines tâches. Et souvent des [b]qualités[/b] (rond bleu) et des [b]défauts[/b] (carré orange). Survolez une carte pour tout lire. Choisissez bien : un défaut, ça se paie aussi.", {"cible": func(): return [m.hand_box], "position": "haut", "survol": true}),
+		_dit("terrassier", "Et vous, monsieur de la Marge, c'est quoi vos qualités et vos défauts ?", {"cible": func(): return [m.hand_box], "position": "haut"}),
+		_dit("cadre", "Ma qualité ? Ma capacité d'écoute. Mon défaut ? Le perfectionnisme. Sujet suivant.", {"cible": func(): return [m.hand_box], "position": "haut"}),
 		_demande("Déployez vos quatre ouvriers, carte par carte ou avec le bouton [b]Tout déployer[/b].",
 			func(): return game.hand.all(func(c): return c.deployed), _deployer_tout,
 			{"cible": func(): return [m.hand_box, m.deploy_all_btn], "libre": false, "position": "haut", "consigne": "Déployez les 4 ouvriers"}),
@@ -675,7 +707,7 @@ func _scenario() -> Array:
 		_demande(func(): return "Au tour de l'[b]enclos[/b] du %s : des [b]Clôtures d'enclos[/b], appuyées sur le mur quand c'est possible. Ça économise du bois. Peignez la zone jaune." % nom_animal,
 			func(): return _manquantes(clotures).is_empty(), func(): _comme_joueur("batiment", game.building_def("enclos"), clotures),
 			{"cible": _batiments(["enclos"]), "voile": false, "pose": {"enclos": clotures}, "position": "haut", "consigne": "Clôture d'enclos : peignez la zone jaune", "monde": func(): return _manquantes(clotures)}),
-		_demande(func(): return "Le motif demande une case de forêt, et il n'y a que de la prairie. Heureusement, votre roster compte un Paysagiste. Onglet [b]Terrain[/b], [b]Planter une forêt[/b], puis clic sur la case jaune." ,
+		_demande(func(): return "Le motif demande une case de forêt, et il n'y a que de la prairie. Heureusement, votre équipe compte un Paysagiste. Onglet [b]Terrain[/b], [b]Planter une forêt[/b], puis clic sur la case jaune." ,
 			func(): return game.site_at(case_foret) != null, func(): _comme_joueur("amenagement", _amenagement("planter"), [case_foret]),
 			{"entree": func(): _onglet("Terrain"), "cible": _batiments(["planter"]), "voile": false, "pose": {"planter": [case_foret]}, "position": "haut", "consigne": "Planter une forêt, puis clic sur la case jaune", "monde": func(): return _manquantes([case_foret])}),
 		_demande(func(): return "Seuls les Paysagistes et les Terrassiers aménagent le terrain. Sélectionnez %s et faites un clic droit sur le chantier." % paysagiste.call(),
@@ -710,11 +742,32 @@ func _scenario() -> Array:
 		_dit("cadre", "Les animaux ne font pas tout. Le Kiosque tenu et les souvenirs vendus rapportent de la réputation. Un ouvrier qui atteint le [b]niveau 6[/b] devient légendaire : +5. Il réclamera une augmentation : refusez.", {"cible": func(): return [m.res_chips["reputation"]["racine"]]}),
 		_dit("cadre", "Les [b]labels[/b] s'achètent en or à la Bourse, zoo ouvert. Le double du prix sans Marchand déployé. Oui, la réputation s'achète. Vous pensiez quoi ?", {"cible": func(): return [_bourse()], "position": "bas"}),
 		_dit("cadre", "Reste l'[b]influence[/b]. Envoyez un ouvrier à la [b]Mairie[/b], au bout de la route d'Accès : c'est le lobbying. L'influence décide de qui achète en premier le soir et de qui choisit le bonus du lendemain.", {"entree": func(): _centrer(game.map.exit_tile + Vector2i(0, -4)), "voile": false, "monde": func(): return [game.map.exit_tile], "position": "haut"}),
-		_dit("cadre", "Et chaque nuit, le premier en influence gagne [b]+1 de réputation[/b], le deuxième +0,5. On appelle ça le prestige politique. Nous, on appelle ça un mardi.", {"monde": func(): return [game.map.exit_tile], "position": "haut"}),
+		_dit("cadre", "Et chaque nuit, le premier en influence gagne [b]+3 de réputation[/b], le deuxième +1. On appelle ça le prestige politique. Nous, on appelle ça un mardi.", {"monde": func(): return [game.map.exit_tile], "position": "haut"}),
 		_dit("manoeuvre", "Et notre période d'essai, elle est validée ?", {"entree": func(): _centrer(parc.get_center())}),
 		_dit("cadre", "Votre période d'essai vient de s'achever. Elle n'était pas rémunérée : article 12. Bienvenue à bord. Maintenant, un vrai parc vous attend, de vraies rivales et de vrais trimestres. [b]Le premier à 100 l'emporte[/b]. Le reste, c'est de la communication.", {"fin": true}),
 	]
 	return s
+
+
+## Filon le plus proche du camp, et ses cases.
+func _filon() -> Vector2i:
+	var c := game.map.camp.get_center()
+	var best: Vector2i = game.map.golds[0]
+	for g in game.map.golds:
+		if (g - c).length_squared() < (best - c).length_squared():
+			best = g
+	return best
+
+
+func _cases_filon() -> Array:
+	var f := _filon()
+	var out := []
+	for dy in range(-3, 4):
+		for dx in range(-3, 4):
+			var t := f + Vector2i(dx, dy)
+			if game.map.in_bounds(t.x, t.y) and game.map.get_t(t.x, t.y) == GameMap.MINE_OR:
+				out.append(t)
+	return out
 
 
 func _proche(res: String) -> Vector2i:

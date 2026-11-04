@@ -36,7 +36,7 @@ Un animal doit manger (Cuisine) et peut tomber malade : un Soigneur le guérit, 
 	["Gagner de la réputation", """[b]Fréquentation[/b] : la source principale, selon le nombre moyen de visiteurs présents. L'attractivité des animaux et la publicité amènent les visiteurs ; le zoo doit rester propre.
 [b]Affinités[/b] : plusieurs espèces d'un même continent multiplient cette réputation (2 → +10 %, 3 → +25 %, 4 → +45 %, 5 → +70 %, 6 → +100 %).
 [b]Spectacles et boutique[/b] : un Kiosque tenu et les souvenirs vendus en rapportent aussi.
-[b]Prestige politique[/b] : chaque nuit, le premier en influence gagne +1, le deuxième +0,5.
+[b]Prestige politique[/b] : chaque nuit, le premier en influence gagne +3, le deuxième +1.
 [b]Labels[/b] : achetés en or, zoo ouvert, à la Bourse des ressources. Le prix double sans Marchand déployé.
 [b]Ouvriers légendaires[/b] : +5 quand un ouvrier atteint le niveau 6."""],
 	["La nuit", """La nuit se joue en écrans successifs, chacun à son tour selon l'influence :

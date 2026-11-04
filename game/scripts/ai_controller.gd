@@ -4,6 +4,7 @@ extends RefCounted
 ## (déployer, donner des ordres, placer des chantiers, installer des animaux, acheter au marché…).
 ## Les réglages de « stratégie » servent aux simulations d'équilibrage (tests/balance_sim.gd).
 
+const ARGENT_ABONDANT := 100.0  # au-dessus du plancher de dépenses, l'IA améliore son camp quelle que soit sa stratégie
 const SURPLUS_STOCK := 30.0  # stock gardé en plus des besoins avant de vendre pour payer les chantiers
 const SURPLUS_ARGENT := 30.0  # argent visé au-dessus du plancher de dépenses
 const DEFAULT_STRATEGY := {
@@ -945,6 +946,9 @@ func _compute_plan(def: Dictionary) -> Dictionary:
 				var conv = _pattern_conversions(def, interior)
 				if conv == null:
 					continue
+				# Une montagne dans l'enclos réduit sa surface, et l'animal ne peut pas y être posé.
+				if tiles.any(func(t): return g.is_mountain(t) and not conv.any(func(c): return c[0] == t)):
+					continue
 				# Moins d'aménagements, clôtures partagées et enclos tassés contre les murs : on garde de la place.
 				var wall_dist := maxi(0, mini(mini(x - zoo_rect.position.x, y - zoo_rect.position.y), mini(zoo_rect.end.x - outer.end.x, zoo_rect.end.y - outer.end.y)))
 				var cost: float = _conv_cost(conv) * 2.0 - shared * 0.6 + wall_dist * 0.4
@@ -1079,15 +1083,38 @@ func _place_decor(def: Dictionary, interior: Rect2i) -> bool:
 	var decor: String = def.get("decor", "")
 	if decor == "":
 		return true
-	var enc := g.enclosure_at(interior.position)
-	if g.decor_site(enc, decor) != null:
+	if _has_decor(decor, interior):
 		return true
+	var t := _decor_tile(def, interior)
+	return t.x >= 0 and g.place("batiment", g.building_def(decor), t) != null
+
+
+func _has_decor(decor: String, interior: Rect2i) -> bool:
+	return _rect_tiles(interior).any(func(t): return g.site_at(t) != null and g.site_at(t).def_id() == decor)
+
+
+## Case pour l'aménagement requis : hors du motif si possible, sinon sur le motif (seul son terrain compte).
+## (-1, -1) tant que l'enclos n'est pas fermé.
+func _decor_tile(def: Dictionary, interior: Rect2i) -> Vector2i:
+	var enc := g.enclosure_at(interior.position)
+	if not enc["closed"] or enc.get("park", false):
+		return Vector2i(-1, -1)
 	var pattern: Array = g.pattern_status(def, g.free_enclosure_tiles(enc))["tiles"]
-	var ddef := g.building_def(decor)
-	for t in _rect_tiles(interior):
-		if not pattern.has(t) and g.placement_error("batiment", ddef, t) == "":
-			return g.place("batiment", ddef, t) != null
-	return false
+	var ddef := g.building_def(def["decor"])
+	var free := _rect_tiles(interior).filter(func(t): return g.placement_error("batiment", ddef, t, false) == "")
+	for t in free:
+		if not pattern.has(t):
+			return t
+	return free[0] if not free.is_empty() else Vector2i(-1, -1)
+
+
+## Travail restant sur un enclos prévu : aménagements, plus clôtures et murs qui manquent.
+func _plan_left(p: Dictionary) -> int:
+	return _ring_left(p) + p["conv"].filter(func(c): return GameMap.TERRAINS[g.map.get_t(c[0].x, c[0].y)] != c[1]).size()
+
+
+func _ring_left(p: Dictionary) -> int:
+	return p["ring"].filter(func(t): return not (g.is_fence(t) or g.is_wall(t) or g.is_mountain(t))).size()
 
 
 # --- Chantiers voulus --------------------------------------------------------
@@ -1113,7 +1140,9 @@ func _wants() -> Array:
 		out.append(["batiment", g.building_def("entrepot"), dspot])
 	# 1 quater. Améliorations du camp (stratégies « Camp amélioré » et « Grand camp ») : +1 carte en main par niveau.
 	for lvl in [2, 3]:
-		if lvl - 1 > int(strat["camp"]) or day < 2:
+		# Argent qui dort : plus de cartes en main, donc plus de bras.
+		var camp_max := 2 if g.money > _cash_floor() + ARGENT_ABONDANT else int(strat["camp"])
+		if lvl - 1 > camp_max or day < 2:
 			break
 		var cid := "camp_n%d" % lvl
 		if not g.has_building(cid):
@@ -1186,7 +1215,10 @@ func _wants() -> Array:
 			_finish_expansion()
 	# 3. Enclos des contrats en attente (aménagements puis clôtures).
 	_ensure_plans()
-	for p in plans:
+	# Un enclos à la fois, le plus avancé d'abord : deux enclos à moitié faits n'accueillent aucun animal.
+	var en_cours := plans.duplicate()
+	en_cours.sort_custom(func(a, b): return _plan_left(a) < _plan_left(b))
+	for p in en_cours:
 		for c in p["conv"]:
 			# Étape suivante vers le terrain visé (une transformation en deux étapes passe par la Prairie)
 			var step = _conversion_step(GameMap.TERRAINS[g.map.get_t(c[0].x, c[0].y)], c[1])
@@ -1196,6 +1228,15 @@ func _wants() -> Array:
 		for t in p["ring"]:
 			if g.site_at(t) == null and not walls.has(t):
 				out.append(["batiment", g.building_def("enclos"), t])
+		var ring_left := _ring_left(p)
+		var decor: String = p["def"].get("decor", "")
+		if ring_left == 0 and decor != "" and not _has_decor(decor, p["interior"]):
+			var dt := _decor_tile(p["def"], p["interior"])
+			if dt.x >= 0:
+				out.append(["batiment", g.building_def(decor), dt])
+		# Des aménagements sans Paysagiste au travail aujourd'hui ne bloquent pas l'enclos suivant.
+		if ring_left > 0 or (_plan_left(p) > 0 and g.workers.any(func(w): return g.can_landscape(w.card))):
+			break
 	# 3 bis. Cuisine dès le premier animal (zoo ouvert : il faut livrer les rations), puis local d'entretien
 	# quand le parc commence à se salir.
 	for b in [["cuisine", not g.animals.is_empty()], ["entretien", g.proprete < 85.0]]:
@@ -1615,22 +1656,61 @@ func _staff_posts() -> void:
 		return
 	# Guichet et boutique seulement zoo ouvert : avant, personne ne vient, et ces ouvriers manqueraient aux chantiers.
 	var open: bool = g.zoo_status()["open"]
+	# Guichet et cuisine d'abord. Les autres postes laissent des bras aux chantiers : sinon, zoo ouvert, plus rien ne se construit.
+	var bras := _builders_needed()
+	_release_posts(bras)
 	for s in g.sites:
 		if s.done and s.def_id() == "entree" and open:
 			_ensure_post(s, "ticket")
 			# File qui s'allonge : un deuxième guichetier
-			if g.visitor_queue >= 10:
+			if g.visitor_queue >= 10 and _free_hands() > bras:
 				_ensure_post(s, "ticket", 2)
 		elif s.done and s.def_id() == "boutique" and open:
-			_ensure_post(s, "shop")
+			if _free_hands() > bras:
+				_ensure_post(s, "shop")
 		elif s.done and s.def_id() == "kiosque" and open:
-			_ensure_post(s, "kiosque")
+			if _free_hands() > (0 if strat["spectacle"] else bras):
+				_ensure_post(s, "kiosque")
 		elif s.done and s.def_id() == "cuisine" and g.food_due():
 			# Un nourrisseur pour 4 animaux (l'Animalier, puis le Soigneur, puis le moins utile ailleurs)
 			var arrived := g.animals.filter(func(a): return a.arrived).size()
 			_ensure_job(s, "feed", ceili(arrived / 4.0), "nourrir", "animalier")
 		elif s.done and s.def_id() == "entretien" and g.proprete < 75.0:
-			_ensure_job(s, "clean", 1, "nettoyer", "agent_entretien")
+			# Parc vraiment sale : il fait fuir les visiteurs, le nettoyage passe avant les chantiers
+			if g.proprete < 50.0 or _free_hands() > bras:
+				_ensure_job(s, "clean", 1, "nettoyer", "agent_entretien")
+
+
+## Ouvriers disponibles pour les chantiers : ni postés, ni dehors.
+func _free_hands() -> int:
+	return g.workers.filter(func(w): return not w.offmap and not w.task.get("type") in ["station", "feed", "clean"] and not w.card.metier["id"] in ["lobbyiste", "marchand"]).size()
+
+
+## Bras à garder aux chantiers : aucun s'il n'y a plus rien à construire.
+func _builders_needed() -> int:
+	if not g.sites.any(func(s): return not s.done) and not plans.any(func(p): return _plan_left(p) > 0):
+		return 0
+	return 2 if g.workers.size() >= 4 else 1
+
+
+## Libère un poste secondaire quand un chantier manque de bras (kiosque, boutique, puis nettoyage).
+func _release_posts(bras: int) -> void:
+	if _free_hands() >= bras:
+		return
+	for kind in ["kiosque", "shop"]:
+		if kind == "kiosque" and strat["spectacle"]:
+			continue
+		for w in g.workers:
+			if w.task.get("kind") == kind:
+				w.task = {}
+				w.path.clear()
+				return
+	if g.proprete >= 50.0:
+		for w in g.workers:
+			if w.task.get("type") == "clean":
+				w.task = {}
+				w.path.clear()
+				return
 
 
 ## Affecte des ouvriers à une tâche en boucle partant d'un bâtiment (nourrir, nettoyer) jusqu'à `wanted`.

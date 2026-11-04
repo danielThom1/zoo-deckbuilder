@@ -1265,7 +1265,7 @@ func _init() -> void:
 	check(x_card.niveau == 6 and x_g.night_report["legendes"].has(x_card.nom), "niveau 6 : %s devient légendaire" % x_card.nom)
 	check(x_g.rep_points >= x_rep1 + 5.0, "légendaire : +5 de réputation pour le parc")
 	var x_lead: GameState = x_g.mt.players[x_g.mt.night_order[0]]
-	check(x_lead.night_report.get("prestige", 0.0) == 1.0, "prestige politique : +1 pour le premier en influence")
+	check(x_lead.night_report.get("prestige", 0.0) == 3.0, "prestige politique : +3 pour le premier en influence")
 
 	print("\n%s" % ("TOUS LES TESTS PASSENT" if failures == 0 else "%d ÉCHEC(S)" % failures))
 	quit(failures)

@@ -1102,17 +1102,26 @@ func _draw_animal(a: GameState.Animal, index: int, now: float) -> void:
 	var icon: String = UiTokens.BIOMES[biome]["icone"] if UiTokens.BIOMES.has(biome) else "ui_valide"
 	if not a.arrived or SpritesBD.ANIMAUX.get(str(a.def["id"]), []).is_empty():
 		_draw_pin(center + Vector2(0, -2), icon, col.darkened(0.15))
+	if not a.arrived:
+		_draw_moon(center + Vector2(0, -14))
+		return
 	var txt: String = a.def["nom"]
 	if a.sick:
 		txt += " (malade !)"
 		_draw_pin(center + Vector2(9, -4), "ui_invalide", UiTokens.DEFAUT, 0.8)
-	if not a.arrived:
-		txt += " (arrive cette nuit)"
-	elif not a.fed:
+	if not a.fed:
 		txt += " (a faim !)"
 	elif game.food_due():
 		txt += " %.0f/%.0f" % [a.food, game.food_capacity(a.def)]
 	_label(txt, center + Vector2(0, -21), 9)
+
+
+## Animal attendu : un croissant de lune sur fond de nuit (il arrive cette nuit).
+func _draw_moon(p: Vector2) -> void:
+	draw_circle(p, 7.5, UiTokens.ENCRE)
+	draw_circle(p, 6.5, UiTokens.MARINE)
+	draw_circle(p, 4.6, UiTokens.SELECTION)
+	draw_circle(p + Vector2(2.0, -1.4), 4.0, UiTokens.MARINE)
 
 
 const TENUES := [Color("E04A4A"), Color("3A6AE0"), Color("E8B020"), Color("8A4AD0"), Color("F2F2F2"), Color("18A88A"), Color("E8782A")]
@@ -1285,7 +1294,7 @@ func _build_origin(hover: Vector2i) -> Vector2i:
 
 
 func _label(text: String, pos: Vector2, size: int) -> void:
-	# largeur à la mesure du texte (une largeur fixe coupait « (arrive cette nuit) » en « (arriv »)
+	# largeur à la mesure du texte (une largeur fixe coupait les libellés longs)
 	var width := maxf(80.0, font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x + 8.0)
 	draw_string_outline(font, pos - Vector2(width / 2, 0), text, HORIZONTAL_ALIGNMENT_CENTER, width, size, 3, Color(0, 0, 0, 0.8))
 	draw_string(font, pos - Vector2(width / 2, 0), text, HORIZONTAL_ALIGNMENT_CENTER, width, size, Color.WHITE)
