@@ -44,6 +44,7 @@ var portrait_image: TextureRect
 var nom_label: Label
 var texte: RichTextLabel
 var suivant: Button
+var quitter: Button
 var consigne: Label
 var titre_ecran: Label
 
@@ -78,6 +79,12 @@ class Voile extends Control:
 		for r in trous:
 			var g := 3.0 + 2.5 * sin(pouls * 5.0)
 			draw_rect(r.grow(g), UiTokens.SELECTION, false, 4.0)
+
+
+## Petit triangle du bouton Suivant.
+class Fleche extends Control:
+	func _draw() -> void:
+		draw_colored_polygon(PackedVector2Array([Vector2(0, 0), Vector2(10, 7), Vector2(0, 14)]), UiTokens.ENCRE)
 
 
 ## Queue de la bulle : triangle vers le portrait, qui recouvre le bord de la bulle.
@@ -266,15 +273,8 @@ func _construire_bulle() -> void:
 	v.add_child(texte)
 	var bas := HBoxContainer.new()
 	bas.add_theme_constant_override("separation", 10)
+	bas.alignment = BoxContainer.ALIGNMENT_END
 	v.add_child(bas)
-	var passer := Button.new()
-	passer.text = "Quitter le tutoriel"
-	passer.flat = true
-	passer.focus_mode = Control.FOCUS_NONE
-	passer.add_theme_font_size_override("font_size", 13)
-	passer.add_theme_color_override("font_color", UiTokens.TEXTE_SECONDAIRE)
-	passer.pressed.connect(func(): m._restart("menu"))
-	bas.add_child(passer)
 	consigne = Label.new()
 	consigne.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	consigne.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -283,14 +283,55 @@ func _construire_bulle() -> void:
 	consigne.add_theme_font_size_override("font_size", 15)
 	consigne.add_theme_color_override("font_color", UiTokens.ORANGE)
 	bas.add_child(consigne)
-	suivant = Composants.bouton("Suivant ▸", "BoutonPrincipal")
+	suivant = Button.new()
 	suivant.focus_mode = Control.FOCUS_NONE
+	_styler(suivant, UiTokens.BOUTON_BAS, UiTokens.BOUTON_HAUT, 18.0, 36.0)
+	suivant.add_theme_font_override("font", UiTokens.police_corps(800))
+	suivant.add_theme_font_size_override("font_size", 17)
+	suivant.custom_minimum_size.y = 38
 	suivant.pressed.connect(_clic_suivant)
 	bas.add_child(suivant)
+	var fleche := Fleche.new()
+	fleche.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fleche.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+	fleche.position = Vector2(-24, -7)
+	suivant.add_child(fleche)
+	# Quitter : à la place du bouton Menu de la barre du haut (au-dessus du voile, toujours cliquable)
+	quitter = Button.new()
+	quitter.text = "Quitter le tutoriel"
+	quitter.focus_mode = Control.FOCUS_NONE
+	_styler(quitter, Color.WHITE, Color("FFF4D6"), 14.0, 14.0)
+	quitter.add_theme_font_override("font", UiTokens.police_corps(700))
+	quitter.add_theme_font_size_override("font_size", 14)
+	quitter.pressed.connect(func(): m._restart("menu"))
+	add_child(quitter)
+	m.menu_btn.custom_minimum_size.x = 160
+	m.menu_btn.modulate.a = 0.0
+	m.menu_btn.disabled = true
 	queue = Queue.new()
 	queue.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	queue.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	bulle.add_child(queue)
+
+
+## Bouton de BD : aplat franc, trait d'encre et ombre d'encre décalée, qui s'enfonce au clic.
+func _styler(b: Button, fond: Color, survol: Color, gauche: float, droite: float) -> void:
+	for etat in [["normal", fond, 3.0], ["hover", survol, 3.0], ["pressed", survol, 0.0], ["hover_pressed", survol, 0.0]]:
+		var st := StyleBoxFlat.new()
+		st.bg_color = etat[1]
+		st.border_color = UiTokens.ENCRE
+		st.set_border_width_all(3)
+		st.set_corner_radius_all(19)
+		st.content_margin_left = gauche
+		st.content_margin_right = droite
+		st.content_margin_top = 5
+		st.content_margin_bottom = 5
+		st.shadow_color = UiTokens.ENCRE
+		st.shadow_size = 0
+		st.shadow_offset = Vector2(0, etat[2])
+		b.add_theme_stylebox_override(etat[0], st)
+	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
+		b.add_theme_color_override(c, UiTokens.ENCRE)
 
 
 func _input(event: InputEvent) -> void:
@@ -336,7 +377,7 @@ func _etape_suivante() -> void:
 	voile.sombre = etape.get("voile", etape.has("cible"))
 	voile.passe = action or etape.get("survol", false)
 	suivant.visible = not action or etape.has("fin")
-	suivant.text = "Terminer ▸" if etape.has("fin") else "Suivant ▸"
+	suivant.text = "Terminer" if etape.has("fin") else "Suivant"
 	consigne.text = str(etape.get("consigne", "")) if action else ""
 	consigne.visible = consigne.text != ""
 
@@ -358,7 +399,8 @@ func _montrer_bulle(phrase: String) -> void:
 	var vue := get_viewport_rect().size
 	var large := 800.0
 	bulle.custom_minimum_size = Vector2(large, 0)
-	var x := (vue.x - large) / 2.0 + 60.0
+	# Entre le panneau Construire et le panneau du zoo, le portrait compris
+	var x := 330.0 if a_droite else (vue.x - large) / 2.0 + 60.0
 	bulle.position.x = x
 	portrait_cadre.position.x = x + large + 28.0 if a_droite else x - 160.0
 
@@ -405,9 +447,17 @@ func _process(delta: float) -> void:
 	if bulle.visible:
 		var vue := get_viewport_rect().size
 		bulle.size.y = 0.0  # la bulle reprend la hauteur de son texte
-		var y: float = 78.0 if etape.get("position", "bas") == "haut" else vue.y - bulle.size.y - 22.0
+		# En bas, la bulle s'arrête au-dessus de la main : les cartes restent visibles.
+		var bas: float = m.hand_box.get_global_rect().position.y - 12.0 if m.hand_box.is_visible_in_tree() else vue.y - 22.0
+		var y: float = 78.0 if etape.get("position", "bas") == "haut" else bas - bulle.size.y
 		bulle.position.y = y
 		portrait_cadre.position.y = y + maxf(0.0, bulle.size.y - 132.0) / 2.0
+	if mt.phase == "day":
+		quitter.position = m.menu_btn.global_position
+		quitter.size = m.menu_btn.size
+	else:  # la nuit, plus de barre du haut
+		quitter.size = Vector2(160, 46)
+		quitter.position = get_viewport_rect().size - quitter.size - Vector2(18, 18)
 	voile.trous.clear()
 	if etape.has("cible"):
 		for c in etape["cible"].call():

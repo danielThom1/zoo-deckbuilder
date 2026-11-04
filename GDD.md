@@ -259,7 +259,7 @@ Liste complète : `data/workers.json`.
 - **Or des contrats** : l'or manquant pour un contrat s'achète en argent au moment de l'achat, au prix du marché (14 par or, le double du prix de revente). Les T3 coûtent environ 25 % d'argent de moins qu'avant (33 à 39, plus 2 à 3 or).
 
 ## 9.2 Rework du 04/11 (remplace les valeurs précédentes)
-- **40 espèces, 4 continents** : 10 par continent. Trois raretés (commun, peu commun, rare), toutes disponibles dès le premier soir ; le marché montre toujours au moins un rare et un peu commun. Un rare coûte 60 argent et 3 or.
+- **40 espèces, 4 continents** : 10 par continent. Trois raretés (commun, peu commun, rare), toutes disponibles dès le premier soir ; le marché montre toujours au moins un rare et un peu commun. Un rare coûte 40 argent et 2 or ; un peu commun apporte 12 d'attractivité (4 pour un commun, 14 pour un rare).
 - **Effets des rares** : Aigle royal, Dauphin rose de l'Amazone, Panda géant et Lion donnent +5 d'attractivité par autre espèce de leur type (aérien, aquatique, herbivore, prédateur). Bison d'Europe : souvenirs +50 % de réputation. Pygargue : Kiosque +50 % de réputation. Tigre du Bengale : +1 carte par jour. Hippopotame : chaque nuit, échange d'un ouvrier contre un ouvrier de la rangée.
 - **Enceinte** : une montagne sert de mur, et les murs se construisent sur l'eau.
 - **Économie** : deck initial de 8, main de 4, récolte +25 %, chantiers −25 %. Une Maison loge un seul ouvrier (5 bois, 2 pierre, rapide). Légendaire au niveau 6. Centre de formation plus rapide à bâtir et à former. Traits accentués.

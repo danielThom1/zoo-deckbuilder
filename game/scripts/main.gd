@@ -133,6 +133,7 @@ var label_buttons := {}  # label (id) -> bouton d'achat (en or, prix doublé san
 var trade_note: Label
 var trade_card: Control  # carte « Bourse des ressources » du panneau de droite
 var tutoriel: Tutoriel  # tutoriel scénarisé en cours
+var menu_btn: Button
 var pub_note: Label
 var pub_buttons := {}  # id de campagne -> bouton
 # Choix d'un ouvrier (cartes Rupture de contrat et Promotion, échange à l'Agence d'intérim)
@@ -1875,6 +1876,7 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 	help.pressed.connect(func(): ui.add_child(Aide.new(game.data)))
 	bar.add_child(help)
 	var quit_btn := Button.new()
+	menu_btn = quit_btn
 	quit_btn.text = "Menu"
 	quit_btn.focus_mode = Control.FOCUS_NONE
 	quit_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
