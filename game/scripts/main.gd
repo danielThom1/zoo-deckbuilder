@@ -139,6 +139,7 @@ var menu_btn: Button
 var hubert: BulleHubert  # Hubert à l'écran (joueur humain, hors tutoriel)
 var hubert_dit := {}  # alertes déjà annoncées aujourd'hui
 var hubert_ouverture := false
+var marche_phase := {}  # ouvrier -> avancement de son cycle de marche
 var memo_lignes := {}  # jour -> réplique d'Hubert du mémo du soir
 var pub_note: Label
 var pub_buttons := {}  # id de campagne -> bouton
@@ -587,7 +588,12 @@ func _draw() -> void:
 				f[1] = to.x < 0.0
 			body = p + Vector2(0, -absf(sin(tw * float(work["rythme"]))) * 0.9)
 		# personnage dessiné selon le métier (scripts/rendu/sprites_bd.gd), petit balancement en marchant
-		var pas := absf(sin(tw * 9.0)) * 0.7 if moving and w.pause_left <= 0.0 else 0.0
+		# Les jambes suivent la distance parcourue, pas le temps : pas de pédalage sur place, et une cadence limitée en accéléré
+		var phase_pas: float = marche_phase.get(w, 0.0)
+		if moving:
+			phase_pas += minf(d.length() / MARCHE_CASES_PAR_IMAGE, get_process_delta_time() * MARCHE_IMAGES_MAX)
+			marche_phase[w] = phase_pas
+		var pas := absf(sin(phase_pas * PI / 2.0)) * 0.4 if moving and w.pause_left <= 0.0 else 0.0
 		# Personnage de la carte, animé : le geste de sa tâche s'il en a un sur sa feuille, sinon l'outil par-dessus
 		var feuille := SpritesBD.feuille_perso(str(game.perso_of(w.card)["id"]))
 		var geste := int(GESTES.get(str(work.get("outil", "")), -1))
@@ -595,7 +601,7 @@ func _draw() -> void:
 			geste = -1  # planche à 4 gestes : image de marche
 		if feuille:
 			var rangee: int = geste if geste >= 0 else SpritesBD.PERSO_MARCHE
-			var image := int(tw * 7.0) if moving else (int(tw * float(work["rythme"]) * 0.45) if geste >= 0 else 1)
+			var image: int = MARCHE_CYCLE[int(phase_pas) % MARCHE_CYCLE.size()] if moving else (int(tw * float(work["rythme"]) * 0.45) if geste >= 0 else 1)
 			SpritesBD.dessiner_perso(self, feuille, rangee, image, p + Vector2(0, 6.2 - pas), TILE * SpritesBD.HAUTEUR_PERSONNE, f[1])
 		else:
 			SpritesBD.dessiner(self, SpritesBD.pour_metier(str(w.card.metier["id"]), game.is_female(w.card)), body + Vector2(0, 6.2 - pas), TILE * SpritesBD.HAUTEUR_PERSONNE, f[1])
@@ -985,6 +991,12 @@ func _draw_turned(r: Rect2, turned: bool, draw_fn: Callable) -> void:
 
 
 ## Entrée du zoo : deux piliers et un portique.
+## Marche : jambe avant, jambes croisées, autre jambe, jambes croisées.
+const MARCHE_CYCLE := [0, 1, 2, 1]
+const MARCHE_CASES_PAR_IMAGE := 0.3
+const MARCHE_IMAGES_MAX := 6.0  # images par seconde au plus, même en jeu accéléré
+
+
 ## Outil de la tâche -> rangée de la feuille d'animation du personnage.
 const GESTES := {"hache": SpritesBD.PERSO_COUPER, "pioche": SpritesBD.PERSO_MINER, "pelle": SpritesBD.PERSO_MINER, "marteau": SpritesBD.PERSO_CONSTRUIRE,
 	"caisse": SpritesBD.PERSO_SERVIR, "seau": SpritesBD.PERSO_NOURRIR, "balai": SpritesBD.PERSO_BALAYER, "soin": SpritesBD.PERSO_SOIGNER}
