@@ -381,6 +381,11 @@ func _start(watch: bool) -> void:
 			mt.tick(0.5)
 		_refresh_terrain(true)
 		_focus_zoo()
+	# --perso=victor : tous les ouvriers prennent ce personnage (contrôle d'une nouvelle planche)
+	if args.has("perso"):
+		for pl in mt.players:
+			for c in pl.all_employees():
+				c.perso = args["perso"]
 	# --hubert=licenciement : bulle d'Hubert ; --hubert=ev_greve : bulle d'événement ; --defaite : écran de fin (captures)
 	if args.has("hubert") and hubert:
 		hubert.annoncer(args["hubert"], {"nom": "Marcel", "effet": "Tous les salaires +1 aujourd'hui." if str(args["hubert"]).begins_with("ev_") else ""})
@@ -586,6 +591,8 @@ func _draw() -> void:
 		# Personnage de la carte, animé : le geste de sa tâche s'il en a un sur sa feuille, sinon l'outil par-dessus
 		var feuille := SpritesBD.feuille_perso(str(game.perso_of(w.card)["id"]))
 		var geste := int(GESTES.get(str(work.get("outil", "")), -1))
+		if feuille and geste >= 0 and not SpritesBD.perso_a_rangee(feuille, geste):
+			geste = -1  # planche à 4 gestes : image de marche
 		if feuille:
 			var rangee: int = geste if geste >= 0 else SpritesBD.PERSO_MARCHE
 			var image := int(tw * 7.0) if moving else (int(tw * float(work["rythme"]) * 0.45) if geste >= 0 else 1)
@@ -977,7 +984,8 @@ func _draw_turned(r: Rect2, turned: bool, draw_fn: Callable) -> void:
 
 ## Entrée du zoo : deux piliers et un portique.
 ## Outil de la tâche -> rangée de la feuille d'animation du personnage.
-const GESTES := {"hache": SpritesBD.PERSO_COUPER, "pioche": SpritesBD.PERSO_MINER, "pelle": SpritesBD.PERSO_MINER, "marteau": SpritesBD.PERSO_CONSTRUIRE}
+const GESTES := {"hache": SpritesBD.PERSO_COUPER, "pioche": SpritesBD.PERSO_MINER, "pelle": SpritesBD.PERSO_MINER, "marteau": SpritesBD.PERSO_CONSTRUIRE,
+	"caisse": SpritesBD.PERSO_SERVIR, "seau": SpritesBD.PERSO_NOURRIR, "balai": SpritesBD.PERSO_BALAYER, "soin": SpritesBD.PERSO_SOIGNER}
 
 
 ## Plaque au nom de l'entreprise, devant l'entrée du zoo (rien en mode spectateur : les IA n'ont pas de marque).

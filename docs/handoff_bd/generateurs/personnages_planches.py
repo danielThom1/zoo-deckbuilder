@@ -1,12 +1,16 @@
-"""Découpe les planches de personnages (fond vert : portrait + 4 rangées de 3 images : marcher, construire, couper, miner).
+"""Découpe les planches de personnages (fond vert : portrait, puis rangées de 3 images).
 
   python personnages_planches.py "<dossier des planches>" <racine du dépôt> [--controle=dossier]
 
-Écrit game/assets/bd/sprites/personnages_v2/<id>.png (feuille de 3 colonnes x 4 rangées), <id>_portrait.png,
-game/data/personnages.json et complète le manifeste sprites_bd.json.
+Chaque planche porte le prénom du personnage (Fatou.png, Élise.webp). Deux formats, reconnus d'après l'image :
+  portrait : 8 rangées (marcher, construire, couper, miner, servir, nourrir, balayer, soigner) ;
+  paysage : 4 rangées (les 4 premières), le format des premières planches.
+Écrit game/assets/bd/sprites/personnages_v2/<id>.png (3 colonnes), <id>_portrait.png, complète le manifeste
+sprites_bd.json et réécrit game/data/personnages.json d'après toutes les feuilles présentes : une nouvelle planche
+remplace celle du même personnage, les autres restent.
 Dans chaque image, le pied du personnage est au même point (PIED) : l'animation ne saute pas.
 """
-import glob, json, os, sys
+import glob, json, os, sys, unicodedata
 from collections import deque
 import numpy as np
 from PIL import Image
@@ -17,37 +21,18 @@ HAUTEUR = 96
 PIED = (90, 144)
 PORTRAIT_H = 200
 
-# Nom du fichier (début) -> identifiant, nom, genre. Rien ne dépend de l'ordre de lecture.
-FICHES = [
-    ("Feuille de sprites d’une ouvrière âgée", "odette", "Odette", "f"),
-    ("Feuille d’animation d’un bâtisseur robuste", "malik", "Malik", "m"),
-    ("Fiche de sprites d’un aventurier travailleur", "hugo", "Hugo", "m"),
-    ("Planche de sprite d’un ingénieur grisonnant", "victor", "Victor", "m"),
-    ("Planche de sprites _ grand-mère bâtisseuse", "rose", "Rose", "f"),
-    ("Planche de sprites _ mineur roux en action", "basile", "Basile", "m"),
-    ("Planche de sprites _ ouvrière en action", "ines", "Inès", "f"),
-    ("Planche de sprites animés de bâtisseuse", "aicha", "Aïcha", "f"),
-    ("Planche de sprites de mineur barbu", "mamadou", "Mamadou", "m"),
-    ("Planche de sprites du mineur chromatique", "igor", "Igor", "m"),
-    ("Planche de sprites du vieux bâtisseur", "marcel", "Marcel", "m"),
-    ("Planche de sprites du vieux mineur artisanal", "louis", "Louis", "m"),
-    ("Planche de sprites d’aventurière blonde polyvalente", "clara", "Clara", "f"),
-    ("Planche de sprites d’exploratrice aventurière", "lea", "Léa", "f"),
-    ("Planche de sprites d’un bâtisseur aventurier", "noah", "Noah", "m"),
-    ("Planche de sprites d’un bâtisseur barbu", "adam", "Adam", "m"),
-    ("Planche de sprites d’un jeune bâtisseur", "tom", "Tom", "m"),
-    ("Planche de sprites d’un mineur robuste", "paul", "Paul", "m"),
-    ("Planche de sprites d’un ouvrier en bleu", "gabin", "Gabin", "m"),
-    ("Planche de sprites d’un vieux bâtisseur (1)", "jules", "Jules", "m"),
-    ("Planche de sprites d’un vieux bâtisseur", "samir", "Samir", "m"),
-    ("Planche de sprites d’une ouvrière aventurière", "jade", "Jade", "f"),
-    ("Planche de sprites pixel art sur fond vert", "omar", "Omar", "m"),
-    ("Planche d’animation d’aventurière rousse", "margaux", "Margaux", "f"),
-    ("Planche d’animation d’ouvrière en action", "emma", "Emma", "f"),
-    ("Planche d’animation d’une bûcheronne souriante", "manon", "Manon", "f"),
-    ("Planche d’animation _ aventurière au travail", "yasmine", "Yasmine", "f"),
-    ("Planche d’animation _ travailleuse rustique au piolet", "fatou", "Fatou", "f"),
-]
+# Les 40 personnages : prénom affiché -> genre. L'identifiant est le prénom en minuscules, sans accent.
+PERSONNAGES = {
+    "Élise": "f", "Nadia": "f", "Chloé": "f", "Zoé": "f", "Odette": "f", "Lina": "f", "Fatou": "f", "Rose": "f", "Inès": "f", "Jade": "f",
+    "Margaux": "f", "Sarah": "f", "Aïcha": "f", "Yasmine": "f", "Clara": "f", "Manon": "f", "Emma": "f", "Lucie": "f", "Camille": "f", "Léa": "f",
+    "Victor": "m", "Louis": "m", "Marcel": "m", "Basile": "m", "Kenji": "m", "Paul": "m", "Hugo": "m", "Mamadou": "m", "Igor": "m", "Samir": "m",
+    "Théo": "m", "Bastien": "m", "Omar": "m", "Noah": "m", "Gabin": "m", "Malik": "m", "Jules": "m", "Nathan": "m", "Adam": "m", "Tom": "m",
+}
+
+
+def identifiant(nom):
+    n = unicodedata.normalize('NFD', nom)
+    return ''.join(c for c in n if unicodedata.category(c) != 'Mn').lower().strip()
 
 
 def fond_transparent(rgb):
@@ -94,28 +79,44 @@ def fond_transparent(rgb):
     return sortie, alpha
 
 
-def lignes_de_sol(masque, x0):
-    """Les 4 traits de sol, (haut, bas) de chacun. La marche est seule et suivie d'une ligne vide : son sol est le bas de
-    la bande (ses bras écartés sont parfois plus larges que son trait). Pour les 3 autres rangées, où les outils se
-    rejoignent, le trait est la ligne la plus large de chaque rangée."""
+def lignes_de_sol(masque, x0, x_gauche, rangees):
+    """Les traits de sol, (haut, bas) de chacun. Quand les rangées sont séparées par du vide, le sol est le bas de
+    chaque bande. Sinon (outils levés qui touchent la rangée du dessus), la marche reste seule en bande et, pour les
+    autres, le trait est la ligne la plus large de la rangée."""
     largeur = masque[:, x0:].sum(axis=1).astype(float)
     h = len(largeur)
     ys = np.where(largeur > 2)[0]
-    y = ys[0] + int((ys[-1] - ys[0]) * 0.15)
-    while y < h and largeur[y] > 2:
-        y += 1
-    bas0 = y - 1
+    bandes = []
+    y = ys[0]
+    while y < h:
+        if largeur[y] > 2:
+            d = y
+            while y < h and largeur[y] > 2:
+                y += 1
+            if y - d > 25:
+                bandes.append((d, y - 1))
+        else:
+            y += 1
+    if len(bandes) == rangees:
+        sols = []
+        for _, bas in bandes:
+            haut = bas
+            while haut > 0 and bas - haut < 6 and largeur[haut - 1] >= largeur[bas] * 0.6:
+                haut -= 1
+            sols.append((haut, bas))
+        return sols
+    bas0 = bandes[0][1]
     haut0 = bas0
     while haut0 > 0 and bas0 - haut0 < 4 and largeur[haut0 - 1] >= largeur[bas0] * 0.7:
         haut0 -= 1
     sols = [(haut0, bas0)]
-    ecart = (ys[-1] - bas0) / 3.0 * 0.6
+    ecart = (ys[-1] - bas0) / float(rangees - 1) * 0.6
     pics = []
     for v in np.argsort(-largeur):
         v = int(v)
         if v > bas0 + 20 and all(abs(v - q) >= ecart for q in pics):
             pics.append(v)
-            if len(pics) == 3:
+            if len(pics) == rangees - 1:
                 break
     for v in sorted(pics):
         # Le trait fait quelques pixels ; au-dessus commencent les bottes, moins larges
@@ -160,30 +161,65 @@ def trois_images(masque, y0, y1, x0):
     return [(x0 + deb, x0 + coupes[0][0]), (x0 + coupes[0][1], x0 + coupes[1][0]), (x0 + coupes[1][1], x0 + fin + 1)]
 
 
-def decouper(chemin, fiche_id):
-    rgb = np.array(Image.open(chemin).convert('RGB'))
-    couleurs, alpha = fond_transparent(rgb)
-    masque = alpha > 0.5
+def cadre_portrait(masque):
+    """Le portrait est en haut à gauche : sa largeur se lit à la hauteur de la tête, sa hauteur à la première ligne vide,
+    puis sa vraie largeur (épaules comprises) sur toute cette hauteur."""
     h, w = masque.shape
-    # Portrait : tout ce qui est à gauche du premier grand vide vertical de la moitié haute
-    proj = masque[:h // 2].sum(axis=0) > 0
+    proj = masque[:h // 6].sum(axis=0) > 0
     x = np.where(proj)[0][0]
     while x < w and proj[x]:
         x += 1
-    x_portrait = x
-    # Quelques pixels parasites ne comptent pas dans le cadre du portrait
-    ys = np.where(masque[:, :x_portrait].sum(axis=1) > 6)[0]
-    xs = np.where(masque[:, :x_portrait].sum(axis=0) > 6)[0]
+    lignes = masque[:, :x].sum(axis=1) > 6
+    ys = np.where(lignes)[0]
+    y = ys[0]
+    vide = 0
+    while y < h and vide < 6:
+        vide = 0 if lignes[y] else vide + 1
+        y += 1
+    y_fin = y - vide
+    proj = masque[ys[0]:y_fin].sum(axis=0) > 2
+    x = np.where(proj)[0][0]
+    while x < w and proj[x]:
+        x += 1
+    return x, ys[0], y_fin
+
+
+def talon_de(cellule, m):
+    """Le talon arrière : la colonne la plus à gauche, dans le bas de l'image, où la chaussure fait un bloc sombre.
+    La poussière du balai et les éclats sont clairs ou clairsemés et ne comptent pas."""
+    ch = m.shape[0]
+    d = int(ch * 0.86)
+    lum = cellule[d:, :, :3].astype(np.float32).mean(axis=2)
+    sombre = ((lum < 75) & m[d:]).sum(axis=0)  # une chaussure : le manche et la paille du balai sont plus clairs
+    colonnes = np.where(sombre >= max(3, (ch - d) * 0.3))[0]
+    if len(colonnes):
+        return colonnes[0]
+    colonnes = np.where(m[d:].sum(axis=0) > 0)[0]
+    return colonnes[0] if len(colonnes) else 0
+
+
+def decouper(chemin, fiche_id):
+    rgb = np.array(Image.open(chemin).convert('RGB'))
+    rangees = 8 if rgb.shape[0] > rgb.shape[1] else 4
+    couleurs, alpha = fond_transparent(rgb)
+    masque = alpha > 0.5
+    h, w = masque.shape
+    x_portrait, y_p0, y_p1 = cadre_portrait(masque)
     rgba = np.dstack([np.clip(couleurs, 0, 255), alpha * 255.0]).astype(np.uint8)
+    zone = masque[y_p0:y_p1, :x_portrait]
+    ys = np.where(zone.sum(axis=1) > 6)[0] + y_p0
+    xs = np.where(zone.sum(axis=0) > 6)[0]
     portrait = Image.fromarray(rgba[ys[0]:ys[-1] + 1, xs[0]:xs[-1] + 1], 'RGBA')
-    sols = lignes_de_sol(masque, x_portrait)
-    if len(sols) != 4:
+    # Sous le portrait, les rangées peuvent déborder à gauche (poussière du balai) : le sol se cherche à droite du portrait
+    sols = lignes_de_sol(masque, x_portrait, 0, rangees)
+    if len(sols) != rangees:
         raise ValueError('%s : %d lignes de sol %s' % (fiche_id, len(sols), sols))
     images = []
     y_prec = 0
+    largeur = masque[:, x_portrait:].sum(axis=1)
     for r, (sol, sol_bas) in enumerate(sols):
-        # Au-dessus du trait pour trouver les colonnes (les traits se touchent parfois)
-        cols = trois_images(masque, y_prec, sol - 1, x_portrait)
+        x0 = x_portrait if y_prec < y_p1 else 0
+        cols = trois_images(masque, y_prec, sol - 1, x0)
         if len(cols) != 3:
             raise ValueError('%s : rangée %d, %d colonnes' % (fiche_id, r, len(cols)))
         for c0, c1 in cols:
@@ -192,7 +228,6 @@ def decouper(chemin, fiche_id):
             haut = y_prec + yy[0]
             images.append((r, c0, c1, haut, sol))
         # Reste du trait de sol (les plus épais) : aucun outil levé n'est aussi large
-        largeur = masque[:, x_portrait:].sum(axis=1)
         y_prec = sol_bas + 1
         while y_prec < h - 1 and y_prec - sol_bas < 16 and largeur[y_prec] > largeur[sol_bas] * 0.2:
             y_prec += 1
@@ -201,16 +236,17 @@ def decouper(chemin, fiche_id):
     marche = [i for i in images if i[0] == 0]
     corps = float(np.median([i[4] - i[3] for i in marche]))
     k = HAUTEUR / corps
-    feuille = Image.new('RGBA', (CELLULE[0] * 3, CELLULE[1] * 4), (0, 0, 0, 0))
+    feuille = Image.new('RGBA', (CELLULE[0] * 3, CELLULE[1] * rangees), (0, 0, 0, 0))
     deborde = 0
     for n, (r, c0, c1, haut, sol) in enumerate(images):
         cellule = rgba[haut:sol, c0:c1].copy()
         m = cellule[:, :, 3] > 127
         ch, cw = m.shape
-        # Pied : le talon arrière, le plus à gauche des pieds dans le bas de l'image, sans les outils levés
-        bas = m[int(ch * 0.82):]
-        colonnes = np.where(bas.sum(axis=0) > 0)[0]
-        talon = colonnes[0] if len(colonnes) else 0
+        # Morceaux du trait de sol à côté des pieds : tout en bas, avec du vide juste au-dessus
+        rien_dessus = m[max(0, ch - 16):max(1, ch - 6)].sum(axis=0) == 0
+        cellule[ch - 6:, rien_dessus, 3] = 0
+        m = cellule[:, :, 3] > 127
+        talon = talon_de(cellule, m)
         im = Image.fromarray(cellule, 'RGBA').convert('RGBa')
         nw, nh = max(1, round(cw * k)), max(1, round(ch * k))
         im = im.resize((nw, nh), Image.LANCZOS).convert('RGBA')
@@ -231,49 +267,40 @@ def decouper(chemin, fiche_id):
 def main():
     src, racine = sys.argv[1], sys.argv[2]
     controle = next((a.split('=', 1)[1] for a in sys.argv[3:] if a.startswith('--controle=')), '')
-    fichiers = glob.glob(os.path.join(src, '**', '*.png'), recursive=True)
+    fichiers = [f for f in glob.glob(os.path.join(src, '**', '*'), recursive=True) if f.lower().endswith(('.png', '.webp', '.jpg', '.jpeg'))]
     sortie = os.path.join(racine, 'game', 'assets', 'bd', 'sprites', 'personnages_v2')
     os.makedirs(sortie, exist_ok=True)
     manifeste_p = os.path.join(racine, 'game', 'assets', 'bd', 'sprites_bd.json')
     manifeste = json.load(open(manifeste_p, encoding='utf-8'))
-    persos = []
-    feuilles = []
-    # Les noms les plus longs d'abord : « vieux bâtisseur (1) » avant « vieux bâtisseur »
-    for debut, pid, nom, genre in sorted(FICHES, key=lambda f: -len(f[0])):
-        trouve = [f for f in fichiers if os.path.basename(f).startswith(debut)]
-        if not trouve:
-            raise SystemExit('Planche absente : ' + debut.encode('ascii', 'replace').decode())
-        chemin = trouve[0]
-        fichiers.remove(chemin)
+    connus = {identifiant(nom): nom for nom in PERSONNAGES}
+    faits = []
+    for chemin in sorted(fichiers):
+        pid = identifiant(os.path.splitext(os.path.basename(chemin))[0])
+        if pid not in connus:
+            print('Ignorée (prénom inconnu) :', os.path.basename(chemin).encode('ascii', 'replace').decode())
+            continue
         feuille, portrait, deborde = decouper(chemin, pid)
         feuille.save(os.path.join(sortie, pid + '.png'), optimize=True)
         portrait.save(os.path.join(sortie, pid + '_portrait.png'), optimize=True)
         manifeste['pv2_' + pid] = {"categorie": "personnages", "fichier": "res://assets/bd/sprites/personnages_v2/%s_portrait.png" % pid,
                                    "pied": [portrait.width // 2, portrait.height], "taille": [portrait.width, portrait.height]}
-        persos.append({"id": pid, "nom": nom, "genre": genre})
-        feuilles.append((pid, feuille, portrait))
+        faits.append((pid, feuille, portrait))
         if deborde:
-            print(pid, 'images qui débordent de la cellule :', deborde)
-    persos.sort(key=lambda p: p["id"])
+            print(pid, ': images qui débordent de la cellule :', deborde)
+    # Tous les personnages dont la feuille existe, nouveaux ou non
+    persos = [{"id": pid, "nom": nom, "genre": PERSONNAGES[nom]} for pid, nom in sorted(connus.items())
+              if os.path.exists(os.path.join(sortie, pid + '.png'))]
     json.dump({"_note": "Personnages des planches : docs/handoff_bd/generateurs/personnages_planches.py. Chacun a un portrait et une feuille d'animation (assets/bd/sprites/personnages_v2).", "personnages": persos},
               open(os.path.join(racine, 'game', 'data', 'personnages.json'), 'w', encoding='utf-8', newline='\n'), ensure_ascii=False, indent=2)
     json.dump(manifeste, open(manifeste_p, 'w', encoding='utf-8', newline='\n'), ensure_ascii=False, indent=1)
-    if controle:
+    if controle and faits:
         os.makedirs(controle, exist_ok=True)
-        feuilles.sort(key=lambda f: f[0])
-        W = 330
-        H = 300
-        M = Image.new('RGB', (W * 7, H * 4), (214, 226, 196))
-        for i, (pid, f, p) in enumerate(feuilles):
-            r = f.resize((W, H), Image.LANCZOS)
-            M.paste(r, ((i % 7) * W, (i // 7) * H), r)
-        M.save(os.path.join(controle, 'feuilles.jpg'), quality=82)
-        M = Image.new('RGB', (160 * 7, 170 * 4), (191, 230, 223))
-        for i, (pid, f, p) in enumerate(feuilles):
-            r = p.resize((round(p.width * 160 / p.height), 160), Image.LANCZOS)
-            M.paste(r, ((i % 7) * 160 + max(0, (160 - r.width) // 2), (i // 7) * 170), r)
-        M.save(os.path.join(controle, 'portraits.jpg'), quality=85)
-    print(len(persos), 'personnages')
+        for pid, f, p in faits:
+            fond = Image.new('RGB', (f.width + 220, f.height), (200, 220, 190))
+            fond.paste(p, (0, 0), p)
+            fond.paste(f, (220, 0), f)
+            fond.save(os.path.join(controle, pid + '.png'))
+    print(len(faits), 'planches découpées,', len(persos), 'personnages au total')
 
 
 if __name__ == '__main__':

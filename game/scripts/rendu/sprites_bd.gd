@@ -153,6 +153,10 @@ const PERSO_MARCHE := 0
 const PERSO_CONSTRUIRE := 1
 const PERSO_COUPER := 2
 const PERSO_MINER := 3
+const PERSO_SERVIR := 4  # les 4 dernières rangées n'existent que sur les planches à 8 gestes
+const PERSO_NOURRIR := 5
+const PERSO_BALAYER := 6
+const PERSO_SOIGNER := 7
 static var _feuilles := {}
 
 
@@ -161,6 +165,10 @@ static func feuille_perso(id: String) -> Texture2D:
 		var chemin := "res://assets/bd/sprites/personnages_v2/%s.png" % id
 		_feuilles[id] = load(chemin) if ResourceLoader.exists(chemin) else null
 	return _feuilles[id]
+
+
+static func perso_a_rangee(tex: Texture2D, rangee: int) -> bool:
+	return (rangee + 1) * PERSO_CELLULE.y <= tex.get_height()
 
 
 ## Dessine une image de la feuille, les pieds sur « pied_monde » ; « hauteur » est celle du corps debout.

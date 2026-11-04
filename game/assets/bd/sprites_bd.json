@@ -5835,11 +5835,11 @@
   "categorie": "personnages",
   "fichier": "res://assets/bd/sprites/personnages_v2/victor_portrait.png",
   "pied": [
-   106,
+   67,
    200
   ],
   "taille": [
-   213,
+   135,
    200
   ]
  },
