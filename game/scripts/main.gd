@@ -19,6 +19,7 @@ extends Node2D
 ##   --jours=N       spectateur : avance de N jours avant d'afficher
 
 const TILE := 16.0
+const TEXTE_NET := 4.0  # les textes du monde sont écrits 4 fois plus grands, puis réduits
 
 var terrain_colors := UiTokens.TERRAINS.duplicate()
 var terrain_noms := {
@@ -219,6 +220,8 @@ func _ready() -> void:
 		var kv := a.trim_prefix("--").split("=", true, 1)
 		args[kv[0]] = kv[1] if kv.size() > 1 else ""
 	font = UiTokens.police_corps(600)
+	if font is FontVariation and font.base_font is FontFile:
+		font.base_font.generate_mipmaps = true  # réduit sans scintiller (voir _ecrire)
 	if relance != "":
 		var mode := relance
 		relance = ""
@@ -530,7 +533,7 @@ func _draw() -> void:
 			draw_dashed_line(prev, q, Color(UiTokens.SELECTION, 0.7), 1.0, 3.0)
 			draw_circle(q, 4.2, Color(0, 0, 0, 0.6))
 			draw_circle(q, 3.6, UiTokens.SELECTION)
-			draw_string(font, q + Vector2(-2.2, 2.4), str(k + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 7, Color("1E1406"))
+			_ecrire(q + Vector2(-2.2, 2.4), str(k + 1), HORIZONTAL_ALIGNMENT_LEFT, -1.0, 7, Color("1E1406"))
 			prev = q
 
 	# Zone d'influence des ouvriers sélectionnés (Charismatique, Contremaître, Rabat-joie)
@@ -603,8 +606,7 @@ func _draw() -> void:
 			draw_rect(Rect2(p.x - r, p.y + r * 1.3, r * 2 * w.carry / cap, 2.5), UiTokens.RESSOURCES.get(w.carry_type, {"couleur": Color.WHITE})["couleur"])
 			# quantité portée, lisible à côté de l'écusson
 			var qty := "%d/%d" % [floori(w.carry), cap]
-			draw_string_outline(font, p + Vector2(r + 1.5, r * 1.3 + 3), qty, HORIZONTAL_ALIGNMENT_LEFT, -1, 7, 2, Color(0, 0, 0, 0.85))
-			draw_string(font, p + Vector2(r + 1.5, r * 1.3 + 3), qty, HORIZONTAL_ALIGNMENT_LEFT, -1, 7, Color.WHITE)
+			_ecrire(p + Vector2(r + 1.5, r * 1.3 + 3), qty, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 7, Color.WHITE, 2, Color(0, 0, 0, 0.85))
 		if w.pause_left > 0.0:
 			draw_circle(p + Vector2(r, -r), 3.2, Color.WHITE)
 			draw_circle(p + Vector2(r, -r), 2.5, UiTokens.PAUSE)
@@ -615,8 +617,7 @@ func _draw() -> void:
 				var zp := p + Vector2(3.0 + zf * 5.0, -9.0 - zf * 9.0)
 				var size := int(5.0 + zf * 4.0)
 				var za := sin(zf * PI)
-				draw_string_outline(font, zp, "z", HORIZONTAL_ALIGNMENT_LEFT, -1, size, 2, Color(0.1, 0.07, 0.15, 0.8 * za))
-				draw_string(font, zp, "z", HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(1, 1, 1, za))
+				_ecrire(zp, "z", HORIZONTAL_ALIGNMENT_LEFT, -1.0, size, Color(1, 1, 1, za), 2, Color(0.1, 0.07, 0.15, 0.8 * za))
 
 	if facing.size() > game.workers.size() + 20:
 		facing.clear()  # ouvriers des journées passées
@@ -985,7 +986,7 @@ func _draw_logo(pied: Vector2) -> void:
 	var plaque := Rect2(pied - Vector2(large / 2.0, 0), Vector2(large, 10))
 	draw_rect(plaque, UiTokens.SARCELLE)
 	draw_rect(plaque, UiTokens.ENCRE, false, 1.0)
-	draw_string(font, plaque.position + Vector2(0, 7.5), nom, HORIZONTAL_ALIGNMENT_CENTER, large, 7, Color.WHITE)
+	_ecrire(plaque.position + Vector2(0, 7.5), nom, HORIZONTAL_ALIGNMENT_CENTER, large, 7, Color.WHITE)
 
 
 ## Affiche d'entreprise près du camp : le slogan change chaque jour.
@@ -999,15 +1000,14 @@ func _draw_affiche() -> void:
 	var l1 := " ".join(mots.slice(0, coupe))
 	var l2 := " ".join(mots.slice(coupe))
 	var large := maxf(font.get_string_size(l1, HORIZONTAL_ALIGNMENT_LEFT, -1, 6).x, font.get_string_size(l2, HORIZONTAL_ALIGNMENT_LEFT, -1, 6).x) + 10.0
-	var c := game.map.camp
-	var bas := Vector2(c.position.x, c.position.y) * TILE + Vector2(-6.0, -4.0)
+	var bas := (Vector2(game.map.exit_tile) + Vector2(0.0, 1.0)) * TILE + Vector2(-TILE * 2.5, TILE * 1.5)
 	var panneau := Rect2(bas - Vector2(large, 24.0), Vector2(large, 18.0))
 	for x in [panneau.position.x + 5.0, panneau.end.x - 5.0]:
 		draw_line(Vector2(x, panneau.end.y), Vector2(x, bas.y), UiTokens.ENCRE, 2.0)
 	draw_rect(panneau, UiTokens.BOUTON_HAUT)
 	draw_rect(panneau, UiTokens.ENCRE, false, 1.5)
-	draw_string(font, panneau.position + Vector2(0, 7.5), l1, HORIZONTAL_ALIGNMENT_CENTER, large, 6, UiTokens.ENCRE)
-	draw_string(font, panneau.position + Vector2(0, 14.5), l2, HORIZONTAL_ALIGNMENT_CENTER, large, 6, UiTokens.ENCRE)
+	_ecrire(panneau.position + Vector2(0, 7.5), l1, HORIZONTAL_ALIGNMENT_CENTER, large, 6, UiTokens.ENCRE)
+	_ecrire(panneau.position + Vector2(0, 14.5), l2, HORIZONTAL_ALIGNMENT_CENTER, large, 6, UiTokens.ENCRE)
 
 
 func _draw_gate(r: Rect2, vertical := false) -> void:
@@ -1368,8 +1368,17 @@ func _build_origin(hover: Vector2i) -> Vector2i:
 func _label(text: String, pos: Vector2, size: int) -> void:
 	# largeur à la mesure du texte (une largeur fixe coupait les libellés longs)
 	var width := maxf(80.0, font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x + 8.0)
-	draw_string_outline(font, pos - Vector2(width / 2, 0), text, HORIZONTAL_ALIGNMENT_CENTER, width, size, 3, Color(0, 0, 0, 0.8))
-	draw_string(font, pos - Vector2(width / 2, 0), text, HORIZONTAL_ALIGNMENT_CENTER, width, size, Color.WHITE)
+	_ecrire(pos - Vector2(width / 2, 0), text, HORIZONTAL_ALIGNMENT_CENTER, width, size, Color.WHITE, 3, Color(0, 0, 0, 0.8))
+
+
+## Texte du monde, net au zoom : écrit en grand puis réduit (une police de 7 pixels agrandie par la caméra serait floue).
+func _ecrire(pos: Vector2, text: String, align: HorizontalAlignment, width: float, size: int, col: Color, contour := 0, col_contour := Color.BLACK) -> void:
+	draw_set_transform(pos, 0.0, Vector2.ONE / TEXTE_NET)
+	var w := width * TEXTE_NET if width > 0.0 else -1.0
+	if contour > 0:
+		draw_string_outline(font, Vector2.ZERO, text, align, w, int(size * TEXTE_NET), int(contour * TEXTE_NET), col_contour)
+	draw_string(font, Vector2.ZERO, text, align, w, int(size * TEXTE_NET), col)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 func _worker_color(card: GameState.Card) -> Color:
@@ -1556,6 +1565,21 @@ func _try_place(t: Vector2i, first_click: bool) -> void:
 		selected_site = s
 
 
+## Ouvrier sous le clic : le plus proche, ou, s'ils se superposent, le suivant de la pile à chaque nouveau clic.
+func _ouvrier_clique(wp: Vector2, avant: Array) -> GameState.Worker:
+	var pile: Array = game.workers.filter(func(w): return not w.offmap and w.pos.distance_to(wp) < 0.6)
+	if pile.is_empty():
+		return null
+	pile.sort_custom(func(a, b): return a.card.id < b.card.id)
+	if avant.size() == 1 and pile.has(avant[0]):
+		return pile[(pile.find(avant[0]) + 1) % pile.size()]
+	var best: GameState.Worker = pile[0]
+	for w in pile:
+		if w.pos.distance_to(wp) < best.pos.distance_to(wp):
+			best = w
+	return best
+
+
 func _finish_selection() -> void:
 	var start: Vector2 = drag_start
 	drag_start = null
@@ -1587,6 +1611,7 @@ func _finish_selection() -> void:
 			return
 	if click:
 		last_click = {"at": now, "tile": ct}
+	var avant := selected.duplicate()
 	if not drag_add:
 		selected.clear()
 	selected_site = null
@@ -1594,12 +1619,7 @@ func _finish_selection() -> void:
 	selected_animal = null
 	if click:
 		var wp := _screen_to_world(drag_end) / TILE
-		var best: GameState.Worker = null
-		var best_d := 0.6
-		for w in game.workers:
-			if not w.offmap and w.pos.distance_to(wp) < best_d:
-				best = w
-				best_d = w.pos.distance_to(wp)
+		var best := _ouvrier_clique(wp, avant)
 		if best and not selected.has(best):
 			selected.append(best)
 		elif not best and selected.is_empty():
@@ -1745,7 +1765,7 @@ func _process(delta: float) -> void:
 		_update_publicity()
 		_update_loan()
 		var ev: Dictionary = mt.current_event
-		event_label.visible = mt.phase == "day" and not ev.is_empty()
+		event_label.visible = mt.phase == "day" and not ev.is_empty() and not (hubert and hubert.grande_visible())
 		if not ev.is_empty():
 			event_label.text = "  %s : %s  " % [ev["nom"], ev["texte"]]
 		_hubert_alertes()
@@ -1796,6 +1816,9 @@ func _note_de_direction(total: int) -> void:
 
 ## Répliques en attente : en bulle, ou en message simple si le moment n'a pas de réplique (ou pendant le tutoriel).
 func _hubert_annonces() -> void:
+	if mt.game_over:  # la dernière nuit a pu faire monter des niveaux : Hubert ne commente plus que le résultat
+		game.annonces.clear()
+		return
 	if hubert:
 		hubert.humeur = _hubert_humeur()
 	for a in game.annonces:
@@ -1818,7 +1841,7 @@ func _hubert_humeur() -> int:
 
 ## Les situations qui durent : Hubert les signale une fois par jour.
 func _hubert_alertes() -> void:
-	if hubert == null or mt.phase != "day":
+	if hubert == null or mt.phase != "day" or mt.game_over:
 		return
 	if hubert_dit.get("jour", -1) != mt.day:
 		hubert_dit = {"jour": mt.day}
@@ -3523,6 +3546,7 @@ func _update_hud() -> void:
 		if mt.autosave:
 			Sauvegarde.effacer()
 		if hubert:
+			hubert.taire()
 			hubert.grande_en_bas = true
 			hubert.annoncer("victoire" if mt.winner == game.index else "defaite")
 		_rebuild_end()

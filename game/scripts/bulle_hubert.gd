@@ -164,6 +164,17 @@ func annoncer(moment: String, args := {}) -> bool:
 	return true
 
 
+func grande_visible() -> bool:
+	return not _grande.is_empty() and _grande["racine"].visible
+
+
+## Fin de partie : plus rien en attente, plus rien à l'écran.
+func taire() -> void:
+	_file.clear()
+	_petite["racine"].visible = false
+	_grande["racine"].visible = false
+
+
 ## Expression du moment, sinon selon l'humeur.
 func expression(moment: String) -> Texture2D:
 	var nom: String = data["expressions"].get(moment, "content" if humeur > 0 else ("furieux" if humeur < 0 else "neutre"))
