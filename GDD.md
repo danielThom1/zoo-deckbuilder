@@ -147,7 +147,7 @@ Liste complète : `data/workers.json`.
 - **Matinal** : commence la journée sur sa dernière case de travail. **Casanier** : −30 % de vitesse à plus de 15 cases du camp. **Peureux** : abandonne sa tâche à 2 cases ou moins d'un enclos de prédateur.
 
 ### 6.4 ter Améliorations du camp (v6)
-- **Camp niveau 2** (25 bois, 20 pierre, 20 argent, 200 de travail) puis **niveau 3** (30 bois, 40 pierre, 60 argent, 350 de travail) : chacun donne **une carte de plus en main** chaque jour. Ils se construisent sur le camp, un à la fois et dans l'ordre.
+- **Camp niveau 2** (25 bois, 20 pierre, 20 argent, 200 de travail) puis **niveau 3** (30 bois, 40 pierre, 30 argent, 350 de travail) : chacun donne **une carte de plus en main** chaque jour. Ils se construisent sur le camp, un à la fois et dans l'ordre.
 - Le coût est pensé pour un vrai dilemme : investir tôt (zoo retardé, mais plus d'ouvriers ou d'actions chaque jour), ou s'en passer. Les simulations comparent les stratégies « Camp amélioré » (niveau 2) et « Grand camp » (niveaux 2 et 3) aux autres.
 
 ### 6.5 Logement
