@@ -3,33 +3,48 @@
 Joignez toujours une planche existante en référence : le style et la mise en page seront bien mieux respectés. Une image par génération.
 `docs/handoff_bd/generateurs/personnages_planches.py` découpe ces planches automatiquement si la mise en page est respectée.
 
-## 1. Un nouveau personnage
+## Format retenu : un personnage par planche, avec ses 8 gestes
 
-Remplacez la dernière ligne par un personnage de la liste ci-dessous.
+Les 8 gestes dans la même image gardent exactement le même personnage, et le nombre d'images reste de 40. Remplacez `[DESCRIPTION]` par une ligne de la liste. Testez une planche avant de lancer les autres.
 
 ```text
-Planche de sprites pour un jeu vidéo, en reprenant exactement le style et la mise en page de l'image jointe : bande dessinée franco-belge, trait d'encre noir épais, aplats de couleur, légères hachures.
+Planche de sprites pour un jeu vidéo, dans le style de l'image jointe : bande dessinée franco-belge, trait d'encre noir épais, aplats de couleur, légères hachures. Reprends le style, pas le personnage de l'image jointe.
 
-Format paysage 1536 x 1024. Fond vert uni #00FF40, parfaitement plat, sans dégradé, sans texture, sans ombre.
+Format portrait 1024 x 1536. Fond vert uni #00FF40, parfaitement plat, jusqu'aux bords de l'image. Aucun cadre, aucune bordure, aucune bande de séparation.
 
-En haut à gauche : le portrait du personnage, en buste, de trois quarts, sans cadre, coupé net en bas.
+Colonne de gauche, sur moins de 300 pixels de large : le portrait du personnage en haut, en buste, de trois quarts, sans cadre, coupé net en bas. Rien d'autre dans cette colonne. Le portrait, épaules comprises, ne dépasse jamais cette colonne.
 
-À droite du portrait : le personnage en pied, vu de profil et tourné vers la droite, en 4 rangées de 3 images :
-- Rangée 1, marcher : 3 phases de marche nettement différentes (jambes écartées, jambes croisées, jambes écartées inversées).
-- Rangée 2, construire : à genoux, il pose des pierres taillées ; 3 images, de plus en plus de pierres, posées devant lui à droite.
-- Rangée 3, couper : hache levée au-dessus de la tête, puis hache abattue sur une souche à droite, avec des éclats de bois.
-- Rangée 4, miner : pioche levée au-dessus de la tête, puis pioche abattue sur un tas de roches à droite, avec des éclats.
+À droite de cette colonne : le personnage en pied, vu de profil et tourné vers la droite, en 8 rangées de 3 images, à la même échelle partout :
+1. Marcher : jambes écartées, jambes croisées, jambes écartées inversées.
+2. Construire : à genoux, il pose des pierres taillées devant lui à droite, de plus en plus de pierres d'une image à l'autre.
+3. Couper : hache levée au-dessus de la tête, puis hache abattue sur une souche à droite, avec des éclats de bois.
+4. Miner : pioche levée au-dessus de la tête, puis pioche abattue sur un tas de roches à droite, avec des éclats.
+5. Servir : debout, il tend un billet vers la droite, ramène le bras, tend une pièce.
+6. Nourrir : il porte un seau, le penche, verse la nourriture au sol à droite.
+7. Balayer : il balaie avec un balai, à gauche, au centre, puis à droite, avec un peu de poussière.
+8. Soigner : penché en avant, il ouvre une trousse de secours, tend une seringue, pose un pansement vers la droite.
 
 Règles de mise en page, à respecter strictement :
-- Même personnage, même taille, mêmes vêtements et mêmes couleurs dans les 12 images et le portrait.
-- Sous chaque image, un trait de sol noir fin et droit, à la même hauteur pour les 3 images de la rangée.
+- Même personnage, mêmes vêtements et mêmes couleurs dans les 24 images et le portrait.
+- Toutes les rangées ont la même hauteur, et le personnage y garde la même taille.
+- Sous chaque image, un trait de sol noir fin et droit, à la même hauteur pour les 3 images de la rangée, et un seul trait par image.
 - Les 3 images d'une rangée sont espacées régulièrement et ne se touchent pas.
-- Un espace vert d'au moins 20 pixels entre le trait de sol d'une rangée et le haut de la rangée suivante, outils levés compris.
-- Le personnage entier reste visible, rien n'est coupé par les bords de l'image.
-- Aucun texte, aucun chiffre, aucun logo, aucune ombre au sol, aucun décor en dehors des pierres, de la souche et des roches.
-- Aucune couleur vert vif sur le personnage ni ses outils.
+- Un espace vert d'au moins 15 pixels entre le trait de sol d'une rangée et le haut de la rangée suivante, outils levés compris.
+- Le personnage et ses outils restent entiers, rien n'est coupé par les bords de l'image.
+- Aucun texte, aucun chiffre, aucun logo, aucune ombre au sol, aucun décor en dehors des objets cités.
+- Aucune couleur vert vif sur le personnage ni ses objets.
 
 Personnage : [DESCRIPTION]
+```
+
+Enregistrez chaque planche sous le prénom du personnage (par exemple `Fatou.png`).
+
+## Si le générateur s'y perd : deux personnages par planche
+
+Essai du 04/11 : ce format se découpe bien, mais les gestes 5 à 8 demanderaient des planches séparées, avec le risque que le personnage change. Dans le texte ci-dessus, remplacez le format et la mise en page par :
+
+```text
+Format paysage 1536 x 1024, partagé en deux moitiés égales, une par personnage, séparées par une simple bande blanche horizontale. Pas d'autre cadre ni bordure. Dans chaque moitié, le portrait reste à gauche, sur moins de 380 pixels de large, épaules comprises, et le personnage en pied garde la même échelle dans les deux moitiés, en 4 rangées de 3 images : marcher, construire, couper, miner.
 ```
 
 Quarante personnages, 20 femmes et 20 hommes, pour refaire toutes les planches. Enregistrez chaque planche sous le prénom indiqué (par exemple `Elise.png`) : le découpage en déduira le nom et le genre. Le métier entre parenthèses inspire seulement la tenue, n'importe quelle carte pouvant recevoir n'importe quel personnage.
@@ -79,31 +94,3 @@ Quarante personnages, 20 femmes et 20 hommes, pour refaire toutes les planches. 
 38. Adam : un homme d'Asie du Sud de 45 ans, moustache noire, turban orange, chemise blanche, gilet marron (Soigneur).
 39. Léa : une femme noire de 25 ans, afro volumineuse, chemise rouge nouée à la taille, pantalon de toile crème (Animalière).
 40. Tom : un homme de 35 ans, lunettes carrées, chemise bleu clair, cravate rentrée dans la chemise, sac en bandoulière (Comptable égaré sur le chantier).
-
-## 2. Des gestes en plus pour un personnage existant
-
-Pour les tâches qui n'ont pas encore d'animation : guichet, nourriture, nettoyage, soins. Joignez la planche du personnage.
-
-```text
-Planche de sprites pour un jeu vidéo : exactement le même personnage que sur l'image jointe, mêmes vêtements, mêmes couleurs, même taille, même style de bande dessinée, même trait d'encre.
-
-Format paysage 1536 x 1024. Fond vert uni #00FF40, parfaitement plat, sans dégradé, sans texture, sans ombre.
-
-En haut à gauche : le même portrait que sur l'image jointe, au même endroit.
-
-À droite du portrait : le personnage en pied, vu de profil et tourné vers la droite, en 4 rangées de 3 images, placées comme sur l'image jointe :
-- Rangée 1, guichet : debout, il tend un billet vers la droite, range le bras, tend à nouveau une pièce.
-- Rangée 2, nourrir : il porte un seau de nourriture, le penche, verse le contenu au sol à droite.
-- Rangée 3, nettoyer : il balaie avec un balai, balai à gauche, au centre, puis à droite, avec un peu de poussière.
-- Rangée 4, soigner : penché en avant, il ouvre une trousse de secours, tend une seringue, puis pose un pansement vers la droite.
-
-Règles de mise en page, à respecter strictement :
-- Sous chaque image, un trait de sol noir fin et droit, à la même hauteur pour les 3 images de la rangée.
-- Les 3 images d'une rangée sont espacées régulièrement et ne se touchent pas.
-- Un espace vert d'au moins 20 pixels entre le trait de sol d'une rangée et le haut de la rangée suivante.
-- Le personnage entier reste visible, rien n'est coupé par les bords de l'image.
-- Aucun texte, aucun chiffre, aucun logo, aucune ombre au sol, aucun décor en dehors du seau, du balai, de la trousse et du billet.
-- Aucune couleur vert vif sur le personnage ni ses objets.
-```
-
-Nommez ces planches avec le nom du personnage et « gestes » (par exemple `odette gestes.png`). Le découpage de ce second format reste à brancher dans `personnages_planches.py`, une fois la première planche reçue.
