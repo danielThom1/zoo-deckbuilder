@@ -52,6 +52,7 @@ var night_clock := 0.0
 var last_phase := ""
 var args := {}
 var font: Font
+var font_noms: Font  # noms sur la carte : Bangers, lettrage de BD
 var camera: Camera2D
 var terrain_sprite: Sprite2D
 var carte: CarteBD  # rendu BD de la carte : sol, routes, décor (scripts/rendu/)
@@ -222,6 +223,8 @@ func _ready() -> void:
 	font = UiTokens.police_corps(600)
 	if font is FontVariation and font.base_font is FontFile:
 		font.base_font.generate_mipmaps = true  # réduit sans scintiller (voir _ecrire)
+	font_noms = load("res://assets/bd/polices/Bangers-Regular.ttf")
+	font_noms.generate_mipmaps = true
 	if relance != "":
 		var mode := relance
 		relance = ""
@@ -982,11 +985,11 @@ func _draw_logo(pied: Vector2) -> void:
 	if spectator:
 		return
 	var nom: String = mt.names[game.index].replace(" (vous)", "")
-	var large := font.get_string_size(nom, HORIZONTAL_ALIGNMENT_LEFT, -1, 7).x + 8.0
+	var large := font_noms.get_string_size(nom, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x + 8.0
 	var plaque := Rect2(pied - Vector2(large / 2.0, 0), Vector2(large, 10))
 	draw_rect(plaque, UiTokens.SARCELLE)
 	draw_rect(plaque, UiTokens.ENCRE, false, 1.0)
-	_ecrire(plaque.position + Vector2(0, 7.5), nom, HORIZONTAL_ALIGNMENT_CENTER, large, 7, Color.WHITE)
+	_ecrire(plaque.position + Vector2(0, 8.0), nom, HORIZONTAL_ALIGNMENT_CENTER, large, 8, Color.WHITE, 0, Color.BLACK, font_noms)
 
 
 ## Affiche d'entreprise près du camp : le slogan change chaque jour.
@@ -1367,17 +1370,19 @@ func _build_origin(hover: Vector2i) -> Vector2i:
 
 func _label(text: String, pos: Vector2, size: int) -> void:
 	# largeur à la mesure du texte (une largeur fixe coupait les libellés longs)
-	var width := maxf(80.0, font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x + 8.0)
-	_ecrire(pos - Vector2(width / 2, 0), text, HORIZONTAL_ALIGNMENT_CENTER, width, size, Color.WHITE, 3, Color(0, 0, 0, 0.8))
+	var taille := size + 2  # Bangers est étroite : un peu plus grande pour rester lisible
+	var width := maxf(80.0, font_noms.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, taille).x + 8.0)
+	_ecrire(pos - Vector2(width / 2, 0), text, HORIZONTAL_ALIGNMENT_CENTER, width, taille, Color.WHITE, 3, Color(0, 0, 0, 0.85), font_noms)
 
 
 ## Texte du monde, net au zoom : écrit en grand puis réduit (une police de 7 pixels agrandie par la caméra serait floue).
-func _ecrire(pos: Vector2, text: String, align: HorizontalAlignment, width: float, size: int, col: Color, contour := 0, col_contour := Color.BLACK) -> void:
+func _ecrire(pos: Vector2, text: String, align: HorizontalAlignment, width: float, size: int, col: Color, contour := 0, col_contour := Color.BLACK, police: Font = null) -> void:
+	var f: Font = police if police else font
 	draw_set_transform(pos, 0.0, Vector2.ONE / TEXTE_NET)
 	var w := width * TEXTE_NET if width > 0.0 else -1.0
 	if contour > 0:
-		draw_string_outline(font, Vector2.ZERO, text, align, w, int(size * TEXTE_NET), int(contour * TEXTE_NET), col_contour)
-	draw_string(font, Vector2.ZERO, text, align, w, int(size * TEXTE_NET), col)
+		draw_string_outline(f, Vector2.ZERO, text, align, w, int(size * TEXTE_NET), int(contour * TEXTE_NET), col_contour)
+	draw_string(f, Vector2.ZERO, text, align, w, int(size * TEXTE_NET), col)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 

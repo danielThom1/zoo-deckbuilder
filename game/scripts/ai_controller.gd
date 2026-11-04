@@ -272,13 +272,16 @@ func _sell_surplus() -> void:
 	var needs := _needs()
 	var keep := {}
 	var missing := target - g.money
+	var a_vendre := false
 	for res in ["bois", "pierre"]:
 		var extra := maxf(0.0, floorf(g.stock[res] - float(needs[res]) - SURPLUS_STOCK))
 		var price := g.sell_price(res)
 		var units := minf(extra, ceilf(missing / price)) if price > 0.0 else 0.0
 		missing -= units * price
 		keep[res] = g.stock[res] - units
-	g.sell_stock(keep, ["bois", "pierre"])
+		a_vendre = a_vendre or units >= 1.0
+	if a_vendre:
+		g.sell_stock(keep, ["bois", "pierre"])
 
 
 ## Vend juste assez de stock (l'or d'abord, puis le bois, puis la pierre) pour atteindre `target` d'argent.
