@@ -12,7 +12,9 @@ const POPULATION := 16
 const PARTIES_PAR_GENOME := 6
 const PART_FINALE := 0.1  # part des parties gardée pour la phase finale
 const EXPLORATION := 0.25  # part de choix au hasard (améliorations, cartes) pour que tout soit essayé
-const BOOLS := ["marche", "rush_or", "formation", "cartes", "spectacle", "affinite", "boutique", "mine", "specialisation", "fast_expand", "route_mine"]
+const BOOLS := ["marche", "rush_or", "formation", "cartes", "spectacle", "affinite", "boutique", "mine", "specialisation", "fast_expand", "route_mine", "adaptatif", "agrandir", "meme_type"]
+const TYPES := ["herbivore", "predateur", "aquatique", "aerien"]
+const CONTINENTS := ["Afrique", "Amerique", "Asie", "Europe"]
 const TAILLES := ["moyen", "grand", "evolutif"]
 ## Plages des réglages numériques : [min, max, entier ?]
 const NUMS := {
@@ -29,6 +31,11 @@ const STRATEGIES := [
 	{"nom": "Petits contrats", "preference_palier": 0.4, "contrats_en_attente_max": 3}, {"nom": "Grand parc", "taille_zoo": "grand"},
 	{"nom": "Lobbying", "lobbyistes_max": 2}, {"nom": "Camp amélioré", "camp": 1}, {"nom": "Grand camp", "camp": 2},
 	{"nom": "Spectacle", "spectacle": true},
+	{"nom": "Ancienne IA", "adaptatif": false, "agrandir": false, "score_simple": true}, {"nom": "Sans agrandir", "agrandir": false},
+	{"nom": "Même type", "meme_type": true}, {"nom": "Prédateurs", "type_cible": "predateur"}, {"nom": "Aériens", "type_cible": "aerien"},
+	{"nom": "Aquatiques", "type_cible": "aquatique"}, {"nom": "Herbivores", "type_cible": "herbivore"},
+	{"nom": "Afrique", "continent_cible": "Afrique"}, {"nom": "Amérique", "continent_cible": "Amerique"},
+	{"nom": "Asie", "continent_cible": "Asie"}, {"nom": "Europe", "continent_cible": "Europe"},
 ]
 
 var data: Dictionary
@@ -134,7 +141,8 @@ func _initial_population(n: int) -> Array:
 	var pop: Array = []
 	# On part des stratégies écrites à la main, puis des génomes au hasard.
 	var depart := [{}, {"rush_or": true}, {"camp": 1}, {"preference_palier": 0.4, "contrats_en_attente_max": 3},
-		{"formation": true, "camp": 1}, {"spectacle": true}, {"lobbyistes_max": 2}, {"cartes": true}, {"fast_expand": true, "camp": 1}, {"rush_or": true, "route_mine": true}]
+		{"formation": true, "camp": 1}, {"spectacle": true}, {"lobbyistes_max": 2}, {"cartes": true}, {"fast_expand": true, "camp": 1}, {"rush_or": true, "route_mine": true},
+		{"meme_type": true}, {"affinite": true}]
 	for s in depart:
 		if pop.size() < n:
 			var g := _random_genome()
@@ -152,7 +160,9 @@ func _random_genome() -> Dictionary:
 		var r: Array = NUMS[k]
 		g[k] = rng.randi_range(int(r[0]), int(r[1])) if r[2] else rng.randf_range(float(r[0]), float(r[1]))
 	for b in BOOLS:
-		g[b] = rng.randf() < (0.8 if b in ["boutique", "mine"] else (0.05 if b == "specialisation" else 0.2))
+		g[b] = rng.randf() < (0.8 if b in ["boutique", "mine", "adaptatif", "agrandir"] else (0.05 if b == "specialisation" else 0.2))
+	g["type_cible"] = TYPES[rng.randi_range(0, TYPES.size() - 1)] if rng.randf() < 0.15 else ""
+	g["continent_cible"] = CONTINENTS[rng.randi_range(0, CONTINENTS.size() - 1)] if rng.randf() < 0.15 else ""
 	for f in POIDS:
 		g[f] = {}
 		for i in ids[f]:
@@ -174,6 +184,10 @@ func _mutate(g: Dictionary, rate := 0.25) -> Dictionary:
 			c[b] = not c[b]
 	if rng.randf() < rate * 0.3:
 		c["taille_zoo"] = TAILLES[rng.randi_range(0, TAILLES.size() - 1)]
+	if rng.randf() < rate * 0.2:
+		c["type_cible"] = TYPES[rng.randi_range(0, TYPES.size() - 1)] if rng.randf() < 0.5 else ""
+	if rng.randf() < rate * 0.2:
+		c["continent_cible"] = CONTINENTS[rng.randi_range(0, CONTINENTS.size() - 1)] if rng.randf() < 0.5 else ""
 	for f in POIDS:
 		for i in ids[f]:
 			if rng.randf() < rate * 0.5:
@@ -209,8 +223,13 @@ func _next_generation(pop: Array, order: Array) -> Array:
 func _describe(g: Dictionary) -> String:
 	var on: Array[String] = []
 	for b in BOOLS:
-		if g.get(b, false) and not b in ["boutique", "mine"]:
+		if g.get(b, false) and not b in ["boutique", "mine", "adaptatif", "agrandir"]:
 			on.append(b)
+		elif not g.get(b, false) and b in ["adaptatif", "agrandir"]:
+			on.append("sans " + b)
+	for k in ["type_cible", "continent_cible"]:
+		if str(g.get(k, "")) != "":
+			on.append(str(g[k]))
 	return "parc %s, palier %.1f, réserve %d, lobby %d, camp %d, contrats %d%s" % [
 		g["taille_zoo"], g["preference_palier"], int(g["reserve"]), int(g["lobbyistes_max"]), int(g["camp"]), int(g["contrats_en_attente_max"]),
 		(", " + ", ".join(on)) if not on.is_empty() else ""]

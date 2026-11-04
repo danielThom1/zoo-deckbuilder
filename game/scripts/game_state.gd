@@ -332,7 +332,7 @@ func efficiency(card: Card, task: String) -> float:
 	else:
 		base = float(eff["defaut"])
 		if card.traits.has("polyvalent"):
-			base = maxf(base, 1.3)
+			base = maxf(base, 1.15)
 		for u in card.upgrades:
 			if u.get("seconde_specialite", "") == task:
 				base = maxf(base, float(data["workers"]["regles"]["efficacite_seconde_specialite"]))
@@ -1296,10 +1296,11 @@ func _train(w: Worker, dt: float) -> void:
 	var trainers := present.filter(func(o): return o.card.metier["id"] == "formateur")
 	var trainees := present.filter(func(o): return o.card.metier["id"] != "formateur")
 	var fx: Dictionary = s.def["effet"]
-	var places := int(fx["capacite_formation"]) + (2 if trainers.any(func(o): return has_capacity(o.card, "pedagogue")) else 0)
-	if trainees.find(w) >= places:
+	if trainees.find(w) >= int(fx["capacite_formation"]):
 		return
 	var rate := float(fx["xp_par_minute"]) * (2.0 if not trainers.is_empty() else 1.0) * unpaid_mult(w)
+	if trainers.any(func(o): return has_capacity(o.card, "pedagogue")):
+		rate *= 1.5
 	gain_xp(w.card, rate * dt / 60.0)
 
 
@@ -2057,6 +2058,11 @@ func action_cards() -> Array[Card]:
 
 
 ## Achat d'une carte d'action au marché de nuit (1 par nuit, dans l'ordre d'influence) : elle va à la défausse.
+## Prix d'une carte d'action ce soir : certaines renchérissent chaque jour, leur effet grandit avec le zoo.
+func action_price(card: Card) -> int:
+	return roundi(float(card.action["cout"]) * (1.0 + float(card.action.get("hausse_par_jour", 0.0)) * (day - 1)))
+
+
 func action_error(card: Card) -> String:
 	if phase != "night":
 		return "Le marché n'ouvre que la nuit"
@@ -2066,7 +2072,7 @@ func action_error(card: Card) -> String:
 		return "Ce n'est pas votre tour au marché"
 	if bought_action:
 		return "Déjà une carte d'action achetée cette nuit"
-	if money < float(card.action["cout"]):
+	if money < action_price(card):
 		return "Pas assez d'argent"
 	return ""
 
@@ -2074,7 +2080,7 @@ func action_error(card: Card) -> String:
 func buy_action(card: Card) -> bool:
 	if action_error(card) != "" or not mt.market_actions.has(card):
 		return false
-	money -= float(card.action["cout"])
+	money -= action_price(card)
 	mt.market_actions.erase(card)
 	discard.append(card)
 	bought_action = true
@@ -3184,14 +3190,33 @@ func guichet_rate() -> float:
 	return r
 
 
-## Multiplicateur de souvenirs d'une boutique : 0 si elle est vide, 1 si tenue, 2 avec un Vendeur (un seul ouvrier
-## par boutique ; chaque boutique vend de son côté).
+## Multiplicateur de souvenirs d'une boutique : 0 si elle est vide, 1 si tenue, 2,5 avec un Vendeur (un seul ouvrier
+## par boutique ; chaque boutique vend de son côté). La Braderie est comptée à part, dans _sell_souvenirs.
 func _shop_mult(shop: Site) -> float:
 	var best := 0.0
 	for w in workers:
 		if w.task.get("kind") == "shop" and w.task["obj"] == shop and w.path.is_empty() and w.tile() == w.task["tile"]:
 			best = maxf(best, float(data["buildings"]["zoo"]["mult_vendeur"]) if w.card.metier["id"] == "vendeur" else 1.0)
-	return maxf(best, float(action_fx.get("boutiques", 0.0)))  # Vendeur joué (Braderie)
+	return best
+
+
+## Un visiteur passe aux boutiques : l'argent de toutes, la Braderie sur celle où elle apporte le plus, et la réputation
+## d'une seule (la mieux tenue, sans la Braderie). Sans cela, multiplier les boutiques multipliait la réputation.
+func _sell_souvenirs() -> void:
+	var souv := 0.0
+	var pour_reputation := 0.0
+	var braderie := 0.0
+	for s in sites:
+		if s.done and s.def_id() == "boutique" and zoo_status().get("interior", {}).has(s.rect.position):
+			var par_visiteur := float(s.def["effet"]["souvenirs_par_visiteur"])
+			var vendu := par_visiteur * _shop_mult(s)
+			souv += vendu
+			pour_reputation = maxf(pour_reputation, vendu)
+			braderie = maxf(braderie, par_visiteur * float(action_fx.get("boutiques", 0.0)) - vendu)
+	souv += braderie
+	money += souv
+	visit["souvenirs"] += souv
+	visit["souvenirs_rep"] = float(visit.get("souvenirs_rep", 0.0)) + pour_reputation
 
 
 ## Visiteurs simultanés maximum : cases intérieures de l'enceinte / cases_par_visiteur.
@@ -3304,12 +3329,7 @@ func _update_visitors(dt: float) -> void:
 		var ticket := float(Z["billet"])
 		money += ticket
 		visit["tickets"] += ticket
-		var souv := 0.0
-		for s in sites:
-			if s.done and s.def_id() == "boutique" and interior.has(s.rect.position):
-				souv += float(s.def["effet"]["souvenirs_par_visiteur"]) * _shop_mult(s)
-		money += souv
-		visit["souvenirs"] += souv
+		_sell_souvenirs()
 		var t: Vector2i = interior[rng.randi_range(0, interior.size() - 1)]
 		var ecart := float(Z["duree_visite_ecart_s"])
 		var duree := (float(Z["duree_visite_s"]) + rng.randf_range(-ecart, ecart)) * snack_mult()
@@ -3338,10 +3358,11 @@ func _close_zoo_day() -> Dictionary:
 	add_rep_source("frequentation", gain)
 	# Spectacles du Kiosque et ventes de la boutique : réputation en plus de la fréquentation
 	var R: Dictionary = data["buildings"]["reputation_autres"]
-	var show := float(visit.get("spectacle", 0.0)) * float(R["kiosque_par_jour"]) * rare_mult("kiosque_rep") \
-		+ float(visit["souvenirs"]) * float(R["boutique_par_souvenir"]) * rare_mult("boutique_rep")
-	rep_points += show
+	var show := float(visit.get("spectacle", 0.0)) * float(R["kiosque_par_jour"]) * rare_mult("kiosque_rep")
+	var shop_rep := float(visit.get("souvenirs_rep", 0.0)) * float(R["boutique_par_souvenir"]) * rare_mult("boutique_rep")
+	rep_points += show + shop_rep
 	add_rep_source("spectacles", show)
+	add_rep_source("boutique", shop_rep)
 	var reason: String = z["reason"]
 	if z["open"] and visitor_path().is_empty():
 		reason = "Aucune route ne relie l'Accès à l'Entrée du zoo"

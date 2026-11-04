@@ -1,159 +1,187 @@
 # Rapport d'équilibrage : parties IA contre IA
 
-64 parties à 4 IA, objectif 100 de réputation, fin forcée au jour 22, pas de simulation 1.0 s.
+58 parties à 4 IA, objectif 100 de réputation, fin forcée au jour 22, pas de simulation 1.0 s.
 
 ## Vitesse : victoires à 100 et jour de victoire
 
 Classement par taux de victoire, puis par jour moyen de victoire (plus tôt = mieux).
 
-| Stratégie | Victoires | Taux | Jour moyen de victoire | Victoire la plus rapide | Réputation moyenne en fin de partie | Entrepôts |
-|---|---|---|---|---|---|---|
-| Rush or | 9 / 15 | 60 % | 14.2 | jour 12 | 90 | 1.3 |
-| Petits contrats | 9 / 16 | 56 % | 13.3 | jour 10 | 85 | 0.3 |
-| Cartes | 9 / 16 | 56 % | 14.2 | jour 12 | 82 | 0.6 |
-| Grand camp | 6 / 12 | 50 % | 12.8 | jour 11 | 83 | 0.8 |
-| Fast expand | 5 / 12 | 42 % | 14.8 | jour 13 | 72 | 1.0 |
-| Formation légendaire | 4 / 12 | 33 % | 13.0 | jour 11 | 72 | 1.0 |
-| Spectacle | 3 / 12 | 25 % | 14.7 | jour 13 | 76 | 0.7 |
-| Lobbying | 3 / 14 | 21 % | 15.7 | jour 15 | 75 | 0.2 |
-| Affinités | 3 / 16 | 19 % | 13.3 | jour 12 | 65 | 0.6 |
-| Formation | 3 / 16 | 19 % | 16.0 | jour 15 | 54 | 0.5 |
-| Rush or + route | 2 / 12 | 17 % | 15.0 | jour 11 | 60 | 1.9 |
-| Camp amélioré | 2 / 13 | 15 % | 13.0 | jour 13 | 69 | 1.2 |
-| Équilibrée | 2 / 13 | 15 % | 13.5 | jour 12 | 53 | 0.3 |
-| Grand parc | 1 / 15 | 7 % | 16.0 | jour 16 | 51 | 0.7 |
-| Parc évolutif | 1 / 16 | 6 % | 11.0 | jour 11 | 49 | 0.7 |
-| Spécialisation | 1 / 16 | 6 % | 14.0 | jour 14 | 25 | 0.2 |
-| Haut de gamme | 1 / 16 | 6 % | 18.0 | jour 18 | 54 | 0.5 |
-| Marché | 0 / 14 | 0 % | — | — | 65 | 0.9 |
+| Stratégie | Victoires | Taux | Jour moyen de victoire | Victoire la plus rapide | Réputation moyenne en fin de partie | Animaux | T1 / T2 / T3 | Agrandissements | Parc (cases) | Entrepôts |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Amérique | 5 / 8 | 63 % | 13.6 | jour 13 | 74 | 2.3 | 1.4 / 0.5 / 0.4 | 0.9 | 384 | 2.0 |
+| Équilibrée | 4 / 8 | 50 % | 13.3 | jour 12 | 79 | 2.6 | 2.4 / 0.3 / 0.0 | 0.8 | 375 | 1.0 |
+| Camp amélioré | 4 / 8 | 50 % | 14.5 | jour 13 | 102 | 4.0 | 3.5 / 0.4 / 0.1 | 1.8 | 570 | 1.1 |
+| Formation légendaire | 4 / 8 | 50 % | 15.3 | jour 13 | 85 | 2.5 | 2.1 / 0.3 / 0.1 | 0.6 | 321 | 0.6 |
+| Même type | 3 / 8 | 38 % | 12.7 | jour 12 | 87 | 2.4 | 2.0 / 0.1 / 0.3 | 0.9 | 371 | 1.1 |
+| Prédateurs | 3 / 8 | 38 % | 13.0 | jour 13 | 86 | 3.0 | 1.9 / 0.9 / 0.3 | 1.5 | 463 | 0.8 |
+| Cartes | 3 / 8 | 38 % | 13.7 | jour 12 | 76 | 2.3 | 2.1 / 0.1 / 0.0 | 0.9 | 399 | 0.5 |
+| Ancienne IA | 3 / 8 | 38 % | 14.0 | jour 12 | 78 | 2.8 | 2.5 / 0.3 / 0.0 | 0.0 | 208 | 1.0 |
+| Rush or + route | 3 / 8 | 38 % | 17.3 | jour 15 | 92 | 3.9 | 2.6 / 0.8 / 0.5 | 1.3 | 483 | 1.1 |
+| Affinités | 3 / 9 | 33 % | 12.0 | jour 11 | 102 | 2.7 | 2.3 / 0.1 / 0.2 | 1.1 | 435 | 1.0 |
+| Petits contrats | 2 / 6 | 33 % | 14.0 | jour 14 | 65 | 3.3 | 3.2 / 0.2 / 0.0 | 1.2 | 426 | 0.3 |
+| Grand parc | 2 / 7 | 29 % | 12.0 | jour 11 | 72 | 2.9 | 2.3 / 0.4 / 0.1 | 0.3 | 417 | 1.1 |
+| Parc évolutif | 2 / 8 | 25 % | 13.5 | jour 12 | 74 | 2.6 | 2.4 / 0.3 / 0.0 | 1.4 | 433 | 0.8 |
+| Afrique | 2 / 8 | 25 % | 14.5 | jour 13 | 73 | 2.1 | 1.6 / 0.1 / 0.4 | 1.0 | 412 | 0.9 |
+| Herbivores | 2 / 8 | 25 % | 15.5 | jour 15 | 69 | 2.3 | 2.1 / 0.1 / 0.0 | 1.1 | 419 | 1.0 |
+| Aquatiques | 2 / 8 | 25 % | 17.0 | jour 15 | 74 | 2.3 | 1.6 / 0.1 / 0.5 | 0.9 | 367 | 0.9 |
+| Rush or | 2 / 9 | 22 % | 14.0 | jour 13 | 86 | 2.6 | 2.1 / 0.2 / 0.2 | 1.1 | 412 | 1.4 |
+| Lobbying | 2 / 9 | 22 % | 17.0 | jour 15 | 72 | 1.9 | 1.8 / 0.1 / 0.0 | 0.3 | 253 | 1.0 |
+| Fast expand | 1 / 7 | 14 % | 14.0 | jour 14 | 71 | 2.1 | 1.6 / 0.4 / 0.1 | 1.0 | 426 | 1.6 |
+| Aériens | 1 / 8 | 13 % | 11.0 | jour 11 | 47 | 2.0 | 1.9 / 0.1 / 0.0 | 0.5 | 307 | 1.1 |
+| Spectacle | 1 / 8 | 13 % | 12.0 | jour 12 | 66 | 2.1 | 1.9 / 0.3 / 0.0 | 0.6 | 342 | 0.5 |
+| Asie | 1 / 8 | 13 % | 17.0 | jour 17 | 45 | 1.4 | 1.1 / 0.3 / 0.0 | 0.5 | 291 | 1.5 |
+| Spécialisation | 1 / 9 | 11 % | 13.0 | jour 13 | 54 | 2.4 | 2.1 / 0.3 / 0.0 | 0.8 | 333 | 0.9 |
+| Haut de gamme | 1 / 9 | 11 % | 19.0 | jour 19 | 58 | 2.0 | 1.0 / 0.4 / 0.6 | 1.0 | 397 | 0.7 |
+| Sans agrandir | 0 / 8 | 0 % | — | — | 51 | 2.5 | 2.3 / 0.3 / 0.0 | 0.0 | 208 | 0.8 |
+| Grand camp | 0 / 8 | 0 % | — | — | 52 | 1.6 | 1.6 / 0.0 / 0.0 | 0.4 | 276 | 0.6 |
+| Formation | 0 / 6 | 0 % | — | — | 34 | 1.2 | 1.0 / 0.2 / 0.0 | 0.2 | 228 | 0.8 |
+| Marché | 0 / 9 | 0 % | — | — | 60 | 2.1 | 1.8 / 0.3 / 0.0 | 1.0 | 420 | 0.7 |
+| Europe | 0 / 8 | 0 % | — | — | 52 | 1.8 | 1.3 / 0.4 / 0.1 | 1.0 | 424 | 1.5 |
 
-**Record** : partie terminée au jour 10, gagnée par Petits contrats (111 de réputation, graine 1459).
+**Record** : partie terminée au jour 11, gagnée par Aériens (104 de réputation, graine 1374).
+
+## D'où vient la réputation
+
+- boutique : 7 %
+- frequentation : 77 %
+- spectacles : 2 %
+- legendaires : 3 %
+- prestige : 9 %
+- labels : 2 %
 
 ## Résultats par stratégie
 
 | Stratégie | Parties | Victoires | Taux | Réputation finale | Argent final | Animaux | T1 / T2 / T3 | Employés | Influence | 1er au marché (nuits) | Visiteurs cumulés |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| Équilibrée | 13 | 2 | 15 % | 53 | 94 | 2.2 | 1.8 / 0.4 / 0.0 | 8.8 | 2.0 | 1.8 | 353 |
-| Marché | 14 | 0 | 0 % | 65 | 152 | 2.8 | 2.4 / 0.4 / 0.1 | 8.1 | 7.3 | 2.6 | 419 |
-| Rush or | 15 | 9 | 60 % | 90 | 241 | 4.1 | 3.7 / 0.3 / 0.0 | 9.4 | 7.0 | 3.9 | 541 |
-| Spécialisation | 16 | 1 | 6 % | 25 | 63 | 0.9 | 0.9 / 0.1 / 0.0 | 8.6 | 6.4 | 3.1 | 119 |
-| Formation | 16 | 3 | 19 % | 54 | 114 | 1.9 | 1.9 / 0.0 / 0.0 | 8.6 | 7.1 | 4.6 | 299 |
-| Cartes | 16 | 9 | 56 % | 82 | 209 | 2.8 | 2.6 / 0.3 / 0.0 | 8.0 | 8.6 | 3.9 | 510 |
-| Parc évolutif | 16 | 1 | 6 % | 49 | 174 | 2.1 | 1.9 / 0.3 / 0.0 | 8.2 | 3.0 | 1.4 | 338 |
-| Affinités | 16 | 3 | 19 % | 65 | 149 | 1.9 | 1.4 / 0.4 / 0.1 | 8.6 | 6.7 | 2.9 | 351 |
-| Haut de gamme | 16 | 1 | 6 % | 54 | 129 | 1.4 | 0.8 / 0.5 / 0.1 | 8.4 | 4.9 | 1.9 | 305 |
-| Petits contrats | 16 | 9 | 56 % | 85 | 192 | 3.4 | 3.3 / 0.2 / 0.0 | 9.1 | 12.1 | 3.1 | 489 |
-| Grand parc | 15 | 1 | 7 % | 51 | 120 | 1.8 | 1.7 / 0.1 / 0.0 | 7.8 | 4.0 | 2.3 | 321 |
-| Lobbying | 14 | 3 | 21 % | 75 | 132 | 1.7 | 1.7 / 0.0 / 0.0 | 8.5 | 18.6 | 10.3 | 292 |
-| Camp amélioré | 13 | 2 | 15 % | 69 | 117 | 2.5 | 2.1 / 0.4 / 0.0 | 8.3 | 5.4 | 1.4 | 435 |
-| Grand camp | 12 | 6 | 50 % | 83 | 202 | 3.2 | 2.9 / 0.3 / 0.0 | 8.6 | 5.9 | 1.0 | 468 |
-| Fast expand | 12 | 5 | 42 % | 72 | 160 | 3.3 | 3.2 / 0.2 / 0.0 | 8.2 | 6.6 | 3.1 | 418 |
-| Rush or + route | 12 | 2 | 17 % | 60 | 147 | 2.8 | 2.8 / 0.0 / 0.0 | 9.4 | 14.6 | 3.6 | 348 |
-| Spectacle | 12 | 3 | 25 % | 76 | 153 | 1.9 | 1.3 / 0.6 / 0.0 | 8.6 | 5.8 | 4.5 | 425 |
-| Formation légendaire | 12 | 4 | 33 % | 72 | 136 | 2.7 | 2.3 / 0.3 / 0.1 | 8.3 | 5.3 | 3.3 | 384 |
+| Équilibrée | 8 | 4 | 50 % | 79 | 260 | 2.6 | 2.4 / 0.3 / 0.0 | 8.1 | 16.0 | 4.5 | 481 |
+| Marché | 9 | 0 | 0 % | 60 | 219 | 2.1 | 1.8 / 0.3 / 0.0 | 8.6 | 0.0 | 1.2 | 398 |
+| Rush or | 9 | 2 | 22 % | 86 | 392 | 2.6 | 2.1 / 0.2 / 0.2 | 9.1 | 3.5 | 2.7 | 552 |
+| Spécialisation | 9 | 1 | 11 % | 54 | 133 | 2.4 | 2.1 / 0.3 / 0.0 | 7.2 | 6.8 | 3.2 | 354 |
+| Formation | 6 | 0 | 0 % | 34 | 62 | 1.2 | 1.0 / 0.2 / 0.0 | 8.0 | 1.8 | 3.8 | 162 |
+| Cartes | 8 | 3 | 38 % | 76 | 239 | 2.3 | 2.1 / 0.1 / 0.0 | 8.0 | 5.2 | 3.4 | 463 |
+| Parc évolutif | 8 | 2 | 25 % | 74 | 237 | 2.6 | 2.4 / 0.3 / 0.0 | 9.0 | 8.1 | 3.6 | 427 |
+| Affinités | 9 | 3 | 33 % | 102 | 312 | 2.7 | 2.3 / 0.1 / 0.2 | 8.3 | 16.4 | 4.3 | 556 |
+| Haut de gamme | 9 | 1 | 11 % | 58 | 182 | 2.0 | 1.0 / 0.4 / 0.6 | 8.6 | 0.5 | 2.1 | 340 |
+| Petits contrats | 6 | 2 | 33 % | 65 | 177 | 3.3 | 3.2 / 0.2 / 0.0 | 8.5 | 1.7 | 2.2 | 404 |
+| Grand parc | 7 | 2 | 29 % | 72 | 300 | 2.9 | 2.3 / 0.4 / 0.1 | 8.4 | 2.9 | 3.9 | 438 |
+| Lobbying | 9 | 2 | 22 % | 72 | 84 | 1.9 | 1.8 / 0.1 / 0.0 | 8.6 | 24.8 | 10.6 | 275 |
+| Camp amélioré | 8 | 4 | 50 % | 102 | 362 | 4.0 | 3.5 / 0.4 / 0.1 | 8.8 | 12.1 | 3.9 | 644 |
+| Grand camp | 8 | 0 | 0 % | 52 | 135 | 1.6 | 1.6 / 0.0 / 0.0 | 8.0 | 3.0 | 2.3 | 323 |
+| Fast expand | 7 | 1 | 14 % | 71 | 226 | 2.1 | 1.6 / 0.4 / 0.1 | 8.7 | 5.7 | 2.7 | 489 |
+| Rush or + route | 8 | 3 | 38 % | 92 | 309 | 3.9 | 2.6 / 0.8 / 0.5 | 9.0 | 8.9 | 3.1 | 502 |
+| Spectacle | 8 | 1 | 13 % | 66 | 181 | 2.1 | 1.9 / 0.3 / 0.0 | 8.4 | 4.0 | 1.4 | 400 |
+| Formation légendaire | 8 | 4 | 50 % | 85 | 185 | 2.5 | 2.1 / 0.3 / 0.1 | 9.0 | 5.0 | 3.0 | 457 |
+| Ancienne IA | 8 | 3 | 38 % | 78 | 128 | 2.8 | 2.5 / 0.3 / 0.0 | 9.0 | 7.4 | 3.6 | 492 |
+| Sans agrandir | 8 | 0 | 0 % | 51 | 140 | 2.5 | 2.3 / 0.3 / 0.0 | 8.3 | 1.7 | 1.8 | 301 |
+| Même type | 8 | 3 | 38 % | 87 | 309 | 2.4 | 2.0 / 0.1 / 0.3 | 9.3 | 4.2 | 3.5 | 516 |
+| Prédateurs | 8 | 3 | 38 % | 86 | 276 | 3.0 | 1.9 / 0.9 / 0.3 | 7.9 | 0.5 | 1.9 | 541 |
+| Aériens | 8 | 1 | 13 % | 47 | 191 | 2.0 | 1.9 / 0.1 / 0.0 | 8.6 | 0.3 | 1.4 | 312 |
+| Aquatiques | 8 | 2 | 25 % | 74 | 121 | 2.3 | 1.6 / 0.1 / 0.5 | 8.8 | 8.9 | 6.6 | 351 |
+| Herbivores | 8 | 2 | 25 % | 69 | 282 | 2.3 | 2.1 / 0.1 / 0.0 | 8.1 | 4.0 | 1.5 | 449 |
+| Afrique | 8 | 2 | 25 % | 73 | 342 | 2.1 | 1.6 / 0.1 / 0.4 | 8.9 | 2.8 | 3.3 | 386 |
+| Amérique | 8 | 5 | 63 % | 74 | 243 | 2.3 | 1.4 / 0.5 / 0.4 | 8.5 | 5.7 | 5.0 | 430 |
+| Asie | 8 | 1 | 13 % | 45 | 133 | 1.4 | 1.1 / 0.3 / 0.0 | 9.1 | 4.0 | 3.0 | 266 |
+| Europe | 8 | 0 | 0 % | 52 | 165 | 1.8 | 1.3 / 0.4 / 0.1 | 8.6 | 8.4 | 2.6 | 332 |
 
 ## Progression moyenne (tous joueurs)
 
 | Jour | Réputation moyenne | Argent moyen |
 |---|---|---|
-| 1 | 0.3 | 34 |
-| 2 | 0.8 | 21 |
-| 3 | 1.2 | 14 |
-| 4 | 2.2 | 19 |
-| 5 | 4.3 | 29 |
-| 6 | 7.0 | 40 |
-| 7 | 10.6 | 49 |
-| 8 | 15.2 | 58 |
-| 9 | 21.1 | 72 |
-| 10 | 28.3 | 87 |
-| 11 | 36.1 | 104 |
-| 12 | 43.3 | 114 |
-| 13 | 49.8 | 113 |
-| 14 | 53.8 | 124 |
-| 15 | 58.9 | 122 |
-| 16 | 71.2 | 143 |
-| 17 | 65.2 | 117 |
-| 18 | 59.9 | 79 |
-| 19 | 35.5 | 37 |
+| 1 | 0.2 | 24 |
+| 2 | 0.6 | 16 |
+| 3 | 1.1 | 16 |
+| 4 | 2.5 | 24 |
+| 5 | 4.7 | 30 |
+| 6 | 7.5 | 35 |
+| 7 | 11.3 | 45 |
+| 8 | 15.5 | 50 |
+| 9 | 20.6 | 60 |
+| 10 | 27.7 | 74 |
+| 11 | 36.2 | 100 |
+| 12 | 44.6 | 121 |
+| 13 | 52.4 | 153 |
+| 14 | 54.9 | 159 |
+| 15 | 57.6 | 160 |
+| 16 | 56.8 | 190 |
+| 17 | 60.7 | 222 |
+| 18 | 57.7 | 206 |
+| 19 | 62.2 | 207 |
+| 20 | 5.5 | 349 |
+| 21 | 7.5 | 343 |
+| 22 | 8.3 | 362 |
 
 ## Animaux les plus installés
 
-- Yak : 43
-- Cerf élaphe : 43
-- Grue couronnée : 41
-- Messager sagittaire : 34
-- Bison d'Amérique : 34
-- Tapir de Baird : 32
-- Ocelot : 32
-- Zèbre : 30
-- Faucon pèlerin : 28
-- Ara rouge : 27
-- Mésange charbonnière : 26
-- Hyène tachetée : 24
+- Zèbre : 35
+- Tapir de Baird : 34
+- Yak : 30
+- Mésange charbonnière : 28
+- Messager sagittaire : 28
+- Ocelot : 27
+- Grue couronnée : 27
+- Cerf élaphe : 26
+- Hyène tachetée : 26
+- Faucon pèlerin : 25
+- Calao bicorne : 23
+- Phoque gris : 22
 
 ## Détail des parties
 
-- Graine 1000 : fin au jour 15, **Rush or** gagne (102). Équilibrée 0 · Marché 0 · Rush or 102 · Spécialisation 0
-- Graine 1017 : fin au jour 15, **Rush or** gagne (115). Marché 65 · Rush or 115 · Spécialisation 5 · Formation 44
-- Graine 1034 : fin au jour 15, **Rush or** gagne (104). Rush or 104 · Spécialisation 0 · Formation 60 · Cartes 56
-- Graine 1051 : fin au jour 15, **Cartes** gagne (105). Spécialisation 0 · Formation 97 · Cartes 105 · Parc évolutif 60
-- Graine 1068 : fin au jour 13, **Cartes** gagne (106). Formation 64 · Cartes 106 · Parc évolutif 71 · Affinités 99
-- Graine 1085 : fin au jour 16, **Cartes** gagne (103). Cartes 103 · Parc évolutif 66 · Affinités 76 · Haut de gamme 26
-- Graine 1102 : fin au jour 13, **Petits contrats** gagne (105). Parc évolutif 49 · Affinités 0 · Haut de gamme 32 · Petits contrats 105
-- Graine 1119 : fin au jour 15, **Petits contrats** gagne (112). Affinités 37 · Haut de gamme 111 · Petits contrats 112 · Grand parc 0
-- Graine 1136 : fin au jour 18, **Haut de gamme** gagne (101). Haut de gamme 101 · Petits contrats 51 · Grand parc 43 · Lobbying 28
-- Graine 1153 : fin au jour 13, **Petits contrats** gagne (114). Petits contrats 114 · Grand parc 29 · Lobbying 52 · Camp amélioré 0
-- Graine 1170 : fin au jour 13, **Grand camp** gagne (113). Grand parc 29 · Lobbying 73 · Camp amélioré 48 · Grand camp 113
-- Graine 1187 : fin au jour 11, **Grand camp** gagne (109). Lobbying 36 · Camp amélioré 21 · Grand camp 109 · Fast expand 10
-- Graine 1204 : fin au jour 15, **Fast expand** gagne (101). Camp amélioré 70 · Grand camp 0 · Fast expand 101 · Rush or + route 72
-- Graine 1221 : fin au jour 13, **Fast expand** gagne (120). Grand camp 116 · Fast expand 120 · Rush or + route 67 · Spectacle 90
-- Graine 1238 : fin au jour 15, **Fast expand** gagne (114). Fast expand 114 · Rush or + route 75 · Spectacle 73 · Formation légendaire 51
-- Graine 1255 : fin au jour 19, **Rush or + route** gagne (104). Rush or + route 104 · Spectacle 37 · Formation légendaire 0 · Équilibrée 1
-- Graine 1272 : fin au jour 12, **Formation légendaire** gagne (101). Spectacle 48 · Formation légendaire 101 · Équilibrée 66 · Marché 37
-- Graine 1289 : fin au jour 12, **Équilibrée** gagne (116). Formation légendaire 71 · Équilibrée 116 · Marché 27 · Rush or 41
-- Graine 1306 : fin au jour 14, **Spécialisation** gagne (101). Équilibrée 51 · Marché 90 · Rush or 68 · Spécialisation 101
-- Graine 1323 : fin au jour 14, **Rush or** gagne (101). Marché 65 · Rush or 101 · Spécialisation 62 · Formation 64
-- Graine 1340 : fin au jour 13, **Rush or** gagne (105). Rush or 105 · Spécialisation 0 · Formation 19 · Cartes 41
-- Graine 1357 : fin au jour 15, **Cartes** gagne (103). Spécialisation 43 · Formation 24 · Cartes 103 · Parc évolutif 0
-- Graine 1374 : fin au jour 11, **Parc évolutif** gagne (106). Formation 0 · Cartes 91 · Parc évolutif 106 · Affinités 90
-- Graine 1391 : fin au jour 14, **Cartes** gagne (101). Cartes 101 · Parc évolutif 33 · Affinités 53 · Haut de gamme 59
-- Graine 1408 : fin au jour 14, **Petits contrats** gagne (102). Parc évolutif 80 · Affinités 45 · Haut de gamme 54 · Petits contrats 102
-- Graine 1425 : fin au jour 15, **Affinités** gagne (115). Affinités 115 · Haut de gamme 96 · Petits contrats 15 · Grand parc 32
-- Graine 1442 : fin au jour 13, **Petits contrats** gagne (118). Haut de gamme 102 · Petits contrats 118 · Grand parc 95 · Lobbying 85
-- Graine 1459 : fin au jour 10, **Petits contrats** gagne (111). Petits contrats 111 · Grand parc 16 · Lobbying 55 · Camp amélioré 40
-- Graine 1476 : fin au jour 13, **Camp amélioré** gagne (102). Grand parc 28 · Lobbying 39 · Camp amélioré 102 · Grand camp 27
-- Graine 1493 : fin au jour 12, **Grand camp** gagne (123). Lobbying 77 · Camp amélioré 111 · Grand camp 123 · Fast expand 80
-- Graine 1510 : fin au jour 12, **Grand camp** gagne (101). Camp amélioré 84 · Grand camp 101 · Fast expand 14 · Rush or + route 22
-- Graine 1527 : fin au jour 11, **Rush or + route** gagne (110). Grand camp 24 · Fast expand 10 · Rush or + route 110 · Spectacle 46
-- Graine 1544 : fin au jour 16, **Spectacle** gagne (121). Fast expand 68 · Rush or + route 53 · Spectacle 121 · Formation légendaire 105
-- Graine 1561 : fin au jour 15, **Formation légendaire** gagne (118). Rush or + route 14 · Spectacle 67 · Formation légendaire 118 · Équilibrée 38
-- Graine 1578 : fin au jour 13, **Spectacle** gagne (100). Spectacle 100 · Formation légendaire 7 · Équilibrée 26 · Marché 41
-- Graine 1595 : fin au jour 14, **Formation légendaire** gagne (101). Formation légendaire 101 · Équilibrée 43 · Marché 72 · Rush or 77
-- Graine 1612 : fin au jour 15, **Équilibrée** gagne (109). Équilibrée 109 · Marché 91 · Rush or 77 · Spécialisation 30
-- Graine 1629 : fin au jour 14, **Rush or** gagne (105). Marché 94 · Rush or 105 · Spécialisation 0 · Formation 47
-- Graine 1646 : fin au jour 15, **Rush or** gagne (103). Rush or 103 · Spécialisation 43 · Formation 16 · Cartes 0
-- Graine 1663 : fin au jour 14, **Cartes** gagne (105). Spécialisation 100 · Formation 24 · Cartes 105 · Parc évolutif 56
-- Graine 1680 : fin au jour 16, **Formation** gagne (109). Formation 109 · Cartes 59 · Parc évolutif 107 · Affinités 109
-- Graine 1697 : fin au jour 12, **Cartes** gagne (104). Cartes 104 · Parc évolutif 0 · Affinités 46 · Haut de gamme 25
-- Graine 1714 : fin au jour 15, **Petits contrats** gagne (110). Parc évolutif 2 · Affinités 12 · Haut de gamme 22 · Petits contrats 110
-- Graine 1731 : fin au jour 14, **Petits contrats** gagne (105). Affinités 91 · Haut de gamme 42 · Petits contrats 105 · Grand parc 61
-- Graine 1748 : fin au jour 17, **Lobbying** gagne (112). Haut de gamme 85 · Petits contrats 93 · Grand parc 112 · Lobbying 112
-- Graine 1765 : fin au jour 16, **Grand parc** gagne (133). Petits contrats 80 · Grand parc 133 · Lobbying 109 · Camp amélioré 112
-- Graine 1782 : fin au jour 13, **Camp amélioré** gagne (114). Grand parc 91 · Lobbying 58 · Camp amélioré 114 · Grand camp 89
-- Graine 1799 : fin au jour 15, **Grand camp** gagne (115). Lobbying 100 · Camp amélioré 94 · Grand camp 115 · Fast expand 63
-- Graine 1816 : fin au jour 18, **Fast expand** gagne (106). Camp amélioré 98 · Grand camp 72 · Fast expand 106 · Rush or + route 92
-- Graine 1833 : fin au jour 14, **Grand camp** gagne (105). Grand camp 105 · Fast expand 70 · Rush or + route 7 · Spectacle 82
-- Graine 1850 : fin au jour 13, **Fast expand** gagne (111). Fast expand 111 · Rush or + route 72 · Spectacle 78 · Formation légendaire 93
-- Graine 1867 : fin au jour 11, **Formation légendaire** gagne (101). Rush or + route 34 · Spectacle 57 · Formation légendaire 101 · Équilibrée 55
-- Graine 1884 : fin au jour 15, **Spectacle** gagne (110). Spectacle 110 · Formation légendaire 100 · Équilibrée 80 · Marché 92
-- Graine 1901 : fin au jour 12, **Rush or** gagne (104). Formation légendaire 12 · Équilibrée 43 · Marché 54 · Rush or 104
-- Graine 1918 : fin au jour 15, **Rush or** gagne (103). Équilibrée 56 · Marché 99 · Rush or 103 · Spécialisation 0
-- Graine 1935 : fin au jour 15, **Formation** gagne (103). Marché 76 · Rush or 43 · Spécialisation 0 · Formation 103
-- Graine 1952 : fin au jour 17, **Formation** gagne (111). Rush or 98 · Spécialisation 11 · Formation 111 · Cartes 57
-- Graine 1969 : fin au jour 14, **Cartes** gagne (109). Spécialisation 0 · Formation 73 · Cartes 109 · Parc évolutif 62
-- Graine 1986 : fin au jour 15, **Cartes** gagne (102). Formation 13 · Cartes 102 · Parc évolutif 62 · Affinités 33
-- Graine 2003 : fin au jour 12, **Affinités** gagne (104). Cartes 73 · Parc évolutif 25 · Affinités 104 · Haut de gamme 33
-- Graine 2020 : fin au jour 13, **Petits contrats** gagne (128). Parc évolutif 12 · Affinités 19 · Haut de gamme 31 · Petits contrats 128
-- Graine 2037 : fin au jour 13, **Affinités** gagne (104). Affinités 104 · Haut de gamme 45 · Petits contrats 60 · Grand parc 36
-- Graine 2054 : fin au jour 15, **Lobbying** gagne (127). Haut de gamme 5 · Petits contrats 20 · Grand parc 0 · Lobbying 127
-- Graine 2071 : fin au jour 15, **Lobbying** gagne (104). Petits contrats 42 · Grand parc 65 · Lobbying 104 · Camp amélioré 0
+- Graine 1000 : fin au jour 13, **Équilibrée** gagne (112). Équilibrée 112 · Marché 64 · Rush or 80 · Spécialisation 36
+- Graine 1017 : fin au jour 12, **Cartes** gagne (109). Marché 51 · Spécialisation 42 · Cartes 109 · Affinités 104
+- Graine 1034 : fin au jour 15, **Cartes** gagne (117). Rush or 56 · Cartes 117 · Haut de gamme 60 · Lobbying 54
+- Graine 1051 : fin au jour 15, **Rush or + route** gagne (108). Spécialisation 45 · Affinités 90 · Lobbying 58 · Rush or + route 108
+- Graine 1068 : fin au jour 14, **Petits contrats** gagne (121). Formation 31 · Petits contrats 121 · Fast expand 31 · Sans agrandir 57
+- Graine 1085 : fin au jour 15, **Parc évolutif** gagne (128). Cartes 55 · Parc évolutif 128 · Affinités 126 · Haut de gamme 73
+- Graine 1102 : fin au jour 12, **Parc évolutif** gagne (107). Parc évolutif 107 · Haut de gamme 19 · Grand parc 78 · Camp amélioré 93
+- Graine 1119 : fin au jour 13, **Grand parc** gagne (111). Affinités 65 · Grand parc 111 · Grand camp 26 · Spectacle 20
+- Graine 1136 : fin au jour 14, **Camp amélioré** gagne (119). Haut de gamme 66 · Camp amélioré 119 · Spectacle 107 · Même type 90
+- Graine 1153 : fin au jour 15, **Herbivores** gagne (120). Petits contrats 32 · Fast expand 19 · Sans agrandir 65 · Herbivores 120
+- Graine 1170 : fin au jour 14, **Camp amélioré** gagne (124). Grand parc 41 · Lobbying 93 · Camp amélioré 124 · Grand camp 71
+- Graine 1187 : fin au jour 19, **Lobbying** gagne (111). Lobbying 111 · Grand camp 69 · Rush or + route 82 · Formation légendaire 72
+- Graine 1204 : fin au jour 14, **Ancienne IA** gagne (103). Camp amélioré 44 · Rush or + route 46 · Ancienne IA 103 · Prédateurs 64
+- Graine 1221 : fin au jour 13, **Formation légendaire** gagne (112). Grand camp 46 · Formation légendaire 112 · Prédateurs 84 · Afrique 41
+- Graine 1238 : fin au jour 16, **Herbivores** gagne (116). Fast expand 44 · Sans agrandir 35 · Herbivores 116 · Équilibrée 59
+- Graine 1255 : fin au jour 15, **Formation légendaire** gagne (129). Rush or + route 103 · Spectacle 80 · Formation légendaire 129 · Ancienne IA 95
+- Graine 1272 : fin au jour 12, **Même type** gagne (106). Spectacle 55 · Ancienne IA 77 · Même type 106 · Aériens 32
+- Graine 1289 : fin au jour 17, **Formation légendaire** gagne (116). Formation légendaire 116 · Même type 78 · Aquatiques 84 · Amérique 19
+- Graine 1306 : fin au jour 12, **Ancienne IA** gagne (103). Ancienne IA 103 · Aériens 18 · Amérique 21 · Marché 54
+- Graine 1323 : fin au jour 14, **Équilibrée** gagne (108). Sans agrandir 40 · Herbivores 48 · Équilibrée 108 · Cartes 69
+- Graine 1340 : fin au jour 13, **Même type** gagne (112). Même type 112 · Prédateurs 36 · Aériens 25 · Aquatiques 99
+- Graine 1357 : fin au jour 19, **Aquatiques** gagne (106). Prédateurs 88 · Aquatiques 106 · Afrique 96 · Asie 37
+- Graine 1374 : fin au jour 11, **Aériens** gagne (104). Aériens 104 · Afrique 36 · Europe 84 · Rush or 53
+- Graine 1391 : fin au jour 15, **Aquatiques** gagne (100). Aquatiques 100 · Asie 15 · Rush or 68 · Parc évolutif 56
+- Graine 1408 : fin au jour 11, **Grand parc** gagne (109). Herbivores 44 · Équilibrée 30 · Cartes 65 · Grand parc 109
+- Graine 1425 : fin au jour 22, **Afrique** gagne (28). Afrique 28 · Amérique 0 · Asie 5 · Europe 0
+- Graine 1442 : fin au jour 14, **Amérique** gagne (103). Amérique 103 · Europe 71 · Marché 58 · Spécialisation 88
+- Graine 1459 : fin au jour 11, **Affinités** gagne (126). Asie 29 · Marché 74 · Formation 12 · Affinités 126
+- Graine 1476 : fin au jour 13, **Affinités** gagne (146). Europe 5 · Spécialisation 0 · Affinités 146 · Lobbying 32
+- Graine 1493 : fin au jour 12, **Équilibrée** gagne (115). Équilibrée 115 · Cartes 32 · Grand parc 52 · Rush or + route 105
+- Graine 1510 : fin au jour 13, **Rush or** gagne (101). Marché 23 · Rush or 101 · Spécialisation 77 · Formation 26
+- Graine 1527 : fin au jour 15, **Rush or** gagne (109). Rush or 109 · Formation 22 · Parc évolutif 97 · Haut de gamme 34
+- Graine 1544 : fin au jour 13, **Camp amélioré** gagne (122). Spécialisation 78 · Parc évolutif 31 · Petits contrats 39 · Camp amélioré 122
+- Graine 1561 : fin au jour 17, **Camp amélioré** gagne (127). Formation 85 · Haut de gamme 106 · Camp amélioré 127 · Spectacle 65
+- Graine 1578 : fin au jour 19, **Rush or + route** gagne (110). Cartes 49 · Grand parc 5 · Rush or + route 110 · Même type 83
+- Graine 1595 : fin au jour 19, **Haut de gamme** gagne (109). Parc évolutif 52 · Affinités 96 · Haut de gamme 109 · Petits contrats 65
+- Graine 1612 : fin au jour 12, **Affinités** gagne (101). Affinités 101 · Petits contrats 25 · Lobbying 58 · Grand camp 34
+- Graine 1629 : fin au jour 15, **Lobbying** gagne (113). Haut de gamme 20 · Lobbying 113 · Fast expand 106 · Formation légendaire 48
+- Graine 1646 : fin au jour 14, **Petits contrats** gagne (106). Petits contrats 106 · Grand camp 71 · Formation légendaire 18 · Prédateurs 85
+- Graine 1663 : fin au jour 13, **Même type** gagne (118). Grand parc 105 · Rush or + route 80 · Même type 118 · Afrique 88
+- Graine 1680 : fin au jour 14, **Fast expand** gagne (106). Lobbying 77 · Camp amélioré 82 · Grand camp 67 · Fast expand 106
+- Graine 1697 : fin au jour 16, **Ancienne IA** gagne (108). Camp amélioré 106 · Fast expand 105 · Spectacle 42 · Ancienne IA 108
+- Graine 1714 : fin au jour 12, **Spectacle** gagne (101). Grand camp 29 · Spectacle 101 · Sans agrandir 25 · Aériens 34
+- Graine 1731 : fin au jour 13, **Amérique** gagne (103). Fast expand 86 · Ancienne IA 25 · Aériens 18 · Amérique 103
+- Graine 1748 : fin au jour 18, **Rush or + route** gagne (103). Rush or + route 103 · Même type 64 · Afrique 51 · Marché 84
+- Graine 1765 : fin au jour 16, **Formation légendaire** gagne (117). Spectacle 56 · Formation légendaire 117 · Ancienne IA 41 · Sans agrandir 64
+- Graine 1782 : fin au jour 13, **Prédateurs** gagne (106). Formation légendaire 68 · Sans agrandir 70 · Prédateurs 106 · Aquatiques 49
+- Graine 1799 : fin au jour 13, **Prédateurs** gagne (113). Ancienne IA 73 · Prédateurs 113 · Herbivores 34 · Asie 47
+- Graine 1816 : fin au jour 17, **Asie** gagne (111). Sans agrandir 53 · Aquatiques 54 · Asie 111 · Rush or 109
+- Graine 1833 : fin au jour 16, **Afrique** gagne (127). Même type 47 · Afrique 127 · Marché 61 · Parc évolutif 51
+- Graine 1850 : fin au jour 13, **Prédateurs** gagne (108). Prédateurs 108 · Aériens 42 · Aquatiques 49 · Herbivores 59
+- Graine 1867 : fin au jour 13, **Amérique** gagne (124). Aériens 99 · Herbivores 61 · Amérique 124 · Europe 74
+- Graine 1884 : fin au jour 13, **Amérique** gagne (118). Aquatiques 47 · Amérique 118 · Équilibrée 69 · Spécialisation 6
+- Graine 1901 : fin au jour 13, **Spécialisation** gagne (110). Herbivores 70 · Europe 51 · Spécialisation 110 · Affinités 65
+- Graine 1918 : fin au jour 13, **Afrique** gagne (117). Afrique 117 · Marché 71 · Parc évolutif 71 · Lobbying 55
+- Graine 1935 : fin au jour 15, **Amérique** gagne (101). Amérique 101 · Asie 89 · Europe 65 · Équilibrée 32
+- Graine 1952 : fin au jour 14, **Équilibrée** gagne (103). Asie 25 · Équilibrée 103 · Rush or 87 · Formation 30
+- Graine 1969 : fin au jour 14, **Cartes** gagne (114). Europe 67 · Rush or 111 · Cartes 114 · Haut de gamme 37

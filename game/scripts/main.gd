@@ -2798,7 +2798,7 @@ func _rebuild_market_preview() -> void:
 	var actions := HBoxContainer.new()
 	actions.add_theme_constant_override("separation", 10)
 	for card in mt.market_actions:
-		actions.add_child(_action_widget(card, "Prix ce soir : %d" % int(card.action["cout"]), true, func(): pass))
+		actions.add_child(_action_widget(card, "Prix ce soir : %d" % game.action_price(card), true, func(): pass))
 	market_box.add_child(actions)
 	var close := Button.new()
 	close.text = "Fermer"
@@ -4361,7 +4361,7 @@ func _rebuild_night() -> void:
 	_clear(night_actions)
 	for card in mt.market_actions:
 		var aerr := game.action_error(card)
-		var aw := _action_widget(card, "Acheter · %d" % int(card.action["cout"]), spectator or aerr != "", _cmd.bind("buy_action", [card]))
+		var aw := _action_widget(card, "Acheter · %d" % game.action_price(card), spectator or aerr != "", _cmd.bind("buy_action", [card]))
 		if aerr != "":
 			aw.tooltip_text = aerr + "\n" + aw.tooltip_text
 		night_actions.add_child(aw)
@@ -5466,7 +5466,8 @@ func _rebuild_end() -> void:
 	body.add_child(Composants.label("Votre réputation, par source", "TexteSecondaire"))
 	var total_rep := maxf(1.0, game.rep_points)
 	for src in [["frequentation", "Fréquentation (visiteurs)", "ressource_visiteurs", Color("8A6AD0")],
-			["spectacles", "Spectacles et boutique", "batiment_boutique", Color("E04A8A")],
+			["spectacles", "Spectacles du Kiosque", "batiment_kiosque", Color("D0A040")],
+			["boutique", "Boutique", "batiment_boutique", Color("E04A8A")],
 			["labels", "Labels (or)", "ressource_or", UiTokens.RESSOURCES["or"]["couleur"]],
 			["prestige", "Prestige politique", "ressource_influence", UiTokens.RESSOURCES["influence"]["couleur"]],
 			["legendaires", "Collaborateurs légendaires", "ui_ameliorer", UiTokens.OR]]:

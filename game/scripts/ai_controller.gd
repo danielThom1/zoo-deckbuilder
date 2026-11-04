@@ -32,12 +32,21 @@ const DEFAULT_STRATEGY := {
 	"route_mine": false,  # relie la mine au réseau de routes (les mineurs y vont deux fois plus vite)
 	"explore": 0.0,  # part de choix au hasard pour les améliorations et les cartes d'action (étude)
 	"spectacle": false,  # Kiosque et boutique tôt, Animateur et Vendeur recherchés : la réputation par les spectacles
+	"adaptatif": true,  # l'équipe oriente le plan (mine, Marché, Kiosque…) et les besoins du moment orientent les embauches
+	"agrandir": true,  # agrandit le parc quand il sature ou pour accueillir une espèce qui n'y tient pas
+	"meme_type": false,  # contrats d'un seul type d'animal, choisi selon le marché et les animaux rares
+	"type_cible": "",  # type d'animal imposé (herbivore, predateur, aquatique, aerien)
+	"continent_cible": "",  # continent imposé (sinon « affinite » le choisit selon le marché)
+	"score_simple": false,  # ancienne évaluation des contrats (réputation / prix), pour comparer
 }
 
 const ZOO_SIZES := {"petit": Vector2i(12, 10), "moyen": Vector2i(16, 13), "grand": Vector2i(22, 16)}
 
 const DIRS4: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 const THINK_EVERY := 2.0
+const AGRANDIR_MAX := 4  # agrandissements au plus dans une partie
+const PARC_MAX := Vector2i(46, 38)
+const PROFONDEURS := [6, 9, 12]  # cases gagnées d'un côté à chaque agrandissement
 
 var mt: Match
 var g: GameState
@@ -58,6 +67,14 @@ var _plan_cache := {}  # id d'espèce -> plan d'enclos, valable tant que l'état
 var _plan_cache_key := ""
 var _search_cache := {}  # recherches coûteuses (route d'accès, emplacements), même principe que _plan_cache
 var _search_cache_key := ""
+var agrandissements := 0  # commencés
+var agrandis := 0  # terminés
+var agrandi_jour := -1  # jour où l'agrandissement en cours a commencé
+var agrandir_refus := []  # enceintes abandonnées : un mur n'a pas pu être posé
+var _ext_cache := {}  # recherches d'agrandissement, valables une journée
+var _ext_jour := -1
+var roster_kiosque := false  # un Animateur dans l'équipe : le Kiosque dès l'ouverture
+var epargne := 0.0  # argent mis de côté pour un contrat convoité, visible au marché
 
 
 func _init(the_match: Match, state: GameState, strategy: Dictionary) -> void:
@@ -76,10 +93,17 @@ func _init(the_match: Match, state: GameState, strategy: Dictionary) -> void:
 ## Bonus ajouté à la valeur de base d'une carte selon les besoins de cette IA.
 func card_bonus(c: GameState.Card) -> float:
 	var v := _card_bonus(c) + float(strat.get("poids_metiers", {}).get(c.metier["id"], 0.0))
+	if _opt("besoin"):
+		v += _besoin_bonus(c)
 	var pt: Dictionary = strat.get("poids_traits", {})
 	for t in c.traits:
 		v += float(pt.get(t, 0.0))
 	return v
+
+
+## Élément du comportement adaptatif, désactivable un par un pour mesurer ce qu'il apporte (« sans_camp » : true…).
+func _opt(nom: String) -> bool:
+	return strat["adaptatif"] and not strat.get("sans_" + nom, false)
 
 
 func _card_bonus(c: GameState.Card) -> float:
@@ -120,6 +144,54 @@ func _card_bonus(c: GameState.Card) -> float:
 	return 0.0
 
 
+## Ce qui manque à l'équipe aujourd'hui : file au guichet, mine sans mineur, murs à monter, animaux à soigner…
+func _besoin_bonus(c: GameState.Card) -> float:
+	var job: String = c.metier["id"]
+	var team := g.all_employees()
+	var n := team.filter(func(o): return o.metier["id"] == job).size()
+	var v := 0.0
+	if c.traits.has("peureux") and _owned_defs().any(func(d): return d.get("type", "") == "predateur"):
+		v -= 0.5
+	match job:
+		"vendeur":
+			if g.has_building("boutique") and n == 0:
+				v += 0.7
+		"animateur":
+			if g.has_building("kiosque") and n == 0:
+				v += 0.7
+		"guichetier":
+			if g.visitor_queue >= 10 and n == 0:
+				v += 1.0
+		"soigneur":
+			if g.animals.size() >= 3 and n == 0:
+				v += 0.6
+		"animalier":
+			if g.animals.size() >= 4 and n == 0:
+				v += 0.5
+		"mineur":
+			if g.mine_built and n < 2:
+				v += 0.8
+		"marchand":
+			if g.mine_built and n == 0:
+				v += 0.6
+		"macon":
+			if zoo_rect.size != Vector2i.ZERO and (_walls_progress() < 0.7 or _extending()):
+				v += 0.4
+		"charpentier":
+			if plans.any(func(p): return _ring_left(p) >= 8):
+				v += 0.4
+		"paysagiste", "terrassier":
+			if not _has_landscaper():
+				v += 0.8
+		"lobbyiste":
+			if n == 0:
+				v += 0.6
+		"contremaitre":
+			if team.size() >= 6 and n == 0:
+				v += 0.3
+	return v
+
+
 func card_value(c: GameState.Card) -> float:
 	return mt.draft_value(c, g.index)
 
@@ -127,10 +199,12 @@ func card_value(c: GameState.Card) -> float:
 # --- Début et fin de journée -------------------------------------------------
 
 func on_day_start() -> void:
-	if zoo_rect.size == Vector2i.ZERO and (not g.contracts.is_empty() or g.day >= 3):
+	if zoo_rect.size == Vector2i.ZERO and (not g.contracts.is_empty() or g.day >= 3 or _opt("zoo_j1")):
 		_choose_zoo()
 	_index_resources()
 	lobby_today = 0
+	_adapter_au_roster()
+	_maybe_extend()
 	# Cartes d'action : avant de déployer (Prime, Heures sup, Livraison, Recrutement ; Portes ouvertes si le zoo
 	# est ouvert), puis Formation express une fois les ouvriers sur la carte.
 	for pass_i in 2:
@@ -138,7 +212,7 @@ func on_day_start() -> void:
 			if c.is_action() and c.action.get("cible", false):
 				_play_targeted(c)
 			elif c.is_action() and c.action["id"] != "formation_express" \
-				and (c.action["id"] != "portes_ouvertes" or g.zoo_status()["open"]):
+				and (c.action["id"] != "portes_ouvertes" or _portes_utiles()):
 				g.play_action(c)
 	_play_cadres()
 	var hand := g.hand.filter(func(c): return not c.is_action())
@@ -193,7 +267,8 @@ func _play_cadres() -> void:
 				if g.event_is_negative():
 					g.play_cadre(c)
 			"vendeur":
-				if open and built.call("boutique"):
+				# Posté à la boutique, il vend ×2,5 et rapporte de la réputation : la Braderie, faute de quoi le payer.
+				if open and built.call("boutique") and g.money < g.salary(c):
 					g.play_cadre(c)
 			"formateur":
 				if not built.call("formation") and g.hand.filter(func(o): return not o.is_action()).size() >= 5:
@@ -201,6 +276,39 @@ func _play_cadres() -> void:
 			"animateur":
 				if open and not g.animals.is_empty() and not built.call("kiosque"):
 					g.play_cadre(c)
+
+
+## L'équipe oriente le plan : un cadre sans son bâtiment ne sert à rien, des mineurs sans mine non plus.
+func _adapter_au_roster() -> void:
+	if not _opt("roster"):
+		return
+	var n := {}
+	for c in g.all_employees():
+		n[c.metier["id"]] = int(n.get(c.metier["id"], 0)) + 1
+	var mineurs := int(n.get("mineur", 0))
+	var marchands := int(n.get("marchand", 0))
+	if int(n.get("vendeur", 0)) > 0:
+		strat["boutique"] = true
+	if int(n.get("animateur", 0)) > 0:
+		roster_kiosque = true
+	if mineurs >= 2 or (mineurs >= 1 and marchands >= 1):
+		strat["mine_prioritaire"] = true
+	if marchands >= 1 and (g.mine_built or mineurs >= 1):
+		strat["marche"] = true
+	if int(n.get("formateur", 0)) > 0 and g.zoo_status()["open"]:
+		strat["formation"] = true
+
+
+## Portes ouvertes : seulement si le parc peut accueillir le surplus de visiteurs.
+func _portes_utiles() -> bool:
+	if not g.zoo_status()["open"]:
+		return false
+	return not strat["adaptatif"] or float(g.attractiveness()) * _presence_par_attractivite() * 1.25 < g.visitor_capacity()
+
+
+## Argent à garder pour tout ce qui n'est pas indispensable : le plancher, plus le contrat convoité.
+func _floor_achats() -> float:
+	return _cash_floor() + epargne
 
 
 ## Intérêt d'une carte d'action pour cette IA (0 : inutile pour l'instant).
@@ -251,7 +359,7 @@ func _campaign_wanted() -> Dictionary:
 		return {}
 	var best := {}
 	for d in g.campaign_defs():
-		if g.money - float(g.campaign_cost(d)) * 2.0 >= _cash_floor() + float(strat["reserve"]):
+		if g.money - float(g.campaign_cost(d)) * 2.0 >= _floor_achats() + float(strat["reserve"]):
 			best = d
 	return best
 
@@ -268,6 +376,9 @@ func _manual_value(c: GameState.Card) -> float:
 func _sell_surplus() -> void:
 	var target := _cash_floor() + float(strat["reserve"]) + SURPLUS_ARGENT
 	if g.money >= target:
+		return
+	# Avant l'ouverture, tout le stock servira à l'enceinte et au premier enclos.
+	if strat["adaptatif"] and not g.zoo_status()["open"] and g.money >= _cash_floor():
 		return
 	var needs := _needs()
 	var keep := {}
@@ -444,30 +555,213 @@ func _night_contracts() -> void:
 		if _placeable_contracts() < int(strat["contrats_en_attente_max"]) and (first or zoo_ok):
 			var best: Dictionary = {}
 			var best_score := 0.0
+			var reve: Dictionary = {}  # le meilleur contrat hors de portée ce soir
+			var reve_score := 0.0
+			epargne = 0.0
 			for def in g.market_contracts:
-				if g.contract_error(def) != "":
+				if g.has_species(def["id"]) or g.contracts_tonight >= int(g.data["buildings"]["marche"]["contrats_par_nuit"]):
 					continue
 				var cost := _money_cost(def)
 				var margin := 0.0 if _needs_first_animal() else float(strat["reserve"])
-				if g.money - cost < margin + _cash_floor():
+				var abordable: bool = g.contract_error(def) == "" and g.money - cost >= margin + _cash_floor()
+				if not abordable and (g.animals.is_empty() or g.money + _revenu_estime() * 1.5 - cost < _cash_floor()):
 					continue
-				if zoo_rect.size != Vector2i.ZERO and _plan_enclosure(def).is_empty():
+				if zoo_rect.size != Vector2i.ZERO and _plan_enclosure(def).is_empty() and not _can_extend_for(def):
 					continue
 				if not _strategy_allows(def):
 					continue
 				# Sans Paysagiste ni Terrassier, aucun aménagement possible : le motif doit déjà exister.
 				if not _has_landscaper() and not _natural_fit(def):
 					continue
-				var tier := float(str(def["palier"]).substr(1).to_int())
-				# Argent abondant (fin de partie) : la réputation gagnée compte plus que le prix, d'où les T2/T3.
-				var price_weight := 1.0 if cost * 3.0 > g.money - _cash_floor() else 0.3
-				var score := _rep_gain(def) * pow(tier, float(strat["preference_palier"]) - 1.0) / (cost * price_weight + 10.0)
-				score *= pow(2.0, float(strat.get("poids_animaux", {}).get(def["id"], 0.0)))
-				if score > best_score:
+				var score := _contract_score(def, cost)
+				if abordable and score > best_score:
 					best_score = score
 					best = def
+				elif not abordable and score > reve_score:
+					reve_score = score
+					reve = def
+			# Un contrat bien meilleur sera à portée dans un jour ou deux : on met de côté plutôt que d'acheter un petit.
+			if _opt("epargne") and not reve.is_empty() and float(strat["preference_palier"]) >= 1.0 and reve_score > best_score * 1.5:
+				epargne = _money_cost(reve)
+				if best.is_empty() or (best["palier"] == "T1" and not g.animals.is_empty()):
+					best = {}
 			if not best.is_empty() and g.buy_contract(best):
 				mt.log.append("%s achète le contrat %s." % [mt.names[g.index], best["nom"]])
+
+
+## Note d'un contrat : la réputation qu'il rapportera d'ici la fin de la partie, moins vite s'il vide la trésorerie.
+func _contract_score(def: Dictionary, cost: float) -> float:
+	var tier := float(str(def["palier"]).substr(1).to_int())
+	var pref := float(strat["preference_palier"])
+	var score: float
+	if strat["score_simple"]:
+		# Argent abondant (fin de partie) : la réputation gagnée compte plus que le prix, d'où les T2/T3.
+		var price_weight := 1.0 if cost * 3.0 > g.money - _cash_floor() else 0.3
+		score = _rep_gain(def) * pow(tier, pref - 1.0) / (cost * price_weight + 10.0)
+	else:
+		var effort := _effort_days(def)
+		if effort == INF:
+			return 0.0
+		var jours := maxf(0.5, _days_left() - 1.0 - effort)
+		var marge := maxf(1.0, g.money - _cash_floor())
+		score = _contract_value(def) * jours * pow(tier, (pref - 1.0) * 2.0) / (1.0 + cost / marge)
+	return score * pow(2.0, float(strat.get("poids_animaux", {}).get(def["id"], 0.0)))
+
+
+## Espèces acquises ou attendues.
+func _owned_defs() -> Array:
+	var out := []
+	for a in g.animals:
+		if not out.has(a.def):
+			out.append(a.def)
+	for d in g.contracts:
+		if not out.has(d):
+			out.append(d)
+	return out
+
+
+## Visiteurs présents en même temps pour 1 point d'attractivité.
+func _presence_par_attractivite() -> float:
+	var Z: Dictionary = g.data["buildings"]["zoo"]
+	return float(Z["visiteurs_par_point_attractivite"]) * float(Z["duree_visite_s"]) / g.day_length
+
+
+## Attractivité au-delà de laquelle le parc est plein et la file attend.
+func _attr_limit() -> float:
+	var r := _park_area()
+	if r.size == Vector2i.ZERO:
+		r = Rect2i(Vector2i.ZERO, ZOO_SIZES["moyen"])
+	var capacite := r.grow(-1).get_area() / float(g.data["buildings"]["zoo"]["cases_par_visiteur"])
+	return capacite / _presence_par_attractivite()
+
+
+func _owned_attr() -> float:
+	var somme := 0.0
+	for d in _owned_defs():
+		somme += float(d["reputation"])
+	return maxf(float(g.attractiveness()), somme)
+
+
+## Attractivité ajoutée par une nouvelle espèce : la sienne, diversité des biomes, collection, effets des rares.
+func _attr_gain(def: Dictionary) -> float:
+	var owned := _owned_defs()
+	if owned.any(func(d): return d["id"] == def["id"]):
+		return 0.0
+	var A: Dictionary = g.data["animals"]
+	var gain := float(def["reputation"])
+	var biomes := {}
+	for d in owned:
+		biomes[d["biome"]] = int(biomes.get(d["biome"], 0)) + 1
+	if not biomes.has(def["biome"]):
+		var table: Dictionary = A["bonus_diversite_biomes"]
+		gain += float(table.get(str(biomes.size() + 1), 0)) - float(table.get(str(biomes.size()), 0))
+	elif int(biomes[def["biome"]]) + 1 == int(A["bonus_collection"]["especes_meme_biome"]):
+		gain += float(A["bonus_collection"]["points"])
+	var rare: Dictionary = def.get("effet_rare", {})
+	for d in owned:
+		if rare.has("type_bonus") and rare["type_bonus"] == d.get("type", ""):
+			gain += float(rare["points"])
+		var autre: Dictionary = d.get("effet_rare", {})
+		if autre.has("type_bonus") and autre["type_bonus"] == def.get("type", ""):
+			gain += float(autre["points"])
+	return gain
+
+
+## Ce que le marché laisse espérer : un rare qui valoriserait ce type, d'autres espèces du même continent ;
+## et le rare du type visé par la stratégie, même si la collection n'est pas encore là.
+func _market_synergy(def: Dictionary) -> float:
+	var s := 0.0
+	var rare: Dictionary = def.get("effet_rare", {})
+	if strat["adaptatif"]:
+		for o in g.market_contracts:
+			if o == def:
+				continue
+			var r2: Dictionary = o.get("effet_rare", {})
+			if r2.has("type_bonus") and r2["type_bonus"] == def.get("type", ""):
+				s += float(r2["points"]) * 0.5
+			if rare.has("type_bonus") and rare["type_bonus"] == o.get("type", ""):
+				s += float(rare["points"]) * 0.5
+			if o.get("continent", "") == def.get("continent", ""):
+				s += 1.0
+	if rare.has("type_bonus") and rare["type_bonus"] == _type_target():
+		s += float(rare["points"]) * 2.0
+	return s
+
+
+## Bonus d'affinité (part de réputation en plus) gagné avec une espèce de plus de ce continent.
+func _affinity_gain(def: Dictionary) -> float:
+	var steps: Array = g.data["animals"]["affinite_continent"]["paliers"]
+	var n := _owned_defs().filter(func(d): return d.get("continent", "") == def.get("continent", "")).size()
+	return float(steps[mini(n + 1, steps.size() - 1)]) - float(steps[mini(n, steps.size() - 1)])
+
+
+## Réputation par jour qu'une espèce ajoutera, en tenant compte de la place dans le parc.
+func _contract_value(def: Dictionary) -> float:
+	var base := _owned_attr()
+	var ajout := _attr_gain(def) + _market_synergy(def)
+	var limite := _attr_limit()
+	var place := maxf(0.0, limite - base)
+	var utile := minf(ajout, place) + maxf(0.0, ajout - place) * (0.6 if strat["agrandir"] else 0.15)
+	var par_point := _presence_par_attractivite() * float(g.data["buildings"]["zoo"]["reputation_par_visiteur_moyen"])
+	return (utile + _affinity_gain(def) * minf(base + ajout, limite)) * par_point
+
+
+## Jours restants estimés, d'après l'avance du meilleur joueur.
+func _days_left() -> float:
+	if g.day <= 2:
+		return 12.0
+	var leader := 0.0
+	for p in mt.players:
+		leader = maxf(leader, p.rep_points)
+	var rythme := leader / float(g.day - 1) * 1.4
+	return clampf((float(mt.objective()) - leader) / maxf(rythme, 2.0), 1.0, 14.0)
+
+
+## Travail par journée sur cette tâche avec l'équipe actuelle : les meilleurs, tirés une partie des jours seulement.
+func _team_rate(task: String, n: int) -> float:
+	var team := g.all_employees()
+	if team.is_empty():
+		return 1.0
+	var effs: Array = team.map(func(c): return g.efficiency(c, task))
+	effs.sort()
+	effs.reverse()
+	var total := 0.0
+	for k in mini(n, effs.size()):
+		total += float(effs[k])
+	return maxf(1.0, total * g.day_length * minf(1.0, float(g.hand_size()) / team.size()))
+
+
+## Journées nécessaires pour accueillir cette espèce avec cette équipe : un aménageur rend les motifs difficiles
+## abordables, un Charpentier les grands enclos. INF : aucune place, même en agrandissant.
+func _effort_days(def: Dictionary) -> float:
+	if zoo_rect.size == Vector2i.ZERO:
+		return 1.0
+	var plan := _plan_enclosure(def)
+	var murs := 0
+	if plan.is_empty():
+		var ext := _extension_for(def)
+		if ext.is_empty():
+			return INF
+		plan = ext["plan"]
+		murs = int(ext["murs"])
+	var manuel: float = float(g.building_def("enclos")["travail"]) * _ring_left(plan) + float(g.building_def("cloture")["travail"]) * murs
+	var decor: String = def.get("decor", "")
+	if decor != "" and not _has_decor(decor, plan["interior"]):
+		manuel += float(g.building_def(decor)["travail"])
+	var jours := manuel / _team_rate("construire_enclos", 2)
+	var conv := _conv_cost(plan["conv"])
+	if conv > 0:
+		var pros := g.all_employees().filter(func(c): return g.can_landscape(c))
+		var cadence := 0.0
+		for c in pros:
+			cadence += g.efficiency(c, "amenager")
+		jours += conv * 40.0 / maxf(1.0, cadence * g.day_length * minf(1.0, float(g.hand_size()) / g.all_employees().size()))
+	return jours
+
+
+## Argent rapporté par une journée de visites, au billet seul.
+func _revenu_estime() -> float:
+	return minf(float(g.attractiveness()), _attr_limit()) * float(g.data["buildings"]["zoo"]["visiteurs_par_point_attractivite"]) * float(g.data["buildings"]["zoo"]["billet"])
 
 
 func _night_hippo() -> void:
@@ -491,7 +785,7 @@ func _night_hire() -> void:
 		var best_card: GameState.Card = null
 		var best_v := 1.8
 		for c in g.market_workers:
-			if g.hire_error(c) != "" or g.money - g.hire_cost(c) < float(strat["reserve"]) + _cash_floor():
+			if g.hire_error(c) != "" or g.money - g.hire_cost(c) < float(strat["reserve"]) + _floor_achats():
 				continue
 			var v := card_value(c) - g.hire_cost(c) * 0.05
 			if v > best_v:
@@ -506,13 +800,13 @@ func _night_buy_action() -> void:
 	# Étude : une carte au hasard de temps en temps, pour que toutes soient jouées
 	if g.rng.randf() < float(strat["explore"]) and not mt.market_actions.is_empty():
 		var rc: GameState.Card = mt.market_actions[g.rng.randi_range(0, mt.market_actions.size() - 1)]
-		if g.action_error(rc) == "" and g.money - float(rc.action["cout"]) >= _cash_floor():
+		if g.action_error(rc) == "" and g.money - g.action_price(rc) >= _cash_floor():
 			g.buy_action(rc)
 		return
 	if strat["cartes"]:
 		var pick: GameState.Card = null
 		for c in mt.market_actions:
-			if g.action_error(c) == "" and g.money - float(c.action["cout"]) >= _cash_floor() \
+			if g.action_error(c) == "" and g.money - g.action_price(c) >= _floor_achats() \
 				and (pick == null or _action_value(c) > _action_value(pick)):
 				pick = c
 		if pick and g.buy_action(pick):
@@ -521,7 +815,7 @@ func _night_buy_action() -> void:
 	if g.action_cards().size() < 4 and zoo_rect.size != Vector2i.ZERO:
 		var best_a: GameState.Card = null
 		for c in mt.market_actions:
-			if g.action_error(c) != "" or g.money - float(c.action["cout"]) < _cash_floor() + float(strat["reserve"]) + 20.0:
+			if g.action_error(c) != "" or g.money - g.action_price(c) < _floor_achats() + float(strat["reserve"]) + 20.0:
 				continue
 			if _action_value(c) > 0.0 and (best_a == null or _action_value(c) > _action_value(best_a)):
 				best_a = c
@@ -532,20 +826,71 @@ func _night_buy_action() -> void:
 ## Filtres de contrats propres à la stratégie : un seul continent (Affinités), pas de T1 en milieu de partie (Haut de gamme).
 func _strategy_allows(def: Dictionary) -> bool:
 	var first := g.animals.is_empty() and g.contracts.is_empty()
-	if strat["affinite"] and not first:
-		var count := {}
-		for d in g.contracts + g.animals.map(func(a): return a.def):
-			count[d.get("continent", "")] = int(count.get(d.get("continent", ""), 0)) + 1
-		var main := ""
-		for k in count:
-			if main == "" or count[k] > count[main]:
-				main = k
-		if def.get("continent", "") != main:
-			return false
+	var cc := _continent_target()
+	if cc != "" and def.get("continent", "") != cc and not _cible_relachee(func(d): return d.get("continent", "") == cc):
+		return false
+	var tt := _type_target()
+	if tt != "" and def.get("type", "") != tt and not _cible_relachee(func(d): return d.get("type", "") == tt):
+		return false
 	if int(strat["palier_min"]) >= 2 and not first and def["palier"] == "T1" \
 		and g.day >= int(g.data["animals"]["paliers"]["T2"]["jour_min"]):
 		return false
 	return true
+
+
+## Type d'animal visé : imposé, ou (Même type) celui que les animaux acquis et le marché favorisent le plus. Un rare
+## qui donne un bonus à ce type pèse lourd : c'est lui qui rend la collection rentable.
+func _type_target() -> String:
+	if str(strat["type_cible"]) != "":
+		return str(strat["type_cible"])
+	if not strat["meme_type"]:
+		return ""
+	var notes := {}
+	for t in g.data["animals"]["types"]:
+		notes[t] = 0.0
+	var compte := func(d: Dictionary, poids: float, poids_rare: float):
+		notes[d.get("type", "")] = float(notes.get(d.get("type", ""), 0.0)) + poids
+		var b: String = d.get("effet_rare", {}).get("type_bonus", "")
+		if b != "":
+			notes[b] = float(notes.get(b, 0.0)) + poids_rare
+	for d in _owned_defs():
+		compte.call(d, 3.0, 4.0)
+	for d in g.market_contracts:
+		compte.call(d, 1.0, 3.0)
+	return _meilleure_note(notes)
+
+
+## Continent visé : imposé, ou (Affinités) celui des animaux acquis et, à défaut, le mieux servi au marché.
+func _continent_target() -> String:
+	if str(strat["continent_cible"]) != "":
+		return str(strat["continent_cible"])
+	if not strat["affinite"]:
+		return ""
+	var notes := {}
+	for c in g.data["animals"]["continents"]:
+		notes[c] = 0.0
+	for d in _owned_defs():
+		notes[d.get("continent", "")] = float(notes.get(d.get("continent", ""), 0.0)) + 3.0
+	for d in g.market_contracts:
+		notes[d.get("continent", "")] = float(notes.get(d.get("continent", ""), 0.0)) + 1.0
+	return _meilleure_note(notes)
+
+
+func _meilleure_note(notes: Dictionary) -> String:
+	var best := ""
+	for k in notes:
+		if best == "" or float(notes[k]) > float(notes[best]):
+			best = k
+	return best
+
+
+## La cible cède si elle bloque la partie : aucun animal à portée pour ouvrir le zoo, ou beaucoup d'argent qui dort
+## sans rien de ce type au marché.
+func _cible_relachee(convient: Callable) -> bool:
+	var dispo := g.market_contracts.filter(convient)
+	if g.animals.is_empty() and (g.day >= 3 or not dispo.any(func(d): return g.money - _money_cost(d) >= _cash_floor())):
+		return true
+	return dispo.is_empty() and g.money > _cash_floor() + 60.0
 
 
 ## Part des murs de l'enceinte déjà terminés (0 à 1).
@@ -645,7 +990,7 @@ func _best_upgrade(card: GameState.Card, opts: Array) -> Dictionary:
 func _night_action() -> void:
 	var rules := g.night_action_rules()
 	var cost := int(rules["cout_amelioration"])
-	if g.night_action_error(cost) != "" or g.money - cost < _cash_floor() + float(strat["reserve"]):
+	if g.night_action_error(cost) != "" or g.money - cost < _floor_achats() + float(strat["reserve"]):
 		return
 	var cards := g.all_employees()
 	if cards.is_empty():
@@ -810,7 +1155,11 @@ func _find_entrance(r: Rect2i, camp_c: Vector2) -> Vector2i:
 func _pattern_fit_maps() -> Array:
 	var m := g.map
 	var out := []
-	for def in g.contracts:
+	var especes: Array = g.contracts
+	# Dès le jour 1 : le terrain qui convient aux animaux communs visibles au marché.
+	if especes.is_empty() and _opt("zoo_j1"):
+		especes = g.market_contracts.filter(func(d): return d["palier"] == "T1").slice(0, 3)
+	for def in especes:
 		var best := PackedInt32Array()
 		best.resize(m.w * m.h)
 		best.fill(99)
@@ -904,7 +1253,7 @@ func _index_resources() -> void:
 				if m.get_t(x, y) == ter and reach[m.idx(x, y)]:
 					tiles.append(Vector2i(x, y))
 		tiles.sort_custom(func(a, b): return c.distance_squared_to(Vector2(a)) < c.distance_squared_to(Vector2(b)))
-		resource_tiles[res] = tiles.slice(0, 40)
+		resource_tiles[res] = tiles.slice(0, 120)
 
 
 # --- Plan des enclos ---------------------------------------------------------
@@ -923,7 +1272,12 @@ func _plan_enclosure(def: Dictionary) -> Dictionary:
 	return _plan_cache[def["id"]]
 
 
-func _compute_plan(def: Dictionary) -> Dictionary:
+## park et scan : parc supposé et zone à explorer, pour juger un agrandissement avant de le construire.
+func _compute_plan(def: Dictionary, park := Rect2i(), scan := Rect2i()) -> Dictionary:
+	var suppose := park.size != Vector2i.ZERO
+	if not suppose:
+		park = zoo_rect
+		scan = zoo_rect
 	var taille := int(def["taille"])
 	var fits := []  # tailles (largeur, hauteur) des orientations du motif
 	for v in g.pattern_variants(def):
@@ -940,15 +1294,32 @@ func _compute_plan(def: Dictionary) -> Dictionary:
 				dims.append(Vector2i(a, b))
 	dims.sort_custom(func(p, q): return p.x * p.y < q.x * q.y or (p.x * p.y == q.x * q.y and absi(p.x - p.y) < absi(q.x - q.y)))
 	var walls := _usable_walls()
+	if suppose:
+		walls = {}
+		for t in _ring(park):
+			if t != entrance and t != entrance + Vector2i(1, 0):
+				walls[t] = true
+	# Voisins du même continent : +2 d'attractivité chacun, de part et d'autre d'une clôture.
+	var voisins := {}
+	for a in g.animals:
+		if a.def.get("continent", "") == def.get("continent", ""):
+			for t in a.tiles:
+				voisins[t] = true
+	for p in plans:
+		if p["def"].get("continent", "") == def.get("continent", ""):
+			for t in _rect_tiles(p["interior"]):
+				voisins[t] = true
 	# Devant l'entrée, on laisse le passage aux visiteurs.
 	var gate := Rect2i(entrance - Vector2i(1, 2), Vector2i(4, 5))
 	var best := {}
 	var best_cost := INF
 	for d in dims.slice(0, 3):
-		for y in range(zoo_rect.position.y, zoo_rect.end.y - d.y - 1):
-			for x in range(zoo_rect.position.x, zoo_rect.end.x - d.x - 1):
+		for y in range(maxi(park.position.y, scan.position.y - d.y - 1), mini(park.end.y, scan.end.y + 1) - d.y - 1):
+			for x in range(maxi(park.position.x, scan.position.x - d.x - 1), mini(park.end.x, scan.end.x + 1) - d.x - 1):
 				var outer := Rect2i(x, y, d.x + 2, d.y + 2)
 				if outer.intersects(gate):
+					continue
+				if suppose and not outer.grow(-1).intersects(scan):
 					continue
 				var interior := outer.grow(-1)
 				var ok := true
@@ -975,12 +1346,161 @@ func _compute_plan(def: Dictionary) -> Dictionary:
 				if tiles.any(func(t): return g.is_mountain(t) and not conv.any(func(c): return c[0] == t)):
 					continue
 				# Moins d'aménagements, clôtures partagées et enclos tassés contre les murs : on garde de la place.
-				var wall_dist := maxi(0, mini(mini(x - zoo_rect.position.x, y - zoo_rect.position.y), mini(zoo_rect.end.x - outer.end.x, zoo_rect.end.y - outer.end.y)))
+				var wall_dist := maxi(0, mini(mini(x - park.position.x, y - park.position.y), mini(park.end.x - outer.end.x, park.end.y - outer.end.y)))
 				var cost: float = _conv_cost(conv) * 2.0 - shared * 0.6 + wall_dist * 0.4
+				if not voisins.is_empty() and _ring(outer.grow(1)).any(func(t): return voisins.has(t)):
+					cost -= 2.5
 				if cost < best_cost:
 					best_cost = cost
 					best = {"def": def, "interior": interior, "ring": _ring(outer), "conv": conv}
 	return best
+
+
+# --- Agrandir le parc --------------------------------------------------------
+
+## Un agrandissement (ou le grand parc évolutif) attend que son nouveau mur soit fermé.
+func _extending() -> bool:
+	return target_rect.size != Vector2i.ZERO and not expanded
+
+
+## Contrat qui ne tient pas dans le parc mais qu'un agrandissement accueillerait, un à la fois.
+func _can_extend_for(def: Dictionary) -> bool:
+	if not strat["agrandir"] or _extending() or zoo_rect.size == Vector2i.ZERO or _walls_progress() < 1.0:
+		return false
+	if g.contracts.any(func(d): return _plan_enclosure(d).is_empty()):
+		return false
+	return not _extension_for(def).is_empty()
+
+
+## Début de journée : un contrat attend une place, ou le parc est presque plein.
+func _maybe_extend() -> void:
+	if zoo_rect.size == Vector2i.ZERO:
+		return
+	# Un mur qui ne se termine pas (case devenue impossible) ne doit pas bloquer les enclos pour toujours.
+	if agrandissements > 0 and _extending() and g.day - agrandi_jour >= 4:
+		agrandir_refus.append(target_rect)
+		target_rect = zoo_rect
+		expanded = true
+	if not strat["agrandir"] or _extending() or agrandissements >= AGRANDIR_MAX or _walls_progress() < 1.0 or _days_left() <= 2.0:
+		return
+	for def in g.contracts:
+		if _plan_enclosure(def).is_empty():
+			var ext := _extension_for(def)
+			if not ext.is_empty():
+				_start_extension(ext["rect"], "pour accueillir : " + str(def["nom"]))
+				return
+	if g.zoo_status()["open"] and _owned_attr() >= _attr_limit() * 0.85:
+		var best: Dictionary = {}
+		var best_note := INF
+		for c in _extension_rects():
+			var bande: Rect2i = c["strip"]
+			var note: float = float(c["murs"]) * 0.2 - bande.get_area() * 0.1 + int(c["montagnes"]) * 0.5
+			if note < best_note:
+				best_note = note
+				best = c
+		if not best.is_empty():
+			_start_extension(best["rect"], "parc presque plein")
+
+
+func _start_extension(r: Rect2i, raison: String) -> void:
+	target_rect = r
+	expanded = false
+	agrandissements += 1
+	agrandi_jour = g.day
+	for t in _ring(r):
+		reserved[t] = true
+	mt.log.append("%s commence à agrandir son parc (%s)." % [mt.names[g.index], raison])
+
+
+## Meilleur agrandissement pour cette espèce : celui où son motif demande le moins d'aménagements (terrain déjà bon
+## à proximité), puis le moins de murs. {"rect", "plan", "murs"}, ou vide.
+func _extension_for(def: Dictionary) -> Dictionary:
+	if zoo_rect.size == Vector2i.ZERO or _extending() or agrandissements >= AGRANDIR_MAX:
+		return {}
+	if _ext_jour != g.day:
+		_ext_jour = g.day
+		_ext_cache.clear()
+	var key := "%s|%d|%s" % [str(zoo_rect), fence_tiles.size(), def["id"]]
+	if _ext_cache.has(key):
+		return _ext_cache[key]
+	var best := {}
+	var best_note := INF
+	for c in _extension_rects():
+		var plan := _compute_plan(def, c["rect"], c["strip"])
+		if plan.is_empty():
+			continue
+		var note: float = _conv_cost(plan["conv"]) + float(c["murs"]) * 0.15
+		if note < best_note:
+			best_note = note
+			best = {"rect": c["rect"], "plan": plan, "murs": c["murs"]}
+	_ext_cache[key] = best
+	return best
+
+
+## Agrandissements possibles : un côté sans l'entrée, de 6 à 12 cases.
+func _extension_rects() -> Array:
+	if _ext_jour != g.day:
+		_ext_jour = g.day
+		_ext_cache.clear()
+	var key := "cotes|%s|%d" % [str(zoo_rect), fence_tiles.size()]
+	if _ext_cache.has(key):
+		return _ext_cache[key]
+	var out := []
+	var r := zoo_rect
+	for k: int in PROFONDEURS:
+		if entrance.y != r.position.y:
+			_ajoute_extension(out, Rect2i(r.position - Vector2i(0, k), r.size + Vector2i(0, k)), Rect2i(r.position - Vector2i(0, k), Vector2i(r.size.x, k)), Vector2i(0, -1))
+		if entrance.y != r.end.y - 1:
+			_ajoute_extension(out, Rect2i(r.position, r.size + Vector2i(0, k)), Rect2i(Vector2i(r.position.x, r.end.y), Vector2i(r.size.x, k)), Vector2i(0, 1))
+		if entrance.x != r.position.x:
+			_ajoute_extension(out, Rect2i(r.position - Vector2i(k, 0), r.size + Vector2i(k, 0)), Rect2i(r.position - Vector2i(k, 0), Vector2i(k, r.size.y)), Vector2i(-1, 0))
+		if entrance.x + 1 != r.end.x - 1:
+			_ajoute_extension(out, Rect2i(r.position, r.size + Vector2i(k, 0)), Rect2i(Vector2i(r.end.x, r.position.y), Vector2i(k, r.size.y)), Vector2i(1, 0))
+	_ext_cache[key] = out
+	return out
+
+
+## Retient cet agrandissement s'il est réalisable : murs posables, rien de construit dedans, et un passage possible
+## à travers l'ancien mur (les murs qui servent de côté à un enclos restent debout).
+func _ajoute_extension(out: Array, neuf: Rect2i, strip: Rect2i, cote: Vector2i) -> void:
+	var m := g.map
+	if neuf.position.x < 1 or neuf.position.y < 1 or neuf.end.x > m.w - 1 or neuf.end.y > m.h - 1:
+		return
+	if neuf.size.x > PARC_MAX.x or neuf.size.y > PARC_MAX.y or agrandir_refus.has(neuf) or neuf.intersects(m.camp.grow(2)):
+		return
+	var ancien := {}
+	for t in _ring(zoo_rect):
+		ancien[t] = true
+	var murs := 0
+	var cloture := g.building_def("cloture")
+	for t in _ring(neuf):
+		if ancien.has(t) or g.is_mountain(t):
+			continue
+		if reserved.has(t) or m.road[m.idx(t.x, t.y)] or m.get_t(t.x, t.y) == GameMap.MINE_OR or g.site_at(t) != null \
+			or g.placement_error("batiment", cloture, t, false) != "":
+			return
+		murs += 1
+	var montagnes := 0
+	for t in _rect_tiles(strip):
+		if m.road[m.idx(t.x, t.y)] or m.get_t(t.x, t.y) == GameMap.MINE_OR or g.site_at(t) != null or t == m.exit_tile or m.in_camp(t.x, t.y):
+			return
+		if g.is_mountain(t):
+			montagnes += 1
+	if montagnes * 5 > strip.get_area():
+		return
+	# Côté commun : au moins 3 cases de mur à démolir, ni coin, ni côté d'enclos.
+	var passage := 0
+	var nouveau := {}
+	for t in _ring(neuf):
+		nouveau[t] = true
+	for t in _ring(zoo_rect):
+		var sur_cote: bool = (cote.x != 0 and t.x == (zoo_rect.position.x if cote.x < 0 else zoo_rect.end.x - 1)) \
+			or (cote.y != 0 and t.y == (zoo_rect.position.y if cote.y < 0 else zoo_rect.end.y - 1))
+		if sur_cote and not nouveau.has(t) and not fence_tiles.has(t) and g.is_wall(t):
+			passage += 1
+	if passage < 3:
+		return
+	out.append({"rect": neuf, "strip": strip, "murs": murs, "montagnes": montagnes})
 
 
 ## Cases du mur de l'enceinte qu'un enclos peut prendre comme côté : pas l'entrée, et pas les murs
@@ -1167,9 +1687,14 @@ func _wants() -> Array:
 	for lvl in [2, 3]:
 		# Argent qui dort : plus de cartes en main, donc plus de bras.
 		var camp_max := 2 if g.money > _cash_floor() + ARGENT_ABONDANT else int(strat["camp"])
+		# Zoo ouvert, trois ouvriers sur quatre tiennent des postes : il faut des bras en plus avant tout le reste.
+		if _opt("camp") and g.zoo_status()["open"]:
+			camp_max = maxi(camp_max, 2 if g.has_building("camp_n2") and g.animals.size() >= 3 else 1)
 		if lvl - 1 > camp_max or day < 2:
 			break
 		var cid := "camp_n%d" % lvl
+		if lvl == 3 and strat["adaptatif"] and not g.zoo_status()["open"]:
+			break  # 70 de bois et de pierre avant le premier animal retardent trop l'ouverture
 		if not g.has_building(cid):
 			if g.placement_error("batiment", g.building_def(cid), g.map.camp.position, false) == "":
 				out.append(["batiment", g.building_def(cid), g.map.camp.position])
@@ -1226,7 +1751,7 @@ func _wants() -> Array:
 		out.append(["batiment", g.building_def("cloture"), t])
 	# 2 bis. Parc évolutif : une fois le petit parc lancé, on construit l'enceinte du grand parc,
 	# puis on démolit les anciens murs intérieurs.
-	if target_rect.size != Vector2i.ZERO and not expanded and _walls_progress() >= 1.0 and (day >= 6 or g.animals.size() >= 2):
+	if target_rect.size != Vector2i.ZERO and not expanded and _walls_progress() >= 1.0 and (day >= 6 or g.animals.size() >= 2 or agrandissements > 0):
 		var big_ring := _ring(target_rect)
 		var pending := false
 		for t in big_ring:
@@ -1271,7 +1796,7 @@ func _wants() -> Array:
 				out.append(["batiment", g.building_def(b[0]), spot])
 	# 3 ter. Kiosque d'animation : stratégie Spectacle dès l'ouverture, sinon quand l'argent abonde.
 	if not g.has_building("kiosque") and g.zoo_status()["open"] \
-		and (strat["spectacle"] or (day >= 5 and g.money > _cash_floor() + 60.0)):
+		and (strat["spectacle"] or roster_kiosque or (day >= 5 and g.money > _floor_achats() + 60.0)):
 		var kspot := _park_spot(g.building_def("kiosque"))
 		if kspot.x >= 0:
 			out.append(["batiment", g.building_def("kiosque"), kspot])
@@ -1279,7 +1804,7 @@ func _wants() -> Array:
 	if strat["boutique"] and not g.animals.is_empty() and g.site_at(shop_rect.position) == null:
 		out.append(["batiment", g.building_def("boutique"), shop_rect.position])
 	# 5. Mine d'or si l'IA vise les gros contrats.
-	if strat["mine"] and day >= 4 and float(strat["preference_palier"]) >= 1.0 and not g.mine_built \
+	if strat["mine"] and day >= 4 and float(strat["preference_palier"]) >= 1.0 and not g.mine_built 		and (not _opt("mine_apres") or g.zoo_status()["open"]) \
 		and not g.sites.any(func(s): return s.def_id() == "mine"):
 		var spot := _mine_spot()
 		if spot.x >= 0:
@@ -1347,12 +1872,15 @@ func _finish_expansion() -> void:
 		big[t] = true
 	for t in _ring(zoo_rect):
 		if not big.has(t):
+			if fence_tiles.has(t):
+				continue  # ce mur sert de côté à un enclos : il reste debout
 			var s := g.site_at(t)
 			if s and s.def_id() == "cloture":
 				g.demolish(s)
 			reserved.erase(t)
 	zoo_rect = target_rect
 	expanded = true
+	agrandis += 1
 	mt.log.append("%s agrandit son parc." % mt.names[g.index])
 
 
@@ -1371,6 +1899,8 @@ func _place_wants() -> void:
 			first_enclosure = true  # Fast expand : le camp passe avant la réserve
 		if argent > 0.0 and g.money - argent < (0.0 if first_enclosure else floor_cash):
 			continue
+		if strat["adaptatif"] and str(wnt[1].get("id", "")).begins_with("camp_n"):
+			_acheter_manque(wnt[1])
 		var placed := g.place(wnt[0], wnt[1], wnt[2])
 		if placed != null:
 			open += 1
@@ -1380,9 +1910,27 @@ func _place_wants() -> void:
 					reserved[t] = true
 
 
+## Un gros chantier ne se paie jamais avec un stock vidé par les petits : on achète ce qui manque si l'argent suffit.
+func _acheter_manque(def: Dictionary) -> void:
+	var cout: Dictionary = def.get("cout", {})
+	var total := float(cout.get("argent", 0))
+	var manque := {}
+	for res in ["bois", "pierre"]:
+		manque[res] = maxi(0, int(ceil(float(cout.get(res, 0)) - g.stock[res])))
+		total += manque[res] * g.buy_price(res)
+	if g.money - total < _cash_floor():
+		return
+	for res in manque:
+		if manque[res] > 0:
+			g.buy_material(res, manque[res])
+
+
 ## Ressources manquantes pour les prochains chantiers voulus.
 func _needs() -> Dictionary:
 	var need := {"bois": 0.0, "pierre": 0.0, "or": 0.0}
+	if zoo_rect.size == Vector2i.ZERO:
+		need["bois"] = 30.0  # rien de prévu encore : l'enceinte demandera surtout de la pierre
+		need["pierre"] = 60.0
 	var n := 0
 	for wnt in _wants():
 		if n >= 25:
@@ -1554,6 +2102,7 @@ func _assign(w: GameState.Worker) -> void:
 			return
 	# Campagne publicitaire à mener (en cours ou voulue) : un ouvrier part à l'extérieur s'il n'y a personne.
 	if not g.workers.any(func(o): return o.offmap or o.task.get("type") == "lobby") and not w.unpaid and g.workers.size() >= 4 \
+		and (not strat["adaptatif"] or _free_hands() > _builders_needed()) \
 		and (not g.campaign.is_empty() or not _campaign_wanted().is_empty()):
 		g.order([w], g.map.exit_tile)
 		return
@@ -1561,7 +2110,7 @@ func _assign(w: GameState.Worker) -> void:
 		lobby_today += 1
 		g.order([w], g.map.exit_tile)
 		return
-	if strat["formation"] and g.day <= 8 and w.card.niveau < 3 and not w.unpaid:
+	if strat["formation"] and g.day <= 8 and w.card.niveau < 3 and not w.unpaid and (not strat["adaptatif"] or g.zoo_status()["open"]):
 		var school := g.sites.filter(func(s): return s.done and s.def_id() == "formation")
 		var trainees := g.workers.filter(func(o): return o.task.get("kind") == "formation").size()
 		if not school.is_empty() and trainees < (3 if w.card.metier["id"] == "formateur" else 2):
@@ -1577,7 +2126,12 @@ func _assign(w: GameState.Worker) -> void:
 ## L'argent en trop achète le bois et la pierre qui manquent aux prochains chantiers.
 func _buy_materials() -> void:
 	# Rush or : l'or vendu paie les matériaux, on achète plus volontiers (l'extraction de bois et de pierre est délaissée)
-	var spare := g.money - _cash_floor() - (5.0 if strat["rush_or"] else float(strat["reserve"]) + 20.0)
+	var marge := float(strat["reserve"]) + 20.0
+	if strat["rush_or"]:
+		marge = 5.0
+	elif _opt("marge") and g.zoo_status()["open"]:
+		marge = 5.0 + (0.0 if not plans.is_empty() else epargne)  # la recette tombe toute la journée
+	var spare := g.money - _cash_floor() - marge
 	if spare <= 0.0:
 		return
 	var needs := _needs()
@@ -1688,8 +2242,8 @@ func _staff_posts() -> void:
 		if s.done and s.def_id() == "entree" and open:
 			_ensure_post(s, "ticket")
 			# File qui s'allonge : un deuxième guichetier
-			if g.visitor_queue >= 10 and _free_hands() > bras:
-				_ensure_post(s, "ticket", 2)
+			if g.visitor_queue >= 10 and (_free_hands() > bras or (strat["adaptatif"] and g.visitor_queue >= 15 and _free_hands() >= 1)):
+				_ensure_post(s, "ticket", 3 if g.visitor_queue >= 30 else 2)
 		elif s.done and s.def_id() == "boutique" and open:
 			if _free_hands() > bras:
 				_ensure_post(s, "shop")
@@ -1828,13 +2382,17 @@ func _gather(w: GameState.Worker) -> void:
 				return
 	var deficit_b: float = needs["bois"] - g.stock["bois"]
 	var deficit_p: float = needs["pierre"] - g.stock["pierre"]
-	if deficit_b <= 0 and deficit_p <= 0 or strat["specialisation"]:
+	if (deficit_b <= 0 and deficit_p <= 0) or (strat["specialisation"] and deficit_b > 0 and deficit_p > 0):
 		res = "bois" if g.efficiency(w.card, "extraire_bois") >= g.efficiency(w.card, "extraire_pierre") else "pierre"
+	elif strat["specialisation"]:
+		res = "bois" if deficit_b > 0 else "pierre"  # un seul manque : même les moins doués s'y mettent, sinon le zoo n'ouvre pas
 	else:
 		var wb: float = deficit_b * g.efficiency(w.card, "extraire_bois") / 6.0
 		var wp: float = deficit_p * g.efficiency(w.card, "extraire_pierre") / 4.0
 		res = "bois" if wb >= wp else "pierre"
-	var tiles: Array = resource_tiles.get(res, [])
+	# Pas de récolte sous un bâtiment (un ordre sur l'entrée poste l'ouvrier au guichet, zoo fermé compris) ni dans
+	# un enclos prévu (une forêt coupée n'est plus une forêt, et le motif de l'animal disparaît).
+	var tiles: Array = resource_tiles.get(res, []).filter(func(t): return g.site_at(t) == null and not reserved.has(t))
 	if tiles.is_empty():
 		return
 	# La case la moins occupée parmi les plus proches du camp.

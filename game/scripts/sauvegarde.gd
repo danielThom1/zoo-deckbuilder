@@ -69,7 +69,9 @@ static func ecrire(m: Match) -> void:
 	var ias := []
 	for ai in m.ais:
 		ias.append(null if ai == null else {"strat": ai.strat, "zoo_rect": ai.zoo_rect, "target_rect": ai.target_rect, "expanded": ai.expanded, "entrance": ai.entrance,
-			"shop_rect": ai.shop_rect, "plans": ai.plans, "reserved": ai.reserved, "fence_tiles": ai.fence_tiles})
+			"shop_rect": ai.shop_rect, "plans": ai.plans, "reserved": ai.reserved, "fence_tiles": ai.fence_tiles,
+			"agrandissements": ai.agrandissements, "agrandis": ai.agrandis, "agrandi_jour": ai.agrandi_jour, "agrandir_refus": ai.agrandir_refus,
+			"roster_kiosque": ai.roster_kiosque, "epargne": ai.epargne})
 	var d := {"version": VERSION, "seed": m.seed_value, "joueurs": joueurs, "ias": ias, "match": {"day": m.day, "next_card_id": m.next_card_id, "perso_bag": m.perso_bag,
 		"names": Array(m.names), "market_workers": _cartes(m.market_workers), "market_contracts": m.market_contracts, "market_actions": _cartes(m.market_actions),
 		"current_event": m.current_event, "history": m.history, "rng": m.rng.state}}
@@ -168,6 +170,12 @@ static func charger(data: Dictionary) -> Match:
 			ai.zoo_rect = ia["zoo_rect"]
 			ai.target_rect = ia["target_rect"]
 			ai.expanded = ia["expanded"]
+			ai.agrandissements = int(ia.get("agrandissements", 0))
+			ai.agrandis = int(ia.get("agrandis", 0))
+			ai.agrandi_jour = int(ia.get("agrandi_jour", -1))
+			ai.agrandir_refus = ia.get("agrandir_refus", [])
+			ai.roster_kiosque = bool(ia.get("roster_kiosque", false))
+			ai.epargne = float(ia.get("epargne", 0.0))
 			ai.entrance = ia["entrance"]
 			ai.shop_rect = ia["shop_rect"]
 			ai.plans = ia["plans"]

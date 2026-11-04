@@ -24,6 +24,17 @@ const STRATEGIES := [
 	{"nom": "Rush or + route", "rush_or": true, "route_mine": true},
 	{"nom": "Spectacle", "spectacle": true},
 	{"nom": "Formation légendaire", "formation": true, "camp": 1},
+	{"nom": "Ancienne IA", "adaptatif": false, "agrandir": false, "score_simple": true},
+	{"nom": "Sans agrandir", "agrandir": false},
+	{"nom": "Même type", "meme_type": true},
+	{"nom": "Prédateurs", "type_cible": "predateur"},
+	{"nom": "Aériens", "type_cible": "aerien"},
+	{"nom": "Aquatiques", "type_cible": "aquatique"},
+	{"nom": "Herbivores", "type_cible": "herbivore"},
+	{"nom": "Afrique", "continent_cible": "Afrique"},
+	{"nom": "Amérique", "continent_cible": "Amerique"},
+	{"nom": "Asie", "continent_cible": "Asie"},
+	{"nom": "Europe", "continent_cible": "Europe"},
 ]
 
 
@@ -89,7 +100,8 @@ func _play(gi: int, data: Dictionary, dt: float, detail: bool) -> Dictionary:
 	var seed := 1000 + gi * 17
 	var picks := []
 	for k in 4:
-		picks.append(STRATEGIES[(gi + k) % STRATEGIES.size()])  # 4 stratégies différentes, chacune autant de fois
+		# 4 stratégies différentes, chacune autant de fois ; l'écart varie pour qu'elles ne croisent pas toujours les mêmes.
+		picks.append(STRATEGIES[(gi + k * (1 + gi % 5)) % STRATEGIES.size()])
 	var m := Match.new(data, seed, 4, -1, picks)
 	var first_counts := [0, 0, 0, 0]
 	m.advance_ai_draft()
@@ -128,7 +140,9 @@ func _play(gi: int, data: Dictionary, dt: float, detail: bool) -> Dictionary:
 		players.append({"nom": picks[i]["nom"], "rep": p.reputation(), "money": p.money, "animals": p.animals.size(),
 			"employees": p.employees(), "influence": p.influence, "first_buyer": first_counts[i],
 			"paliers": p.animals.map(func(a): return a.def["palier"]), "especes": p.animals.map(func(a): return a.def["nom"]),
-			"entrepots": p.sites.filter(func(st): return st.done and st.def_id() == "entrepot").size()})
+			"entrepots": p.sites.filter(func(st): return st.done and st.def_id() == "entrepot").size(),
+			"agrandissements": m.ais[i].agrandis, "parc": m.ais[i].zoo_rect.get_area(),
+			"sources": p.rep_sources})
 	var history := []
 	for row in m.history:
 		history.append(row.map(func(e): return {"day": e["day"], "rep": e["rep"], "money": e["money"], "visitors": e["visitors"]}))
@@ -166,12 +180,13 @@ func _write_report(results: Dictionary, n_games: int, dt: float, data: Dictionar
 	var stats := {}
 	for st in STRATEGIES:
 		stats[st["nom"]] = {"games": 0, "wins": 0, "rep": 0.0, "money": 0.0, "animals": 0.0, "tiers": {"T1": 0, "T2": 0, "T3": 0},
-			"employees": 0.0, "influence": 0.0, "first_buyer": 0, "visitors": 0.0, "win_days": [], "entrepots": 0.0}
+			"employees": 0.0, "influence": 0.0, "first_buyer": 0, "visitors": 0.0, "win_days": [], "entrepots": 0.0, "agrandissements": 0.0, "parc": 0.0}
 	var games := []
 	var rep_by_day := {}  # jour -> somme des réputations (moyenne sur tous les joueurs)
 	var money_by_day := {}
 	var players_by_day := {}
 	var contract_counts := {}
+	var rep_sources := {}
 	for gi in n_games:
 		var r: Dictionary = results[gi]
 		for i in 4:
@@ -185,6 +200,11 @@ func _write_report(results: Dictionary, n_games: int, dt: float, data: Dictionar
 			s["influence"] += p["influence"]
 			s["first_buyer"] += int(p["first_buyer"])
 			s["entrepots"] += float(p.get("entrepots", 0))
+			s["agrandissements"] += float(p.get("agrandissements", 0))
+			s["parc"] += float(p.get("parc", 0))
+			var src: Dictionary = p.get("sources", {})
+			for k in src:
+				rep_sources[k] = float(rep_sources.get(k, 0.0)) + float(src[k])
 			for t in p["paliers"]:
 				s["tiers"][t] += 1
 			for nm in p["especes"]:
@@ -213,8 +233,8 @@ func _write_report(results: Dictionary, n_games: int, dt: float, data: Dictionar
 	L.append("")
 	L.append("Classement par taux de victoire, puis par jour moyen de victoire (plus tôt = mieux).")
 	L.append("")
-	L.append("| Stratégie | Victoires | Taux | Jour moyen de victoire | Victoire la plus rapide | Réputation moyenne en fin de partie | Entrepôts |")
-	L.append("|---|---|---|---|---|---|---|")
+	L.append("| Stratégie | Victoires | Taux | Jour moyen de victoire | Victoire la plus rapide | Réputation moyenne en fin de partie | Animaux | T1 / T2 / T3 | Agrandissements | Parc (cases) | Entrepôts |")
+	L.append("|---|---|---|---|---|---|---|---|---|---|---|")
 	var ranking: Array = stats.keys()
 	ranking.sort_custom(func(a, b):
 		var sa: Dictionary = stats[a]
@@ -230,9 +250,11 @@ func _write_report(results: Dictionary, n_games: int, dt: float, data: Dictionar
 		var s: Dictionary = stats[nom]
 		var n: int = maxi(1, s["games"])
 		var wd: Array = s["win_days"]
-		L.append("| %s | %d / %d | %d %% | %s | %s | %.0f | %.1f |" % [nom, s["wins"], s["games"], roundi(100.0 * s["wins"] / n),
+		L.append("| %s | %d / %d | %d %% | %s | %s | %.0f | %.1f | %.1f / %.1f / %.1f | %.1f | %.0f | %.1f |" % [nom, s["wins"], s["games"], roundi(100.0 * s["wins"] / n),
 			"—" if wd.is_empty() else "%.1f" % (float(wd.reduce(func(x, y): return x + y, 0)) / wd.size()),
-			"—" if wd.is_empty() else "jour %d" % wd.min(), s["rep"] / n, s["entrepots"] / n])
+			"—" if wd.is_empty() else "jour %d" % wd.min(), s["rep"] / n, s["animals"] / n,
+			s["tiers"]["T1"] / float(n), s["tiers"]["T2"] / float(n), s["tiers"]["T3"] / float(n),
+			s["agrandissements"] / n, s["parc"] / n, s["entrepots"] / n])
 	var record: Dictionary = {}
 	for gm in games:
 		if record.is_empty() or gm["day"] < record["day"]:
@@ -241,6 +263,14 @@ func _write_report(results: Dictionary, n_games: int, dt: float, data: Dictionar
 		L.append("")
 		L.append("**Record** : partie terminée au jour %d, gagnée par %s (%d de réputation, graine %d)." % [
 			record["day"], record["winner"], record["rep"], record["seed"]])
+	L.append("")
+	L.append("## D'où vient la réputation")
+	L.append("")
+	var rep_total := 0.0
+	for k in rep_sources:
+		rep_total += float(rep_sources[k])
+	for k in rep_sources:
+		L.append("- %s : %d %%" % [k, roundi(100.0 * float(rep_sources[k]) / maxf(1.0, rep_total))])
 	L.append("")
 	L.append("## Résultats par stratégie")
 	L.append("")
