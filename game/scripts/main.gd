@@ -129,8 +129,10 @@ var event_label: Label
 var hover_card: Control  # carte affichée au survol d'un nom d'ouvrier
 var hover_src: Control
 var trade_rows := {}  # ressource -> [SpinBox, bouton Vendre, bouton Acheter]
-var label_buttons := {}  # label (id) -> bouton d'achat (en or, avec un Marchand)
+var label_buttons := {}  # label (id) -> bouton d'achat (en or, prix doublé sans Marchand)
 var trade_note: Label
+var trade_card: Control  # carte « Bourse des ressources » du panneau de droite
+var tutoriel: Tutoriel  # tutoriel scénarisé en cours
 var pub_note: Label
 var pub_buttons := {}  # id de campagne -> bouton
 # Choix d'un ouvrier (cartes Rupture de contrat et Promotion, échange à l'Agence d'intérim)
@@ -227,7 +229,7 @@ func _ready() -> void:
 	# icônes SVG du monde lissées quand on dézoome
 	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	# Arguments de test : on démarre directement. Sinon, menu de lancement.
-	if args.has("spectateur") or args.has("autodraft") or args.has("autoplay") or args.has("joueurs"):
+	if args.has("spectateur") or args.has("autodraft") or args.has("autoplay") or args.has("joueurs") or args.has("tutoriel"):
 		_start(args.has("spectateur"))
 	else:
 		_show_menu()
@@ -239,6 +241,10 @@ func _show_menu() -> void:
 	add_child(layer)
 	var menu := MenuPrincipal.new()
 	layer.add_child(menu)
+	menu.tutoriel.connect(func():
+		args["tutoriel"] = ""
+		layer.queue_free()
+		_start(false))
 	menu.continuer.connect(func():
 		args["charger"] = ""
 		layer.queue_free()
@@ -263,6 +269,9 @@ func _start(watch: bool) -> void:
 	spectator = watch
 	var map_seed: int = int(args["seed"]) if args.has("seed") else randi() % 1000000000
 	var nb := int(args.get("joueurs", "4"))
+	if args.has("tutoriel"):
+		map_seed = Tutoriel.GRAINE
+		nb = 4
 	var strategies: Array = WATCH_STRATEGIES if spectator else []
 	# --difficile (ou choix du menu) : les IA jouent les stratégies apprises par l'IA évolutive
 	if args.has("difficile") and FileAccess.file_exists("res://data/ia_difficile.json"):
@@ -272,7 +281,9 @@ func _start(watch: bool) -> void:
 			strategies.append(null if i == 0 and not spectator else hard[(i - (0 if spectator else 1)) % hard.size()])
 	var charge: Match = Sauvegarde.charger(GameData.load_all()) if args.has("charger") else null
 	mt = charge if charge else Match.new(GameData.load_all(), map_seed, nb, -1 if spectator else 0, strategies)
-	mt.autosave = not spectator and not args.has("shot")
+	mt.autosave = not spectator and not args.has("shot") and not args.has("tutoriel")
+	if args.has("tutoriel"):
+		Tutoriel.preparer(mt)
 	game = mt.players[0]
 	RenderingServer.set_default_clear_color(UiTokens.FOND_ECRAN)
 	_build_terrain()
@@ -288,6 +299,12 @@ func _start(watch: bool) -> void:
 		+ Vector2(0, vh / 2.0 - visible_center_y) / camera.zoom
 	_build_ui()
 	_set_speed(8.0 if spectator else 1.0)
+	if args.has("tutoriel"):
+		var tuto_layer := CanvasLayer.new()
+		tuto_layer.layer = 20
+		add_child(tuto_layer)
+		tutoriel = Tutoriel.new(self, args.has("tuto-auto"), args.get("tuto-dossier", ""))
+		tuto_layer.add_child(tutoriel)
 	if charge:
 		Sauvegarde.reprendre(mt)
 		_set_speed(0.0)
@@ -626,6 +643,8 @@ func _draw() -> void:
 			draw_rect(Rect2(Vector2(t) * TILE, Vector2(TILE, TILE)), Color(UiTokens.SELECTION, 0.18))
 		for t in game.pattern_status(selected_animal.def, selected_animal.tiles)["tiles"]:
 			draw_rect(Rect2(Vector2(t) * TILE + Vector2(2, 2), Vector2(TILE - 4, TILE - 4)), UiTokens.SELECTION, false, 1.5)
+	if tutoriel:
+		tutoriel.dessiner_monde(self, TILE)
 
 
 func _draw_site(s: GameState.Site) -> void:
@@ -1430,6 +1449,10 @@ func _try_place(t: Vector2i, first_click: bool) -> void:
 	last_paint = t
 	var kind: String = build_choice["kind"]
 	var def: Dictionary = build_choice["def"]
+	if tutoriel and not tutoriel.pose_permise(kind, def, _build_origin(t), t):
+		if first_click:
+			game.say("Hubert de la Marge n'a pas validé cet emplacement. Suivez la zone jaune.")
+		return
 	if kind == "animal":
 		var in_park: bool = game.enclosure_at(t).get("park", false)
 		var aerr := game.install_animal(def, t)
@@ -1575,6 +1598,8 @@ func _pan_keys(delta: float) -> void:
 
 
 func _set_speed(s: float) -> void:
+	if tutoriel and tutoriel.temps_verrouille:
+		return
 	speed = s
 	for k in speed_buttons:
 		speed_buttons[k].button_pressed = (k == s)
@@ -1948,9 +1973,10 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 	btn_demolish.focus_mode = Control.FOCUS_NONE
 	btn_demolish.pressed.connect(_delete_selection)
 	rv.add_child(btn_demolish)
-	# Marché : vendre et acheter la quantité choisie (Marchand au camp ou au bâtiment Marché pour de meilleurs prix)
+	# Bourse des ressources : vendre et acheter la quantité choisie (Marchand au camp ou au bâtiment Marché pour de meilleurs prix)
 	if not spectator:
-		var cm := _fiche_carte(rv, "MARCHÉ", "metier_marchand", UiTokens.RESSOURCES["argent"]["couleur"])
+		var cm := _fiche_carte(rv, "BOURSE DES RESSOURCES", "metier_marchand", UiTokens.RESSOURCES["argent"]["couleur"])
+		trade_card = cm.get_parent().get_parent()
 		rv = cm
 		trade_note = Composants.label("", "TexteSecondaire")
 		trade_note.add_theme_font_size_override("font_size", 12)
@@ -1987,7 +2013,7 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 			row.add_child(bb)
 			trade_rows[res] = [spin, sb, bb]
 		# Labels : de la réputation contre de l'or, achetés par un Marchand déployé (une fois chacun)
-		var lt := Composants.label("Labels (or, avec un Marchand déployé)", "TexteSecondaire")
+		var lt := Composants.label("Labels (or ; prix doublé sans Marchand déployé)", "TexteSecondaire")
 		lt.add_theme_font_size_override("font_size", 12)
 		rv.add_child(lt)
 		for ld in game.label_defs():
@@ -2182,7 +2208,9 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 	end_day_btn.offset_right = -18
 	end_day_btn.offset_top = -64
 	end_day_btn.offset_bottom = -18
-	end_day_btn.pressed.connect(func(): game.end_day())
+	end_day_btn.pressed.connect(func():
+		if tutoriel == null or tutoriel.fin_de_journee_permise():
+			game.end_day())
 	end_day_btn.visible = not spectator
 	ui.add_child(end_day_btn)
 
@@ -4536,7 +4564,7 @@ func _update_trade() -> void:
 	for ld in game.label_defs():
 		var lb: Button = label_buttons[ld["id"]]
 		var lerr := game.label_error(ld)
-		lb.text = "%s · %d or → +%d réputation%s" % [ld["nom"], int(ld["or"]), int(ld["reputation"]), " ✓" if game.labels_owned.has(ld["id"]) else ""]
+		lb.text = "%s · %d or → +%d réputation%s" % [ld["nom"], int(game.label_price(ld)), int(ld["reputation"]), " ✓" if game.labels_owned.has(ld["id"]) else ""]
 		lb.disabled = lerr != ""
 		lb.tooltip_text = lerr
 	var rate := game.sell_rate()

@@ -4,6 +4,8 @@ extends RefCounted
 ## (déployer, donner des ordres, placer des chantiers, installer des animaux, acheter au marché…).
 ## Les réglages de « stratégie » servent aux simulations d'équilibrage (tests/balance_sim.gd).
 
+const SURPLUS_STOCK := 30.0  # stock gardé en plus des besoins avant de vendre pour payer les chantiers
+const SURPLUS_ARGENT := 30.0  # argent visé au-dessus du plancher de dépenses
 const DEFAULT_STRATEGY := {
 	"nom": "Équilibrée",
 	"lobbyistes_max": 0,  # ouvriers non-Lobbyistes envoyés en lobbying chaque jour
@@ -25,6 +27,9 @@ const DEFAULT_STRATEGY := {
 	"cartes": false,  # une carte d'action chaque nuit quand l'argent le permet
 	"affinite": false,  # contrats d'un seul continent (affinités), terrain aménagé pour eux
 	"palier_min": 1,  # 2 : plus de contrats T1 une fois les T2 disponibles (sauf premier animal)
+	"fast_expand": false,  # améliore le camp d'abord (+1 carte en main), le zoo ensuite
+	"route_mine": false,  # relie la mine au réseau de routes (les mineurs y vont deux fois plus vite)
+	"explore": 0.0,  # part de choix au hasard pour les améliorations et les cartes d'action (étude)
 	"spectacle": false,  # Kiosque et boutique tôt, Animateur et Vendeur recherchés : la réputation par les spectacles
 }
 
@@ -69,7 +74,11 @@ func _init(the_match: Match, state: GameState, strategy: Dictionary) -> void:
 
 ## Bonus ajouté à la valeur de base d'une carte selon les besoins de cette IA.
 func card_bonus(c: GameState.Card) -> float:
-	return _card_bonus(c) + float(strat.get("poids_metiers", {}).get(c.metier["id"], 0.0))
+	var v := _card_bonus(c) + float(strat.get("poids_metiers", {}).get(c.metier["id"], 0.0))
+	var pt: Dictionary = strat.get("poids_traits", {})
+	for t in c.traits:
+		v += float(pt.get(t, 0.0))
+	return v
 
 
 func _card_bonus(c: GameState.Card) -> float:
@@ -195,6 +204,10 @@ func _play_cadres() -> void:
 
 ## Intérêt d'une carte d'action pour cette IA (0 : inutile pour l'instant).
 func _action_value(c: GameState.Card) -> float:
+	return _base_action_value(c) + float(strat.get("poids_cartes", {}).get(c.action["id"], 0.0))
+
+
+func _base_action_value(c: GameState.Card) -> float:
 	match c.action["id"]:
 		"heures_sup":
 			return 3.0
@@ -247,6 +260,24 @@ func _manual_value(c: GameState.Card) -> float:
 	if c.metier["categorie"] == "cadre" or c.traits.has("col_blanc"):
 		v -= 3.0
 	return v
+
+
+## Trésorerie sous le plancher de dépenses et stock qui dort : vend le surplus, sinon l'IA ne peut plus rien construire
+## (chantiers refusés faute d'argent) et reste à 0 de réputation, assise sur des centaines de bois.
+func _sell_surplus() -> void:
+	var target := _cash_floor() + float(strat["reserve"]) + SURPLUS_ARGENT
+	if g.money >= target:
+		return
+	var needs := _needs()
+	var keep := {}
+	var missing := target - g.money
+	for res in ["bois", "pierre"]:
+		var extra := maxf(0.0, floorf(g.stock[res] - float(needs[res]) - SURPLUS_STOCK))
+		var price := g.sell_price(res)
+		var units := minf(extra, ceilf(missing / price)) if price > 0.0 else 0.0
+		missing -= units * price
+		keep[res] = g.stock[res] - units
+	g.sell_stock(keep, ["bois", "pierre"])
 
 
 ## Vend juste assez de stock (l'or d'abord, puis le bois, puis la pierre) pour atteindre `target` d'argent.
@@ -347,8 +378,10 @@ func update(dt: float) -> void:
 				g.order([w], market[0].rect.position if not market.is_empty() else g.map.camp.get_center())
 	if g.money < 6.0 and g.stock["bois"] + g.stock["pierre"] + g.stock["or"] >= 5:
 		_sell_for(_cash_floor())
+	_sell_surplus()
+	var a_marchand := g.all_employees().any(func(c): return c.metier["id"] == "marchand")
 	for ld in g.label_defs():
-		if g.label_error(ld) == "":
+		if g.label_error(ld) == "" and (not a_marchand or g.label_price(ld) <= float(ld["or"])):
 			g.buy_label(ld)
 	# Rush or : l'or extrait est vendu au fur et à mesure (petite réserve pour les contrats et le prochain label),
 	# l'argent paie les matériaux.
@@ -397,6 +430,8 @@ func on_night_stage(stage: String) -> void:
 
 
 func _night_contracts() -> void:
+	if strat["fast_expand"] and not _camp_upgraded():
+		return
 	# Contrats (jusqu'à 2 par nuit, le 2e plus cher)
 	for attempt in 2:
 		# Le premier contrat oriente le choix de l'emplacement du zoo ; les suivants attendent que l'enceinte avance.
@@ -423,6 +458,7 @@ func _night_contracts() -> void:
 				# Argent abondant (fin de partie) : la réputation gagnée compte plus que le prix, d'où les T2/T3.
 				var price_weight := 1.0 if cost * 3.0 > g.money - _cash_floor() else 0.3
 				var score := _rep_gain(def) * pow(tier, float(strat["preference_palier"]) - 1.0) / (cost * price_weight + 10.0)
+				score *= pow(2.0, float(strat.get("poids_animaux", {}).get(def["id"], 0.0)))
 				if score > best_score:
 					best_score = score
 					best = def
@@ -463,6 +499,12 @@ func _night_hire() -> void:
 
 ## Carte d'action : une par nuit quand l'argent abonde, 4 au plus dans le deck (sinon elles diluent la main).
 func _night_buy_action() -> void:
+	# Étude : une carte au hasard de temps en temps, pour que toutes soient jouées
+	if g.rng.randf() < float(strat["explore"]) and not mt.market_actions.is_empty():
+		var rc: GameState.Card = mt.market_actions[g.rng.randi_range(0, mt.market_actions.size() - 1)]
+		if g.action_error(rc) == "" and g.money - float(rc.action["cout"]) >= _cash_floor():
+			g.buy_action(rc)
+		return
 	if strat["cartes"]:
 		var pick: GameState.Card = null
 		for c in mt.market_actions:
@@ -569,6 +611,19 @@ func _choose_level_upgrades() -> void:
 
 
 func _best_upgrade(card: GameState.Card, opts: Array) -> Dictionary:
+	if g.rng.randf() < float(strat["explore"]):
+		return opts[g.rng.randi_range(0, opts.size() - 1)]
+	var learned: Dictionary = strat.get("poids_ameliorations", {})
+	if not learned.is_empty():
+		var mids: Array = g.data["workers"]["ameliorations_metier"].get(card.metier["id"], []).map(func(u): return u["id"])
+		var best: Dictionary = opts[0]
+		var best_s := -INF
+		for o in opts:
+			var sc := float(learned.get(o["id"], 0.0)) + (3.0 if o["id"] == "guerison" else (2.0 if o["id"] == "specialite_up" else (1.0 if mids.has(o["id"]) else 0.0)))
+			if sc > best_s:
+				best_s = sc
+				best = o
+		return best
 	for o in opts:
 		if o["id"] == "guerison":
 			return o
@@ -661,8 +716,8 @@ func _ring_ok(r: Rect2i) -> bool:
 	var m := g.map
 	for t in _ring(r):
 		var ter := m.get_t(t.x, t.y)
-		if m.road[m.idx(t.x, t.y)] or ter == GameMap.MINE_OR:
-			return false
+		if m.road[m.idx(t.x, t.y)] or ter == GameMap.MINE_OR or g.site_at(t) != null:
+			return false  # une route, la mine ou un bâtiment déjà posé empêcheraient de fermer l'enceinte
 	return true
 
 
@@ -752,6 +807,9 @@ func _pattern_fit_maps() -> Array:
 
 
 func _zoo_score(r: Rect2i, camp_c: Vector2, fit: Array) -> float:
+	# Un bâtiment déjà posé sur le pourtour (mine, entrepôt, marché) empêcherait de fermer l'enceinte.
+	if not g.sites.is_empty() and _ring(r).any(func(t): return g.site_at(t) != null):
+		return INF
 	var m := g.map
 	var water := 0
 	for t in _ring(r):
@@ -999,7 +1057,7 @@ func _ensure_plans() -> void:
 func _try_install() -> void:
 	for p in plans.duplicate():
 		var ring: Array = p["ring"]
-		if not ring.all(func(t): return g.is_fence(t) or g.is_wall(t)):
+		if not ring.all(func(t): return g.is_fence(t) or g.is_wall(t) or g.is_mountain(t)):
 			continue
 		var interior: Rect2i = p["interior"]
 		if _rect_tiles(interior).any(func(t): return g.site_at(t) != null and not g.is_decor(t)):
@@ -1038,6 +1096,10 @@ func _place_decor(def: Dictionary, interior: Rect2i) -> bool:
 func _wants() -> Array:
 	var out := []
 	var day := g.day
+	if strat["fast_expand"] and not _camp_upgraded():
+		if not g.has_building("camp_n2") and g.placement_error("batiment", g.building_def("camp_n2"), g.map.camp.position, false) == "":
+			out.append(["batiment", g.building_def("camp_n2"), g.map.camp.position])
+		return out
 	# 1. Une maison quand le logement est plein (pour pouvoir embaucher).
 	var houses := g.sites.filter(func(s): return s.def_id() == "maison").size()
 	if strat["embauche"] and day >= 2 and g.employees() >= g.housing() and houses < int(strat["maisons_max"]) \
@@ -1082,6 +1144,15 @@ func _wants() -> Array:
 		var mspot := _mine_spot()
 		if mspot.x >= 0:
 			out.append(["batiment", g.building_def("mine"), mspot])
+	# 1 sexies. Route de la mine.
+	if strat["route_mine"] and g.mine_built:
+		var nr := 0
+		for t in _mine_road():
+			if nr >= 12:
+				break
+			if g.site_at(t) == null and not g.map.road[g.map.idx(t.x, t.y)]:
+				out.append(["batiment", g.building_def("pont" if g.map.get_t(t.x, t.y) == GameMap.EAU else "route"), t])
+				nr += 1
 	# 1 ter. Marché : vendre plus cher (stratégie « Marché »).
 	if strat["marche"] and day >= 2 and not g.has_building("comptoir"):
 		var cspot := _spot_near_camp(g.building_def("comptoir"))
@@ -1150,6 +1221,29 @@ func _wants() -> Array:
 	return out
 
 
+func _camp_upgraded() -> bool:
+	return g.sites.any(func(s): return s.done and s.def_id() == "camp_n2")
+
+
+## Route de la mine jusqu'au réseau (Accès, routes, camp) : la case libre autour de la mine la plus proche du camp.
+func _mine_road() -> Array[Vector2i]:
+	return _cached("route_mine", _search_mine_road)
+
+
+func _search_mine_road() -> Array[Vector2i]:
+	var mines := g.sites.filter(func(s): return s.done and s.def_id() == "mine")
+	if mines.is_empty():
+		return []
+	var c := Vector2(g.map.camp.get_center())
+	var cases: Array = g.work_tiles(mines[0]).filter(func(t): return g.site_at(t) == null)
+	cases.sort_custom(func(a, b): return c.distance_squared_to(Vector2(a)) < c.distance_squared_to(Vector2(b)))
+	for t in cases.slice(0, 4):
+		var p := _road_plan_to(t, _park_area())
+		if not p.is_empty():
+			return p
+	return []
+
+
 ## Rush or : chantiers de l'économie de l'or, dans l'ordre (mine, entrepôt à côté, Marché).
 func _rush_wants() -> Array:
 	var out := []
@@ -1207,6 +1301,8 @@ func _place_wants() -> void:
 		# premier enclos : sans animal il n'y a aucun revenu, et garder la réserve bloquerait la partie.
 		var argent := float(wnt[1].get("cout", {}).get("argent", 0))
 		var first_enclosure: bool = g.animals.is_empty() and (wnt[0] == "amenagement" or wnt[1].get("id") == "enclos")
+		if strat["fast_expand"] and str(wnt[1].get("id", "")) == "camp_n2":
+			first_enclosure = true  # Fast expand : le camp passe avant la réserve
 		if argent > 0.0 and g.money - argent < (0.0 if first_enclosure else floor_cash):
 			continue
 		var placed := g.place(wnt[0], wnt[1], wnt[2])

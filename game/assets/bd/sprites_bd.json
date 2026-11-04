@@ -527,6 +527,78 @@
    193
   ]
  },
+ "bouquetin": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/bouquetin.png",
+  "pied": [
+   117,
+   193
+  ],
+  "taille": [
+   235,
+   193
+  ]
+ },
+ "bouquetin_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/bouquetin_f2.png",
+  "pied": [
+   92,
+   193
+  ],
+  "taille": [
+   184,
+   193
+  ]
+ },
+ "bouquetin_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/bouquetin_f3.png",
+  "pied": [
+   120,
+   162
+  ],
+  "taille": [
+   240,
+   162
+  ]
+ },
+ "bouquetin_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/bouquetin_f4.png",
+  "pied": [
+   120,
+   163
+  ],
+  "taille": [
+   240,
+   163
+  ]
+ },
+ "bouquetin_f5": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/bouquetin_f5.png",
+  "pied": [
+   109,
+   159
+  ],
+  "taille": [
+   218,
+   159
+  ]
+ },
+ "bouquetin_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/bouquetin_tete.png",
+  "pied": [
+   97,
+   190
+  ],
+  "taille": [
+   195,
+   190
+  ]
+ },
  "bucheron": {
   "categorie": "personnes",
   "fichier": "res://assets/bd/sprites/personnes/bucheron.png",
@@ -1055,6 +1127,78 @@
    149
   ]
  },
+ "dauphin_rose": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/dauphin_rose.png",
+  "pied": [
+   120,
+   88
+  ],
+  "taille": [
+   240,
+   88
+  ]
+ },
+ "dauphin_rose_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/dauphin_rose_f2.png",
+  "pied": [
+   120,
+   93
+  ],
+  "taille": [
+   240,
+   93
+  ]
+ },
+ "dauphin_rose_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/dauphin_rose_f3.png",
+  "pied": [
+   116,
+   114
+  ],
+  "taille": [
+   233,
+   114
+  ]
+ },
+ "dauphin_rose_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/dauphin_rose_f4.png",
+  "pied": [
+   120,
+   95
+  ],
+  "taille": [
+   240,
+   95
+  ]
+ },
+ "dauphin_rose_f5": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/dauphin_rose_f5.png",
+  "pied": [
+   118,
+   120
+  ],
+  "taille": [
+   237,
+   120
+  ]
+ },
+ "dauphin_rose_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/dauphin_rose_tete.png",
+  "pied": [
+   97,
+   136
+  ],
+  "taille": [
+   194,
+   136
+  ]
+ },
  "dragon_komodo": {
   "categorie": "animaux",
   "fichier": "res://assets/bd/sprites/animaux/dragon_komodo.png",
@@ -1245,6 +1389,78 @@
   "taille": [
    54,
    62
+  ]
+ },
+ "faucon": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/faucon.png",
+  "pied": [
+   106,
+   235
+  ],
+  "taille": [
+   213,
+   235
+  ]
+ },
+ "faucon_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/faucon_f2.png",
+  "pied": [
+   103,
+   233
+  ],
+  "taille": [
+   207,
+   233
+  ]
+ },
+ "faucon_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/faucon_f3.png",
+  "pied": [
+   94,
+   198
+  ],
+  "taille": [
+   188,
+   198
+  ]
+ },
+ "faucon_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/faucon_f4.png",
+  "pied": [
+   114,
+   148
+  ],
+  "taille": [
+   228,
+   148
+  ]
+ },
+ "faucon_f5": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/faucon_f5.png",
+  "pied": [
+   120,
+   146
+  ],
+  "taille": [
+   240,
+   146
+  ]
+ },
+ "faucon_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/faucon_tete.png",
+  "pied": [
+   110,
+   225
+  ],
+  "taille": [
+   221,
+   225
   ]
  },
  "fennec": {
@@ -2841,6 +3057,90 @@
   "taille": [
    88,
    57
+  ]
+ },
+ "mesange": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/mesange.png",
+  "pied": [
+   91,
+   132
+  ],
+  "taille": [
+   182,
+   132
+  ]
+ },
+ "mesange_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/mesange_f2.png",
+  "pied": [
+   80,
+   124
+  ],
+  "taille": [
+   160,
+   124
+  ]
+ },
+ "mesange_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/mesange_f3.png",
+  "pied": [
+   87,
+   128
+  ],
+  "taille": [
+   174,
+   128
+  ]
+ },
+ "mesange_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/mesange_f4.png",
+  "pied": [
+   83,
+   109
+  ],
+  "taille": [
+   166,
+   109
+  ]
+ },
+ "mesange_f5": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/mesange_f5.png",
+  "pied": [
+   82,
+   117
+  ],
+  "taille": [
+   164,
+   117
+  ]
+ },
+ "mesange_f6": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/mesange_f6.png",
+  "pied": [
+   84,
+   121
+  ],
+  "taille": [
+   168,
+   121
+  ]
+ },
+ "mesange_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/mesange_tete.png",
+  "pied": [
+   97,
+   156
+  ],
+  "taille": [
+   195,
+   156
   ]
  },
  "messager": {

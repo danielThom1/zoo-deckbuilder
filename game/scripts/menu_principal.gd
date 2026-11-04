@@ -6,6 +6,7 @@ extends Control
 
 signal lancer(spectateur: bool, graine: int, adversaires: int, difficile: bool)
 signal continuer
+signal tutoriel
 
 # Couleurs (thème Émeraude, cf. docs/handoff_emeraude/tokens.json)
 # Style « BD néo ligne claire » (docs/handoff_bd) : papier blanc, encre marine, accent jaune, bandeau sarcelle
@@ -150,7 +151,10 @@ void fragment() {
 	sous_titre_regarder = b_regarder.get_meta("sous_titre")
 	b_regarder.pressed.connect(func(): lancer.emit(true, graine, 4, difficile))
 	boutons.add_child(b_regarder)
-	var b_aide := _bouton_menu("Tutoriel et glossaire", "Comment jouer, et tout ce qui existe dans le jeu", "oeil", false)
+	var b_tuto := _bouton_menu("Tutoriel", "Une première partie guidée par votre nouvel employeur", "oeil", false)
+	b_tuto.pressed.connect(func(): tutoriel.emit())
+	boutons.add_child(b_tuto)
+	var b_aide := _bouton_menu("Règles et glossaire", "Comment jouer, et tout ce qui existe dans le jeu", "oeil", false)
 	b_aide.pressed.connect(func(): add_child(Aide.new(donnees)))
 	boutons.add_child(b_aide)
 	var b_quitter := _bouton_menu("Quitter", "Retour au bureau", "sortie", false)

@@ -1154,7 +1154,7 @@ func _init() -> void:
 	var y_defs: Dictionary = {}
 	for d in data["animals"]["animaux"]:
 		y_defs[d["id"]] = d
-	check(data["animals"]["animaux"].size() == 39, "39 espèces sur 4 continents")
+	check(data["animals"]["animaux"].size() == 40, "40 espèces sur 4 continents")
 	y_g.debug_build_zoo(Vector2i(4, 4))
 	y_g.end_day()
 	y_g.mt.night_goto("equipe")
@@ -1248,7 +1248,7 @@ func _init() -> void:
 	x_g.mt.night_goto("equipe")
 	x_g.start_next_day()
 	x_g.stock["or"] = 40.0
-	check(x_g.label_error(x_lab).begins_with("Il faut un Marchand"), "label : il faut un Marchand déployé")
+	check(is_equal_approx(x_g.label_price(x_lab), float(x_lab["or"]) * 2.0) and x_g.label_error(x_lab) == "", "label sans Marchand : possible, au double du prix (%d or)" % int(x_g.label_price(x_lab)))
 	var x_mar: GameState.Card = b_mk.call("marchand", [])
 	x_g.hand.append(x_mar)
 	x_g.deploy(x_mar, true)

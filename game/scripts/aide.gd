@@ -19,7 +19,7 @@ Survolez une carte pour voir son métier et ses traits."""],
 [b]Déployer[/b] une carte paie son salaire et la pose sur le camp. Un ouvrier par jour peut partir gratuitement, à 25 % de rendement.
 [b]Clic droit[/b] avec un ouvrier sélectionné : couper du bois, extraire la pierre, construire, tenir un poste. [b]Maj + clic droit[/b] enchaîne un ordre après le précédent.
 
-Le bois et la pierre récoltés s'échangent contre de l'argent au panneau Marché, à droite. Un Marchand déployé vend mieux."""],
+Le bois et la pierre récoltés s'échangent contre de l'argent à la Bourse des ressources, à droite. Un Marchand déployé vend mieux."""],
 	["Ouvrir son zoo", """Pour accueillir des visiteurs, il faut trois choses :
 1. Une [b]enceinte fermée[/b] avec une [b]entrée[/b] (touche R pour la tourner). Les montagnes servent de mur, et les murs se construisent sur l'eau.
 2. Une [b]route[/b] de l'Accès jusqu'à l'entrée.
@@ -37,7 +37,7 @@ Un animal doit manger (Cuisine) et peut tomber malade : un Soigneur le guérit, 
 [b]Affinités[/b] : plusieurs espèces d'un même continent multiplient cette réputation (2 → +10 %, 3 → +25 %, 4 → +45 %, 5 → +70 %, 6 → +100 %).
 [b]Spectacles et boutique[/b] : un Kiosque tenu et les souvenirs vendus en rapportent aussi.
 [b]Prestige politique[/b] : chaque nuit, le premier en influence gagne +1, le deuxième +0,5.
-[b]Labels[/b] : achetés en or, zoo ouvert, avec un Marchand déployé.
+[b]Labels[/b] : achetés en or, zoo ouvert, à la Bourse des ressources. Le prix double sans Marchand déployé.
 [b]Ouvriers légendaires[/b] : +5 quand un ouvrier atteint le niveau 6."""],
 	["La nuit", """La nuit se joue en écrans successifs, chacun à son tour selon l'influence :
 1. [b]Contrats[/b] : un seul par tour. Un contrat pris n'est remplacé que le lendemain.
@@ -297,7 +297,7 @@ func _glossaire_actions() -> void:
 
 
 func _glossaire_labels() -> void:
-	var L: Array[String] = ["S'achètent au panneau Marché, zoo ouvert, avec un Marchand déployé, une fois chacun.\n"]
+	var L: Array[String] = ["S'achètent à la Bourse des ressources, zoo ouvert, une fois chacun. Le prix en or double sans Marchand déployé.\n"]
 	for a in data["buildings"]["reputation_autres"]["labels"]:
 		L.append("[b]%s[/b] : %d or → +%d de réputation" % [a["nom"], int(a["or"]), int(a["reputation"])])
 	_feuille("Labels").text = "\n".join(L)

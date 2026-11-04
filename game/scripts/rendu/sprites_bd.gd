@@ -83,7 +83,8 @@ const ANIMAUX := {
 	"zebre": ["zebre", 1.0, "zebre_tete", 4],
 	"grue_couronnee": ["grue_couronnee", 1.1, "grue_couronnee_tete", 4],
 	"messager": ["messager", 0.7, "messager_tete", 4],
-	"chouette": ["chouette", 0.6, "", 1], "cigogne": ["grue", 1.1, "", 1], "loutre_geante": ["loutre", 0.6, "", 1],
+	"mesange": ["mesange", 0.4, "mesange_tete", 4], "faucon": ["faucon", 0.8, "faucon_tete", 4],
+	"dauphin_rose": ["dauphin_rose", 0.6, "dauphin_rose_tete", 4], "bouquetin": ["bouquetin", 1.1, "bouquetin_tete", 4],
 }
 
 static var _manif := {}

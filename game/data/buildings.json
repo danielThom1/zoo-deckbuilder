@@ -156,7 +156,7 @@
 
   "reputation_autres": {
     "_note": "Autres façons de gagner de la réputation que la fréquentation. Spectacles : par journée de Kiosque tenu (× efficacité « animer » : Animateur ×2). Boutique : par unité d'argent de souvenirs vendue. Prestige politique : chaque nuit, le 1er puis le 2e en influence (s'ils ont au moins influence_min). Labels : achetés en or, avec un Marchand déployé, une fois chacun. Légendaire : un ouvrier qui atteint le niveau 5.",
-    "kiosque_par_jour": 2,
+    "label_sans_marchand": 2, "kiosque_par_jour": 2,
     "boutique_par_souvenir": 0.08,
     "prestige_politique": [1, 0.5],
     "influence_min": 1,

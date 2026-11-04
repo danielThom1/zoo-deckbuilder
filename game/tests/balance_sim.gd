@@ -20,6 +20,8 @@ const STRATEGIES := [
 	{"nom": "Lobbying", "lobbyistes_max": 2},
 	{"nom": "Camp amélioré", "camp": 1},
 	{"nom": "Grand camp", "camp": 2},
+	{"nom": "Fast expand", "fast_expand": true, "camp": 1},
+	{"nom": "Rush or + route", "rush_or": true, "route_mine": true},
 	{"nom": "Spectacle", "spectacle": true},
 	{"nom": "Formation légendaire", "formation": true, "camp": 1},
 ]

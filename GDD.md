@@ -259,11 +259,13 @@ Liste complète : `data/workers.json`.
 - **Or des contrats** : l'or manquant pour un contrat s'achète en argent au moment de l'achat, au prix du marché (14 par or, le double du prix de revente). Les T3 coûtent environ 25 % d'argent de moins qu'avant (33 à 39, plus 2 à 3 or).
 
 ## 9.2 Rework du 04/11 (remplace les valeurs précédentes)
-- **39 espèces, 4 continents** : Europe 9, Amérique, Asie et Afrique 10 chacune. Trois raretés (commun, peu commun, rare), toutes disponibles dès le premier soir ; le marché montre toujours au moins un rare et un peu commun. Un rare coûte 60 argent et 3 or.
-- **Effets des rares** : Aigle royal, Loutre géante, Panda géant et Lion donnent +5 d'attractivité par autre espèce de leur type (aérien, aquatique, herbivore, prédateur). Bison d'Europe : souvenirs +50 % de réputation. Pygargue : Kiosque +50 % de réputation. Tigre du Bengale : +1 carte par jour. Hippopotame : chaque nuit, échange d'un ouvrier contre un ouvrier de la rangée.
+- **40 espèces, 4 continents** : 10 par continent. Trois raretés (commun, peu commun, rare), toutes disponibles dès le premier soir ; le marché montre toujours au moins un rare et un peu commun. Un rare coûte 60 argent et 3 or.
+- **Effets des rares** : Aigle royal, Dauphin rose de l'Amazone, Panda géant et Lion donnent +5 d'attractivité par autre espèce de leur type (aérien, aquatique, herbivore, prédateur). Bison d'Europe : souvenirs +50 % de réputation. Pygargue : Kiosque +50 % de réputation. Tigre du Bengale : +1 carte par jour. Hippopotame : chaque nuit, échange d'un ouvrier contre un ouvrier de la rangée.
 - **Enceinte** : une montagne sert de mur, et les murs se construisent sur l'eau.
 - **Économie** : deck initial de 8, main de 4, récolte +25 %, chantiers −25 %. Une Maison loge un seul ouvrier (5 bois, 2 pierre, rapide). Légendaire au niveau 6. Centre de formation plus rapide à bâtir et à former. Traits accentués.
 - **Maladie** : un animal guérit seul au bout de 2 nuits, ou plus vite avec un Soigneur.
+
+- **Labels** : s'achètent en or à la Bourse des ressources, zoo ouvert ; le prix double sans Marchand déployé.
 
 ## 10. Réputation
 

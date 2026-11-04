@@ -168,6 +168,8 @@ var _aura_cache_valid := false
 
 # Visiteurs (simulés pendant la journée)
 var rep_points := 0.0  # réputation accumulée (condition de victoire)
+var journal_cartes: Array = []  # cartes jouées : {"id", "day"} (étude)
+var journal_contrats: Array = []  # contrats achetés : {"id", "day"} (étude)
 var labels_owned := {}
 ## Réputation gagnée par source (détail de l'écran de fin) : frequentation, spectacles, prestige, labels, legendaires.
 var rep_sources := {}
@@ -469,6 +471,7 @@ func play_action(card: Card, target: Card = null, option := {}) -> bool:
 	if fx.has("ameliorer") and not upgrade_options(target).has(option):
 		return false
 	hand.erase(card)
+	journal_cartes.append({"id": card.action["id"], "day": day})
 	for k in ["productivite", "visiteurs"]:
 		if fx.has(k):
 			action_fx[k] = float(action_fx.get(k, 1.0)) * float(fx[k])
@@ -531,6 +534,7 @@ func play_cadre(card: Card, target: Card = null, option := "") -> bool:
 	var extra := ""
 	hand.erase(card)
 	discard.append(card)
+	journal_cartes.append({"id": "cadre_" + str(card.metier["id"]), "day": day})
 	for k in ["construction", "boutiques"]:
 		if fx.has(k):
 			action_fx[k] = maxf(float(action_fx.get(k, 1.0)), float(fx[k]))
@@ -1674,6 +1678,7 @@ func buy_contract(def: Dictionary) -> bool:
 	market_contracts.erase(def)
 	contracts.append(def)
 	contracts_tonight += 1
+	journal_contrats.append({"id": def["id"], "day": day})
 	mt.record_purchase(index, def)
 	say("Contrat acheté : %s. Construisez-lui un enclos." % def["nom"])
 	if not mt.is_ai(index) and contracts_tonight >= int(data["buildings"]["marche"]["contrats_par_nuit"]):
@@ -1812,7 +1817,13 @@ func label_defs() -> Array:
 	return data["buildings"]["reputation_autres"]["labels"]
 
 
-## Un label s'achète en or, de jour, si un Marchand est déployé ; une seule fois chacun.
+## Prix d'un label en or : doublé sans Marchand déployé.
+func label_price(def: Dictionary) -> float:
+	var mult := 1.0 if not _traders().is_empty() else float(data["buildings"]["reputation_autres"]["label_sans_marchand"])
+	return float(def["or"]) * mult
+
+
+## Un label s'achète en or, de jour, zoo ouvert ; une seule fois chacun.
 func label_error(def: Dictionary) -> String:
 	if phase != "day":
 		return "Seulement de jour"
@@ -1820,17 +1831,15 @@ func label_error(def: Dictionary) -> String:
 		return "Déjà obtenu"
 	if not zoo_status()["open"]:
 		return "Ouvrez d'abord votre zoo"
-	if _traders().is_empty():
-		return "Il faut un Marchand déployé"
-	if stock["or"] < float(def["or"]) - 0.0001:
-		return "Il faut %d or" % int(def["or"])
+	if stock["or"] < label_price(def) - 0.0001:
+		return "Il faut %d or%s" % [int(label_price(def)), "" if not _traders().is_empty() else " (prix doublé sans Marchand déployé)"]
 	return ""
 
 
 func buy_label(def: Dictionary) -> bool:
 	if label_error(def) != "":
 		return false
-	stock["or"] -= float(def["or"])
+	stock["or"] -= label_price(def)
 	labels_owned[def["id"]] = true
 	rep_points += float(def["reputation"])
 	add_rep_source("labels", float(def["reputation"]))

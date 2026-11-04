@@ -40,6 +40,7 @@ var bonus_offer: Array = []  # bonus de nuit proposés (3)
 ## Le premier en influence peut refuser tous les bonus proposés.
 const NO_BONUS := {"id": "aucun", "nom": "Aucun bonus", "texte": "Aucun bonus demain.", "effets": {}}
 var bonus_choice := {}  # bonus choisi par le premier en influence : actif le lendemain pour tous les joueurs
+var offres := {}  # espèce -> nuits passées au marché (étude)
 var autosave := false  # partie d'un joueur humain : sauvegarde automatique chaque matin
 var history: Array = []  # statistiques par jour et par joueur (simulations)
 
@@ -328,6 +329,8 @@ func end_day() -> void:
 				return ka[k] > kb[k]
 		return false)
 	night_order.assign(order)
+	for d in market_contracts:
+		offres[d["id"]] = int(offres.get(d["id"], 0)) + 1
 	# Prestige politique : le 1er puis le 2e en influence gagnent un peu de réputation (s'ils ont fait du lobbying)
 	var R: Dictionary = data["buildings"]["reputation_autres"]
 	for k in mini(order.size(), R["prestige_politique"].size()):

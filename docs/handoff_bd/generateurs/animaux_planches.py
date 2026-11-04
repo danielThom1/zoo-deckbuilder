@@ -18,10 +18,11 @@ fs = sorted(glob.glob(os.path.join(src, '*.png')))
 SPEC = {
     0: ['panda', 'loutre_cendree', 'paon', 'salamandre', 'calao'],
     1: ['grue_japon', 'yak', 'hippopotame', 'guepard', 'girafe'],
+    2: [None, 'bouquetin', 'mesange', None, None, 'dauphin_rose'],
     4: ['bison_europe', 'lynx', 'loutre_europe', 'loup', 'phoque'],
     5: ['puma', 'ocelot', 'ara', None, 'tapir'],
     6: ['jaguar', 'alligator', None, 'lion', 'tigre', None],
-    7: [None, 'cerf', 'leopard_neiges', None],
+    7: ['faucon', 'cerf', 'leopard_neiges', None],
     9: ['pygargue', 'bison_amerique', None, None],
     10: ['manchot', 'koi', 'capybara', 'aigle_royal', 'zebre'],
     12: ['loutre_joues_blanches', 'hyene', 'grue_couronnee', 'messager', None],
@@ -41,6 +42,12 @@ def masque(im):
     bord = set(lab[0, :]) | set(lab[-1, :]) | set(lab[:, 0]) | set(lab[:, -1])
     bord.discard(0)
     fond = np.isin(lab, list(bord))
+    # Fond enfermé entre les pattes : blanc parfaitement neutre (les pelages et plumages blancs sont teintés ou ombrés)
+    tailles = nd.sum(clair, lab, range(1, lab.max() + 1))
+    moy = nd.mean(rgb.max(axis=2) - rgb.min(axis=2), lab, range(1, lab.max() + 1))
+    mini = nd.mean(rgb.min(axis=2), lab, range(1, lab.max() + 1))
+    trous = [k + 1 for k in range(len(tailles)) if tailles[k] >= 25 and moy[k] < 3.0 and mini[k] > 238]
+    fond |= np.isin(lab, trous)
     fg = nd.binary_erosion(~fond, iterations=1)  # retire le liseré clair du détourage
     return a, fg
 
