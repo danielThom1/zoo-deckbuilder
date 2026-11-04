@@ -40,7 +40,9 @@ def fond_transparent(rgb):
     h, w, _ = rgb.shape
     coins = np.concatenate([rgb[:12, :12].reshape(-1, 3), rgb[:12, -12:].reshape(-1, 3), rgb[-12:, :12].reshape(-1, 3), rgb[-12:, -12:].reshape(-1, 3)])
     fond = np.median(coins, axis=0)
-    dist = np.sqrt(((rgb.astype(np.float32) - fond) ** 2).sum(axis=2))
+    # Le fond va du vert au turquoise, parfois en dégradé dans la même planche : le bleu ne compte pas. Rouge presque
+    # nul et vert au maximum le distinguent de tous les habits, même bleus ou vert sombre.
+    dist = np.sqrt(((rgb[:, :, :2].astype(np.float32) - fond[:2]) ** 2).sum(axis=2))
     tol, strict = 62.0, 34.0
     candidat = dist < tol
     vu = np.zeros((h, w), bool)
@@ -63,7 +65,7 @@ def fond_transparent(rgb):
                 file.append((ny, nx))
     # Le vert du fond reste parfois enfermé dans les cheveux : aucun habit n'a ce vert franc
     r, v, b = rgb[:, :, 0].astype(np.int32), rgb[:, :, 1].astype(np.int32), rgb[:, :, 2].astype(np.int32)
-    transparent = vu | (dist < strict) | ((v > 130) & (v - r > 60) & (v - b > 40))
+    transparent = vu | (dist < strict) | ((r < 60) & (v > 170))
     # Bord adouci, et le vert retiré des pixels de bord
     alpha = np.where(transparent, 0.0, 1.0)
     bord = np.zeros((h, w), bool)
@@ -76,6 +78,10 @@ def fond_transparent(rgb):
     for _ in range(3):
         pres[1:-1, 1:-1] |= pres[:-2, 1:-1] | pres[2:, 1:-1] | pres[1:-1, :-2] | pres[1:-1, 2:]
     sortie[:, :, 1] = np.where(pres & (sortie[:, :, 1] > vert_max + 4.0), vert_max + 4.0, sortie[:, :, 1])
+    # Fond turquoise : un trait d'encre mêlé au fond reste bleuté sur le pourtour ; les tissus vraiment bleus ont moins de vert
+    bleute = pres & (sortie[:, :, 0] < 90) & (sortie[:, :, 1] > sortie[:, :, 0] + 25) & (sortie[:, :, 1] > sortie[:, :, 2] - 15)
+    sortie[:, :, 1] = np.where(bleute, sortie[:, :, 0] + 25, sortie[:, :, 1])
+    sortie[:, :, 2] = np.where(bleute, sortie[:, :, 0] + 25, sortie[:, :, 2])
     return sortie, alpha
 
 
@@ -131,44 +137,70 @@ def lignes_de_sol(masque, x0, x_gauche, rangees):
 
 
 def trois_images(masque, y0, y1, x0):
-    """Colonnes des 3 images d'une rangée : les images sont à intervalles réguliers, on coupe aux vides les plus
-    proches du tiers et des deux tiers (une gerbe d'éclats laisse aussi des vides, mais à l'intérieur d'une image)."""
-    proj = masque[y0:y1, x0:].sum(axis=0) > 0
-    xs = np.where(proj)[0]
+    """Colonnes des 3 images d'une rangée : elles sont à intervalles réguliers. On coupe à la colonne la moins remplie
+    autour du tiers et des deux tiers (une gerbe d'éclats laisse des vides aussi, mais à l'intérieur d'une image,
+    et un grand personnage peut ne laisser aucune colonne entièrement vide)."""
+    somme = masque[y0:y1, x0:].sum(axis=0).astype(float)
+    xs = np.where(somme > 3)[0]
     if len(xs) == 0:
         return []
     deb, fin = xs[0], xs[-1]
-    vides = []
-    i = deb
-    while i <= fin:
-        if not proj[i]:
-            j = i
-            while j <= fin and not proj[j]:
-                j += 1
-            if j - i >= 3:
-                vides.append((i, j))
-            i = j
-        else:
-            i += 1
-    if len(vides) < 2:
-        return []
+    etendue = fin - deb
+    fenetre = int(etendue * 0.12)
     coupes = []
     for part in (1.0 / 3.0, 2.0 / 3.0):
-        cible = deb + (fin - deb) * part
-        coupes.append(min(vides, key=lambda v: abs((v[0] + v[1]) / 2.0 - cible)))
-    if coupes[0] == coupes[1]:
-        return []
-    return [(x0 + deb, x0 + coupes[0][0]), (x0 + coupes[0][1], x0 + coupes[1][0]), (x0 + coupes[1][1], x0 + fin + 1)]
+        cible = int(deb + etendue * part)
+        a, b = cible - fenetre, cible + fenetre
+        minimum = somme[a:b].min()
+        # Parmi les colonnes les moins remplies, le milieu de la plage la plus proche de la cible
+        creux = np.where(somme[a:b] <= minimum + 1)[0] + a
+        coupes.append(int(creux[np.argmin(np.abs(creux - cible))]))
+    return [(x0 + deb, x0 + coupes[0]), (x0 + coupes[0] + 1, x0 + coupes[1]), (x0 + coupes[1] + 1, x0 + fin + 1)]
+
+
+def composante(masque, y, x_max):
+    """La pièce d'un seul tenant qui contient le premier pixel de la ligne y, à gauche de x_max."""
+    h, w = masque.shape
+    colonnes = np.where(masque[y, :max(1, x_max)])[0]
+    bloc = np.zeros((h, w), bool)
+    if len(colonnes) == 0:
+        return bloc
+    file = deque([(y, int(colonnes[0]))])
+    bloc[y, int(colonnes[0])] = True
+    while file:
+        cy, cx = file.popleft()
+        for ny, nx in ((cy - 1, cx), (cy + 1, cx), (cy, cx - 1), (cy, cx + 1)):
+            if 0 <= ny < h and 0 <= nx < w and masque[ny, nx] and not bloc[ny, nx]:
+                bloc[ny, nx] = True
+                file.append((ny, nx))
+    return bloc
 
 
 def cadre_portrait(masque):
     """Le portrait est en haut à gauche : sa largeur se lit à la hauteur de la tête, sa hauteur à la première ligne vide,
-    puis sa vraie largeur (épaules comprises) sur toute cette hauteur."""
+    puis sa vraie largeur (épaules comprises) sur toute cette hauteur. Si aucune colonne vide ne le sépare de la première
+    image (mèche ou pied qui se chevauchent en colonnes), on coupe à la colonne la moins remplie de sa zone."""
     h, w = masque.shape
-    proj = masque[:h // 6].sum(axis=0) > 0
-    x = np.where(proj)[0][0]
-    while x < w and proj[x]:
-        x += 1
+    limite = int(w * 0.33 if h > w else w * 0.30)
+
+    def fin_colonne(y0, y1):
+        somme = masque[y0:y1].sum(axis=0)
+        # Première plage large : quelques pixels parasites au bord de l'image ne font pas un portrait
+        x = 0
+        while x < w:
+            while x < w and somme[x] <= 2:
+                x += 1
+            d = x
+            while x < w and somme[x] > 2:
+                x += 1
+            if x - d >= 60:
+                break
+        if x > limite:
+            d = int(limite * 0.6)
+            x = d + int(np.argmin(somme[d:int(limite * 1.3)]))
+        return x
+
+    x = fin_colonne(0, h // 6)
     lignes = masque[:, :x].sum(axis=1) > 6
     ys = np.where(lignes)[0]
     y = ys[0]
@@ -177,11 +209,7 @@ def cadre_portrait(masque):
         vide = 0 if lignes[y] else vide + 1
         y += 1
     y_fin = y - vide
-    proj = masque[ys[0]:y_fin].sum(axis=0) > 2
-    x = np.where(proj)[0][0]
-    while x < w and proj[x]:
-        x += 1
-    return x, ys[0], y_fin
+    return fin_colonne(ys[0], y_fin), ys[0], y_fin
 
 
 def talon_de(cellule, m):
@@ -204,13 +232,48 @@ def decouper(chemin, fiche_id):
     couleurs, alpha = fond_transparent(rgb)
     masque = alpha > 0.5
     h, w = masque.shape
-    x_portrait, y_p0, y_p1 = cadre_portrait(masque)
     rgba = np.dstack([np.clip(couleurs, 0, 255), alpha * 255.0]).astype(np.uint8)
-    zone = masque[y_p0:y_p1, :x_portrait]
-    ys = np.where(zone.sum(axis=1) > 6)[0] + y_p0
-    xs = np.where(zone.sum(axis=0) > 6)[0]
-    portrait = Image.fromarray(rgba[ys[0]:ys[-1] + 1, xs[0]:xs[-1] + 1], 'RGBA')
-    # Sous le portrait, les rangées peuvent déborder à gauche (poussière du balai) : le sol se cherche à droite du portrait
+    x_portrait, y_p0, y_p1 = cadre_portrait(masque)
+    # Le portrait, pièce d'un seul tenant : on le retire de l'image, les rangées peuvent alors passer à sa hauteur
+    # (talon ou outil plus à gauche que ses épaules) sans qu'aucune coupe verticale les abîme.
+    bloc = composante(masque, (y_p0 + y_p1) // 2, x_portrait)
+    ys, xs = np.where(bloc)
+    if xs.max() > w * 0.45 or ys.max() > h * 0.45:  # il touche une image : retour à la coupe droite
+        bloc = np.zeros((h, w), bool)
+        bloc[y_p0:y_p1, :x_portrait] = masque[y_p0:y_p1, :x_portrait]
+        ys, xs = np.where(bloc)
+    # Morceaux détachés du portrait (nœud de bandana, mèche) : entièrement dans son cadre, ils en font partie
+    y0, y1, x0, x1 = ys.min(), ys.max(), xs.min(), xs.max()
+    reste = masque & ~bloc
+    vus = np.zeros((h, w), bool)
+    for yy, xx in zip(*np.where(reste[y0:y1 + 1, x0:x1 + 1])):
+        yy, xx = int(yy) + y0, int(xx) + x0
+        if vus[yy, xx]:
+            continue
+        morceau = [(yy, xx)]
+        vus[yy, xx] = True
+        file = deque(morceau)
+        dedans = True
+        while file:
+            cy, cx = file.popleft()
+            for ny, nx in ((cy - 1, cx), (cy + 1, cx), (cy, cx - 1), (cy, cx + 1)):
+                if 0 <= ny < h and 0 <= nx < w and reste[ny, nx] and not vus[ny, nx]:
+                    vus[ny, nx] = True
+                    file.append((ny, nx))
+                    morceau.append((ny, nx))
+                    if not (y0 <= ny <= y1 and x0 <= nx <= x1):
+                        dedans = False
+        if dedans:
+            for q in morceau:
+                bloc[q] = True
+    ys, xs = np.where(bloc)
+    decoupe = rgba[ys.min():ys.max() + 1, xs.min():xs.max() + 1].copy()
+    decoupe[:, :, 3] = np.where(bloc[ys.min():ys.max() + 1, xs.min():xs.max() + 1], decoupe[:, :, 3], 0)
+    portrait = Image.fromarray(decoupe, 'RGBA')
+    masque = masque & ~bloc
+    rgba[bloc] = 0
+    # Quelques pixels parasites à gauche ne doivent pas compter comme le début d'une rangée
+    x_portrait = 0
     sols = lignes_de_sol(masque, x_portrait, 0, rangees)
     if len(sols) != rangees:
         raise ValueError('%s : %d lignes de sol %s' % (fiche_id, len(sols), sols))
@@ -218,8 +281,7 @@ def decouper(chemin, fiche_id):
     y_prec = 0
     largeur = masque[:, x_portrait:].sum(axis=1)
     for r, (sol, sol_bas) in enumerate(sols):
-        x0 = x_portrait if y_prec < y_p1 else 0
-        cols = trois_images(masque, y_prec, sol - 1, x0)
+        cols = trois_images(masque, y_prec, sol - 1, 0)
         if len(cols) != 3:
             raise ValueError('%s : rangée %d, %d colonnes' % (fiche_id, r, len(cols)))
         for c0, c1 in cols:
@@ -300,6 +362,18 @@ def main():
             fond.paste(p, (0, 0), p)
             fond.paste(f, (220, 0), f)
             fond.save(os.path.join(controle, pid + '.png'))
+        # Toutes les planches sur une page, en deux couleurs : sur fond clair puis foncé, un reste de fond se voit
+        W, H = 220, 360
+        M = Image.new('RGB', (W * 10, H * ((len(faits) + 9) // 10)), (120, 60, 90))
+        for i, (pid, f, p) in enumerate(faits):
+            r = f.resize((W, H), Image.LANCZOS)
+            M.paste(r, ((i % 10) * W, (i // 10) * H), r)
+        M.save(os.path.join(controle, 'toutes.jpg'), quality=82)
+        M = Image.new('RGB', (130 * 10, 150 * ((len(faits) + 9) // 10)), (120, 60, 90))
+        for i, (pid, f, p) in enumerate(faits):
+            r = p.resize((round(p.width * 140 / p.height), 140), Image.LANCZOS)
+            M.paste(r, ((i % 10) * 130, (i // 10) * 150), r)
+        M.save(os.path.join(controle, 'portraits.jpg'), quality=85)
     print(len(faits), 'planches découpées,', len(persos), 'personnages au total')
 
 

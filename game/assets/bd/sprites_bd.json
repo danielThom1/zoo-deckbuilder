@@ -1335,24 +1335,24 @@
   "categorie": "batiments",
   "fichier": "res://assets/bd/sprites/batiments/entree.png",
   "pied": [
-   95,
-   150
+   230,
+   301
   ],
   "taille": [
-   190,
-   150
+   460,
+   301
   ]
  },
  "entree2": {
   "categorie": "batiments",
   "fichier": "res://assets/bd/sprites/batiments/entree2.png",
   "pied": [
-   48,
-   116
+   230,
+   369
   ],
   "taille": [
-   97,
-   116
+   460,
+   369
   ]
  },
  "entrepot": {
@@ -1503,12 +1503,12 @@
   "categorie": "batiments",
   "fichier": "res://assets/bd/sprites/batiments/formation.png",
   "pied": [
-   93,
-   152
+   230,
+   337
   ],
   "taille": [
-   186,
-   152
+   460,
+   337
   ]
  },
  "formatrice": {
@@ -5727,11 +5727,11 @@
   "categorie": "personnages",
   "fichier": "res://assets/bd/sprites/personnages_v2/fatou_portrait.png",
   "pied": [
-   95,
+   64,
    200
   ],
   "taille": [
-   190,
+   128,
    200
   ]
  },
@@ -5739,11 +5739,11 @@
   "categorie": "personnages",
   "fichier": "res://assets/bd/sprites/personnages_v2/clara_portrait.png",
   "pied": [
-   91,
+   66,
    200
   ],
   "taille": [
-   182,
+   132,
    200
   ]
  },
@@ -5751,11 +5751,11 @@
   "categorie": "personnages",
   "fichier": "res://assets/bd/sprites/personnages_v2/manon_portrait.png",
   "pied": [
-   98,
+   63,
    200
   ],
   "taille": [
-   197,
+   127,
    200
   ]
  },
@@ -5763,11 +5763,11 @@
   "categorie": "personnages",
   "fichier": "res://assets/bd/sprites/personnages_v2/lea_portrait.png",
   "pied": [
-   97,
+   61,
    200
   ],
   "taille": [
-   194,
+   123,
    200
   ]
  },
@@ -5775,11 +5775,11 @@
   "categorie": "personnages",
   "fichier": "res://assets/bd/sprites/personnages_v2/jade_portrait.png",
   "pied": [
-   88,
+   64,
    200
   ],
   "taille": [
-   177,
+   128,
    200
   ]
  },
@@ -5787,11 +5787,11 @@
   "categorie": "personnages",
   "fichier": "res://assets/bd/sprites/personnages_v2/hugo_portrait.png",
   "pied": [
-   91,
+   64,
    200
   ],
   "taille": [
-   182,
+   128,
    200
   ]
  },
@@ -5799,11 +5799,11 @@
   "categorie": "personnages",
   "fichier": "res://assets/bd/sprites/personnages_v2/louis_portrait.png",
   "pied": [
-   100,
+   65,
    200
   ],
   "taille": [
-   201,
+   131,
    200
   ]
  },
@@ -5811,11 +5811,11 @@
   "categorie": "personnages",
   "fichier": "res://assets/bd/sprites/personnages_v2/noah_portrait.png",
   "pied": [
-   90,
+   61,
    200
   ],
   "taille": [
-   181,
+   122,
    200
   ]
  },
@@ -5823,11 +5823,11 @@
   "categorie": "personnages",
   "fichier": "res://assets/bd/sprites/personnages_v2/yasmine_portrait.png",
   "pied": [
-   99,
+   68,
    200
   ],
   "taille": [
-   199,
+   136,
    200
   ]
  },
@@ -5847,11 +5847,11 @@
   "categorie": "personnages",
   "fichier": "res://assets/bd/sprites/personnages_v2/jules_portrait.png",
   "pied": [
-   105,
+   64,
    200
   ],
   "taille": [
-   210,
+   129,
    200
   ]
  },
@@ -5859,11 +5859,11 @@
   "categorie": "personnages",
   "fichier": "res://assets/bd/sprites/personnages_v2/malik_portrait.png",
   "pied": [
-   95,
+   64,
    200
   ],
   "taille": [
-   190,
+   128,
    200
   ]
  },
@@ -5871,11 +5871,11 @@
   "categorie": "personnages",
   "fichier": "res://assets/bd/sprites/personnages_v2/rose_portrait.png",
   "pied": [
-   101,
+   65,
    200
   ],
   "taille": [
-   202,
+   131,
    200
   ]
  },
@@ -5883,11 +5883,11 @@
   "categorie": "personnages",
   "fichier": "res://assets/bd/sprites/personnages_v2/basile_portrait.png",
   "pied": [
-   94,
+   62,
    200
   ],
   "taille": [
-   189,
+   125,
    200
   ]
  },
@@ -5895,11 +5895,11 @@
   "categorie": "personnages",
   "fichier": "res://assets/bd/sprites/personnages_v2/omar_portrait.png",
   "pied": [
-   104,
+   66,
    200
   ],
   "taille": [
-   209,
+   133,
    200
   ]
  },
@@ -5907,11 +5907,11 @@
   "categorie": "personnages",
   "fichier": "res://assets/bd/sprites/personnages_v2/igor_portrait.png",
   "pied": [
-   95,
+   69,
    200
   ],
   "taille": [
-   190,
+   139,
    200
   ]
  },
@@ -5919,11 +5919,11 @@
   "categorie": "personnages",
   "fichier": "res://assets/bd/sprites/personnages_v2/margaux_portrait.png",
   "pied": [
-   95,
+   64,
    200
   ],
   "taille": [
-   190,
+   129,
    200
   ]
  },
@@ -5931,11 +5931,11 @@
   "categorie": "personnages",
   "fichier": "res://assets/bd/sprites/personnages_v2/emma_portrait.png",
   "pied": [
-   97,
+   63,
    200
   ],
   "taille": [
-   194,
+   127,
    200
   ]
  },
@@ -5943,11 +5943,11 @@
   "categorie": "personnages",
   "fichier": "res://assets/bd/sprites/personnages_v2/ines_portrait.png",
   "pied": [
-   97,
+   66,
    200
   ],
   "taille": [
-   194,
+   133,
    200
   ]
  },
@@ -5955,11 +5955,11 @@
   "categorie": "personnages",
   "fichier": "res://assets/bd/sprites/personnages_v2/aicha_portrait.png",
   "pied": [
-   97,
+   66,
    200
   ],
   "taille": [
-   194,
+   133,
    200
   ]
  },
@@ -5967,11 +5967,11 @@
   "categorie": "personnages",
   "fichier": "res://assets/bd/sprites/personnages_v2/adam_portrait.png",
   "pied": [
-   92,
+   64,
    200
   ],
   "taille": [
-   184,
+   128,
    200
   ]
  },
@@ -5979,11 +5979,11 @@
   "categorie": "personnages",
   "fichier": "res://assets/bd/sprites/personnages_v2/tom_portrait.png",
   "pied": [
-   91,
+   61,
    200
   ],
   "taille": [
-   182,
+   122,
    200
   ]
  },
@@ -5991,11 +5991,11 @@
   "categorie": "personnages",
   "fichier": "res://assets/bd/sprites/personnages_v2/gabin_portrait.png",
   "pied": [
-   95,
+   65,
    200
   ],
   "taille": [
-   190,
+   130,
    200
   ]
  },
@@ -6003,11 +6003,11 @@
   "categorie": "personnages",
   "fichier": "res://assets/bd/sprites/personnages_v2/samir_portrait.png",
   "pied": [
-   105,
+   66,
    200
   ],
   "taille": [
-   210,
+   132,
    200
   ]
  },
@@ -6015,11 +6015,11 @@
   "categorie": "personnages",
   "fichier": "res://assets/bd/sprites/personnages_v2/odette_portrait.png",
   "pied": [
-   95,
+   64,
    200
   ],
   "taille": [
-   190,
+   128,
    200
   ]
  },
@@ -6027,11 +6027,11 @@
   "categorie": "personnages",
   "fichier": "res://assets/bd/sprites/personnages_v2/paul_portrait.png",
   "pied": [
-   92,
+   64,
    200
   ],
   "taille": [
-   185,
+   129,
    200
   ]
  },
@@ -6039,11 +6039,11 @@
   "categorie": "personnages",
   "fichier": "res://assets/bd/sprites/personnages_v2/marcel_portrait.png",
   "pied": [
-   96,
+   68,
    200
   ],
   "taille": [
-   192,
+   137,
    200
   ]
  },
@@ -6051,11 +6051,203 @@
   "categorie": "personnages",
   "fichier": "res://assets/bd/sprites/personnages_v2/mamadou_portrait.png",
   "pied": [
-   97,
+   65,
    200
   ],
   "taille": [
-   195,
+   131,
+   200
+  ]
+ },
+ "agence": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/agence.png",
+  "pied": [
+   230,
+   324
+  ],
+  "taille": [
+   460,
+   324
+  ]
+ },
+ "cabinet": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/cabinet.png",
+  "pied": [
+   230,
+   365
+  ],
+  "taille": [
+   460,
+   365
+  ]
+ },
+ "cuisine": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/cuisine.png",
+  "pied": [
+   230,
+   347
+  ],
+  "taille": [
+   460,
+   347
+  ]
+ },
+ "rocher_obs": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/rocher_obs.png",
+  "pied": [
+   230,
+   403
+  ],
+  "taille": [
+   460,
+   403
+  ]
+ },
+ "pv2_bastien": {
+  "categorie": "personnages",
+  "fichier": "res://assets/bd/sprites/personnages_v2/bastien_portrait.png",
+  "pied": [
+   66,
+   200
+  ],
+  "taille": [
+   132,
+   200
+  ]
+ },
+ "pv2_camille": {
+  "categorie": "personnages",
+  "fichier": "res://assets/bd/sprites/personnages_v2/camille_portrait.png",
+  "pied": [
+   63,
+   200
+  ],
+  "taille": [
+   126,
+   200
+  ]
+ },
+ "pv2_chloe": {
+  "categorie": "personnages",
+  "fichier": "res://assets/bd/sprites/personnages_v2/chloe_portrait.png",
+  "pied": [
+   65,
+   200
+  ],
+  "taille": [
+   131,
+   200
+  ]
+ },
+ "pv2_elise": {
+  "categorie": "personnages",
+  "fichier": "res://assets/bd/sprites/personnages_v2/elise_portrait.png",
+  "pied": [
+   66,
+   200
+  ],
+  "taille": [
+   133,
+   200
+  ]
+ },
+ "pv2_kenji": {
+  "categorie": "personnages",
+  "fichier": "res://assets/bd/sprites/personnages_v2/kenji_portrait.png",
+  "pied": [
+   63,
+   200
+  ],
+  "taille": [
+   127,
+   200
+  ]
+ },
+ "pv2_lina": {
+  "categorie": "personnages",
+  "fichier": "res://assets/bd/sprites/personnages_v2/lina_portrait.png",
+  "pied": [
+   63,
+   200
+  ],
+  "taille": [
+   126,
+   200
+  ]
+ },
+ "pv2_lucie": {
+  "categorie": "personnages",
+  "fichier": "res://assets/bd/sprites/personnages_v2/lucie_portrait.png",
+  "pied": [
+   64,
+   200
+  ],
+  "taille": [
+   128,
+   200
+  ]
+ },
+ "pv2_nadia": {
+  "categorie": "personnages",
+  "fichier": "res://assets/bd/sprites/personnages_v2/nadia_portrait.png",
+  "pied": [
+   65,
+   200
+  ],
+  "taille": [
+   130,
+   200
+  ]
+ },
+ "pv2_nathan": {
+  "categorie": "personnages",
+  "fichier": "res://assets/bd/sprites/personnages_v2/nathan_portrait.png",
+  "pied": [
+   63,
+   200
+  ],
+  "taille": [
+   127,
+   200
+  ]
+ },
+ "pv2_sarah": {
+  "categorie": "personnages",
+  "fichier": "res://assets/bd/sprites/personnages_v2/sarah_portrait.png",
+  "pied": [
+   67,
+   200
+  ],
+  "taille": [
+   134,
+   200
+  ]
+ },
+ "pv2_theo": {
+  "categorie": "personnages",
+  "fichier": "res://assets/bd/sprites/personnages_v2/theo_portrait.png",
+  "pied": [
+   65,
+   200
+  ],
+  "taille": [
+   131,
+   200
+  ]
+ },
+ "pv2_zoe": {
+  "categorie": "personnages",
+  "fichier": "res://assets/bd/sprites/personnages_v2/zoe_portrait.png",
+  "pied": [
+   66,
+   200
+  ],
+  "taille": [
+   132,
    200
   ]
  }

@@ -689,6 +689,8 @@ func _draw() -> void:
 			draw_rect(Rect2(Vector2(t) * TILE + Vector2(2, 2), Vector2(TILE - 4, TILE - 4)), UiTokens.SELECTION, false, 1.5)
 	if tutoriel:
 		tutoriel.dessiner_monde(self, TILE)
+	if args.has("vitrine"):
+		_draw_vitrine()
 
 
 func _draw_site(s: GameState.Site) -> void:
@@ -988,19 +990,18 @@ const GESTES := {"hache": SpritesBD.PERSO_COUPER, "pioche": SpritesBD.PERSO_MINE
 	"caisse": SpritesBD.PERSO_SERVIR, "seau": SpritesBD.PERSO_NOURRIR, "balai": SpritesBD.PERSO_BALAYER, "soin": SpritesBD.PERSO_SOIGNER}
 
 
-## Plaque au nom de l'entreprise, devant l'entrée du zoo (rien en mode spectateur : les IA n'ont pas de marque).
-func _draw_logo(pied: Vector2) -> void:
-	if spectator:
-		return
-	var nom: String = mt.names[game.index].replace(" (vous)", "")
-	var large := font_noms.get_string_size(nom, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x + 8.0
-	var plaque := Rect2(pied - Vector2(large / 2.0, 0), Vector2(large, 10))
-	draw_rect(plaque, UiTokens.SARCELLE)
-	draw_rect(plaque, UiTokens.ENCRE, false, 1.0)
-	_ecrire(plaque.position + Vector2(0, 8.0), nom, HORIZONTAL_ALIGNMENT_CENTER, large, 8, Color.WHITE, 0, Color.BLACK, font_noms)
+## --vitrine : les bâtiments côte à côte à leur taille de jeu, au-dessus du camp (contrôle de nouvelles images).
+func _draw_vitrine() -> void:
+	var o := Vector2(game.map.camp.position) * TILE + Vector2(-TILE * 9.0, -TILE * 9.0)
+	var ids := ["cabinet", "agence", "cuisine", "formation", "maison", "snack"]
+	for i in ids.size():
+		_draw_building(Rect2(o + Vector2(i * TILE * 3.2, 0), Vector2(TILE * 2.0, TILE * 2.0)), ids[i], Color.WHITE)
+	_draw_gate(Rect2(o + Vector2(0, TILE * 3.5), Vector2(TILE * 2.0, TILE)))
+	_draw_gate(Rect2(o + Vector2(TILE * 3.2, TILE * 2.8), Vector2(TILE, TILE * 2.0)), true)
+	_draw_building(Rect2(o + Vector2(TILE * 6.4, TILE * 3.5), Vector2(TILE, TILE)), "rocher_obs", Color.WHITE)
 
 
-## Affiche d'entreprise près du camp : le slogan change chaque jour.
+## Affiche d'entreprise près de la mairie : le slogan change chaque jour.
 func _draw_affiche() -> void:
 	if spectator or mt.phase == "draft":
 		return
@@ -1026,7 +1027,6 @@ func _draw_gate(r: Rect2, vertical := false) -> void:
 		# entrée tournée (verticale) : le portique vu de côté, posé sur la case du bas
 		SpritesBD.dessiner_largeur(self, "entree2", Vector2(r.get_center().x, r.end.y), r.size.x * 1.7)
 		return
-	_draw_logo(Vector2(r.get_center().x, r.end.y + 5.0))
 	SpritesBD.dessiner_largeur(self, "entree", Vector2(r.get_center().x, r.end.y), maxf(r.size.x, r.size.y) * 1.15)
 	return
 	var tex := _image("res://ui/batiments/entree.svg")

@@ -12,10 +12,10 @@ const MANIFESTE := "res://assets/bd/sprites_bd.json"
 ## Bâtiment terminé → sprite. Largeur dessinée = largeur de l'emprise × LARGEUR_BATIMENT.
 const BATIMENTS := {
 	"camp": "camp3", "maison": "maison", "entrepot": "entrepot", "mine": "mine", "entree": "entree",
-	"boutique": "souvenirs", "formation": "formation", "comptoir": "marche", "agence": "interim", "cabinet": "mairie",
-	"cuisine": "restaurant", "entretien": "atelier", "snack": "snack", "kiosque": "scene", "mairie": "mairie",
+	"boutique": "souvenirs", "formation": "formation", "comptoir": "marche", "agence": "agence", "cabinet": "cabinet",
+	"cuisine": "cuisine", "entretien": "atelier", "snack": "snack", "kiosque": "scene", "mairie": "mairie",
 	# aménagements d'enclos
-	"grand_arbre": "arbre1", "rocher_obs": "rochers", "bassin_profond": "bassin", "abri_chaud": "abri",
+	"grand_arbre": "arbre1", "rocher_obs": "rocher_obs", "bassin_profond": "bassin", "abri_chaud": "abri",
 }
 ## Camp selon son niveau (1 à 3).
 const CAMPS := ["camp2", "camp1", "camp3"]

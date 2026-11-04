@@ -17,8 +17,28 @@
       "genre": "m"
     },
     {
+      "id": "bastien",
+      "nom": "Bastien",
+      "genre": "m"
+    },
+    {
+      "id": "camille",
+      "nom": "Camille",
+      "genre": "f"
+    },
+    {
+      "id": "chloe",
+      "nom": "Chloé",
+      "genre": "f"
+    },
+    {
       "id": "clara",
       "nom": "Clara",
+      "genre": "f"
+    },
+    {
+      "id": "elise",
+      "nom": "Élise",
       "genre": "f"
     },
     {
@@ -62,14 +82,29 @@
       "genre": "m"
     },
     {
+      "id": "kenji",
+      "nom": "Kenji",
+      "genre": "m"
+    },
+    {
       "id": "lea",
       "nom": "Léa",
+      "genre": "f"
+    },
+    {
+      "id": "lina",
+      "nom": "Lina",
       "genre": "f"
     },
     {
       "id": "louis",
       "nom": "Louis",
       "genre": "m"
+    },
+    {
+      "id": "lucie",
+      "nom": "Lucie",
+      "genre": "f"
     },
     {
       "id": "malik",
@@ -95,6 +130,16 @@
       "id": "margaux",
       "nom": "Margaux",
       "genre": "f"
+    },
+    {
+      "id": "nadia",
+      "nom": "Nadia",
+      "genre": "f"
+    },
+    {
+      "id": "nathan",
+      "nom": "Nathan",
+      "genre": "m"
     },
     {
       "id": "noah",
@@ -127,6 +172,16 @@
       "genre": "m"
     },
     {
+      "id": "sarah",
+      "nom": "Sarah",
+      "genre": "f"
+    },
+    {
+      "id": "theo",
+      "nom": "Théo",
+      "genre": "m"
+    },
+    {
       "id": "tom",
       "nom": "Tom",
       "genre": "m"
@@ -139,6 +194,11 @@
     {
       "id": "yasmine",
       "nom": "Yasmine",
+      "genre": "f"
+    },
+    {
+      "id": "zoe",
+      "nom": "Zoé",
       "genre": "f"
     }
   ]
