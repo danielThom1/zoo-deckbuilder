@@ -3,7 +3,7 @@
 
   "regles": {
     "_note_aura": "aura = bonus de productivité (extraction, construction, aménagement) donné aux AUTRES ouvriers dans le rayon (en cases). Les auras se cumulent.",
-    "taille_main": 5,
+    "taille_main": 4,
     "vitesse_ouvriers": 0.7,
     "_note_vitesse": "Multiplicateur global de la vitesse de déplacement des ouvriers (la vitesse de chaque métier reste relative).",
     "cout_min_embauche": 3,
@@ -12,12 +12,13 @@
     "actions_nuit": { "jour_min": 7, "par_nuit": 1, "cout_licenciement": 8, "cout_amelioration": 12, "_note": "À partir du milieu de partie, chaque nuit : licencier OU améliorer un ouvrier (choix parmi 3 améliorations), payant." },
     "deploiement_gratuit": { "par_jour": 1, "rendement": 0.25, "vitesse": 0.6, "_note": "Un ouvrier par jour peut être déployé sans salaire, avec un rendement de 25 % sur toutes les tâches (construction comprise) et une marche à 60 % (évite les blocages sans argent)." },
     "emprunt": { "montant": 10, "remboursement": 12, "_note": "Une fois par jour, si l'on ne peut payer le salaire d'aucun ouvrier de sa main : emprunt de 10, 12 retirés automatiquement le soir (le solde peut devenir négatif)." },
-    "taille_deck_initial": 10,
+    "taille_deck_initial": 8,
     "salaire_paye_au_deploiement": true,
     "deploiement_en_cours_de_journee": true,
     "xp_jours_par_niveau": 2,
+    "xp_jours_hauts_niveaux": 3,
     "efficacite_lobbying_defaut": 0.25,
-    "niveau_max": 5,
+    "niveau_max": 6,
     "choix_ameliorations": 3,
     "efficacite_manuelle_cadre": 0.6,
     "efficacite_seconde_specialite": 1.4,
@@ -28,7 +29,7 @@
 
   "generation_draft": {
     "_note": "Draft par tours : cartes_par_joueur tours ; à chaque tour, cartes_par_tour cartes révélées (au moins une par joueur), chacun en prend une à tour de rôle, le premier à choisir tourne. Chaque carte tire sa catégorie selon ces probabilités (≈ 1 cadre et 2 qualifiés par joueur en moyenne).",
-    "cartes_par_joueur": 10,
+    "cartes_par_joueur": 8,
     "cartes_par_tour": 4,
     "probabilites": { "peu_qualifie": 0.70, "qualifie": 0.20, "cadre": 0.10 },
     "defauts_debut": { "negatif_en_plus": 1.0, "positif_en_moins": 0.5, "_note": "Premiers tours du draft plus faibles : au 1er tour, un défaut de plus (probabilité 1) et une qualité de moins (probabilité 0,5) ; l'effet décroît jusqu'à 0 au dernier tour." }
@@ -69,29 +70,29 @@
   ],
 
   "traits_positifs": [
-    { "id": "costaud",       "nom": "Costaud", "nom_f": "Costaude",       "effet": { "construire": 1.25 } },
-    { "id": "rapide",        "nom": "Rapide",        "effet": { "vitesse": 1.3 } },
-    { "id": "endurant",      "nom": "Endurant", "nom_f": "Endurante",      "effet": { "defaut": 1.1 }, "texte": "+10 % sur toutes les tâches" },
-    { "id": "polyvalent",    "nom": "Polyvalent", "nom_f": "Polyvalente",    "effet": {}, "texte": "Efficacité hors spécialité au minimum 1.2" },
-    { "id": "bon_eleve",     "nom": "Bon élève", "nom_f": "Bonne élève",     "effet": { "xp": 1.5 }, "texte": "Expérience ×1,5" },
+    { "id": "costaud",       "nom": "Costaud", "nom_f": "Costaude",       "effet": { "construire": 1.4 } },
+    { "id": "rapide",        "nom": "Rapide",        "effet": { "vitesse": 1.45 } },
+    { "id": "endurant",      "nom": "Endurant", "nom_f": "Endurante",      "effet": { "defaut": 1.2 }, "texte": "+20 % sur toutes les tâches" },
+    { "id": "polyvalent",    "nom": "Polyvalent", "nom_f": "Polyvalente",    "effet": {}, "texte": "Efficacité hors spécialité au minimum 1,3" },
+    { "id": "bon_eleve",     "nom": "Bon élève", "nom_f": "Bonne élève",     "effet": { "xp": 2.0 }, "texte": "Expérience ×2" },
     { "id": "econome",       "nom": "Économe",       "effet": { "salaire": -1 } },
-    { "id": "charismatique", "nom": "Charismatique", "effet": { "lobbying": 1.5 }, "aura": { "rayon": 3, "bonus": 0.15 }, "texte": "+15 % de productivité aux autres ouvriers dans un rayon de 3 cases ; lobbying ×1,5" },
-    { "id": "debrouillard",  "nom": "Débrouillard", "nom_f": "Débrouillarde",  "effet": { "cout_ressources_chantier": 0.85 }, "texte": "Un chantier où il a travaillé : 15 % des ressources remboursées à la fin" },
+    { "id": "charismatique", "nom": "Charismatique", "effet": { "lobbying": 1.5 }, "aura": { "rayon": 3, "bonus": 0.25 }, "texte": "+25 % de productivité aux autres ouvriers dans un rayon de 3 cases ; lobbying ×1,5" },
+    { "id": "debrouillard",  "nom": "Débrouillard", "nom_f": "Débrouillarde",  "effet": { "cout_ressources_chantier": 0.7 }, "texte": "Un chantier où il a travaillé : 30 % des ressources remboursées à la fin" },
     { "id": "matinal",       "nom": "Matinal", "nom_f": "Matinale",       "effet": {}, "texte": "Commence la journée sur la case de son dernier chantier au lieu du Camp" },
-    { "id": "naturaliste",   "nom": "Naturaliste",   "effet": { "amenager": 1.3, "construire_enclos": 1.3 } }
+    { "id": "naturaliste",   "nom": "Naturaliste",   "effet": { "amenager": 1.5, "construire_enclos": 1.5 } }
   ],
 
   "traits_negatifs": [
-    { "id": "lent",          "nom": "Lent", "nom_f": "Lente",          "effet": { "vitesse": 0.75 } },
-    { "id": "maladroit",     "nom": "Maladroit", "nom_f": "Maladroite",     "effet": { "construire": 0.8 } },
-    { "id": "paresseux",     "nom": "Paresseux", "nom_f": "Paresseuse",     "effet": {}, "texte": "S'arrête 15 s toutes les 60 s de travail" },
-    { "id": "gourmand",      "nom": "Gourmand", "nom_f": "Gourmande",      "effet": { "salaire": 1 } },
-    { "id": "rabat_joie",    "nom": "Rabat-joie",    "effet": {}, "aura": { "rayon": 3, "bonus": -0.10 }, "texte": "−10 % de productivité aux autres ouvriers dans un rayon de 3 cases" },
+    { "id": "lent",          "nom": "Lent", "nom_f": "Lente",          "effet": { "vitesse": 0.6 } },
+    { "id": "maladroit",     "nom": "Maladroit", "nom_f": "Maladroite",     "effet": { "construire": 0.65 } },
+    { "id": "paresseux",     "nom": "Paresseux", "nom_f": "Paresseuse",     "effet": {}, "texte": "S'arrête 25 s toutes les 60 s de travail" },
+    { "id": "gourmand",      "nom": "Gourmand", "nom_f": "Gourmande",      "effet": { "salaire": 2 } },
+    { "id": "rabat_joie",    "nom": "Rabat-joie",    "effet": {}, "aura": { "rayon": 3, "bonus": -0.20 }, "texte": "−20 % de productivité aux autres ouvriers dans un rayon de 3 cases" },
     { "id": "col_blanc",     "nom": "Col blanc",     "effet": {}, "categories": ["cadre"], "texte": "Refuse tout travail manuel" },
-    { "id": "distrait",      "nom": "Distrait", "nom_f": "Distraite",      "effet": {}, "texte": "10 % de chance par minute d'abandonner sa tâche (redevient inactif)" },
+    { "id": "distrait",      "nom": "Distrait", "nom_f": "Distraite",      "effet": {}, "texte": "25 % de chance par minute d'abandonner sa tâche (redevient inactif)" },
     { "id": "tetu",          "nom": "Têtu", "nom_f": "Têtue",          "effet": { "choix_ameliorations": 2 }, "texte": "Améliorations : choix entre 2 au lieu de 3" },
     { "id": "peureux",       "nom": "Peureux", "nom_f": "Peureuse",       "effet": {}, "texte": "Refuse de travailler à moins de 2 cases d'un enclos de prédateur" },
-    { "id": "casanier",      "nom": "Casanier", "nom_f": "Casanière",      "effet": {}, "texte": "−30 % de vitesse à plus de 15 cases du Camp" }
+    { "id": "casanier",      "nom": "Casanier", "nom_f": "Casanière",      "effet": {}, "texte": "−50 % de vitesse à plus de 15 cases du Camp" }
   ],
 
   "ameliorations_generiques": [

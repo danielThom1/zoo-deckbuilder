@@ -45,21 +45,45 @@ const VISITEURS := ["visiteuse_sac", "visiteur_sweat", "visiteur_canne", "randon
 	"visiteur_01", "visiteur_02", "visiteur_03", "visiteur_04", "visiteur_05", "visiteur_06", "visiteur_07", "visiteur_08",
 	"visiteur_09", "visiteur_10", "visiteur_11", "visiteur_12", "visiteur_13", "visiteur_14", "visiteur_15", "visiteur_16"]
 
-## Espèce (animals.json) → [sprite du corps, hauteur en cases, sprite de tête pour les cartes ou ""].
+## Espèce (animals.json) → [sprite du corps, hauteur en cases, portrait pour les cartes ou "", images d'animation].
 const ANIMAUX := {
-	"zebre": ["zebre", 1.0, "zebre_tete"], "gazelle": ["gazelle", 0.85, ""], "autruche": ["autruche", 1.15, ""],
-	"girafe": ["girafe", 2.2, "girafe_tete"], "lion": ["lion", 0.8, "lion_tete"], "elephant": ["elephant", 1.6, "elephant_tete"],
-	"rhinoceros": ["rhinoceros", 1.0, ""], "cerf": ["cerf", 1.05, ""], "renard": ["renard", 0.55, "renard_tete"],
-	"sanglier": ["sanglier", 0.7, "sanglier_tete"], "loup": ["loup", 0.7, "loup_tete"], "ours_brun": ["ours_brun", 0.95, ""],
-	"lynx": ["lynx", 0.65, "lynx_tete"], "perroquet": ["perroquet", 0.6, ""], "capucin": ["capucin", 0.6, ""],
-	"tapir": ["tapir", 0.75, ""], "jaguar": ["jaguar", 0.7, "jaguar_tete"], "tigre": ["tigre", 0.75, ""],
-	"gorille": ["gorille", 0.95, ""], "flamant": ["flamant", 1.0, ""], "loutre": ["loutre", 0.45, ""],
-	"manchot": ["manchot", 0.6, ""], "phoque": ["phoque", 0.55, ""], "hippopotame": ["hippopotame", 0.9, ""],
-	"crocodile": ["crocodile", 0.35, ""], "chevre": ["chevre", 0.8, ""], "marmotte": ["marmotte", 0.45, ""],
-	"panda_roux": ["panda_roux", 0.55, "panda_roux_tete"], "yak": ["yak", 0.9, ""], "panthere_neiges": ["panthere_neiges", 0.7, "panthere_neiges_tete"],
-	"suricate": ["suricate", 0.5, ""], "fennec": ["fennec", 0.5, ""], "dromadaire": ["dromadaire", 1.4, ""],
-	"addax": ["addax", 0.95, ""], "dragon_komodo": ["dragon_komodo", 0.4, ""],
-	"vautour": ["vautour", 0.75, ""], "toucan": ["toucan", 0.55, ""], "aigle_royal": ["aigle_royal", 0.75, ""],
+	"aigle_royal": ["aigle_royal", 0.9, "aigle_royal_tete", 4],
+	"bison_europe": ["bison_europe", 1.2, "bison_europe_tete", 4],
+	"lynx": ["lynx", 0.7, "lynx_tete", 4],
+	"loutre_europe": ["loutre_europe", 0.45, "loutre_europe_tete", 4],
+	"loup": ["loup", 0.8, "loup_tete", 4],
+	"phoque": ["phoque", 0.5, "phoque_tete", 4],
+	"cerf": ["cerf", 1.2, "cerf_tete", 4],
+	"pygargue": ["pygargue", 0.9, "pygargue_tete", 4],
+	"puma": ["puma", 0.75, "puma_tete", 4],
+	"capybara": ["capybara", 0.6, "capybara_tete", 4],
+	"alligator": ["alligator", 0.4, "alligator_tete", 4],
+	"jaguar": ["jaguar", 0.7, "jaguar_tete", 4],
+	"ocelot": ["ocelot", 0.6, "ocelot_tete", 4],
+	"ara": ["ara", 0.7, "ara_tete", 4],
+	"bison_amerique": ["bison_amerique", 1.2, "bison_amerique_tete", 4],
+	"tapir": ["tapir", 0.8, "tapir_tete", 4],
+	"tigre": ["tigre", 0.85, "tigre_tete", 4],
+	"panda": ["panda", 1.0, "panda_tete", 4],
+	"leopard_neiges": ["leopard_neiges", 0.7, "leopard_neiges_tete", 4],
+	"loutre_cendree": ["loutre_cendree", 0.45, "loutre_cendree_tete", 4],
+	"paon": ["paon", 0.9, "paon_tete", 4],
+	"koi": ["koi", 0.35, "koi_tete", 4],
+	"salamandre": ["salamandre", 0.3, "salamandre_tete", 4],
+	"calao": ["calao", 0.7, "calao_tete", 4],
+	"grue_japon": ["grue_japon", 1.1, "grue_japon_tete", 4],
+	"yak": ["yak", 1.1, "yak_tete", 4],
+	"lion": ["lion", 0.9, "lion_tete", 4],
+	"hippopotame": ["hippopotame", 1.1, "hippopotame_tete", 4],
+	"guepard": ["guepard", 0.75, "guepard_tete", 4],
+	"girafe": ["girafe", 2.2, "girafe_tete", 4],
+	"manchot": ["manchot", 0.7, "manchot_tete", 4],
+	"loutre_joues_blanches": ["loutre_joues_blanches", 0.5, "loutre_joues_blanches_tete", 4],
+	"hyene": ["hyene", 0.75, "hyene_tete", 4],
+	"zebre": ["zebre", 1.0, "zebre_tete", 4],
+	"grue_couronnee": ["grue_couronnee", 1.1, "grue_couronnee_tete", 4],
+	"messager": ["messager", 0.7, "messager_tete", 4],
+	"chouette": ["chouette", 0.6, "", 1], "cigogne": ["grue", 1.1, "", 1], "loutre_geante": ["loutre", 0.6, "", 1],
 }
 
 static var _manif := {}
@@ -121,6 +145,14 @@ static func _dessiner_k(ci: CanvasItem, t: Texture2D, nom: String, pied_monde: V
 
 
 ## Sprite d'un ouvrier selon son métier (repli : manœuvre).
+## Image d'animation d'une espèce : « id », « id_f2 », « id_f3 »… (les planches n'ont pas toutes le même nombre d'images).
+static func image_animal(esp: Array, k: int) -> String:
+	var n := mini(int(esp[3]) if esp.size() > 3 else 1, 3)  # les dernières images sont souvent couché ou en plein saut
+	var f := k % maxi(1, n)
+	var nom: String = esp[0] if f == 0 else "%s_f%d" % [esp[0], f + 1]
+	return nom if existe(nom) else esp[0]
+
+
 static func pour_metier(id_metier: String, feminin := false) -> String:
 	if feminin:
 		return METIERS_F.get(id_metier, "ouvrier_marche_14")

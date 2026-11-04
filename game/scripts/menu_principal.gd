@@ -5,6 +5,7 @@ extends Control
 ## Ne dépend que de GameData, MapGenerator, GameMap et des polices de UiTokens.
 
 signal lancer(spectateur: bool, graine: int, adversaires: int, difficile: bool)
+signal continuer
 
 # Couleurs (thème Émeraude, cf. docs/handoff_emeraude/tokens.json)
 # Style « BD néo ligne claire » (docs/handoff_bd) : papier blanc, encre marine, accent jaune, bandeau sarcelle
@@ -134,16 +135,24 @@ void fragment() {
 	col.add_child(_espace(26))
 
 	var boutons := VBoxContainer.new()
-	boutons.add_theme_constant_override("separation", 14)
+	boutons.add_theme_constant_override("separation", 8)
 	col.add_child(boutons)
 	var b_jouer := _bouton_menu("Jouer contre l'IA", "", "jouer", true)
 	sous_titre_jouer = b_jouer.get_meta("sous_titre")
 	b_jouer.pressed.connect(func(): lancer.emit(false, graine, adversaires, difficile))
 	boutons.add_child(b_jouer)
+	var sauvee := Sauvegarde.resume()
+	if not sauvee.is_empty():
+		var b_suite := _bouton_menu("Continuer", "Partie sauvegardée : début du jour %d, %d joueurs" % [sauvee["jour"], sauvee["joueurs"]], "jouer", false)
+		b_suite.pressed.connect(func(): continuer.emit())
+		boutons.add_child(b_suite)
 	var b_regarder := _bouton_menu("Regarder des IA jouer", "4 IA aux stratégies différentes, en accéléré ×8", "oeil", false)
 	sous_titre_regarder = b_regarder.get_meta("sous_titre")
 	b_regarder.pressed.connect(func(): lancer.emit(true, graine, 4, difficile))
 	boutons.add_child(b_regarder)
+	var b_aide := _bouton_menu("Tutoriel et glossaire", "Comment jouer, et tout ce qui existe dans le jeu", "oeil", false)
+	b_aide.pressed.connect(func(): add_child(Aide.new(donnees)))
+	boutons.add_child(b_aide)
 	var b_quitter := _bouton_menu("Quitter", "Retour au bureau", "sortie", false)
 	b_quitter.pressed.connect(func(): get_tree().quit())
 	boutons.add_child(b_quitter)
@@ -307,7 +316,7 @@ func _carte_reglages() -> Control:
 
 func _bouton_menu(titre: String, sous_titre: String, icone: String, principal: bool) -> Button:
 	var b := Button.new()
-	b.custom_minimum_size = Vector2(420, 70)
+	b.custom_minimum_size = Vector2(420, 62)
 	b.focus_mode = Control.FOCUS_ALL
 	var fond_n := Color(PANNEAU_BAS, 0.78)
 	if principal:

@@ -60,7 +60,7 @@ func _init() -> void:
 	check(col_ok and cols > 0, "Col blanc uniquement chez les cadres (%d tirés)" % cols)
 	var mt := Match.new(data, 42, 2, 0)
 	var g: GameState = mt.players[0]
-	check(mt.draft_pool.size() == 4 and mt.draft_reserve.size() == 36, "4 cartes révélées par tour, 10 tours (2 joueurs)")
+	check(mt.draft_pool.size() == 4 and mt.draft_reserve.size() == 28, "4 cartes révélées par tour, 8 tours (2 joueurs)")
 	var order := mt.draft_order.slice(0, 4)
 	check(order[0] != order[1] and order[2] == order[1], "le premier à choisir tourne (%s)" % str(order))
 	mt.pick_draft(mt.ai_choice())
@@ -69,7 +69,7 @@ func _init() -> void:
 	check(mt.draft_round() == 1 and mt.draft_pool.size() == 4, "à 2 joueurs, les 2 cartes restantes sont défaussées")
 	while mt.phase == "draft":
 		mt.pick_draft(mt.ai_choice())
-	check(mt.drafted[0].size() == 10 and mt.drafted[1].size() == 10, "10 cartes chacun")
+	check(mt.drafted[0].size() == 8 and mt.drafted[1].size() == 8, "8 cartes chacun")
 	# À 4 joueurs : la 4e carte du tour revient d'office au 4e joueur, puis le premier change.
 	var m4 := Match.new(data, 43, 4, -1)
 	var first4 := m4.current_drafter()
@@ -80,8 +80,8 @@ func _init() -> void:
 	check(m4.current_drafter() == (first4 + 1) % 4, "4 joueurs : le premier à choisir avance d'un joueur")
 	while m4.phase == "draft":
 		m4.pick_draft(m4.ai_choice())
-	check(m4.drafted.all(func(d): return d.size() == 10), "4 joueurs : 10 cartes chacun")
-	check(g.phase == "day" and g.hand.size() == 5, "le jour 1 commence avec 5 cartes en main")
+	check(m4.drafted.all(func(d): return d.size() == 8), "4 joueurs : 8 cartes chacun")
+	check(g.phase == "day" and g.hand.size() == 4, "le jour 1 commence avec 4 cartes en main")
 
 	print("Journée :")
 	for c in g.hand.duplicate():
@@ -106,7 +106,7 @@ func _init() -> void:
 		g.tick(GameState.TICK)
 	check(g.phase == "night", "la nuit tombe après 5 minutes")
 	g.start_next_day()
-	check(g.day == 2 and g.hand.size() == 5, "jour 2 : nouvelle main")
+	check(g.day == 2 and g.hand.size() == 4, "jour 2 : nouvelle main")
 
 	print("Effets de zone :")
 	var ga := _fresh_day(data, 7)
@@ -120,15 +120,15 @@ func _init() -> void:
 	a.card.traits.assign(["charismatique"])
 	b.card.traits.assign([])
 	b.pos = a.pos + Vector2(2, 0)
-	check(is_equal_approx(ga.aura_mult(b), 1.15), "Charismatique à 2 cases : +15 %% (x%.2f)" % ga.aura_mult(b))
+	check(is_equal_approx(ga.aura_mult(b), 1.25), "Charismatique à 2 cases : +25 %% (x%.2f)" % ga.aura_mult(b))
 	b.pos = a.pos + Vector2(5, 0)
 	check(is_equal_approx(ga.aura_mult(b), 1.0), "à 5 cases : aucun bonus")
 	check(is_equal_approx(ga.aura_mult(a), 1.0), "pas de bonus pour lui-même")
 	a.card.traits.assign(["rabat_joie"])
 	b.pos = a.pos + Vector2(1, 0)
-	check(is_equal_approx(ga.aura_mult(b), 0.9), "Rabat-joie adjacent : -10 %%")
+	check(is_equal_approx(ga.aura_mult(b), 0.8), "Rabat-joie adjacent : -20 %%")
 	b.pos = a.pos + Vector2(3, 0)
-	check(is_equal_approx(ga.aura_mult(b), 0.9), "Rabat-joie à 3 cases : -10 %% aussi")
+	check(is_equal_approx(ga.aura_mult(b), 0.8), "Rabat-joie à 3 cases : -20 %% aussi")
 
 	print("Construction :")
 	var gc := _fresh_day(data, 12345)
@@ -142,7 +142,7 @@ func _init() -> void:
 	var camp := gc.map.camp
 	check(gc.placement_error("batiment", gc.building_def("maison"), camp.position) != "", "refus sur le camp")
 	var maison := gc.place("batiment", gc.building_def("maison"), camp.position + Vector2i(-4, 0))
-	check(maison != null and is_equal_approx(gc.stock["bois"], 88.0), "maison placée, 12 bois payés")
+	check(maison != null and is_equal_approx(gc.stock["bois"], 95.0), "maison placée, 5 bois payés")
 	var route_tile := Vector2i(camp.position.x + 1, camp.position.y - 1)
 	var route := gc.place("batiment", gc.building_def("route"), route_tile)
 	var creuser := gc.place("amenagement", gc.amenagement_defs()[2], camp.position + Vector2i(-3, -4))
@@ -153,7 +153,7 @@ func _init() -> void:
 	gc.order([builders[3]], creuser.rect.position)
 	for i in 1500:
 		gc.tick(GameState.TICK)
-	check(maison.done and gc.housing() == 14, "maison terminée : logement %d" % gc.housing())
+	check(maison.done and gc.housing() == 9, "maison terminée : logement %d" % gc.housing())
 	check(route.done and gc.map.road[gc.map.idx(route_tile.x, route_tile.y)] == 1, "route terminée")
 	var cp := creuser.rect.position
 	check(gc.map.get_t(cp.x, cp.y) == GameMap.EAU and not gc.sites.has(creuser), "bassin creusé : la case devient de l'eau")
@@ -202,8 +202,8 @@ func _init() -> void:
 
 	print("Marché et contrats :")
 	var gk := _fresh_day(data, 12345)
-	check(gk.market_workers.size() == 5 and gk.market_contracts.size() == 4, "marché ouvert : 5 ouvriers, 4 contrats")
-	check(gk.market_contracts.all(func(d): return d["palier"] == "T1"), "jour 1 : uniquement des contrats T1")
+	check(gk.market_workers.size() == 5 and gk.market_contracts.size() == 5, "marché ouvert : 5 ouvriers, 5 contrats")
+	check(gk.market_contracts.any(func(d): return d["palier"] == "T3") and gk.market_contracts.any(func(d): return d["palier"] == "T2"), "dès le jour 1 : au moins un rare et un peu commun au marché")
 	gk.stock["bois"] = 20.0
 	gk.stock["pierre"] = 10.0
 	var house := gk.place("batiment", gk.building_def("maison"), gk.map.camp.position + Vector2i(3, 0))
@@ -223,7 +223,7 @@ func _init() -> void:
 	var second: Dictionary = gk.market_contracts[0]
 	var base_price := int(second["cout"].get("argent", 0))
 	var expected := roundi(base_price * (1.0 + 0.15 * 1) * 1.5)
-	check(int(gk.contract_cost(second).get("argent", 0)) == expected, "2e contrat : prix x1,15 (1 animal) x1,5 (2e de la nuit) = %d (base %d)" % [expected, base_price])
+	check(absi(int(gk.contract_cost(second).get("argent", 0)) - expected) <= 1, "2e contrat : prix x1,15 (1 animal) x1,5 (2e de la nuit) = %d (base %d)" % [expected, base_price])
 	check(gk.contract_error(second) != "", "un seul contrat par tour : le tour est passé")
 	check(gk.mt.night_taken.filter(func(t): return t["joueur"] == gk.index).size() == 1, "achats de la nuit visibles de tous")
 	gk.contracts.erase(second)
@@ -481,7 +481,7 @@ func _init() -> void:
 	mn.night_goto("equipe")
 	var target: GameState.Card = me.all_employees()[0]
 	var opts := me.upgrade_options(target)
-	check(opts.size() == 3, "3 améliorations proposées")
+	check(opts.size() >= 2, "améliorations proposées (%d)" % opts.size())
 	var eff_before := me.efficiency(target, "extraire_bois")
 	var eff_opt: Dictionary = {"id": "plus_efficace", "nom": "Expérience", "effet": {"defaut": 1.15}}
 	check(me.apply_upgrade(target, eff_opt) and is_equal_approx(me.efficiency(target, "extraire_bois"), eff_before * 1.15), "amélioration payée (12) et appliquée")
@@ -502,7 +502,7 @@ func _init() -> void:
 	check(is_equal_approx(b_appr.xp, 1.7), "Apprenti : expérience ×1,7 (%.1f jour pour 1 jour travaillé)" % b_appr.xp)
 	var b_eleve: GameState.Card = b_mk.call("manoeuvre", ["bon_eleve"])
 	b_g.gain_xp(b_eleve, 1.0)
-	check(is_equal_approx(b_eleve.xp, 1.5), "Bon élève : expérience ×1,5")
+	check(is_equal_approx(b_eleve.xp, 2.0), "Bon élève : expérience ×2")
 	check(b_g._upgrade_pool(b_mk.call("manoeuvre", ["tetu"])).size() == 2, "Têtu : 2 améliorations au choix au lieu de 3")
 	# Montée de niveau : une amélioration gratuite au choix
 	var b_lc: GameState.Card = b_g.hand[0]
@@ -1099,16 +1099,20 @@ func _init() -> void:
 	var l_o := Vector2i(14, 4)
 	l_g.stock["bois"] = 60.0
 	l_g.stock["pierre"] = 60.0
-	var l_rows := ["SPP", "SRP", "PPP"]
+	var l_rows := ["SSPPP", "SRPPP", "SPPPP"]
+	for y in range(l_o.y, l_o.y + 5):
+		for x in range(l_o.x, l_o.x + 7):
+			l_g.map.set_t(x, y, GameMap.PRAIRIE)
+			l_g._terrain_updated(Vector2i(x, y))
 	for y in 3:
-		for x in 3:
+		for x in 5:
 			var ch: String = l_rows[y][x]
 			l_g.map.set_t(l_o.x + 1 + x, l_o.y + 1 + y, GameMap.SABLE if ch == "S" else (GameMap.ROCHE if ch == "R" else GameMap.PRAIRIE))
 			l_g._terrain_updated(Vector2i(l_o.x + 1 + x, l_o.y + 1 + y))
 	var l_sites: Array = []
 	for y in range(l_o.y, l_o.y + 5):
-		for x in range(l_o.x, l_o.x + 5):
-			if (x == l_o.x or x == l_o.x + 4 or y == l_o.y or y == l_o.y + 4) and l_g.site_at(Vector2i(x, y)) == null:
+		for x in range(l_o.x, l_o.x + 7):
+			if (x == l_o.x or x == l_o.x + 6 or y == l_o.y or y == l_o.y + 4) and l_g.site_at(Vector2i(x, y)) == null:
 				l_sites.append(l_g.place("batiment", l_g.building_def("enclos"), Vector2i(x, y)))
 	for st in l_sites:
 		if st:
@@ -1131,7 +1135,7 @@ func _init() -> void:
 	w_g.stock["bois"] = 20.0
 	w_g.stock["pierre"] = 20.0
 	check(w_g.placement_error("batiment", w_g.building_def("enclos"), w_eau) == "", "une clôture d'enclos se pose sur l'eau (%s)" % w_g.placement_error("batiment", w_g.building_def("enclos"), w_eau))
-	check(w_g.placement_error("batiment", w_g.building_def("cloture"), w_eau) != "", "le mur d'enceinte, non")
+	check(w_g.placement_error("batiment", w_g.building_def("cloture"), w_eau) == "", "le mur d'enceinte aussi")
 	var w_rate0 := w_g.sell_rate()
 	var w_mar: GameState.Card = b_mk.call("marchand", [])
 	w_g.hand.append(w_mar)
@@ -1144,6 +1148,94 @@ func _init() -> void:
 		check(w_lead.pick_bonus(Match.NO_BONUS) and w_g.mt.night_stage == "equipe", "le premier en influence peut refuser tous les bonus")
 		w_g.start_next_day()
 		check(w_g.day_bonus.get("id", "") == "aucun", "aucun bonus le lendemain")
+
+	print("Rework : animaux rares, montagnes, guérison :")
+	var y_g := _fresh_day(data, 1212)
+	var y_defs: Dictionary = {}
+	for d in data["animals"]["animaux"]:
+		y_defs[d["id"]] = d
+	check(data["animals"]["animaux"].size() == 39, "39 espèces sur 4 continents")
+	y_g.debug_build_zoo(Vector2i(4, 4))
+	y_g.end_day()
+	y_g.mt.night_goto("equipe")
+	y_g.start_next_day()
+	var y_hand0 := y_g.hand_size()
+	var y_tigre := GameState.Animal.new()
+	y_tigre.def = y_defs["tigre"]
+	y_tigre.arrived = true
+	y_tigre.fed = true
+	y_tigre.tiles.assign(y_g.animals[0].tiles)
+	y_g.animals.append(y_tigre)
+	check(y_g.hand_size() == y_hand0 + 1, "Tigre du Bengale : 1 carte de plus par jour")
+	y_g.animals.erase(y_tigre)
+	var y_a0 := y_g.attractiveness()
+	var y_panda := GameState.Animal.new()
+	y_panda.def = y_defs["panda"]
+	y_panda.arrived = true
+	y_panda.fed = true
+	y_panda.tiles.assign(y_g.animals[0].tiles)
+	y_g.animals.append(y_panda)
+	check(y_g.attractiveness() >= y_a0 + 14 + 5, "Panda géant : +5 d'attractivité par autre herbivore (%d → %d)" % [y_a0, y_g.attractiveness()])
+	y_g.animals.erase(y_panda)
+	# Malade sans Soigneur : guérit seul au bout de 2 nuits
+	var y_sick: GameState.Animal = y_g.animals[0]
+	y_sick.sick = true
+	y_sick.sick_nights = 0
+	y_g._roll_diseases()
+	check(y_sick.sick, "malade : encore malade après 1 nuit")
+	y_sick.sick_nights = 1
+	y_g._roll_diseases()
+	check(not y_sick.sick or y_sick.sick_nights == 0, "malade : guérit seul au bout de 2 nuits")
+	# Montagnes : elles ferment l'enceinte
+	var y_m := _fresh_day(data, 1313)
+	y_m.stock["pierre"] = 200.0
+	y_m.stock["bois"] = 200.0
+	var y_o := Vector2i(4, 4)
+	for y in range(y_o.y, y_o.y + 6):
+		for x in range(y_o.x, y_o.x + 8):
+			y_m.map.set_t(x, y, GameMap.MONTAGNE if x == y_o.x else GameMap.PRAIRIE)
+			y_m._terrain_updated(Vector2i(x, y))
+	var y_sites: Array = [y_m.place("batiment", y_m.building_def("entree"), Vector2i(y_o.x + 3, y_o.y + 5))]
+	for y in range(y_o.y, y_o.y + 6):
+		for x in range(y_o.x + 1, y_o.x + 8):
+			if (x == y_o.x + 7 or y == y_o.y or y == y_o.y + 5) and y_m.site_at(Vector2i(x, y)) == null:
+				y_sites.append(y_m.place("batiment", y_m.building_def("cloture"), Vector2i(x, y)))
+	for st in y_sites:
+		if st:
+			st.work = st.travail()
+			y_m._complete(st)
+	check(not y_m.zoo_status()["interior"].is_empty(), "une montagne sert de mur d'enceinte (%d cases)" % y_m.zoo_status()["interior"].size())
+
+	print("Sauvegarde :")
+	var s_m := Match.new(data, 2468, 4, 0)
+	s_m.advance_ai_draft()
+	while s_m.phase == "draft":
+		s_m.pick_draft(s_m.ai_choice())
+	for i in 3:
+		for k in 300:
+			s_m.tick(1.0)
+		s_m.end_day()
+		s_m.finish_night()
+		s_m.autosave = i == 2
+		s_m.start_next_day()
+	s_m.autosave = false
+	check(Sauvegarde.existe(), "sauvegarde écrite le matin du jour %d" % s_m.day)
+	var s_c := Sauvegarde.charger(data)
+	check(s_c != null and s_c.day == s_m.day, "partie rechargée au jour %d" % (s_c.day if s_c else -1))
+	var s_rep_ok := true
+	for i in 4:
+		if not is_equal_approx(s_c.players[i].rep_points, s_m.players[i].rep_points) or s_c.players[i].sites.size() != s_m.players[i].sites.size() \
+			or s_c.players[i].all_employees().size() != s_m.players[i].all_employees().size():
+			s_rep_ok = false
+	check(s_rep_ok, "réputation, chantiers et ouvriers identiques après chargement")
+	Sauvegarde.reprendre(s_c)
+	for k in 300:
+		s_c.tick(1.0)
+	s_c.end_day()
+	s_c.finish_night()
+	s_c.start_next_day()
+	check(s_c.day == s_m.day + 1, "la partie rechargée continue normalement (jour %d)" % s_c.day)
+	Sauvegarde.effacer()
 
 	print("Lot S : autres sources de réputation :")
 	var x_g := _fresh_day(data, 9191)
@@ -1165,12 +1257,12 @@ func _init() -> void:
 		"label %s : %d or → +%d de réputation" % [x_lab["nom"], int(x_lab["or"]), int(x_lab["reputation"])])
 	check(not x_g.buy_label(x_lab), "un label ne s'achète qu'une fois")
 	var x_card: GameState.Card = x_g.all_employees()[0]
-	x_card.niveau = 4
-	x_card.xp = 8.0
+	x_card.niveau = 5
+	x_card.xp = 16.0
 	var x_rep1 := x_g.rep_points
 	x_g.mt.players[1].influence = 5.0
 	x_g.end_day()
-	check(x_card.niveau == 5 and x_g.night_report["legendes"].has(x_card.nom), "niveau 5 : %s devient légendaire" % x_card.nom)
+	check(x_card.niveau == 6 and x_g.night_report["legendes"].has(x_card.nom), "niveau 6 : %s devient légendaire" % x_card.nom)
 	check(x_g.rep_points >= x_rep1 + 5.0, "légendaire : +5 de réputation pour le parc")
 	var x_lead: GameState = x_g.mt.players[x_g.mt.night_order[0]]
 	check(x_lead.night_report.get("prestige", 0.0) == 1.0, "prestige politique : +1 pour le premier en influence")

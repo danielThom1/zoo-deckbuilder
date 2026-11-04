@@ -40,6 +40,7 @@ var bonus_offer: Array = []  # bonus de nuit proposés (3)
 ## Le premier en influence peut refuser tous les bonus proposés.
 const NO_BONUS := {"id": "aucun", "nom": "Aucun bonus", "texte": "Aucun bonus demain.", "effets": {}}
 var bonus_choice := {}  # bonus choisi par le premier en influence : actif le lendemain pour tous les joueurs
+var autosave := false  # partie d'un joueur humain : sauvegarde automatique chaque matin
 var history: Array = []  # statistiques par jour et par joueur (simulations)
 
 
@@ -281,6 +282,8 @@ func _finish_draft() -> void:
 	for p in players:
 		p.say("Draft terminé : votre deck compte %d ouvriers." % p.deck.size())
 		p._start_day_player()
+	if autosave:
+		Sauvegarde.ecrire(self)
 	for ai in ais:
 		if ai:
 			ai.on_day_start()
@@ -340,6 +343,7 @@ func end_day() -> void:
 	log.clear()
 	for p in players:
 		p.recruited_tonight = false
+		p.hippo_used_tonight = false
 		p.bought_worker = false
 		p.bought_action = false
 		p.contracts_tonight = 0
@@ -483,6 +487,8 @@ func start_next_day() -> void:
 	for p in players:
 		p._start_day_player()
 	_apply_event()
+	if autosave:
+		Sauvegarde.ecrire(self)
 	for ai in ais:
 		if ai:
 			ai.on_day_start()
@@ -536,8 +542,20 @@ func _refresh_market(for_day: int, rotate: bool) -> void:
 	var eligible: Array = data["animals"]["animaux"].filter(func(d):
 		return int(paliers[d["palier"]]["jour_min"]) <= for_day and not in_market.has(d["id"]))
 	shuffle(eligible)
+	# Toujours au moins un rare et un peu commun à l'étalage, pour choisir une direction dès le début ; sinon surtout du commun.
 	while market_contracts.size() < int(m["contrats"]) and not eligible.is_empty():
-		market_contracts.append(eligible.pop_back())
+		var wanted := "T1"
+		if not market_contracts.any(func(d): return d["palier"] == "T3"):
+			wanted = "T3"
+		elif not market_contracts.any(func(d): return d["palier"] == "T2"):
+			wanted = "T2"
+		var k := eligible.size() - 1
+		for j in eligible.size():
+			if eligible[j]["palier"] == wanted:
+				k = j
+				break
+		market_contracts.append(eligible[k])
+		eligible.remove_at(k)
 	bump()
 
 

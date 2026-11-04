@@ -37,14 +37,122 @@
  },
  "aigle_royal": {
   "categorie": "animaux",
-  "fichier": "res://assets/bd/sprites/animaux/aigle_royal.png",
+  "fichier": "res://assets/bd/sprites/animaux_v2/aigle_royal.png",
   "pied": [
-   40,
-   72
+   118,
+   191
   ],
   "taille": [
-   81,
-   72
+   237,
+   191
+  ]
+ },
+ "aigle_royal_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/aigle_royal_f2.png",
+  "pied": [
+   113,
+   167
+  ],
+  "taille": [
+   226,
+   167
+  ]
+ },
+ "aigle_royal_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/aigle_royal_f3.png",
+  "pied": [
+   120,
+   193
+  ],
+  "taille": [
+   240,
+   193
+  ]
+ },
+ "aigle_royal_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/aigle_royal_f4.png",
+  "pied": [
+   120,
+   141
+  ],
+  "taille": [
+   240,
+   141
+  ]
+ },
+ "aigle_royal_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/aigle_royal_tete.png",
+  "pied": [
+   102,
+   199
+  ],
+  "taille": [
+   205,
+   199
+  ]
+ },
+ "alligator": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/alligator.png",
+  "pied": [
+   120,
+   74
+  ],
+  "taille": [
+   240,
+   74
+  ]
+ },
+ "alligator_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/alligator_f2.png",
+  "pied": [
+   120,
+   65
+  ],
+  "taille": [
+   240,
+   65
+  ]
+ },
+ "alligator_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/alligator_f3.png",
+  "pied": [
+   120,
+   82
+  ],
+  "taille": [
+   240,
+   82
+  ]
+ },
+ "alligator_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/alligator_f4.png",
+  "pied": [
+   120,
+   67
+  ],
+  "taille": [
+   240,
+   67
+  ]
+ },
+ "alligator_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/alligator_tete.png",
+  "pied": [
+   95,
+   136
+  ],
+  "taille": [
+   190,
+   136
   ]
  },
  "alpaga": {
@@ -105,6 +213,66 @@
   "taille": [
    75,
    177
+  ]
+ },
+ "ara": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/ara.png",
+  "pied": [
+   120,
+   193
+  ],
+  "taille": [
+   240,
+   193
+  ]
+ },
+ "ara_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/ara_f2.png",
+  "pied": [
+   120,
+   167
+  ],
+  "taille": [
+   240,
+   167
+  ]
+ },
+ "ara_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/ara_f3.png",
+  "pied": [
+   120,
+   143
+  ],
+  "taille": [
+   240,
+   143
+  ]
+ },
+ "ara_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/ara_f4.png",
+  "pied": [
+   120,
+   121
+  ],
+  "taille": [
+   240,
+   121
+  ]
+ },
+ "ara_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/ara_tete.png",
+  "pied": [
+   96,
+   185
+  ],
+  "taille": [
+   193,
+   185
   ]
  },
  "arbre1": {
@@ -227,6 +395,138 @@
    101
   ]
  },
+ "bison_amerique": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/bison_amerique.png",
+  "pied": [
+   120,
+   178
+  ],
+  "taille": [
+   240,
+   178
+  ]
+ },
+ "bison_amerique_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/bison_amerique_f2.png",
+  "pied": [
+   117,
+   179
+  ],
+  "taille": [
+   235,
+   179
+  ]
+ },
+ "bison_amerique_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/bison_amerique_f3.png",
+  "pied": [
+   120,
+   179
+  ],
+  "taille": [
+   240,
+   179
+  ]
+ },
+ "bison_amerique_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/bison_amerique_f4.png",
+  "pied": [
+   109,
+   173
+  ],
+  "taille": [
+   218,
+   173
+  ]
+ },
+ "bison_amerique_f5": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/bison_amerique_f5.png",
+  "pied": [
+   120,
+   173
+  ],
+  "taille": [
+   240,
+   173
+  ]
+ },
+ "bison_amerique_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/bison_amerique_tete.png",
+  "pied": [
+   111,
+   228
+  ],
+  "taille": [
+   223,
+   228
+  ]
+ },
+ "bison_europe": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/bison_europe.png",
+  "pied": [
+   120,
+   168
+  ],
+  "taille": [
+   240,
+   168
+  ]
+ },
+ "bison_europe_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/bison_europe_f2.png",
+  "pied": [
+   120,
+   156
+  ],
+  "taille": [
+   240,
+   156
+  ]
+ },
+ "bison_europe_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/bison_europe_f3.png",
+  "pied": [
+   120,
+   157
+  ],
+  "taille": [
+   240,
+   157
+  ]
+ },
+ "bison_europe_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/bison_europe_f4.png",
+  "pied": [
+   120,
+   152
+  ],
+  "taille": [
+   240,
+   152
+  ]
+ },
+ "bison_europe_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/bison_europe_tete.png",
+  "pied": [
+   100,
+   193
+  ],
+  "taille": [
+   201,
+   193
+  ]
+ },
  "bucheron": {
   "categorie": "personnes",
   "fichier": "res://assets/bd/sprites/personnes/bucheron.png",
@@ -261,6 +561,66 @@
   "taille": [
    61,
    179
+  ]
+ },
+ "calao": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/calao.png",
+  "pied": [
+   120,
+   171
+  ],
+  "taille": [
+   240,
+   171
+  ]
+ },
+ "calao_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/calao_f2.png",
+  "pied": [
+   120,
+   168
+  ],
+  "taille": [
+   240,
+   168
+  ]
+ },
+ "calao_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/calao_f3.png",
+  "pied": [
+   120,
+   133
+  ],
+  "taille": [
+   240,
+   133
+  ]
+ },
+ "calao_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/calao_f4.png",
+  "pied": [
+   120,
+   93
+  ],
+  "taille": [
+   240,
+   93
+  ]
+ },
+ "calao_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/calao_tete.png",
+  "pied": [
+   105,
+   194
+  ],
+  "taille": [
+   211,
+   194
   ]
  },
  "cameraman": {
@@ -347,6 +707,66 @@
    51
   ]
  },
+ "capybara": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/capybara.png",
+  "pied": [
+   120,
+   166
+  ],
+  "taille": [
+   240,
+   166
+  ]
+ },
+ "capybara_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/capybara_f2.png",
+  "pied": [
+   120,
+   156
+  ],
+  "taille": [
+   240,
+   156
+  ]
+ },
+ "capybara_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/capybara_f3.png",
+  "pied": [
+   120,
+   146
+  ],
+  "taille": [
+   240,
+   146
+  ]
+ },
+ "capybara_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/capybara_f4.png",
+  "pied": [
+   120,
+   107
+  ],
+  "taille": [
+   240,
+   107
+  ]
+ },
+ "capybara_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/capybara_tete.png",
+  "pied": [
+   102,
+   184
+  ],
+  "taille": [
+   205,
+   184
+  ]
+ },
  "castor": {
   "categorie": "animaux",
   "fichier": "res://assets/bd/sprites/animaux/castor.png",
@@ -361,14 +781,74 @@
  },
  "cerf": {
   "categorie": "animaux",
-  "fichier": "res://assets/bd/sprites/animaux/cerf.png",
+  "fichier": "res://assets/bd/sprites/animaux_v2/cerf.png",
   "pied": [
-   52,
-   105
+   112,
+   224
   ],
   "taille": [
-   104,
-   105
+   225,
+   224
+  ]
+ },
+ "cerf_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/cerf_f2.png",
+  "pied": [
+   120,
+   201
+  ],
+  "taille": [
+   240,
+   201
+  ]
+ },
+ "cerf_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/cerf_f3.png",
+  "pied": [
+   120,
+   171
+  ],
+  "taille": [
+   240,
+   171
+  ]
+ },
+ "cerf_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/cerf_f4.png",
+  "pied": [
+   120,
+   197
+  ],
+  "taille": [
+   240,
+   197
+  ]
+ },
+ "cerf_f5": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/cerf_f5.png",
+  "pied": [
+   109,
+   188
+  ],
+  "taille": [
+   219,
+   188
+  ]
+ },
+ "cerf_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/cerf_tete.png",
+  "pied": [
+   110,
+   233
+  ],
+  "taille": [
+   221,
+   233
   ]
  },
  "chacal": {
@@ -853,26 +1333,62 @@
  },
  "girafe": {
   "categorie": "animaux",
-  "fichier": "res://assets/bd/sprites/animaux/girafe.png",
+  "fichier": "res://assets/bd/sprites/animaux_v2/girafe.png",
   "pied": [
-   37,
-   128
+   120,
+   204
   ],
   "taille": [
-   74,
-   128
+   240,
+   204
+  ]
+ },
+ "girafe_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/girafe_f2.png",
+  "pied": [
+   120,
+   187
+  ],
+  "taille": [
+   240,
+   187
+  ]
+ },
+ "girafe_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/girafe_f3.png",
+  "pied": [
+   120,
+   185
+  ],
+  "taille": [
+   240,
+   185
+  ]
+ },
+ "girafe_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/girafe_f4.png",
+  "pied": [
+   120,
+   182
+  ],
+  "taille": [
+   240,
+   182
   ]
  },
  "girafe_tete": {
   "categorie": "animaux",
-  "fichier": "res://assets/bd/sprites/animaux/girafe_tete.png",
+  "fichier": "res://assets/bd/sprites/animaux_v2/girafe_tete.png",
   "pied": [
-   41,
-   123
+   110,
+   211
   ],
   "taille": [
-   83,
-   123
+   220,
+   211
   ]
  },
  "girafon": {
@@ -921,6 +1437,198 @@
   "taille": [
    74,
    97
+  ]
+ },
+ "grue_couronnee": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/grue_couronnee.png",
+  "pied": [
+   100,
+   218
+  ],
+  "taille": [
+   200,
+   218
+  ]
+ },
+ "grue_couronnee_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/grue_couronnee_f2.png",
+  "pied": [
+   117,
+   169
+  ],
+  "taille": [
+   234,
+   169
+  ]
+ },
+ "grue_couronnee_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/grue_couronnee_f3.png",
+  "pied": [
+   120,
+   175
+  ],
+  "taille": [
+   240,
+   175
+  ]
+ },
+ "grue_couronnee_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/grue_couronnee_f4.png",
+  "pied": [
+   120,
+   169
+  ],
+  "taille": [
+   240,
+   169
+  ]
+ },
+ "grue_couronnee_f5": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/grue_couronnee_f5.png",
+  "pied": [
+   120,
+   139
+  ],
+  "taille": [
+   240,
+   139
+  ]
+ },
+ "grue_couronnee_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/grue_couronnee_tete.png",
+  "pied": [
+   103,
+   202
+  ],
+  "taille": [
+   207,
+   202
+  ]
+ },
+ "grue_japon": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/grue_japon.png",
+  "pied": [
+   120,
+   197
+  ],
+  "taille": [
+   240,
+   197
+  ]
+ },
+ "grue_japon_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/grue_japon_f2.png",
+  "pied": [
+   113,
+   208
+  ],
+  "taille": [
+   226,
+   208
+  ]
+ },
+ "grue_japon_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/grue_japon_f3.png",
+  "pied": [
+   120,
+   201
+  ],
+  "taille": [
+   240,
+   201
+  ]
+ },
+ "grue_japon_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/grue_japon_f4.png",
+  "pied": [
+   120,
+   132
+  ],
+  "taille": [
+   240,
+   132
+  ]
+ },
+ "grue_japon_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/grue_japon_tete.png",
+  "pied": [
+   110,
+   199
+  ],
+  "taille": [
+   220,
+   199
+  ]
+ },
+ "guepard": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/guepard.png",
+  "pied": [
+   120,
+   118
+  ],
+  "taille": [
+   240,
+   118
+  ]
+ },
+ "guepard_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/guepard_f2.png",
+  "pied": [
+   120,
+   111
+  ],
+  "taille": [
+   240,
+   111
+  ]
+ },
+ "guepard_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/guepard_f3.png",
+  "pied": [
+   120,
+   104
+  ],
+  "taille": [
+   240,
+   104
+  ]
+ },
+ "guepard_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/guepard_f4.png",
+  "pied": [
+   120,
+   124
+  ],
+  "taille": [
+   240,
+   124
+  ]
+ },
+ "guepard_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/guepard_tete.png",
+  "pied": [
+   110,
+   179
+  ],
+  "taille": [
+   220,
+   179
   ]
  },
  "guichetier": {
@@ -973,14 +1681,50 @@
  },
  "hippopotame": {
   "categorie": "animaux",
-  "fichier": "res://assets/bd/sprites/animaux/hippopotame.png",
+  "fichier": "res://assets/bd/sprites/animaux_v2/hippopotame.png",
   "pied": [
-   74,
-   85
+   120,
+   141
   ],
   "taille": [
-   148,
-   85
+   240,
+   141
+  ]
+ },
+ "hippopotame_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/hippopotame_f2.png",
+  "pied": [
+   120,
+   154
+  ],
+  "taille": [
+   240,
+   154
+  ]
+ },
+ "hippopotame_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/hippopotame_f3.png",
+  "pied": [
+   120,
+   136
+  ],
+  "taille": [
+   240,
+   136
+  ]
+ },
+ "hippopotame_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/hippopotame_f4.png",
+  "pied": [
+   120,
+   83
+  ],
+  "taille": [
+   240,
+   83
   ]
  },
  "hippopotame_petit": {
@@ -993,6 +1737,90 @@
   "taille": [
    89,
    55
+  ]
+ },
+ "hippopotame_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/hippopotame_tete.png",
+  "pied": [
+   110,
+   194
+  ],
+  "taille": [
+   220,
+   194
+  ]
+ },
+ "hyene": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/hyene.png",
+  "pied": [
+   117,
+   171
+  ],
+  "taille": [
+   234,
+   171
+  ]
+ },
+ "hyene_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/hyene_f2.png",
+  "pied": [
+   120,
+   151
+  ],
+  "taille": [
+   240,
+   151
+  ]
+ },
+ "hyene_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/hyene_f3.png",
+  "pied": [
+   120,
+   156
+  ],
+  "taille": [
+   240,
+   156
+  ]
+ },
+ "hyene_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/hyene_f4.png",
+  "pied": [
+   119,
+   157
+  ],
+  "taille": [
+   239,
+   157
+  ]
+ },
+ "hyene_f5": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/hyene_f5.png",
+  "pied": [
+   113,
+   121
+  ],
+  "taille": [
+   227,
+   121
+  ]
+ },
+ "hyene_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/hyene_tete.png",
+  "pied": [
+   103,
+   185
+  ],
+  "taille": [
+   207,
+   185
   ]
  },
  "icone_bois": {
@@ -1129,14 +1957,14 @@
  },
  "jaguar": {
   "categorie": "animaux",
-  "fichier": "res://assets/bd/sprites/animaux/jaguar.png",
+  "fichier": "res://assets/bd/sprites/animaux_v2/jaguar.png",
   "pied": [
-   63,
-   81
+   112,
+   121
   ],
   "taille": [
-   126,
-   81
+   225,
+   121
   ]
  },
  "jaguar_duo": {
@@ -1149,6 +1977,42 @@
   "taille": [
    225,
    101
+  ]
+ },
+ "jaguar_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/jaguar_f2.png",
+  "pied": [
+   120,
+   110
+  ],
+  "taille": [
+   240,
+   110
+  ]
+ },
+ "jaguar_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/jaguar_f3.png",
+  "pied": [
+   120,
+   114
+  ],
+  "taille": [
+   240,
+   114
+  ]
+ },
+ "jaguar_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/jaguar_f4.png",
+  "pied": [
+   120,
+   97
+  ],
+  "taille": [
+   240,
+   97
   ]
  },
  "jaguar_marche": {
@@ -1165,14 +2029,14 @@
  },
  "jaguar_tete": {
   "categorie": "animaux",
-  "fichier": "res://assets/bd/sprites/animaux/jaguar_tete.png",
+  "fichier": "res://assets/bd/sprites/animaux_v2/jaguar_tete.png",
   "pied": [
-   50,
-   107
+   95,
+   174
   ],
   "taille": [
-   101,
-   107
+   190,
+   174
   ]
  },
  "kangourou": {
@@ -1199,6 +2063,66 @@
    61
   ]
  },
+ "koi": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/koi.png",
+  "pied": [
+   120,
+   123
+  ],
+  "taille": [
+   240,
+   123
+  ]
+ },
+ "koi_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/koi_f2.png",
+  "pied": [
+   120,
+   130
+  ],
+  "taille": [
+   240,
+   130
+  ]
+ },
+ "koi_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/koi_f3.png",
+  "pied": [
+   115,
+   164
+  ],
+  "taille": [
+   230,
+   164
+  ]
+ },
+ "koi_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/koi_f4.png",
+  "pied": [
+   113,
+   154
+  ],
+  "taille": [
+   227,
+   154
+  ]
+ },
+ "koi_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/koi_tete.png",
+  "pied": [
+   102,
+   184
+  ],
+  "taille": [
+   205,
+   184
+  ]
+ },
  "lama": {
   "categorie": "animaux",
   "fichier": "res://assets/bd/sprites/animaux/lama.png",
@@ -1211,28 +2135,136 @@
    85
   ]
  },
- "lion": {
+ "leopard_neiges": {
   "categorie": "animaux",
-  "fichier": "res://assets/bd/sprites/animaux/lion.png",
+  "fichier": "res://assets/bd/sprites/animaux_v2/leopard_neiges.png",
   "pied": [
-   56,
-   63
+   120,
+   140
   ],
   "taille": [
-   112,
-   63
+   240,
+   140
+  ]
+ },
+ "leopard_neiges_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/leopard_neiges_f2.png",
+  "pied": [
+   120,
+   134
+  ],
+  "taille": [
+   240,
+   134
+  ]
+ },
+ "leopard_neiges_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/leopard_neiges_f3.png",
+  "pied": [
+   120,
+   147
+  ],
+  "taille": [
+   240,
+   147
+  ]
+ },
+ "leopard_neiges_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/leopard_neiges_f4.png",
+  "pied": [
+   120,
+   115
+  ],
+  "taille": [
+   240,
+   115
+  ]
+ },
+ "leopard_neiges_f5": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/leopard_neiges_f5.png",
+  "pied": [
+   120,
+   141
+  ],
+  "taille": [
+   240,
+   141
+  ]
+ },
+ "leopard_neiges_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/leopard_neiges_tete.png",
+  "pied": [
+   111,
+   232
+  ],
+  "taille": [
+   222,
+   232
+  ]
+ },
+ "lion": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/lion.png",
+  "pied": [
+   120,
+   146
+  ],
+  "taille": [
+   240,
+   146
+  ]
+ },
+ "lion_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/lion_f2.png",
+  "pied": [
+   120,
+   122
+  ],
+  "taille": [
+   240,
+   122
+  ]
+ },
+ "lion_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/lion_f3.png",
+  "pied": [
+   120,
+   115
+  ],
+  "taille": [
+   240,
+   115
+  ]
+ },
+ "lion_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/lion_f4.png",
+  "pied": [
+   120,
+   103
+  ],
+  "taille": [
+   240,
+   103
   ]
  },
  "lion_tete": {
   "categorie": "animaux",
-  "fichier": "res://assets/bd/sprites/animaux/lion_tete.png",
+  "fichier": "res://assets/bd/sprites/animaux_v2/lion_tete.png",
   "pied": [
-   59,
-   139
+   95,
+   174
   ],
   "taille": [
-   119,
-   139
+   191,
+   174
   ]
  },
  "lionne": {
@@ -1261,14 +2293,50 @@
  },
  "loup": {
   "categorie": "animaux",
-  "fichier": "res://assets/bd/sprites/animaux/loup.png",
+  "fichier": "res://assets/bd/sprites/animaux_v2/loup.png",
   "pied": [
-   54,
-   83
+   120,
+   188
   ],
   "taille": [
-   109,
-   83
+   240,
+   188
+  ]
+ },
+ "loup_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/loup_f2.png",
+  "pied": [
+   120,
+   157
+  ],
+  "taille": [
+   240,
+   157
+  ]
+ },
+ "loup_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/loup_f3.png",
+  "pied": [
+   120,
+   149
+  ],
+  "taille": [
+   240,
+   149
+  ]
+ },
+ "loup_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/loup_f4.png",
+  "pied": [
+   120,
+   144
+  ],
+  "taille": [
+   240,
+   144
   ]
  },
  "loup_marche": {
@@ -1285,14 +2353,14 @@
  },
  "loup_tete": {
   "categorie": "animaux",
-  "fichier": "res://assets/bd/sprites/animaux/loup_tete.png",
+  "fichier": "res://assets/bd/sprites/animaux_v2/loup_tete.png",
   "pied": [
-   49,
-   111
+   101,
+   197
   ],
   "taille": [
-   99,
-   111
+   203,
+   197
   ]
  },
  "loutre": {
@@ -1319,6 +2387,198 @@
    85
   ]
  },
+ "loutre_cendree": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/loutre_cendree.png",
+  "pied": [
+   120,
+   139
+  ],
+  "taille": [
+   240,
+   139
+  ]
+ },
+ "loutre_cendree_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/loutre_cendree_f2.png",
+  "pied": [
+   120,
+   100
+  ],
+  "taille": [
+   240,
+   100
+  ]
+ },
+ "loutre_cendree_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/loutre_cendree_f3.png",
+  "pied": [
+   120,
+   98
+  ],
+  "taille": [
+   240,
+   98
+  ]
+ },
+ "loutre_cendree_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/loutre_cendree_f4.png",
+  "pied": [
+   120,
+   67
+  ],
+  "taille": [
+   240,
+   67
+  ]
+ },
+ "loutre_cendree_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/loutre_cendree_tete.png",
+  "pied": [
+   105,
+   191
+  ],
+  "taille": [
+   211,
+   191
+  ]
+ },
+ "loutre_europe": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/loutre_europe.png",
+  "pied": [
+   120,
+   131
+  ],
+  "taille": [
+   240,
+   131
+  ]
+ },
+ "loutre_europe_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/loutre_europe_f2.png",
+  "pied": [
+   120,
+   104
+  ],
+  "taille": [
+   240,
+   104
+  ]
+ },
+ "loutre_europe_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/loutre_europe_f3.png",
+  "pied": [
+   120,
+   101
+  ],
+  "taille": [
+   240,
+   101
+  ]
+ },
+ "loutre_europe_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/loutre_europe_f4.png",
+  "pied": [
+   120,
+   89
+  ],
+  "taille": [
+   240,
+   89
+  ]
+ },
+ "loutre_europe_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/loutre_europe_tete.png",
+  "pied": [
+   101,
+   191
+  ],
+  "taille": [
+   203,
+   191
+  ]
+ },
+ "loutre_joues_blanches": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/loutre_joues_blanches.png",
+  "pied": [
+   109,
+   190
+  ],
+  "taille": [
+   219,
+   190
+  ]
+ },
+ "loutre_joues_blanches_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/loutre_joues_blanches_f2.png",
+  "pied": [
+   120,
+   133
+  ],
+  "taille": [
+   240,
+   133
+  ]
+ },
+ "loutre_joues_blanches_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/loutre_joues_blanches_f3.png",
+  "pied": [
+   120,
+   101
+  ],
+  "taille": [
+   240,
+   101
+  ]
+ },
+ "loutre_joues_blanches_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/loutre_joues_blanches_f4.png",
+  "pied": [
+   112,
+   89
+  ],
+  "taille": [
+   224,
+   89
+  ]
+ },
+ "loutre_joues_blanches_f5": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/loutre_joues_blanches_f5.png",
+  "pied": [
+   107,
+   171
+  ],
+  "taille": [
+   215,
+   171
+  ]
+ },
+ "loutre_joues_blanches_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/loutre_joues_blanches_tete.png",
+  "pied": [
+   103,
+   200
+  ],
+  "taille": [
+   207,
+   200
+  ]
+ },
  "loutre_petite": {
   "categorie": "animaux",
   "fichier": "res://assets/bd/sprites/animaux/loutre_petite.png",
@@ -1333,14 +2593,14 @@
  },
  "lynx": {
   "categorie": "animaux",
-  "fichier": "res://assets/bd/sprites/animaux/lynx.png",
+  "fichier": "res://assets/bd/sprites/animaux_v2/lynx.png",
   "pied": [
-   37,
-   99
+   120,
+   186
   ],
   "taille": [
-   74,
-   99
+   240,
+   186
   ]
  },
  "lynx_couche": {
@@ -1355,16 +2615,52 @@
    48
   ]
  },
- "lynx_tete": {
+ "lynx_f2": {
   "categorie": "animaux",
-  "fichier": "res://assets/bd/sprites/animaux/lynx_tete.png",
+  "fichier": "res://assets/bd/sprites/animaux_v2/lynx_f2.png",
   "pied": [
-   39,
-   113
+   120,
+   164
   ],
   "taille": [
-   79,
-   113
+   240,
+   164
+  ]
+ },
+ "lynx_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/lynx_f3.png",
+  "pied": [
+   120,
+   162
+  ],
+  "taille": [
+   240,
+   162
+  ]
+ },
+ "lynx_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/lynx_f4.png",
+  "pied": [
+   120,
+   121
+  ],
+  "taille": [
+   240,
+   121
+  ]
+ },
+ "lynx_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/lynx_tete.png",
+  "pied": [
+   101,
+   193
+  ],
+  "taille": [
+   202,
+   193
   ]
  },
  "macon": {
@@ -1405,14 +2701,14 @@
  },
  "manchot": {
   "categorie": "animaux",
-  "fichier": "res://assets/bd/sprites/animaux/manchot.png",
+  "fichier": "res://assets/bd/sprites/animaux_v2/manchot.png",
   "pied": [
-   39,
-   92
+   78,
+   197
   ],
   "taille": [
-   78,
-   92
+   157,
+   197
   ]
  },
  "manchot_2": {
@@ -1425,6 +2721,54 @@
   "taille": [
    75,
    72
+  ]
+ },
+ "manchot_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/manchot_f2.png",
+  "pied": [
+   89,
+   191
+  ],
+  "taille": [
+   179,
+   191
+  ]
+ },
+ "manchot_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/manchot_f3.png",
+  "pied": [
+   106,
+   190
+  ],
+  "taille": [
+   213,
+   190
+  ]
+ },
+ "manchot_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/manchot_f4.png",
+  "pied": [
+   120,
+   103
+  ],
+  "taille": [
+   240,
+   103
+  ]
+ },
+ "manchot_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/manchot_tete.png",
+  "pied": [
+   102,
+   202
+  ],
+  "taille": [
+   205,
+   202
   ]
  },
  "mandrill_tete": {
@@ -1499,6 +2843,78 @@
    57
   ]
  },
+ "messager": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/messager.png",
+  "pied": [
+   120,
+   157
+  ],
+  "taille": [
+   240,
+   157
+  ]
+ },
+ "messager_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/messager_f2.png",
+  "pied": [
+   120,
+   119
+  ],
+  "taille": [
+   240,
+   119
+  ]
+ },
+ "messager_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/messager_f3.png",
+  "pied": [
+   105,
+   175
+  ],
+  "taille": [
+   210,
+   175
+  ]
+ },
+ "messager_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/messager_f4.png",
+  "pied": [
+   120,
+   162
+  ],
+  "taille": [
+   240,
+   162
+  ]
+ },
+ "messager_f5": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/messager_f5.png",
+  "pied": [
+   120,
+   119
+  ],
+  "taille": [
+   240,
+   119
+  ]
+ },
+ "messager_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/messager_tete.png",
+  "pied": [
+   104,
+   187
+  ],
+  "taille": [
+   208,
+   187
+  ]
+ },
  "mine": {
   "categorie": "batiments",
   "fichier": "res://assets/bd/sprites/batiments/mine.png",
@@ -1557,6 +2973,66 @@
   "taille": [
    89,
    78
+  ]
+ },
+ "ocelot": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/ocelot.png",
+  "pied": [
+   120,
+   137
+  ],
+  "taille": [
+   240,
+   137
+  ]
+ },
+ "ocelot_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/ocelot_f2.png",
+  "pied": [
+   120,
+   116
+  ],
+  "taille": [
+   240,
+   116
+  ]
+ },
+ "ocelot_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/ocelot_f3.png",
+  "pied": [
+   120,
+   99
+  ],
+  "taille": [
+   240,
+   99
+  ]
+ },
+ "ocelot_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/ocelot_f4.png",
+  "pied": [
+   120,
+   109
+  ],
+  "taille": [
+   240,
+   109
+  ]
+ },
+ "ocelot_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/ocelot_tete.png",
+  "pied": [
+   96,
+   186
+  ],
+  "taille": [
+   193,
+   186
   ]
  },
  "orang_outan": {
@@ -1849,14 +3325,50 @@
  },
  "panda": {
   "categorie": "animaux",
-  "fichier": "res://assets/bd/sprites/animaux/panda.png",
+  "fichier": "res://assets/bd/sprites/animaux_v2/panda.png",
   "pied": [
-   47,
-   63
+   120,
+   156
   ],
   "taille": [
-   95,
-   63
+   240,
+   156
+  ]
+ },
+ "panda_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/panda_f2.png",
+  "pied": [
+   120,
+   145
+  ],
+  "taille": [
+   240,
+   145
+  ]
+ },
+ "panda_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/panda_f3.png",
+  "pied": [
+   120,
+   144
+  ],
+  "taille": [
+   240,
+   144
+  ]
+ },
+ "panda_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/panda_f4.png",
+  "pied": [
+   120,
+   95
+  ],
+  "taille": [
+   240,
+   95
   ]
  },
  "panda_marche": {
@@ -1909,14 +3421,14 @@
  },
  "panda_tete": {
   "categorie": "animaux",
-  "fichier": "res://assets/bd/sprites/animaux/panda_tete.png",
+  "fichier": "res://assets/bd/sprites/animaux_v2/panda_tete.png",
   "pied": [
-   53,
-   97
+   105,
+   201
   ],
   "taille": [
-   107,
-   97
+   211,
+   201
   ]
  },
  "panthere_neiges": {
@@ -1993,14 +3505,62 @@
  },
  "paon": {
   "categorie": "animaux",
-  "fichier": "res://assets/bd/sprites/animaux/paon.png",
+  "fichier": "res://assets/bd/sprites/animaux_v2/paon.png",
   "pied": [
-   76,
-   104
+   120,
+   178
   ],
   "taille": [
-   152,
-   104
+   240,
+   178
+  ]
+ },
+ "paon_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/paon_f2.png",
+  "pied": [
+   120,
+   169
+  ],
+  "taille": [
+   240,
+   169
+  ]
+ },
+ "paon_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/paon_f3.png",
+  "pied": [
+   120,
+   129
+  ],
+  "taille": [
+   240,
+   129
+  ]
+ },
+ "paon_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/paon_f4.png",
+  "pied": [
+   120,
+   146
+  ],
+  "taille": [
+   240,
+   146
+  ]
+ },
+ "paon_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/paon_tete.png",
+  "pied": [
+   106,
+   195
+  ],
+  "taille": [
+   212,
+   195
   ]
  },
  "paysagiste": {
@@ -2053,14 +3613,14 @@
  },
  "phoque": {
   "categorie": "animaux",
-  "fichier": "res://assets/bd/sprites/animaux/phoque.png",
+  "fichier": "res://assets/bd/sprites/animaux_v2/phoque.png",
   "pied": [
-   56,
-   86
+   120,
+   104
   ],
   "taille": [
-   113,
-   86
+   240,
+   104
   ]
  },
  "phoque_2": {
@@ -2073,6 +3633,54 @@
   "taille": [
    119,
    71
+  ]
+ },
+ "phoque_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/phoque_f2.png",
+  "pied": [
+   120,
+   99
+  ],
+  "taille": [
+   240,
+   99
+  ]
+ },
+ "phoque_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/phoque_f3.png",
+  "pied": [
+   120,
+   121
+  ],
+  "taille": [
+   240,
+   121
+  ]
+ },
+ "phoque_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/phoque_f4.png",
+  "pied": [
+   120,
+   83
+  ],
+  "taille": [
+   240,
+   83
+  ]
+ },
+ "phoque_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/phoque_tete.png",
+  "pied": [
+   101,
+   192
+  ],
+  "taille": [
+   202,
+   192
   ]
  },
  "photographe": {
@@ -2675,6 +4283,138 @@
    147
   ]
  },
+ "puma": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/puma.png",
+  "pied": [
+   120,
+   152
+  ],
+  "taille": [
+   240,
+   152
+  ]
+ },
+ "puma_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/puma_f2.png",
+  "pied": [
+   120,
+   119
+  ],
+  "taille": [
+   240,
+   119
+  ]
+ },
+ "puma_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/puma_f3.png",
+  "pied": [
+   120,
+   104
+  ],
+  "taille": [
+   240,
+   104
+  ]
+ },
+ "puma_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/puma_f4.png",
+  "pied": [
+   120,
+   102
+  ],
+  "taille": [
+   240,
+   102
+  ]
+ },
+ "puma_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/puma_tete.png",
+  "pied": [
+   96,
+   198
+  ],
+  "taille": [
+   193,
+   198
+  ]
+ },
+ "pygargue": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/pygargue.png",
+  "pied": [
+   106,
+   209
+  ],
+  "taille": [
+   212,
+   209
+  ]
+ },
+ "pygargue_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/pygargue_f2.png",
+  "pied": [
+   111,
+   234
+  ],
+  "taille": [
+   222,
+   234
+  ]
+ },
+ "pygargue_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/pygargue_f3.png",
+  "pied": [
+   114,
+   206
+  ],
+  "taille": [
+   229,
+   206
+  ]
+ },
+ "pygargue_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/pygargue_f4.png",
+  "pied": [
+   120,
+   108
+  ],
+  "taille": [
+   240,
+   108
+  ]
+ },
+ "pygargue_f5": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/pygargue_f5.png",
+  "pied": [
+   120,
+   176
+  ],
+  "taille": [
+   240,
+   176
+  ]
+ },
+ "pygargue_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/pygargue_tete.png",
+  "pied": [
+   111,
+   246
+  ],
+  "taille": [
+   223,
+   246
+  ]
+ },
  "randonneur": {
   "categorie": "personnes",
   "fichier": "res://assets/bd/sprites/personnes/randonneur.png",
@@ -2805,6 +4545,66 @@
   "taille": [
    67,
    86
+  ]
+ },
+ "salamandre": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/salamandre.png",
+  "pied": [
+   120,
+   89
+  ],
+  "taille": [
+   240,
+   89
+  ]
+ },
+ "salamandre_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/salamandre_f2.png",
+  "pied": [
+   120,
+   75
+  ],
+  "taille": [
+   240,
+   75
+  ]
+ },
+ "salamandre_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/salamandre_f3.png",
+  "pied": [
+   120,
+   87
+  ],
+  "taille": [
+   240,
+   87
+  ]
+ },
+ "salamandre_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/salamandre_f4.png",
+  "pied": [
+   120,
+   69
+  ],
+  "taille": [
+   240,
+   69
+  ]
+ },
+ "salamandre_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/salamandre_tete.png",
+  "pied": [
+   106,
+   188
+  ],
+  "taille": [
+   212,
+   188
   ]
  },
  "sanglier": {
@@ -2977,14 +4777,50 @@
  },
  "tapir": {
   "categorie": "animaux",
-  "fichier": "res://assets/bd/sprites/animaux/tapir.png",
+  "fichier": "res://assets/bd/sprites/animaux_v2/tapir.png",
   "pied": [
-   48,
-   81
+   120,
+   147
   ],
   "taille": [
-   96,
-   81
+   240,
+   147
+  ]
+ },
+ "tapir_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/tapir_f2.png",
+  "pied": [
+   120,
+   125
+  ],
+  "taille": [
+   240,
+   125
+  ]
+ },
+ "tapir_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/tapir_f3.png",
+  "pied": [
+   120,
+   125
+  ],
+  "taille": [
+   240,
+   125
+  ]
+ },
+ "tapir_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/tapir_f4.png",
+  "pied": [
+   120,
+   121
+  ],
+  "taille": [
+   240,
+   121
   ]
  },
  "tapir_gris": {
@@ -3011,6 +4847,18 @@
    58
   ]
  },
+ "tapir_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/tapir_tete.png",
+  "pied": [
+   97,
+   191
+  ],
+  "taille": [
+   194,
+   191
+  ]
+ },
  "terrassier": {
   "categorie": "personnes",
   "fichier": "res://assets/bd/sprites/personnes/terrassier.png",
@@ -3025,14 +4873,14 @@
  },
  "tigre": {
   "categorie": "animaux",
-  "fichier": "res://assets/bd/sprites/animaux/tigre.png",
+  "fichier": "res://assets/bd/sprites/animaux_v2/tigre.png",
   "pied": [
-   54,
-   70
+   120,
+   140
   ],
   "taille": [
-   108,
-   70
+   240,
+   140
   ]
  },
  "tigre_duo": {
@@ -3045,6 +4893,54 @@
   "taille": [
    222,
    112
+  ]
+ },
+ "tigre_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/tigre_f2.png",
+  "pied": [
+   120,
+   130
+  ],
+  "taille": [
+   240,
+   130
+  ]
+ },
+ "tigre_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/tigre_f3.png",
+  "pied": [
+   120,
+   116
+  ],
+  "taille": [
+   240,
+   116
+  ]
+ },
+ "tigre_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/tigre_f4.png",
+  "pied": [
+   120,
+   97
+  ],
+  "taille": [
+   240,
+   97
+  ]
+ },
+ "tigre_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/tigre_tete.png",
+  "pied": [
+   95,
+   174
+  ],
+  "taille": [
+   191,
+   174
   ]
  },
  "tortue": {
@@ -3397,26 +5293,74 @@
  },
  "yak": {
   "categorie": "animaux",
-  "fichier": "res://assets/bd/sprites/animaux/yak.png",
+  "fichier": "res://assets/bd/sprites/animaux_v2/yak.png",
   "pied": [
-   44,
-   98
+   120,
+   149
   ],
   "taille": [
-   89,
-   98
+   240,
+   149
+  ]
+ },
+ "yak_f2": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/yak_f2.png",
+  "pied": [
+   120,
+   165
+  ],
+  "taille": [
+   240,
+   165
+  ]
+ },
+ "yak_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/yak_f3.png",
+  "pied": [
+   120,
+   156
+  ],
+  "taille": [
+   240,
+   156
+  ]
+ },
+ "yak_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/yak_f4.png",
+  "pied": [
+   120,
+   142
+  ],
+  "taille": [
+   240,
+   142
+  ]
+ },
+ "yak_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/yak_tete.png",
+  "pied": [
+   110,
+   189
+  ],
+  "taille": [
+   221,
+   189
   ]
  },
  "zebre": {
   "categorie": "animaux",
-  "fichier": "res://assets/bd/sprites/animaux/zebre.png",
+  "fichier": "res://assets/bd/sprites/animaux_v2/zebre.png",
   "pied": [
-   46,
-   95
+   120,
+   185
   ],
   "taille": [
-   92,
-   95
+   240,
+   185
   ]
  },
  "zebre_broute": {
@@ -3431,16 +5375,52 @@
    76
   ]
  },
- "zebre_tete": {
+ "zebre_f2": {
   "categorie": "animaux",
-  "fichier": "res://assets/bd/sprites/animaux/zebre_tete.png",
+  "fichier": "res://assets/bd/sprites/animaux_v2/zebre_f2.png",
   "pied": [
-   56,
-   139
+   120,
+   178
   ],
   "taille": [
-   112,
-   139
+   240,
+   178
+  ]
+ },
+ "zebre_f3": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/zebre_f3.png",
+  "pied": [
+   120,
+   160
+  ],
+  "taille": [
+   240,
+   160
+  ]
+ },
+ "zebre_f4": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/zebre_f4.png",
+  "pied": [
+   120,
+   166
+  ],
+  "taille": [
+   240,
+   166
+  ]
+ },
+ "zebre_tete": {
+  "categorie": "animaux",
+  "fichier": "res://assets/bd/sprites/animaux_v2/zebre_tete.png",
+  "pied": [
+   102,
+   202
+  ],
+  "taille": [
+   205,
+   202
   ]
  }
 }

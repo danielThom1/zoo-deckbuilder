@@ -206,12 +206,11 @@
     },
     {
       "id": "semaine_asie_oceanie",
-      "nom": "Semaine Asie-Océanie",
-      "texte": "Attractivité des animaux d'Asie et d'Océanie ×1,5",
+      "nom": "Semaine de l'Asie",
+      "texte": "Attractivité des animaux d'Asie ×1,5",
       "effets": {
         "attractivite_continent": {
-          "Asie": 1.5,
-          "Oceanie": 1.5
+          "Asie": 1.5
         }
       }
     }

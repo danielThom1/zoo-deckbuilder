@@ -258,6 +258,13 @@ Liste complète : `data/workers.json`.
 - **Bonus de nuit thématiques** (choisis par le premier en influence, pour tous) : Festival des oiseaux (aériens ×1,5), Journée de l'océan (aquatiques ×1,5), Semaine de l'Afrique (×1,4), de l'Europe (×1,4), des Amériques (×1,5), Asie-Océanie (×1,5), appliqués à l'attractivité des espèces concernées. Construire autour d'un continent ou d'un type devient une stratégie, et l'influence permet de la servir.
 - **Or des contrats** : l'or manquant pour un contrat s'achète en argent au moment de l'achat, au prix du marché (14 par or, le double du prix de revente). Les T3 coûtent environ 25 % d'argent de moins qu'avant (33 à 39, plus 2 à 3 or).
 
+## 9.2 Rework du 04/11 (remplace les valeurs précédentes)
+- **39 espèces, 4 continents** : Europe 9, Amérique, Asie et Afrique 10 chacune. Trois raretés (commun, peu commun, rare), toutes disponibles dès le premier soir ; le marché montre toujours au moins un rare et un peu commun. Un rare coûte 60 argent et 3 or.
+- **Effets des rares** : Aigle royal, Loutre géante, Panda géant et Lion donnent +5 d'attractivité par autre espèce de leur type (aérien, aquatique, herbivore, prédateur). Bison d'Europe : souvenirs +50 % de réputation. Pygargue : Kiosque +50 % de réputation. Tigre du Bengale : +1 carte par jour. Hippopotame : chaque nuit, échange d'un ouvrier contre un ouvrier de la rangée.
+- **Enceinte** : une montagne sert de mur, et les murs se construisent sur l'eau.
+- **Économie** : deck initial de 8, main de 4, récolte +25 %, chantiers −25 %. Une Maison loge un seul ouvrier (5 bois, 2 pierre, rapide). Légendaire au niveau 6. Centre de formation plus rapide à bâtir et à former. Traits accentués.
+- **Maladie** : un animal guérit seul au bout de 2 nuits, ou plus vite avec un Soigneur.
+
 ## 10. Réputation
 
 **Lot S : plusieurs façons de gagner de la réputation** (objectif porté à **100**, fin forcée au jour 22) :

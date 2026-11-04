@@ -78,6 +78,7 @@ class Animal:
 	var pattern_tiles: Array[Vector2i] = []  # cases de son motif (réservées : un autre animal ne peut pas les reprendre)
 	var sick := false  # malade : ne compte pas dans l'attractivité tant qu'un Soigneur ne l'a pas guéri
 	var heal := 0.0  # soins reçus (points de travail du Soigneur)
+	var sick_nights := 0  # nuits passées malade : il guérit seul au bout de maladie.guerison_nuits
 	var starved := false  # a eu faim aujourd'hui (risque de maladie accru la nuit)
 
 
@@ -170,6 +171,7 @@ var rep_points := 0.0  # réputation accumulée (condition de victoire)
 var labels_owned := {}
 ## Réputation gagnée par source (détail de l'écran de fin) : frequentation, spectacles, prestige, labels, legendaires.
 var rep_sources := {}
+var hippo_used_tonight := false  # Hippopotame : échange d'ouvrier déjà fait cette nuit
 var recruited_tonight := false  # Cabinet de recrutement utilisé cette nuit  # labels achetés (id -> vrai) : de la réputation contre de l'or, avec un Marchand
 var road_visitors := PackedFloat32Array()  # distance parcourue sur le chemin Accès -> Entrée
 var visitor_queue := 0  # visiteurs qui attendent au guichet
@@ -327,7 +329,7 @@ func efficiency(card: Card, task: String) -> float:
 	else:
 		base = float(eff["defaut"])
 		if card.traits.has("polyvalent"):
-			base = maxf(base, 1.2)
+			base = maxf(base, 1.3)
 		for u in card.upgrades:
 			if u.get("seconde_specialite", "") == task:
 				base = maxf(base, float(data["workers"]["regles"]["efficacite_seconde_specialite"]))
@@ -365,7 +367,9 @@ func gain_xp(card: Card, days: float) -> void:
 
 ## Expérience nécessaire pour passer au niveau suivant (en jours de travail).
 func xp_next_level(card: Card) -> float:
-	return card.niveau * float(data["workers"]["regles"]["xp_jours_par_niveau"])
+	var R: Dictionary = data["workers"]["regles"]
+	# Niveau 2 à 2 jours, 3 à 4, 4 à 6, 5 à 11, 6 (légendaire) à 16
+	return card.niveau * float(R["xp_jours_par_niveau"]) + maxi(0, card.niveau - 3) * float(R["xp_jours_hauts_niveaux"])
 
 
 ## Part des ressources réellement dépensée sur un chantier où travaille cette carte (Architecte 0,75, Débrouillard 0,85).
@@ -740,7 +744,7 @@ func order(targets: Array, target: Vector2i, enqueue := false) -> void:
 				continue
 			_station(w, "shop", site, target)
 			if job != "vendeur":
-				say("Seul un Vendeur de souvenirs double les ventes de la boutique.")
+				say("Seul un Vendeur de souvenirs multiplie les ventes de la boutique.")
 			continue
 		if map.in_camp(target.x, target.y) and job == "marchand":
 			_station(w, "trade", null, target)
@@ -813,7 +817,7 @@ func _move(w: Worker, dt: float) -> void:
 		if w.unpaid:
 			spd *= float(data["workers"]["regles"]["deploiement_gratuit"].get("vitesse", 1.0))
 		if w.card.traits.has("casanier") and w.pos.distance_to(Vector2(map.camp.get_center())) > 15.0:
-			spd *= 0.7
+			spd *= 0.5
 		var target := Vector2(w.path[0]) + Vector2(0.5, 0.5)
 		var dist := w.pos.distance_to(target)
 		var step := spd * budget
@@ -981,9 +985,9 @@ func _work_traits(w: Worker, dt: float) -> void:
 		return
 	w.minute_clock -= 60.0
 	if w.card.traits.has("paresseux"):
-		w.pause_left = 15.0
+		w.pause_left = 25.0
 		say("%s fait une pause (%s)." % [w.card.nom, agree(w.card, "paresseux", "paresseuse")])
-	if w.card.traits.has("distrait") and rng.randf() < 0.1:
+	if w.card.traits.has("distrait") and rng.randf() < 0.25:
 		w.task = {}
 		say("%s a oublié ce qu'%s faisait (%s)." % [w.card.nom, agree(w.card, "il", "elle"), agree(w.card, "distrait", "distraite")])
 
@@ -1039,8 +1043,27 @@ func footprint(kind: String, def: Dictionary, origin: Vector2i) -> Rect2i:
 
 
 ## Taille de la main : règle de base + 1 carte par amélioration du camp terminée.
+## Effets des animaux rares installés (animals.json > effet_rare), une fois arrivés.
+func rare_effects() -> Array:
+	var out := []
+	for a in animals:
+		if a.arrived and a.def.has("effet_rare"):
+			out.append(a.def["effet_rare"])
+	return out
+
+
+## Multiplicateur de réputation donné par les animaux rares (clé : boutique_rep, kiosque_rep).
+func rare_mult(key: String) -> float:
+	var m := 1.0
+	for e in rare_effects():
+		m *= float(e.get(key, 1.0))
+	return m
+
+
 func hand_size() -> int:
 	var n := int(data["workers"]["regles"]["taille_main"])
+	for e in rare_effects():
+		n += int(e.get("pioche", 0))  # Tigre du Bengale
 	for s in sites:
 		if s.done:
 			n += int(s.def.get("effet", {}).get("pioche", 0))
@@ -1091,8 +1114,8 @@ func placement_error(kind: String, def: Dictionary, origin: Vector2i, check_cost
 			elif id == "pont":
 				if t != GameMap.EAU:
 					return "Un pont se construit sur l'eau"
-			elif t == GameMap.EAU and id == "enclos":
-				pass  # une clôture d'enclos peut traverser l'eau (bassins des animaux aquatiques)
+			elif t == GameMap.EAU and id in ["enclos", "cloture"]:
+				pass  # clôtures et enceinte peuvent traverser l'eau
 			elif t == GameMap.EAU or t == GameMap.MONTAGNE:
 				return "Terrain infranchissable"
 			elif t == GameMap.MINE_OR and id != "mine":
@@ -1172,8 +1195,8 @@ func _tiles(r: Rect2i) -> Array[Vector2i]:
 func work_tiles(s: Site) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
 	var inside_ok := s.kind == "batiment" and s.def_id() != "pont"
-	# Clôture d'enclos dans l'eau : on la monte depuis la rive ou un ponton à 2 cases au plus
-	var reach := 2 if s.def_id() == "enclos" and map.get_t(s.rect.position.x, s.rect.position.y) == GameMap.EAU else 1
+	# Clôture ou enceinte dans l'eau : on la monte depuis la rive ou un ponton à 2 cases au plus
+	var reach := 2 if s.def_id() in ["enclos", "cloture"] and map.get_t(s.rect.position.x, s.rect.position.y) == GameMap.EAU else 1
 	for t in _tiles(s.rect.grow(reach)):
 		if s.rect.has_point(t) and not inside_ok:
 			continue
@@ -1298,8 +1321,8 @@ func _complete(s: Site) -> void:
 				map.bridge[map.idx(p.x, p.y)] = 1
 				map.road[map.idx(p.x, p.y)] = 1
 				map.refresh_cell(p.x, p.y)
-			"enclos":
-				# Clôture d'enclos posée dans l'eau : un ponton le long de la clôture, pour atteindre les suivantes
+			"enclos", "cloture":
+				# Clôture posée dans l'eau : un ponton le long de la clôture, pour atteindre les suivantes
 				if map.get_t(p.x, p.y) == GameMap.EAU and map.bridge[map.idx(p.x, p.y)] == 0:
 					map.bridge[map.idx(p.x, p.y)] = 2
 					map.refresh_cell(p.x, p.y)
@@ -1364,7 +1387,7 @@ func demolish(s: Site) -> bool:
 		map.road[map.idx(p.x, p.y)] = 0
 		map.bridge[map.idx(p.x, p.y)] = 0
 		map.refresh_cell(p.x, p.y)
-	if s.def_id() == "enclos" and map.bridge[map.idx(p.x, p.y)] == 2:
+	if s.def_id() in ["enclos", "cloture"] and map.bridge[map.idx(p.x, p.y)] == 2:
 		map.bridge[map.idx(p.x, p.y)] = 0
 		map.refresh_cell(p.x, p.y)
 	for w in workers:
@@ -1518,6 +1541,32 @@ func hire_error(card: Card) -> String:
 	if money < hire_cost(card):
 		return "Pas assez d'argent"
 	return ""
+
+
+## Hippopotame installé : chaque nuit, à l'étape Ouvriers et à son tour, échange un ouvrier contre un de la rangée.
+func hippo_error() -> String:
+	if not rare_effects().any(func(e): return e.get("echange", false)):
+		return "Il faut un Hippopotame installé"
+	if phase != "night" or mt.night_stage != "ouvriers":
+		return "À l'étape Ouvriers de la nuit"
+	if mt.current_buyer() != index:
+		return "Ce n'est pas votre tour"
+	if hippo_used_tonight:
+		return "Déjà utilisé cette nuit"
+	return ""
+
+
+func hippo_swap(mine: Card, wanted: Card) -> bool:
+	if hippo_error() != "" or not market_workers.has(wanted) or not all_employees().has(mine):
+		return false
+	for pile in [deck, discard, hand]:
+		pile.erase(mine)
+	market_workers[market_workers.find(wanted)] = mine
+	discard.append(wanted)
+	hippo_used_tonight = true
+	say("Hippopotame : %s rejoint votre équipe, %s part dans la rangée." % [wanted.nom, mine.nom])
+	mt.bump()
+	return true
 
 
 ## Cabinet de recrutement : prix d'une carte de la catégorie voulue, et pourquoi ce n'est pas possible ("" sinon).
@@ -2057,6 +2106,8 @@ func _planned_enclosure(t: Vector2i) -> Dictionary:
 				continue
 			if is_fence(q):
 				continue
+			if is_mountain(q):
+				continue
 			if is_wall(q) or (site_at(q) != null and site_at(q).def_id() in ["cloture", "entree"]):
 				if site_at(q).def_id() == "entree":
 					gate = true
@@ -2147,7 +2198,7 @@ func free_enclosure_tiles(enc: Dictionary) -> Array:
 ## clôture d'enclos, et pas l'entrée (sinon c'est l'allée du parc, pas un enclos).
 func _fenced_enclosure(t: Vector2i) -> Dictionary:
 	var open_msg := "Enclos non fermé : entourez la zone de clôtures d'enclos terminées (le mur de l'enceinte peut servir de côté)"
-	if not map.in_bounds(t.x, t.y) or is_fence(t) or is_wall(t):
+	if not map.in_bounds(t.x, t.y) or is_fence(t) or is_wall(t) or is_mountain(t):
 		return {"closed": false, "reason": "Visez l'intérieur d'un enclos"}
 	var seen := {t: true}
 	var stack: Array[Vector2i] = [t]
@@ -2164,6 +2215,8 @@ func _fenced_enclosure(t: Vector2i) -> Dictionary:
 				continue
 			if is_fence(q):
 				fenced = true
+				continue
+			if is_mountain(q):
 				continue
 			if is_wall(q):
 				if site_at(q).def_id() == "entree":
@@ -2520,6 +2573,14 @@ func _roll_diseases() -> Array[String]:
 	var M: Dictionary = data["buildings"]["zoo"]["maladie"]
 	var out: Array[String] = []
 	var already := animals.filter(func(a): return a.sick)
+	for a in already:
+		a.sick_nights += 1
+		if a.sick_nights >= int(M["guerison_nuits"]):
+			a.sick = false
+			a.sick_nights = 0
+			a.heal = 0.0
+			say("%s a guéri tout seul." % a.def["nom"])
+	already = animals.filter(func(a): return a.sick)
 	for a in animals:
 		if not a.arrived or a.sick:
 			continue
@@ -2533,6 +2594,7 @@ func _roll_diseases() -> Array[String]:
 			p += float(M["contagion"])
 		if rng.randf() < p:
 			a.sick = true
+			a.sick_nights = 0
 			a.heal = 0.0
 			out.append(a.def["nom"])
 	for a in animals:
@@ -2750,6 +2812,13 @@ func attractiveness(only = null) -> int:
 	for d in species.values():
 		total += roundi(float(d["reputation"]) * float(by_type.get(d.get("type", ""), 1.0)) * float(by_cont.get(d.get("continent", ""), 1.0)))
 		biomes[d["biome"]] = biomes.get(d["biome"], 0) + 1
+	# Animaux rares : +5 par AUTRE espèce du type qu'ils favorisent (Aigle royal, Loutre géante, Panda géant, Lion)
+	for d in species.values():
+		var rare: Dictionary = d.get("effet_rare", {})
+		if rare.has("type_bonus"):
+			for o in species.values():
+				if o != d and o.get("type", "") == rare["type_bonus"]:
+					total += int(rare["points"])
 	var A: Dictionary = data["animals"]
 	total += int(A["bonus_diversite_biomes"].get(str(biomes.size()), 0))
 	# Voisinage : +2 par animal voisin du même continent (enclos différents, de part et d'autre d'une clôture)
@@ -2946,6 +3015,11 @@ func sell_stock(keep := {}, resources: Array = ["bois", "pierre"]) -> void:
 
 # --- Zoo : enceinte, visiteurs et revenus ------------------------------------
 
+## Une montagne sert de mur : ni les visiteurs ni les animaux ne la traversent.
+func is_mountain(t: Vector2i) -> bool:
+	return map.in_bounds(t.x, t.y) and map.get_t(t.x, t.y) == GameMap.MONTAGNE
+
+
 func is_wall(t: Vector2i) -> bool:
 	var s := site_at(t)
 	return s != null and s.done and s.def_id() in ["cloture", "entree"]
@@ -2972,7 +3046,7 @@ func _compute_zoo_status() -> Dictionary:
 	for t in _tiles(entree.rect):
 		for d in dirs:
 			var start := t + d
-			if not map.in_bounds(start.x, start.y) or is_wall(start) or interior.has(start):
+			if not map.in_bounds(start.x, start.y) or is_wall(start) or is_mountain(start) or interior.has(start):
 				continue
 			var region := _closed_region(start, 2500)
 			if region.size() > interior.size():
@@ -2999,7 +3073,7 @@ func _closed_region(start: Vector2i, limit: int) -> Dictionary:
 			var q := p + d
 			if not map.in_bounds(q.x, q.y):
 				return {}
-			if seen.has(q) or is_wall(q):
+			if seen.has(q) or is_wall(q) or is_mountain(q):
 				continue
 			seen[q] = true
 			if seen.size() > limit:
@@ -3228,7 +3302,8 @@ func _close_zoo_day() -> Dictionary:
 	add_rep_source("frequentation", gain)
 	# Spectacles du Kiosque et ventes de la boutique : réputation en plus de la fréquentation
 	var R: Dictionary = data["buildings"]["reputation_autres"]
-	var show := float(visit.get("spectacle", 0.0)) * float(R["kiosque_par_jour"]) + float(visit["souvenirs"]) * float(R["boutique_par_souvenir"])
+	var show := float(visit.get("spectacle", 0.0)) * float(R["kiosque_par_jour"]) * rare_mult("kiosque_rep") \
+		+ float(visit["souvenirs"]) * float(R["boutique_par_souvenir"]) * rare_mult("boutique_rep")
 	rep_points += show
 	add_rep_source("spectacles", show)
 	var reason: String = z["reason"]

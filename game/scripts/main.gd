@@ -239,6 +239,10 @@ func _show_menu() -> void:
 	add_child(layer)
 	var menu := MenuPrincipal.new()
 	layer.add_child(menu)
+	menu.continuer.connect(func():
+		args["charger"] = ""
+		layer.queue_free()
+		_start(false))
 	menu.lancer.connect(func(watch: bool, graine: int, adversaires: int, difficile: bool):
 		args["seed"] = str(graine)
 		if difficile:
@@ -266,7 +270,9 @@ func _start(watch: bool) -> void:
 		strategies = []
 		for i in nb:
 			strategies.append(null if i == 0 and not spectator else hard[(i - (0 if spectator else 1)) % hard.size()])
-	mt = Match.new(GameData.load_all(), map_seed, nb, -1 if spectator else 0, strategies)
+	var charge: Match = Sauvegarde.charger(GameData.load_all()) if args.has("charger") else null
+	mt = charge if charge else Match.new(GameData.load_all(), map_seed, nb, -1 if spectator else 0, strategies)
+	mt.autosave = not spectator and not args.has("shot")
 	game = mt.players[0]
 	RenderingServer.set_default_clear_color(UiTokens.FOND_ECRAN)
 	_build_terrain()
@@ -282,6 +288,9 @@ func _start(watch: bool) -> void:
 		+ Vector2(0, vh / 2.0 - visible_center_y) / camera.zoom
 	_build_ui()
 	_set_speed(8.0 if spectator else 1.0)
+	if charge:
+		Sauvegarde.reprendre(mt)
+		_set_speed(0.0)
 	if args.has("autodraft") or spectator:
 		while mt.phase == "draft":
 			mt.pick_draft(mt.ai_choice())
@@ -310,6 +319,12 @@ func _start(watch: bool) -> void:
 	if args.has("cadre"):
 		game.hand.append(game.make_card("cadre"))
 		game.version += 1
+	# --aide : ouvre le tutoriel ; --aide=animaux : le glossaire des animaux (captures)
+	if args.has("aide"):
+		var aide := Aide.new(game.data)
+		ui.add_child(aide)
+		if args["aide"] == "animaux":
+			aide.call_deferred("_glossaire_animaux")
 	if args.has("pioche"):
 		_open_pile()
 	if args.has("marche"):
@@ -787,7 +802,9 @@ func _draw_work(work: Dictionary, p: Vector2, t: float, flip: bool) -> void:
 func _image(chemin: String) -> Texture2D:
 	if not images.has(chemin) and chemin.begins_with("res://ui/animaux/"):
 		var esp: Array = SpritesBD.ANIMAUX.get(chemin.get_file().get_basename(), [])
-		if not esp.is_empty() and SpritesBD.existe(esp[0]):
+		if not esp.is_empty() and SpritesBD.existe(str(esp[2])):
+			images[chemin] = SpritesBD.texture(str(esp[2]))  # portrait encadré
+		elif not esp.is_empty() and SpritesBD.existe(esp[0]):
 			images[chemin] = SpritesBD.texture(esp[0])
 	if not images.has(chemin):
 		images[chemin] = load(chemin) if ResourceLoader.exists(chemin) else null
@@ -1052,7 +1069,9 @@ func _draw_animal(a: GameState.Animal, index: int, now: float) -> void:
 			if tex:
 				# illustration du contrat, à l'échelle de l'espèce, retournée selon la marche, petit sautillement
 				var bob := absf(sin(clock * TAU * 3.0)) * 0.8 if f > 0.0 and f < 1.0 else 0.0
-				SpritesBD.dessiner(self, esp[0], pos + Vector2(0, TILE * 0.35 - bob), TILE * float(esp[1]) * 1.15, dir < 0.0)
+				var moving := f > 0.0 and f < 1.0
+				var frame := SpritesBD.image_animal(esp, int(now * 6.0) + k if moving else 0)
+				SpritesBD.dessiner(self, frame, pos + Vector2(0, TILE * 0.35 - bob), TILE * float(esp[1]) * 1.15, dir < 0.0)
 				continue
 			draw_set_transform(pos + Vector2(1, 2.5), 0.0, Vector2(1.5, 0.6))
 			draw_circle(Vector2.ZERO, 3.0, Color(0, 0, 0, 0.25))
@@ -1819,7 +1838,16 @@ func _build_ui() -> void:
 	help.custom_minimum_size = Vector2(46, 46)
 	help.tooltip_text = "Clic gauche : sélectionner (glisser pour plusieurs)\nClic droit : déplacer, extraire, construire, tenir un poste, lobbying (case Accès) · Maj + clic droit : enchaîner un ordre après la tâche en cours
 Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter un bâtiment · double-clic : tout un tracé de clôture, mur ou route · Suppr : démolir\nMenu de gauche : placer un bâtiment (glisser pour routes et clôtures, R pour tourner l'entrée), Échap pour arrêter\nMolette : zoom · ZQSD : vue · Espace : pause"
+	help.pressed.connect(func(): ui.add_child(Aide.new(game.data)))
 	bar.add_child(help)
+	var quit_btn := Button.new()
+	quit_btn.text = "Menu"
+	quit_btn.focus_mode = Control.FOCUS_NONE
+	quit_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	quit_btn.custom_minimum_size = Vector2(0, 46)
+	quit_btn.tooltip_text = "Retour au menu. La partie est sauvegardée chaque matin : « Continuer » reprendra au début de cette journée."
+	quit_btn.pressed.connect(func(): _restart("menu"))
+	bar.add_child(quit_btn)
 
 	event_label = Label.new()
 	event_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
@@ -3296,6 +3324,8 @@ func _update_hud() -> void:
 		peek_hint = {}
 	if mt.game_over and not end_built:
 		end_built = true
+		if mt.autosave:
+			Sauvegarde.effacer()
 		_rebuild_end()
 	end_root.visible = mt.game_over and not end_dismissed
 	end_reopen.visible = mt.game_over and end_dismissed
@@ -3828,7 +3858,7 @@ func _rebuild_night() -> void:
 	match stage:
 		"contrats":
 			night_stage_title.text = "CONTRATS D'ANIMAUX"
-			night_stage_note.text = "Chacun à son tour, dans l'ordre d'influence : jusqu'à 2 contrats (le 2e coûte 50 % de plus). " + turn_text
+			night_stage_note.text = "Chacun à son tour, dans l'ordre d'influence : un contrat par joueur. Un contrat pris n'est remplacé que demain. " + turn_text
 		"ouvriers":
 			night_stage_title.text = "OUVRIERS À EMBAUCHER"
 			night_stage_note.text = "Chacun à son tour : 1 embauche au plus, si votre logement le permet. " + turn_text
@@ -3937,8 +3967,8 @@ func _rebuild_night() -> void:
 			# La raison du refus est écrite sur le bouton, et détaillée au survol.
 			hire_text = ("Manque %d" % ceili(cost - game.money)) if game.money < cost and not full else _short_reason(err)
 		var recruit := []
-		if game.has_building("cabinet") and not spectator:
-			recruit = ["⟳", game.recruit_error("peu_qualifie") != "" and game.recruit_error("cadre") != "" and game.recruit_error("qualifie") != "",
+		if (game.has_building("cabinet") or game.rare_effects().any(func(e): return e.get("echange", false))) and not spectator:
+			recruit = ["⟳", game.hippo_error() != "" and game.recruit_error("peu_qualifie") != "" and game.recruit_error("cadre") != "" and game.recruit_error("qualifie") != "",
 				_open_recruit.bind(card)]
 		var w := _card_widget(card, hire_text, err != "", game.hire.bind(card), recruit)
 		w.tooltip_text = (err + "\n" if err != "" else "") + w.tooltip_text
@@ -3948,7 +3978,7 @@ func _rebuild_night() -> void:
 	for t in _taken("ouvriers"):
 		night_workers.add_child(_taken_mark(_card_widget(t["objet"], "Pris · %s" % mt.names[t["joueur"]], true, Callable()), t["joueur"]))
 	_clear(night_contracts)
-	night_contracts_note.text = "%d contrats · 2 achats au plus · dans l'ordre d'influence" % game.market_contracts.size()
+	night_contracts_note.text = "%d contrats · 1 achat par joueur · dans l'ordre d'influence" % game.market_contracts.size()
 	for def in game.market_contracts:
 		var err := game.contract_error(def)
 		night_contracts.add_child(_contract_widget(def, "Acheter · %s" % game.cost_text(game.contract_cost(def)),
@@ -4222,8 +4252,18 @@ func _on_night_next() -> void:
 
 ## Cabinet de recrutement : choisir la catégorie de la carte qui remplacera celle-ci.
 func _open_recruit(card: GameState.Card) -> void:
-	_open_picker("CABINET DE RECRUTEMENT", "Remplacer %s (%s) par une carte tirée au hasard dans la catégorie choisie. Une fois par nuit." % [
-		card.nom, game.job_name(card)], [])
+	var rows := []
+	if game.hippo_error() == "":
+		# Hippopotame : on garde cette carte de la rangée en échange d'un de ses ouvriers
+		for c in game.all_employees():
+			rows.append([c, "Échanger", "", func():
+				game.hippo_swap(c, card)
+				_close_picker()])
+	_open_picker("REMPLACER %s" % card.nom.to_upper(), "%s%s" % [
+		"Hippopotame : échangez un de vos ouvriers contre %s. " % card.nom if not rows.is_empty() else "",
+		"Cabinet de recrutement : remplacez cette carte par une carte tirée au hasard dans la catégorie choisie. Une fois par nuit." if game.has_building("cabinet") else ""], rows)
+	if not game.has_building("cabinet"):
+		return
 	for cat in ["peu_qualifie", "qualifie", "cadre"]:
 		var err := game.recruit_error(cat)
 		var b := Composants.bouton("%s · %d argent" % [UiTokens.CATEGORIES[cat]["long"], game.recruit_price(cat)], "BoutonPrincipal")
@@ -4468,6 +4508,8 @@ func _animal_info(a: GameState.Animal) -> void:
 			", ".join(nb.map(func(o): return o.def["nom"])), nb.size() * int(game.data["animals"]["voisinage_continent"]["points"])])
 	if d.has("decor"):
 		lines.append("Aménagement requis : %s" % game.building_def(d["decor"])["nom"])
+	if d.has("effet_texte"):
+		lines.append("[color=#13867F]Rare : %s[/color]" % d["effet_texte"])
 	var mates := game.shared_type_count(a)
 	if mates > 0:
 		lines.append("[color=#8A6A00]Enclos partagé : %d autre(s) animal(aux) %s ici (+%d %% de réputation)[/color]" % [
@@ -5301,7 +5343,7 @@ func _contract_widget(def: Dictionary, button_text: String, err: String, cb: Cal
 	var tier := int(str(def["palier"]).substr(1))
 	var tl := Composants.label("◆".repeat(tier) + "◇".repeat(maxi(0, 3 - tier)))
 	tl.add_theme_font_size_override("font_size", 12)
-	tl.tooltip_text = "Palier %s" % def["palier"]
+	tl.tooltip_text = str(game.data["animals"]["paliers"][def["palier"]]["nom"])
 	top.add_child(tl)
 	# « Illustration » : le motif d'enclos à reproduire, sur fond du biome
 	var art := PanelContainer.new()
@@ -5375,6 +5417,13 @@ func _contract_widget(def: Dictionary, button_text: String, err: String, cb: Cal
 		gm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		gm.custom_minimum_size.x = 180
 		inner.add_child(gm)
+	if def.has("effet_texte"):
+		var eff := Composants.label(str(def["effet_texte"]))
+		eff.add_theme_font_size_override("font_size", 12)
+		eff.add_theme_color_override("font_color", UiTokens.SARCELLE)
+		eff.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		eff.custom_minimum_size.x = 180
+		inner.add_child(eff)
 	var btn := Composants.bouton(button_text, "BoutonPrincipal")
 	btn.disabled = err != ""
 	btn.tooltip_text = err

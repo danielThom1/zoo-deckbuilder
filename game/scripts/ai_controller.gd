@@ -9,7 +9,7 @@ const DEFAULT_STRATEGY := {
 	"lobbyistes_max": 0,  # ouvriers non-Lobbyistes envoyés en lobbying chaque jour
 	"preference_palier": 1.0,  # > 1 : favorise les gros contrats (T2, T3) ; < 1 : les petits
 	"reserve": 8,  # argent gardé de côté lors des achats de nuit
-	"maisons_max": 3,
+	"maisons_max": 6,
 	"embauche": true,
 	"boutique": true,
 	"routes": true,
@@ -430,7 +430,23 @@ func _night_contracts() -> void:
 				mt.log.append("%s achète le contrat %s." % [mt.names[g.index], best["nom"]])
 
 
+func _night_hippo() -> void:
+	if g.hippo_error() != "" or g.market_workers.is_empty():
+		return
+	var best: GameState.Card = null
+	for c in g.market_workers:
+		if best == null or card_value(c) > card_value(best):
+			best = c
+	var worst: GameState.Card = null
+	for c in g.all_employees():
+		if worst == null or card_value(c) < card_value(worst):
+			worst = c
+	if worst and card_value(best) > card_value(worst) + 1.0:
+		g.hippo_swap(worst, best)
+
+
 func _night_hire() -> void:
+	_night_hippo()
 	if strat["embauche"] and g.employees() < g.housing():
 		var best_card: GameState.Card = null
 		var best_v := 1.8
@@ -489,7 +505,7 @@ func _strategy_allows(def: Dictionary) -> bool:
 ## Part des murs de l'enceinte déjà terminés (0 à 1).
 func _walls_progress() -> float:
 	var ring := _ring(zoo_rect)
-	var done := ring.filter(func(t): return g.is_wall(t)).size()
+	var done := ring.filter(func(t): return g.is_wall(t) or g.is_mountain(t)).size()
 	return float(done) / ring.size()
 
 
@@ -640,17 +656,14 @@ func _choose_zoo() -> void:
 				return
 
 
-## Murs constructibles sur tout le pourtour : ni route, ni montagne, ni or, et peu d'eau (comblée par un aménageur).
+## Murs constructibles sur tout le pourtour : ni route, ni or (l'eau se construit, la montagne sert de mur).
 func _ring_ok(r: Rect2i) -> bool:
 	var m := g.map
-	var water := 0
 	for t in _ring(r):
 		var ter := m.get_t(t.x, t.y)
-		if m.road[m.idx(t.x, t.y)] or ter == GameMap.MONTAGNE or ter == GameMap.MINE_OR:
+		if m.road[m.idx(t.x, t.y)] or ter == GameMap.MINE_OR:
 			return false
-		if ter == GameMap.EAU:
-			water += 1
-	return water <= (4 if _has_landscaper() else 0)
+	return true
 
 
 ## Renvoie false si l'emplacement ne convient pas (parc évolutif : aucun petit parc aux murs constructibles).
@@ -743,12 +756,12 @@ func _zoo_score(r: Rect2i, camp_c: Vector2, fit: Array) -> float:
 	var water := 0
 	for t in _ring(r):
 		var ter := m.get_t(t.x, t.y)
-		if m.road[m.idx(t.x, t.y)] or ter == GameMap.MONTAGNE or ter == GameMap.MINE_OR:
+		if m.road[m.idx(t.x, t.y)] or ter == GameMap.MINE_OR:
 			return INF
 		if ter == GameMap.EAU:
 			water += 1
-	if water > (4 if _has_landscaper() else 0):
-		return INF
+		elif ter == GameMap.MONTAGNE:
+			water -= 1  # un mur de moins à construire
 	var bad := 0
 	var inner := r.grow(-1)
 	for y in range(inner.position.y, inner.end.y):
@@ -1083,27 +1096,21 @@ func _wants() -> Array:
 	if entrance.x >= 0 and g.site_at(entrance) == null:
 		out.append(["batiment", g.building_def("entree"), entrance])
 	for t in _ring(zoo_rect):
-		if t == entrance or t == entrance + Vector2i(1, 0) or g.site_at(t) != null:
+		if t == entrance or t == entrance + Vector2i(1, 0) or g.site_at(t) != null or g.is_mountain(t):
 			continue
-		if g.map.get_t(t.x, t.y) == GameMap.EAU:
-			out.append(["amenagement", conv_defs["Eau>Prairie"], t])
-		else:
-			out.append(["batiment", g.building_def("cloture"), t])
+		out.append(["batiment", g.building_def("cloture"), t])
 	# 2 bis. Parc évolutif : une fois le petit parc lancé, on construit l'enceinte du grand parc,
 	# puis on démolit les anciens murs intérieurs.
 	if target_rect.size != Vector2i.ZERO and not expanded and _walls_progress() >= 1.0 and (day >= 6 or g.animals.size() >= 2):
 		var big_ring := _ring(target_rect)
 		var pending := false
 		for t in big_ring:
-			if t == entrance or t == entrance + Vector2i(1, 0) or g.is_wall(t):
+			if t == entrance or t == entrance + Vector2i(1, 0) or g.is_wall(t) or g.is_mountain(t):
 				continue
 			pending = true
 			if g.site_at(t) != null:
 				continue
-			if g.map.get_t(t.x, t.y) == GameMap.EAU:
-				out.append(["amenagement", conv_defs["Eau>Prairie"], t])
-			else:
-				out.append(["batiment", g.building_def("cloture"), t])
+			out.append(["batiment", g.building_def("cloture"), t])
 		if not pending:
 			_finish_expansion()
 	# 3. Enclos des contrats en attente (aménagements puis clôtures).
