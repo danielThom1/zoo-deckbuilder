@@ -559,7 +559,7 @@ func _draw() -> void:
 			if absf(d.x) > absf(d.y):
 				f = ["profil", d.x < 0.0, w.pos]
 			else:
-				f = ["face" if d.y > 0.0 else "dos", false, w.pos]
+				f = ["face" if d.y > 0.0 else "dos", f[1], w.pos]  # de profil seulement : il garde son côté
 		f[2] = w.pos
 		facing[w] = f
 		var ring := Color(player_col, 0.9) if not selected.has(w) else UiTokens.SELECTION
@@ -577,8 +577,16 @@ func _draw() -> void:
 			body = p + Vector2(0, -absf(sin(tw * float(work["rythme"]))) * 0.9)
 		# personnage dessiné selon le métier (scripts/rendu/sprites_bd.gd), petit balancement en marchant
 		var pas := absf(sin(tw * 9.0)) * 0.7 if moving and w.pause_left <= 0.0 else 0.0
-		SpritesBD.dessiner(self, SpritesBD.pour_metier(str(w.card.metier["id"]), game.is_female(w.card)), body + Vector2(0, 6.2 - pas), TILE * SpritesBD.HAUTEUR_PERSONNE, f[1])
-		if not work.is_empty():
+		# Personnage de la carte, animé : le geste de sa tâche s'il en a un sur sa feuille, sinon l'outil par-dessus
+		var feuille := SpritesBD.feuille_perso(str(game.perso_of(w.card)["id"]))
+		var geste := int(GESTES.get(str(work.get("outil", "")), -1))
+		if feuille:
+			var rangee: int = geste if geste >= 0 else SpritesBD.PERSO_MARCHE
+			var image := int(tw * 7.0) if moving else (int(tw * float(work["rythme"]) * 0.45) if geste >= 0 else 1)
+			SpritesBD.dessiner_perso(self, feuille, rangee, image, p + Vector2(0, 6.2 - pas), TILE * SpritesBD.HAUTEUR_PERSONNE, f[1])
+		else:
+			SpritesBD.dessiner(self, SpritesBD.pour_metier(str(w.card.metier["id"]), game.is_female(w.card)), body + Vector2(0, 6.2 - pas), TILE * SpritesBD.HAUTEUR_PERSONNE, f[1])
+		if not work.is_empty() and (geste < 0 or feuille == null):
 			_draw_work(work, body, tw, f[1])
 		# pastille du métier (couleur de catégorie) au-dessus de l'épaule
 		var bp := p + Vector2(-r - 1.5, -r * 1.9)
@@ -964,6 +972,10 @@ func _draw_turned(r: Rect2, turned: bool, draw_fn: Callable) -> void:
 
 
 ## Entrée du zoo : deux piliers et un portique.
+## Outil de la tâche -> rangée de la feuille d'animation du personnage.
+const GESTES := {"hache": SpritesBD.PERSO_COUPER, "pioche": SpritesBD.PERSO_MINER, "pelle": SpritesBD.PERSO_MINER, "marteau": SpritesBD.PERSO_CONSTRUIRE}
+
+
 ## Plaque au nom de l'entreprise, devant l'entrée du zoo (rien en mode spectateur : les IA n'ont pas de marque).
 func _draw_logo(pied: Vector2) -> void:
 	if spectator:
@@ -4207,6 +4219,9 @@ func _rebuild_night() -> void:
 		rk.add_theme_font_size_override("font_size", 14)
 		rh.add_child(rk)
 		rh.add_child(_player_dot(col))
+		var embleme := Composants.logo_groupe(mt.names[i], true)
+		if embleme:
+			rh.add_child(Composants.image_logo(embleme, Vector2(26, 26)))
 		var nm := Composants.label(mt.names[i])
 		nm.add_theme_font_override("font", UiTokens.police_corps(800))
 		nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -5193,7 +5208,14 @@ func _rebuild_end() -> void:
 		dl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		dl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		disc.add_child(dl)
-		Composants.placer(podium, disc, Vector2(x + 27, top - 164), Vector2(96, 96))
+		var logo_p := Composants.logo_groupe(mt.names[i])
+		if logo_p:
+			# Le logo du groupe, le rang en petit
+			Composants.placer(podium, Composants.image_logo(logo_p, Vector2(180, 104)), Vector2(x - 15, top - 172), Vector2(180, 104))
+			dl.add_theme_font_size_override("font_size", 18)
+			Composants.placer(podium, disc, Vector2(x + 57, top - 100), Vector2(36, 36))
+		else:
+			Composants.placer(podium, disc, Vector2(x + 27, top - 164), Vector2(96, 96))
 		var nm := Composants.label(mt.names[i])
 		nm.add_theme_font_override("font", UiTokens.police_corps(800))
 		nm.add_theme_font_size_override("font_size", 18)

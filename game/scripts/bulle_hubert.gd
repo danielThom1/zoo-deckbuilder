@@ -18,25 +18,6 @@ var _petite: Dictionary
 var _grande: Dictionary
 
 
-class Marque extends Control:
-	var humeur := 0
-
-	func _draw() -> void:
-		if humeur < 0:  # veine de colère de BD
-			var c := Vector2(10, 10)
-			for a in 4:
-				var d := Vector2.RIGHT.rotated(a * PI / 2.0 + PI / 4.0)
-				var n := d.orthogonal()
-				draw_line(c + d * 3.0 + n * 5.0, c + d * 9.0, UiTokens.ORANGE, 3.0, true)
-				draw_line(c + d * 3.0 - n * 5.0, c + d * 9.0, UiTokens.ORANGE, 3.0, true)
-		elif humeur > 0:  # éclats de satisfaction
-			for p in [Vector2(6, 12), Vector2(17, 5)]:
-				var r: float = 6.0 if p.x < 10.0 else 4.0
-				draw_colored_polygon(PackedVector2Array([p + Vector2(0, -r), p + Vector2(r * 0.3, -r * 0.3), p + Vector2(r, 0),
-					p + Vector2(r * 0.3, r * 0.3), p + Vector2(0, r), p + Vector2(-r * 0.3, r * 0.3), p + Vector2(-r, 0),
-					p + Vector2(-r * 0.3, -r * 0.3)]), UiTokens.SELECTION)
-
-
 class Queue extends Control:
 	func _draw() -> void:
 		var pts := PackedVector2Array([Vector2(18, 0), Vector2(18, 16), Vector2(0, 10)])
@@ -81,12 +62,6 @@ func _construire(large: float, tete: float, police: int) -> Dictionary:
 	image.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	image.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	disque.add_child(image)
-	_cadrer(image, Composants.texture_portrait(data["cadre"]["perso"]), tete)
-	var marque := Marque.new()
-	marque.size = Vector2(22, 22)
-	marque.position = Vector2(tete - 16.0, -6.0)
-	marque.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	racine.add_child(marque)
 	var cadre := PanelContainer.new()
 	var bs := StyleBoxFlat.new()
 	bs.bg_color = Color.WHITE
@@ -127,7 +102,7 @@ func _construire(large: float, tete: float, police: int) -> Dictionary:
 	effet.add_theme_font_size_override("font_size", police - 2)
 	effet.add_theme_color_override("font_color", UiTokens.SARCELLE)
 	v.add_child(effet)
-	return {"racine": racine, "cadre": cadre, "texte": texte, "effet": effet, "marque": marque, "tete": tete, "reste": 0.0}
+	return {"racine": racine, "cadre": cadre, "texte": texte, "effet": effet, "image": image, "tete": tete, "reste": 0.0}
 
 
 ## La tête au centre du disque : les visages ne sont pas au milieu de leur image.
@@ -145,7 +120,7 @@ func _cadrer(image: TextureRect, tex: Texture2D, tete: float) -> void:
 				n += 1.0
 				if sommet < 0:
 					sommet = y
-	var echelle := tete * 1.13 / haut
+	var echelle := tete * 1.3 / haut
 	image.size = Vector2(img.get_width(), haut) * echelle
 	image.position = Vector2(tete / 2.0 - somme / maxf(n, 1.0) * echelle, tete * 0.06 - maxi(sommet, 0) * echelle)
 
@@ -181,20 +156,25 @@ func annoncer(moment: String, args := {}) -> bool:
 	_derniers[moment] = maintenant
 	var ligne := replique(moment, args)
 	if grande:
-		_montrer(_grande, ligne, str(args.get("effet", "")), 30.0 if moment in ["victoire", "defaite"] else 9.0)
+		_montrer(_grande, ligne, str(args.get("effet", "")), 30.0 if moment in ["victoire", "defaite"] else 9.0, moment)
 	else:
-		_file.append([ligne, str(args.get("effet", ""))])
+		_file.append([ligne, str(args.get("effet", "")), moment])
 		if _file.size() > 3:
 			_file.pop_front()
 	return true
 
 
-func _montrer(b: Dictionary, ligne: String, effet: String, duree: float) -> void:
+## Expression du moment, sinon selon l'humeur.
+func expression(moment: String) -> Texture2D:
+	var nom: String = data["expressions"].get(moment, "content" if humeur > 0 else ("furieux" if humeur < 0 else "neutre"))
+	return load("res://assets/bd/hubert/%s.png" % nom)
+
+
+func _montrer(b: Dictionary, ligne: String, effet: String, duree: float, moment: String) -> void:
 	b["texte"].text = ligne
 	b["effet"].text = effet
 	b["effet"].visible = effet != ""
-	b["marque"].humeur = humeur
-	b["marque"].queue_redraw()
+	_cadrer(b["image"], expression(moment), b["tete"])
 	b["racine"].visible = true
 	b["reste"] = duree
 	var trait_: StyleBoxFlat = b["cadre"].get_theme_stylebox("panel")
@@ -204,7 +184,7 @@ func _montrer(b: Dictionary, ligne: String, effet: String, duree: float) -> void
 func _process(delta: float) -> void:
 	if not _petite["racine"].visible and not _file.is_empty():
 		var s: Array = _file.pop_front()
-		_montrer(_petite, s[0], s[1], clampf(2.5 + s[0].length() * 0.05, 4.0, 8.0))
+		_montrer(_petite, s[0], s[1], clampf(2.5 + s[0].length() * 0.05, 4.0, 8.0), s[2])
 	var vue := get_viewport_rect().size
 	for b in [_petite, _grande]:
 		if not b["racine"].visible:

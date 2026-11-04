@@ -1,6 +1,15 @@
 {
   "_note": "Répliques d'Hubert de la Marge, choisies dans le Dossier Hubert. Quand un moment en a plusieurs, elles tournent (scripts/bulle_hubert.gd). {nom}, {animal}, {label}, {rival}, {niveau} sont remplacés par le jeu ; aucune réplique n'a besoin d'accord.",
-  "cadre": { "nom": "Hubert de la Marge", "titre": "Directeur des Ressources, Humaines et Autres", "perso": "victor" },
+  "cadre": { "nom": "Hubert de la Marge", "titre": "Directeur des Ressources, Humaines et Autres" },
+  "_note_expressions": "Expression d'Hubert (assets/bd/hubert) selon le moment ; sinon selon son humeur : content, furieux, neutre.",
+  "expressions": {
+    "licenciement": "moqueur", "licenciement_cout": "contrarie", "embauche": "moqueur", "pas_argent": "contrarie", "emprunt": "moqueur",
+    "contrat_achete": "content", "ouverture": "content", "guichet": "furieux", "affame": "contrarie", "malade": "contrarie", "sale": "furieux",
+    "label": "moqueur", "niveau": "moqueur", "legendaire": "moqueur", "col_blanc": "moqueur", "paresseux": "contrarie", "lobbying": "moqueur",
+    "prestige": "content", "rival_devant": "furieux", "victoire": "content", "defaite": "furieux",
+    "ev_pluie": "moqueur", "ev_journaliste": "contrarie", "ev_penurie_bois": "content", "ev_ruee_or": "content", "ev_canicule": "moqueur",
+    "ev_greve": "furieux", "ev_subvention": "content", "ev_tempete": "contrarie", "ev_beau_temps": "moqueur", "ev_epidemie": "contrarie"
+  },
   "entreprise": "ZooLife™",
   "rivaux": ["PanZoo Holdings", "Safari Capital", "BioLand Group"],
   "repliques": {

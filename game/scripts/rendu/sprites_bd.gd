@@ -145,6 +145,38 @@ static func _dessiner_k(ci: CanvasItem, t: Texture2D, nom: String, pied_monde: V
 		ci.draw_texture_rect(t, Rect2(pied_monde - pd * k, taille), false, teinte)
 
 
+## Feuille d'animation d'un personnage (planches : personnages_planches.py) : 3 images par rangée.
+const PERSO_CELLULE := Vector2(220, 150)
+const PERSO_PIED := Vector2(90, 144)
+const PERSO_CORPS := 96.0
+const PERSO_MARCHE := 0
+const PERSO_CONSTRUIRE := 1
+const PERSO_COUPER := 2
+const PERSO_MINER := 3
+static var _feuilles := {}
+
+
+static func feuille_perso(id: String) -> Texture2D:
+	if not _feuilles.has(id):
+		var chemin := "res://assets/bd/sprites/personnages_v2/%s.png" % id
+		_feuilles[id] = load(chemin) if ResourceLoader.exists(chemin) else null
+	return _feuilles[id]
+
+
+## Dessine une image de la feuille, les pieds sur « pied_monde » ; « hauteur » est celle du corps debout.
+static func dessiner_perso(ci: CanvasItem, tex: Texture2D, rangee: int, image: int, pied_monde: Vector2, hauteur: float, miroir := false) -> void:
+	var k := hauteur / PERSO_CORPS
+	var source := Rect2(Vector2(image % 3, rangee) * PERSO_CELLULE, PERSO_CELLULE)
+	ci.draw_set_transform(pied_monde, 0.0, Vector2(1.0, 0.28))
+	ci.draw_circle(Vector2.ZERO, hauteur * 0.26, Color(0.078, 0.125, 0.169, 0.2))
+	if miroir:
+		ci.draw_set_transform(pied_monde, 0.0, Vector2(-1, 1))
+	else:
+		ci.draw_set_transform(pied_monde, 0.0, Vector2.ONE)
+	ci.draw_texture_rect_region(tex, Rect2(-PERSO_PIED * k, PERSO_CELLULE * k), source)
+	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
 ## Sprite d'un ouvrier selon son métier (repli : manœuvre).
 ## Image d'animation d'une espèce : « id », « id_f2 », « id_f3 »… (les planches n'ont pas toutes le même nombre d'images).
 static func image_animal(esp: Array, k: int) -> String:
@@ -171,6 +203,8 @@ const PORTRAIT_DE := {"lea": 36, "jade": 4, "emma": 31, "ines": 21, "chloe": 25,
 
 
 static func portrait_de(cle: String) -> String:
+	if existe("pv2_" + cle):
+		return "pv2_" + cle
 	return "portrait_%02d" % int(PORTRAIT_DE[cle]) if PORTRAIT_DE.has(cle) else portrait(hash(cle))
 
 

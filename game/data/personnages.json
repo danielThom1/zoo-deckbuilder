@@ -1,45 +1,145 @@
 {
-  "_note": "Généré par tools/personnages.py : ne pas modifier à la main. Chaque carte ouvrier tire un personnage (nom, portrait res://ui/portraits/<id>.svg, apparence dans le monde).",
+  "_note": "Personnages des planches : docs/handoff_bd/generateurs/personnages_planches.py. Chacun a un portrait et une feuille d'animation (assets/bd/sprites/personnages_v2).",
   "personnages": [
-    {"id": "lea", "nom": "Léa", "peau": "#F6D7BF", "cheveux": "#8E3B26", "coiffure": "queue", "chapeau": "", "couleur_chapeau": "", "pilosite": "", "lunettes": false, "vetement": "salopette", "couleur": "#E8B830", "couleur2": "#4A6A9A", "genre": "f"},
-    {"id": "hugo", "nom": "Hugo", "peau": "#EBC09C", "cheveux": "#5A3A24", "coiffure": "court", "chapeau": "casquette", "couleur_chapeau": "#D04A3A", "pilosite": "barbe3j", "lunettes": false, "vetement": "tshirt", "couleur": "#3A6EC8", "couleur2": "#2B5296", "genre": "m"},
-    {"id": "jade", "nom": "Jade", "peau": "#B47A52", "cheveux": "#2A2422", "coiffure": "chignon", "chapeau": "", "couleur_chapeau": "", "pilosite": "", "lunettes": false, "vetement": "chemise", "couleur": "#3E9A55", "couleur2": "#2E733F", "genre": "f"},
-    {"id": "louis", "nom": "Louis", "peau": "#F6D7BF", "cheveux": "#D9B464", "coiffure": "raie", "chapeau": "", "couleur_chapeau": "", "pilosite": "", "lunettes": true, "vetement": "polo", "couleur": "#2C3E66", "couleur2": "#212E4C", "genre": "m"},
-    {"id": "emma", "nom": "Emma", "peau": "#EBC09C", "cheveux": "#7A5232", "coiffure": "long", "chapeau": "bandeau", "couleur_chapeau": "#E07AA0", "pilosite": "", "lunettes": false, "vetement": "tshirt", "couleur": "#F2EFE8", "couleur2": "#B5B3AE", "genre": "f"},
-    {"id": "nathan", "nom": "Nathan", "peau": "#8A5638", "cheveux": "#2A2422", "coiffure": "rase", "chapeau": "", "couleur_chapeau": "", "pilosite": "", "lunettes": false, "vetement": "securite", "couleur": "#8A8F96", "couleur2": "#676B70", "genre": "m"},
-    {"id": "ines", "nom": "Inès", "peau": "#D69F78", "cheveux": "#2A2422", "coiffure": "boucles", "chapeau": "", "couleur_chapeau": "", "pilosite": "", "lunettes": false, "vetement": "sweat", "couleur": "#7A4AB0", "couleur2": "#5B3784", "genre": "f"},
-    {"id": "gabin", "nom": "Gabin", "peau": "#F6D7BF", "cheveux": "#B5552B", "coiffure": "herisse", "chapeau": "", "couleur_chapeau": "", "pilosite": "", "lunettes": false, "vetement": "tshirt", "couleur": "#3E9A55", "couleur2": "#2E733F", "genre": "m"},
-    {"id": "chloe", "nom": "Chloé", "peau": "#F6D7BF", "cheveux": "#D9B464", "coiffure": "carre", "chapeau": "", "couleur_chapeau": "", "pilosite": "", "lunettes": true, "vetement": "chemise", "couleur": "#D04A3A", "couleur2": "#9C372B", "genre": "f"},
-    {"id": "tom", "nom": "Tom", "peau": "#D69F78", "cheveux": "#5A3A24", "coiffure": "court", "chapeau": "casque", "couleur_chapeau": "#F2C230", "pilosite": "barbe", "lunettes": false, "vetement": "securite", "couleur": "#3A6EC8", "couleur2": "#2B5296", "genre": "m"},
-    {"id": "manon", "nom": "Manon", "peau": "#EBC09C", "cheveux": "#9C7048", "coiffure": "tresses", "chapeau": "paille", "couleur_chapeau": "#E3C77A", "pilosite": "", "lunettes": false, "vetement": "salopette", "couleur": "#D04A3A", "couleur2": "#4A6A9A", "genre": "f"},
-    {"id": "jules", "nom": "Jules", "peau": "#5E3A26", "cheveux": "#2A2422", "coiffure": "court", "chapeau": "", "couleur_chapeau": "", "pilosite": "barbe", "lunettes": false, "vetement": "chemise", "couleur": "#4A6A9A", "couleur2": "#374F73", "genre": "m"},
-    {"id": "sarah", "nom": "Sarah", "peau": "#B47A52", "cheveux": "#2A2422", "coiffure": "long", "chapeau": "", "couleur_chapeau": "", "pilosite": "", "lunettes": false, "vetement": "costume", "couleur": "#4E545C", "couleur2": "#2FAAA0", "genre": "f"},
-    {"id": "paul", "nom": "Paul", "peau": "#F6D7BF", "cheveux": "#A9A6A2", "coiffure": "couronne", "chapeau": "", "couleur_chapeau": "", "pilosite": "moustache", "lunettes": true, "vetement": "costume", "couleur": "#2C3E66", "couleur2": "#D04A3A", "genre": "m"},
-    {"id": "yasmine", "nom": "Yasmine", "peau": "#D69F78", "cheveux": "#2A2422", "coiffure": "chauve", "chapeau": "voile", "couleur_chapeau": "#2F6B45", "pilosite": "", "lunettes": false, "vetement": "tshirt", "couleur": "#D9C49A", "couleur2": "#A29373", "genre": "f"},
-    {"id": "malik", "nom": "Malik", "peau": "#8A5638", "cheveux": "#2A2422", "coiffure": "herisse", "chapeau": "", "couleur_chapeau": "", "pilosite": "bouc", "lunettes": false, "vetement": "sweat", "couleur": "#E8782A", "couleur2": "#AE5A1F", "genre": "m"},
-    {"id": "aicha", "nom": "Aïcha", "peau": "#5E3A26", "cheveux": "#2A2422", "coiffure": "afro", "chapeau": "bandeau", "couleur_chapeau": "#E8B830", "pilosite": "", "lunettes": false, "vetement": "tshirt", "couleur": "#3E9A55", "couleur2": "#2E733F", "genre": "f"},
-    {"id": "theo", "nom": "Théo", "peau": "#EBC09C", "cheveux": "#D9B464", "coiffure": "frange", "chapeau": "bonnet", "couleur_chapeau": "#3A6EC8", "pilosite": "", "lunettes": false, "vetement": "sweat", "couleur": "#8A8F96", "couleur2": "#676B70", "genre": "m"},
-    {"id": "margaux", "nom": "Margaux", "peau": "#F6D7BF", "cheveux": "#B5552B", "coiffure": "carre", "chapeau": "", "couleur_chapeau": "", "pilosite": "", "lunettes": true, "vetement": "tablier", "couleur": "#F2EFE8", "couleur2": "#2F6B45", "genre": "f"},
-    {"id": "kenji", "nom": "Kenji", "peau": "#EBC09C", "cheveux": "#2A2422", "coiffure": "raie", "chapeau": "", "couleur_chapeau": "", "pilosite": "", "lunettes": true, "vetement": "polo", "couleur": "#3E9A55", "couleur2": "#2E733F", "genre": "m"},
-    {"id": "lucie", "nom": "Lucie", "peau": "#F6D7BF", "cheveux": "#D9B464", "coiffure": "queue", "chapeau": "casquette", "couleur_chapeau": "#3E9A55", "pilosite": "", "lunettes": false, "vetement": "tshirt", "couleur": "#E8782A", "couleur2": "#AE5A1F", "genre": "f"},
-    {"id": "mamadou", "nom": "Mamadou", "peau": "#5E3A26", "cheveux": "#2A2422", "coiffure": "rase", "chapeau": "", "couleur_chapeau": "", "pilosite": "barbe", "lunettes": false, "vetement": "securite", "couleur": "#8A8F96", "couleur2": "#676B70", "genre": "m"},
-    {"id": "clara", "nom": "Clara", "peau": "#D69F78", "cheveux": "#7A5232", "coiffure": "chignon", "chapeau": "", "couleur_chapeau": "", "pilosite": "", "lunettes": false, "vetement": "tablier", "couleur": "#F2EFE8", "couleur2": "#3E9A55", "genre": "f"},
-    {"id": "bastien", "nom": "Bastien", "peau": "#F6D7BF", "cheveux": "#7A5232", "coiffure": "long", "chapeau": "bonnet", "couleur_chapeau": "#D04A3A", "pilosite": "barbe", "lunettes": false, "vetement": "salopette", "couleur": "#8A8F96", "couleur2": "#4A6A9A", "genre": "m"},
-    {"id": "nadia", "nom": "Nadia", "peau": "#B47A52", "cheveux": "#7A5232", "coiffure": "boucles", "chapeau": "", "couleur_chapeau": "", "pilosite": "", "lunettes": true, "vetement": "tshirt", "couleur": "#E8B830", "couleur2": "#AE8A24", "genre": "f"},
-    {"id": "marcel", "nom": "Marcel", "peau": "#F6D7BF", "cheveux": "#E9E5DE", "coiffure": "chauve", "chapeau": "paille", "couleur_chapeau": "#E3C77A", "pilosite": "moustache", "lunettes": false, "vetement": "chemise", "couleur": "#D9C49A", "couleur2": "#A29373", "genre": "m"},
-    {"id": "odette", "nom": "Odette", "peau": "#EBC09C", "cheveux": "#E9E5DE", "coiffure": "chignon", "chapeau": "", "couleur_chapeau": "", "pilosite": "", "lunettes": true, "vetement": "tablier", "couleur": "#7A4AB0", "couleur2": "#E07AA0", "genre": "f"},
-    {"id": "samir", "nom": "Samir", "peau": "#B47A52", "cheveux": "#2A2422", "coiffure": "court", "chapeau": "casque", "couleur_chapeau": "#EEF0F0", "pilosite": "barbe", "lunettes": false, "vetement": "chemise", "couleur": "#3A6EC8", "couleur2": "#2B5296", "genre": "m"},
-    {"id": "fatou", "nom": "Fatou", "peau": "#5E3A26", "cheveux": "#2A2422", "coiffure": "tresses", "chapeau": "foulard", "couleur_chapeau": "#E8782A", "pilosite": "", "lunettes": false, "vetement": "tshirt", "couleur": "#2FAAA0", "couleur2": "#237F78", "genre": "f"},
-    {"id": "igor", "nom": "Igor", "peau": "#F6D7BF", "cheveux": "#D9B464", "coiffure": "rase", "chapeau": "", "couleur_chapeau": "", "pilosite": "barbe", "lunettes": false, "vetement": "tshirt", "couleur": "#D04A3A", "couleur2": "#9C372B", "genre": "m"},
-    {"id": "elise", "nom": "Élise", "peau": "#EBC09C", "cheveux": "#5A3A24", "coiffure": "frange", "chapeau": "", "couleur_chapeau": "", "pilosite": "", "lunettes": false, "vetement": "costume", "couleur": "#2F6B45", "couleur2": "#F2EFE8", "genre": "f"},
-    {"id": "adam", "nom": "Adam", "peau": "#D69F78", "cheveux": "#5A3A24", "coiffure": "boucles", "chapeau": "", "couleur_chapeau": "", "pilosite": "", "lunettes": false, "vetement": "tshirt", "couleur": "#E8B830", "couleur2": "#AE8A24", "genre": "m"},
-    {"id": "rose", "nom": "Rose", "peau": "#8A5638", "cheveux": "#2A2422", "coiffure": "carre", "chapeau": "casquette", "couleur_chapeau": "#E07AA0", "pilosite": "", "lunettes": false, "vetement": "salopette", "couleur": "#F2EFE8", "couleur2": "#4A6A9A", "genre": "f"},
-    {"id": "victor", "nom": "Victor", "peau": "#EBC09C", "cheveux": "#A9A6A2", "coiffure": "raie", "chapeau": "", "couleur_chapeau": "", "pilosite": "", "lunettes": true, "vetement": "costume", "couleur": "#8A8F96", "couleur2": "#3A6EC8", "genre": "m"},
-    {"id": "camille", "nom": "Camille", "peau": "#F6D7BF", "cheveux": "#E58AB0", "coiffure": "court", "chapeau": "", "couleur_chapeau": "", "pilosite": "", "lunettes": false, "vetement": "sweat", "couleur": "#3E9A55", "couleur2": "#2E733F", "genre": "f"},
-    {"id": "noah", "nom": "Noah", "peau": "#8A5638", "cheveux": "#2A2422", "coiffure": "court", "chapeau": "bonnet", "couleur_chapeau": "#E8B830", "pilosite": "", "lunettes": false, "vetement": "polo", "couleur": "#E8782A", "couleur2": "#AE5A1F", "genre": "m"},
-    {"id": "zoe", "nom": "Zoé", "peau": "#D69F78", "cheveux": "#2A2422", "coiffure": "queue", "chapeau": "casque", "couleur_chapeau": "#F2C230", "pilosite": "", "lunettes": false, "vetement": "salopette", "couleur": "#3E9A55", "couleur2": "#4A6A9A", "genre": "f"},
-    {"id": "basile", "nom": "Basile", "peau": "#F6D7BF", "cheveux": "#7A5232", "coiffure": "frange", "chapeau": "", "couleur_chapeau": "", "pilosite": "barbe3j", "lunettes": true, "vetement": "tablier", "couleur": "#D9C49A", "couleur2": "#7A5232", "genre": "m"},
-    {"id": "lina", "nom": "Lina", "peau": "#B47A52", "cheveux": "#9C7048", "coiffure": "long", "chapeau": "paille", "couleur_chapeau": "#E3C77A", "pilosite": "", "lunettes": false, "vetement": "chemise", "couleur": "#F2EFE8", "couleur2": "#B5B3AE", "genre": "f"},
-    {"id": "omar", "nom": "Omar", "peau": "#8A5638", "cheveux": "#A9A6A2", "coiffure": "court", "chapeau": "", "couleur_chapeau": "", "pilosite": "barbe", "lunettes": false, "vetement": "sweat", "couleur": "#3A6EC8", "couleur2": "#2B5296", "genre": "m"}
+    {
+      "id": "adam",
+      "nom": "Adam",
+      "genre": "m"
+    },
+    {
+      "id": "aicha",
+      "nom": "Aïcha",
+      "genre": "f"
+    },
+    {
+      "id": "basile",
+      "nom": "Basile",
+      "genre": "m"
+    },
+    {
+      "id": "clara",
+      "nom": "Clara",
+      "genre": "f"
+    },
+    {
+      "id": "emma",
+      "nom": "Emma",
+      "genre": "f"
+    },
+    {
+      "id": "fatou",
+      "nom": "Fatou",
+      "genre": "f"
+    },
+    {
+      "id": "gabin",
+      "nom": "Gabin",
+      "genre": "m"
+    },
+    {
+      "id": "hugo",
+      "nom": "Hugo",
+      "genre": "m"
+    },
+    {
+      "id": "igor",
+      "nom": "Igor",
+      "genre": "m"
+    },
+    {
+      "id": "ines",
+      "nom": "Inès",
+      "genre": "f"
+    },
+    {
+      "id": "jade",
+      "nom": "Jade",
+      "genre": "f"
+    },
+    {
+      "id": "jules",
+      "nom": "Jules",
+      "genre": "m"
+    },
+    {
+      "id": "lea",
+      "nom": "Léa",
+      "genre": "f"
+    },
+    {
+      "id": "louis",
+      "nom": "Louis",
+      "genre": "m"
+    },
+    {
+      "id": "malik",
+      "nom": "Malik",
+      "genre": "m"
+    },
+    {
+      "id": "mamadou",
+      "nom": "Mamadou",
+      "genre": "m"
+    },
+    {
+      "id": "manon",
+      "nom": "Manon",
+      "genre": "f"
+    },
+    {
+      "id": "marcel",
+      "nom": "Marcel",
+      "genre": "m"
+    },
+    {
+      "id": "margaux",
+      "nom": "Margaux",
+      "genre": "f"
+    },
+    {
+      "id": "noah",
+      "nom": "Noah",
+      "genre": "m"
+    },
+    {
+      "id": "odette",
+      "nom": "Odette",
+      "genre": "f"
+    },
+    {
+      "id": "omar",
+      "nom": "Omar",
+      "genre": "m"
+    },
+    {
+      "id": "paul",
+      "nom": "Paul",
+      "genre": "m"
+    },
+    {
+      "id": "rose",
+      "nom": "Rose",
+      "genre": "f"
+    },
+    {
+      "id": "samir",
+      "nom": "Samir",
+      "genre": "m"
+    },
+    {
+      "id": "tom",
+      "nom": "Tom",
+      "genre": "m"
+    },
+    {
+      "id": "victor",
+      "nom": "Victor",
+      "genre": "m"
+    },
+    {
+      "id": "yasmine",
+      "nom": "Yasmine",
+      "genre": "f"
+    }
   ]
 }

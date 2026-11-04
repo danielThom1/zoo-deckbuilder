@@ -8,6 +8,10 @@ extends Control
 ## Contrôle : godot --path game -- --tutoriel --tuto-auto --tuto-dossier=C:/chemin  joue seul et capture chaque étape.
 
 const GRAINE := 404283
+## Expression d'Hubert selon le début de sa réplique (neutre sinon).
+const TETES := {"Bienvenue": "content", "Notre mission": "neutre", "Article 47": "moqueur", "Avec la hausse": "moqueur", "Assez parlé": "contrarie",
+	"Parfait": "content", "Fin de journée": "contrarie", "Après diverses": "contrarie", "Ma qualité": "moqueur", "[b]100 de bois": "content",
+	"Excellent": "content", "Le [b]Kiosque": "moqueur", "Les [b]labels": "moqueur", "Et chaque nuit": "moqueur", "Votre période": "moqueur"}
 const CADRE := {"nom": "Hubert de la Marge", "titre": "Directeur des Ressources, Humaines et Autres, ZooLife™", "perso": "victor"}
 const RIVAUX := ["ZooLife™ (vous)", "PanZoo Holdings", "Safari Capital", "BioLand Group"]
 const ESPECE := "bison_amerique"
@@ -47,6 +51,7 @@ var suivant: Button
 var quitter: Button
 var consigne: Label
 var titre_ecran: Label
+var logos_box: HBoxContainer
 
 
 ## Voile sombre percé autour des éléments montrés ; il arrête les clics partout sauf dans les trous.
@@ -370,6 +375,7 @@ func _etape_suivante() -> void:
 	portrait_cadre.visible = phrase != ""
 	titre_ecran.text = str(etape.get("legende", ""))
 	titre_ecran.visible = titre_ecran.text != ""
+	_montrer_logos(etape.get("logos", []))
 	if phrase != "":
 		_montrer_bulle(phrase)
 	var action: bool = etape.has("attendre")
@@ -382,12 +388,43 @@ func _etape_suivante() -> void:
 	consigne.visible = consigne.text != ""
 
 
+## Les logos annoncés par une réplique, au centre de la carte.
+func _montrer_logos(noms: Array) -> void:
+	if logos_box:
+		logos_box.queue_free()
+		logos_box = null
+	if noms.is_empty():
+		return
+	logos_box = HBoxContainer.new()
+	logos_box.add_theme_constant_override("separation", 24)
+	logos_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var taille := Vector2(460, 306) if noms.size() == 1 else Vector2(300, 200)
+	for n in noms:
+		var logo := Composants.image_logo(load("res://assets/bd/logos/%s.png" % n), taille)
+		if noms.size() == 1:
+			logos_box.add_child(logo)
+			continue
+		# Les logos des rivaux s'effacent sur la carte assombrie : on les pose sur une carte de visite
+		var carte := PanelContainer.new()
+		var st := StyleBoxFlat.new()
+		st.bg_color = Color.WHITE
+		st.border_color = UiTokens.ENCRE
+		st.set_border_width_all(3)
+		st.set_corner_radius_all(14)
+		carte.add_theme_stylebox_override("panel", st)
+		carte.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		carte.add_child(logo)
+		logos_box.add_child(carte)
+	add_child(logos_box)
+	logos_box.position = Vector2((get_viewport_rect().size.x - (taille.x * noms.size() + 24.0 * (noms.size() - 1))) / 2.0, 90.0 if noms.size() == 1 else 120.0)
+
+
 func _montrer_bulle(phrase: String) -> void:
 	var qui: String = etape.get("qui", "cadre")
 	var a_droite := qui != "cadre"
 	if qui == "cadre":
 		nom_label.text = "%s · %s" % [CADRE["nom"], CADRE["titre"]]
-		_cadrer_portrait(Composants.texture_portrait(CADRE["perso"]))
+		_cadrer_portrait(load("res://assets/bd/hubert/%s.png" % etape.get("tete", "neutre")))
 	else:
 		var c: GameState.Card = _carte_de(qui)
 		nom_label.text = "%s · %s" % [c.nom, game.job_name(c)]
@@ -420,7 +457,7 @@ func _cadrer_portrait(tex: Texture2D) -> void:
 				n += 1.0
 				if sommet < 0:
 					sommet = y
-	var echelle := 150.0 / haut
+	var echelle := (172.0 if etape.get("qui", "cadre") == "cadre" else 150.0) / haut
 	portrait_image.size = Vector2(img.get_width(), haut) * echelle
 	portrait_image.position = Vector2(66.0 - somme / maxf(n, 1.0) * echelle, 8.0 - maxi(sommet, 0) * echelle)
 
@@ -678,10 +715,10 @@ func _scenario() -> Array:
 	var nom_animal: String = espece["nom"]
 	var s := [
 		# --- Présentation ---
-		_dit("cadre", "Bienvenue chez [b]ZooLife™[/b], leader mondial du divertissement animalier responsable ! Vous entrez dans une grande famille. Une famille avec des objectifs trimestriels.", {"entree": func():
+		_dit("cadre", "Bienvenue chez [b]ZooLife™[/b], leader mondial du divertissement animalier responsable ! Vous entrez dans une grande famille. Une famille avec des objectifs trimestriels.", {"logos": ["zoolife"], "entree": func():
 			_deployer_tout()
 			game.money = 8.0}),
-		_dit("cadre", "Notre mission : bâtir ici un parc animalier. Trois mégacorporations rivales font la même chose au même moment. La [b]première à 100 de réputation[/b] rafle la concession. Les autres licencient.", {"cible": func(): return m.race_labels.map(func(r): return r[0]), "position": "bas"}),
+		_dit("cadre", "Notre mission : bâtir ici un parc animalier. Trois mégacorporations rivales font la même chose au même moment. La [b]première à 100 de réputation[/b] rafle la concession. Les autres licencient.", {"logos": ["panzoo", "safari", "bioland"], "cible": func(): return m.race_labels.map(func(r): return r[0]), "position": "bas"}),
 		_dit("terrassier", "Excusez-moi… on a signé pour travailler dans un parc animalier. Il est où, le parc ?"),
 		_dit("cadre", "Article 47, alinéa 12 de votre contrat : « Le salarié construit l'établissement qui l'emploie. » C'était écrit. En petit, certes, mais c'était écrit."),
 		_dit("bucheron", "Et les machines ? Les camions ? Le matériel ?"),
@@ -796,6 +833,11 @@ func _scenario() -> Array:
 		_dit("manoeuvre", "Et notre période d'essai, elle est validée ?", {"entree": func(): _centrer(parc.get_center())}),
 		_dit("cadre", "Votre période d'essai vient de s'achever. Elle n'était pas rémunérée : article 12. Bienvenue à bord. Maintenant, un vrai parc vous attend, de vraies rivales et de vrais trimestres. [b]Le premier à 100 l'emporte[/b]. Le reste, c'est de la communication.", {"fin": true}),
 	]
+	for e in s:
+		if e.get("texte") is String:
+			for debut in TETES:
+				if e["texte"].begins_with(debut):
+					e["tete"] = TETES[debut]
 	return s
 
 

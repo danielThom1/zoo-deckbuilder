@@ -40,6 +40,26 @@ static func texture_portrait(perso_id: String) -> Texture2D:
 	return _portraits[perso_id]
 
 
+## Logo (ou emblème carré) d'un groupe d'après son nom affiché ; null pour un nom sans logo (spectateur : « IA 1 »).
+static func logo_groupe(nom: String, embleme := false) -> Texture2D:
+	for cle in {"ZooLife": "zoolife", "PanZoo": "panzoo", "Safari": "safari", "BioLand": "bioland"}.keys():
+		if nom.begins_with(cle):
+			return load("res://assets/bd/logos/%s%s.png" % [cle.to_lower(), "_embleme" if embleme else ""])
+	return null
+
+
+static func image_logo(tex: Texture2D, taille: Vector2) -> TextureRect:
+	var tr := TextureRect.new()
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	tr.texture = tex
+	tr.custom_minimum_size = taille
+	tr.size = taille
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return tr
+
+
 static func portrait_rect(perso_id: String, taille: Vector2) -> TextureRect:
 	var tr := TextureRect.new()
 	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE

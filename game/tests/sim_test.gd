@@ -298,6 +298,7 @@ func _init() -> void:
 	check(gz.visitor_queue > 0 and gz.visit["admitted"] == 0, "personne au guichet : %d visiteurs attendent, aucun n'entre" % gz.visitor_queue)
 	var money_mid := gz.money
 	var clerk: GameState.Card = gz.hand[0]
+	clerk.traits.clear()  # un Lent ou un Distrait tiré au hasard n'atteindrait pas le guichet à temps
 	gz.deploy(clerk, true)
 	var entree: GameState.Site = gz.sites.filter(func(s): return s.def_id() == "entree")[0]
 	gz.order([gz.worker_of(clerk)], entree.rect.position)

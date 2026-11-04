@@ -106,29 +106,16 @@ void fragment() {
 	# --- Colonne de gauche
 	var col := VBoxContainer.new()
 	col.name = "Colonne"
-	col.position = Vector2(96, 84)
+	col.position = Vector2(96, 16)
 	col.custom_minimum_size = Vector2(440, 0)
 	col.add_theme_constant_override("separation", 0)
 	add_child(col)
 
-	var entete := HBoxContainer.new()
-	entete.add_theme_constant_override("separation", 22)
-	col.add_child(entete)
-	var medaillon := Control.new()
-	medaillon.custom_minimum_size = Vector2(112, 112)
-	medaillon.draw.connect(_dessiner_medaillon.bind(medaillon))
-	entete.add_child(medaillon)
-	var titres := VBoxContainer.new()
-	titres.alignment = BoxContainer.ALIGNMENT_CENTER
-	titres.add_theme_constant_override("separation", -6)
-	entete.add_child(titres)
-	titres.add_child(_label("ZOOLIFE™", _police_espacee(police_titre, 6), 62, OR, true))
-	titres.add_child(_label("DIVERTISSEMENT ANIMALIER RESPONSABLE", _police_espacee(police_titre, 2), 15, OR_CLAIR, true))
-
-	col.add_child(_espace(26))
+	col.add_child(Composants.image_logo(load("res://assets/bd/logos/zoolife.png"), Vector2(410, 274)))
+	col.add_child(_espace(10))
 	var accroche := _label("Bâtissez le zoo le plus rentable de la vallée,\navec le personnel que vous méritez.", police_texte, 18, TEXTE_2)
 	col.add_child(accroche)
-	col.add_child(_espace(26))
+	col.add_child(_espace(12))
 	var filet := Control.new()
 	filet.custom_minimum_size = Vector2(380, 14)
 	filet.draw.connect(_dessiner_filet.bind(filet))
