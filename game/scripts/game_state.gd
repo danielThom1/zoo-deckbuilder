@@ -2832,7 +2832,7 @@ func reputation() -> int:
 	return floori(rep_points)
 
 
-## Attractivité : points par espèce + diversité des biomes + collections (+ soins et prédateurs).
+## Attractivité : points par espèce + collections (+ soins et prédateurs).
 ## Elle fixe combien de visiteurs se présentent. `only` : restreint aux animaux donnés (ceux de l'enceinte).
 func attractiveness(only = null) -> int:
 	var species := {}
@@ -2862,7 +2862,6 @@ func attractiveness(only = null) -> int:
 				if o != d and o.get("type", "") == rare["type_bonus"]:
 					total += int(rare["points"])
 	var A: Dictionary = data["animals"]
-	total += int(A["bonus_diversite_biomes"].get(str(biomes.size()), 0))
 	# Voisinage : +2 par animal voisin du même continent (enclos différents, de part et d'autre d'une clôture)
 	var counted: Array = (animals if only == null else only).filter(func(a): return a.arrived and a.fed and not a.sick)
 	for a in counted:

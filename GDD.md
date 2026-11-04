@@ -14,7 +14,7 @@ Jeu de gestion vu du dessus, 1 à 4 joueurs (humain contre IA pour la v1). Chaqu
 1. **Deckbuilding d'ouvriers** : on recrute, forme et licencie pour façonner un deck efficace.
 2. **Microgestion en temps réel** : la journée exige de réaffecter sans cesse ses ouvriers.
 3. **Puzzle de terrain** (inspiré d'*Harmonies*) : chaque animal exige une composition de terrain précise. Plus le terrain naturel convient, moins il faut d'aménagements.
-4. **Diversité** : la réputation récompense la variété des espèces et des biomes.
+4. **Collection** : la réputation récompense les espèces d'un même continent et les animaux rares qui valorisent un type.
 
 ## 3. Structure d'une partie
 
@@ -181,7 +181,7 @@ Liste complète : `data/workers.json`.
 ### 7.3 Visiteurs, routes et réputation (v4 : remplace les revenus de nuit)
 - **Les visiteurs sont simulés pendant la journée.** Ils apparaissent à la case **Accès**, marchent **uniquement sur les routes** jusqu'à la case devant l'**Entrée** (le camp sert de carrefour, les ponts comptent comme des routes, une route en diagonale passe), puis font la queue. Sans route reliant l'Accès à l'Entrée, personne ne vient.
 - **Demande** (visiteurs par jour) = attractivité × 6 × publicité × événement × bonus de nuit.
-  - **Attractivité** : ce qu'on appelait avant la réputation. Ce sont les points des espèces nourries de l'enceinte, plus la diversité des biomes, les collections, +2 par prédateur et +2 par animal soigné.
+  - **Attractivité** : ce qu'on appelait avant la réputation. Ce sont les points des espèces nourries de l'enceinte, plus les collections, +2 par prédateur et +2 par animal soigné.
   - **Publicité** = 1 + points / (points + 8), où les points viennent des **campagnes publicitaires** terminées (pour toute la partie). L'influence ne joue plus sur les visiteurs : elle ne sert qu'à l'ordre du marché et au bonus de nuit.
   - **Campagnes publicitaires** (panneau Publicité, en journée) : il faut au moins un ouvrier à l'extérieur (case Accès). Une seule campagne à la fois, payée au lancement : Affiches en ville (40, +1 point), Spot radio (120, +4), Campagne télévisée (300, +12). Elle coûte **40 % de moins** si un ouvrier spécialisé en influence (Lobbyiste) est dehors au lancement. Les ouvriers dehors la réalisent (1 + efficacité de lobbying par seconde chacun) tout en continuant à gagner de l'influence ; une campagne inachevée reprend le lendemain. C'est la façon de dépenser l'argent de fin de partie.
 - **Guichet** : il fait entrer 24 visiteurs par minute × le rendement de l'ouvrier au poste. Le nouveau métier **Guichetier** (peu qualifié) va 2 fois plus vite. Plusieurs ouvriers au guichet additionnent leur débit. File de 20 visiteurs au maximum : au-delà, les visiteurs repartent.
@@ -279,7 +279,6 @@ Liste complète : `data/workers.json`.
 - **Ouvriers légendaires** : un ouvrier qui atteint le niveau 5 rapporte +5 au parc.
 
 - Points par espèce, selon le palier : T1 = 4, T2 = 8, T3 = 14 ❓ (voir le JSON, par espèce).
-- **Bonus de diversité** (nombre de biomes distincts représentés) : 2 → +5, 3 → +12, 4 → +20, 5 → +30, 6 → +45.
 - Bonus de collection ❓ : 3 espèces du même biome → +5.
 
 ## 11. IA (prototype Godot)
@@ -289,7 +288,7 @@ Liste complète : `data/workers.json`.
 - **Emplacement du zoo (v5)** : l'IA choisit son emplacement **après son premier contrat** (ou au jour 3). Elle privilégie un terrain qui se prête déjà au motif de ses animaux, avec des murs constructibles et une entrée qu'une route peut rejoindre, sans s'éloigner du camp. Une part de hasard propre à chaque IA fait que toutes ne choisissent pas le même endroit.
 - **Taille du parc** : stratégies Petit parc (12×10), Moyen (16×13), Grand parc (22×16) et **Parc évolutif**. Ce dernier commence par un petit parc collé au mur de l'entrée d'un grand parc prévu. Dès que le petit parc tourne (jour 6 ou 2 animaux), il construit l'enceinte du grand parc puis démolit les anciens murs intérieurs.
 - **Trésorerie** : l'IA garde toujours de quoi payer une main complète et nourrir ses animaux. En dessous de ce seuil, elle passe en mode survie : aucun nouveau chantier, et la récolte est vendue le soir.
-- **Nuit** : licenciement de la carte la plus faible (si le DRH a travaillé), achat du contrat avec le meilleur rapport réputation (diversité comprise) / coût s'il rentre dans l'enceinte, embauche si une place de logement est libre.
+- **Nuit** : licenciement de la carte la plus faible (si le DRH a travaillé), achat du contrat avec le meilleur rapport réputation / coût s'il rentre dans l'enceinte, embauche si une place de logement est libre.
 - **Stratégies** (réglages pour les simulations) : Équilibrée, Lobbying, Petits contrats, Gros contrats, Sans embauche, Économe. Les simulations se lancent avec `tests/balance_sim.gd` et écrivent un rapport dans `rapport_equilibrage.md`.
 - **Robustesse** : le guichet et la boutique ne sont tenus qu'une fois le zoo ouvert. L'ouvrier déployé gratuitement est un ouvrier manuel. Quand l'équipe est réduite (2 ouvriers ou moins) et le zoo fermé, les chantiers passent avant les soins. Un contrat sans plan d'enclos possible ne bloque plus l'achat d'un autre.
 - **Montées de niveau** : l'IA choisit d'abord de guérir un défaut, puis de renforcer sa spécialité, puis une amélioration de métier. Elle valorise l'Architecte, mais évite encore le Formateur, car elle ne construit pas de Centre de formation.

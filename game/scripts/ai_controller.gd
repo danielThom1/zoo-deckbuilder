@@ -642,7 +642,7 @@ func _owned_attr() -> float:
 	return maxf(float(g.attractiveness()), somme)
 
 
-## Attractivité ajoutée par une nouvelle espèce : la sienne, diversité des biomes, collection, effets des rares.
+## Attractivité ajoutée par une nouvelle espèce : la sienne, collection, effets des rares.
 func _attr_gain(def: Dictionary) -> float:
 	var owned := _owned_defs()
 	if owned.any(func(d): return d["id"] == def["id"]):
@@ -652,10 +652,7 @@ func _attr_gain(def: Dictionary) -> float:
 	var biomes := {}
 	for d in owned:
 		biomes[d["biome"]] = int(biomes.get(d["biome"], 0)) + 1
-	if not biomes.has(def["biome"]):
-		var table: Dictionary = A["bonus_diversite_biomes"]
-		gain += float(table.get(str(biomes.size() + 1), 0)) - float(table.get(str(biomes.size()), 0))
-	elif int(biomes[def["biome"]]) + 1 == int(A["bonus_collection"]["especes_meme_biome"]):
+	if int(biomes.get(def["biome"], 0)) + 1 == int(A["bonus_collection"]["especes_meme_biome"]):
 		gain += float(A["bonus_collection"]["points"])
 	var rare: Dictionary = def.get("effet_rare", {})
 	for d in owned:
@@ -1013,17 +1010,9 @@ func _money_cost(def: Dictionary) -> float:
 	return float(p.get("argent", 0)) + 4.0 * float(p.get("or", 0))
 
 
-## Réputation gagnée par une nouvelle espèce, bonus de diversité compris.
+## Réputation gagnée par une nouvelle espèce (ancienne note, pour comparer).
 func _rep_gain(def: Dictionary) -> float:
-	var biomes := {}
-	for a in g.animals:
-		biomes[a.def["biome"]] = true
-	for d in g.contracts:
-		biomes[d["biome"]] = true
 	var gain := float(def["reputation"])
-	if not biomes.has(def["biome"]):
-		var table: Dictionary = g.data["animals"]["bonus_diversite_biomes"]
-		gain += float(table.get(str(biomes.size() + 1), 0)) - float(table.get(str(biomes.size()), 0))
 	# Affinité : une espèce d'un continent déjà représenté ajoute 5 % à toute la réputation gagnée.
 	if g.animals.any(func(a): return a.def.get("continent", "") == def.get("continent", "")) \
 		or g.contracts.any(func(d): return d.get("continent", "") == def.get("continent", "")):
