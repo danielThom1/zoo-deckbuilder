@@ -30,6 +30,7 @@ class Card:
 
 class Worker:
 	var card: Card
+	var temps_mentor := 0.0  # secondes passées aujourd'hui près d'un Formateur (expérience en plus le soir)
 	var pos := Vector2.ZERO  # en cases ; le centre d'une case est à +0.5
 	var path: Array[Vector2i] = []
 	var task := {}  # vide = aucune tâche
@@ -518,7 +519,10 @@ func cadre_error(card: Card, target: Card = null, option := "") -> String:
 		"main":
 			if target == null or target == card or not hand.has(target) or target.deployed or target.is_action():
 				return "Choisissez un collaborateur de votre main"
-			if employees() <= 2:
+			if A["effet"].has("stage"):
+				if target.traits.all(func(t): return is_positive(t)):
+					return "Aucun défaut à corriger"
+			elif employees() <= 2:
 				return "Pas assez de collaborateurs"
 		"ressource":
 			if not option in ["bois", "pierre"] or stock.get(option, 0.0) < 1.0:
@@ -544,8 +548,17 @@ func play_cadre(card: Card, target: Card = null, option := "") -> bool:
 			action_fx[k] = true
 	if fx.has("attractivite"):
 		action_fx["attractivite"] = int(action_fx.get("attractivite", 0)) + int(fx["attractivite"])
-	if fx.has("xp_soir"):
-		action_fx["xp_soir"] = float(action_fx.get("xp_soir", 0.0)) + float(fx["xp_soir"])
+	if fx.has("stage"):
+		var defaut := ""
+		for t in target.traits:
+			if not is_positive(t):
+				defaut = t
+				break
+		target.traits.erase(defaut)
+		var avant := target.traits.size()
+		mt._draw_traits(target, data["workers"]["traits_positifs"], 1, data["workers"]["generation_traits"]["exclusions"])
+		extra = " %s n'est plus %s" % [target.nom, str(traits_by_id[defaut]["nom"]).to_lower()]
+		extra += " et devient %s." % str(traits_by_id[target.traits[-1]]["nom"]).to_lower() if target.traits.size() > avant else "."
 	if fx.has("vente"):
 		var units := floorf(stock[option])
 		var gain := floorf(units * float(data["buildings"]["conversion"][option]) * float(fx["vente"]) \
@@ -815,6 +828,28 @@ func tick(dt: float) -> void:
 	mt.tick(dt)
 
 
+## Rayon d'apprentissage d'un Formateur (0 pour les autres métiers).
+func mentor_rayon(card: Card) -> float:
+	var M: Dictionary = card.metier.get("mentor", {})
+	if M.is_empty():
+		return 0.0
+	return float(M["rayon_pedagogue"]) if has_capacity(card, "pedagogue") else float(M["rayon"])
+
+
+## Apprentissage sur le tas : les collaborateurs près d'un Formateur cumulent du temps, compté en expérience le soir.
+func _update_mentors(dt: float) -> void:
+	var mentors := workers.filter(func(m): return not m.offmap and mentor_rayon(m.card) > 0.0)
+	if mentors.is_empty():
+		return
+	for w in workers:
+		if w.offmap or mentor_rayon(w.card) > 0.0:
+			continue
+		for m in mentors:
+			if m.pos.distance_to(w.pos) <= mentor_rayon(m.card) + 0.01:
+				w.temps_mentor += dt * unpaid_mult(m)
+				break
+
+
 func _tick_player(dt: float) -> void:
 	# Les traits et la liste des ouvriers ne changent pas pendant un pas : les auras sont listées une fois.
 	_aura_cache_valid = false
@@ -823,6 +858,7 @@ func _tick_player(dt: float) -> void:
 	for w in workers:
 		_update_worker(w, dt)
 	_aura_cache_valid = false
+	_update_mentors(dt)
 	_animals_eat(dt)
 	_update_visitors(dt)
 
@@ -1286,7 +1322,7 @@ func _next_to_terrain(t: Vector2i, terrain: String) -> bool:
 
 
 ## Centre de formation : les ouvriers postés gagnent de l'expérience (×2 si un Formateur est posté aussi).
-## Places limitées (capacite_formation, +2 avec un Formateur Pédagogue) : les premiers arrivés sont formés.
+## Places limitées (capacite_formation) : les premiers arrivés sont formés.
 func _train(w: Worker, dt: float) -> void:
 	if w.card.metier["id"] == "formateur":
 		return  # il forme les autres
@@ -1299,8 +1335,6 @@ func _train(w: Worker, dt: float) -> void:
 	if trainees.find(w) >= int(fx["capacite_formation"]):
 		return
 	var rate := float(fx["xp_par_minute"]) * (2.0 if not trainers.is_empty() else 1.0) * unpaid_mult(w)
-	if trainers.any(func(o): return has_capacity(o.card, "pedagogue")):
-		rate *= 1.5
 	gain_xp(w.card, rate * dt / 60.0)
 
 
@@ -1476,7 +1510,7 @@ func _end_day_player() -> void:
 		_unload(w)  # la charge portée est encaissée le soir
 		var card := w.card
 		card.jours_travailles += 1
-		gain_xp(card, 1.0 + float(action_fx.get("xp_soir", 0.0)))  # Formateur joué (Cours du soir)
+		gain_xp(card, 1.0 + clampf(w.temps_mentor / day_length, 0.0, 1.0))  # jusqu'au double près d'un Formateur
 		# Réseau (Lobbyiste) : +1 influence chaque soir où il a été déployé.
 		if has_capacity(card, "reseau"):
 			influence += 1.0

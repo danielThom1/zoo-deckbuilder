@@ -119,7 +119,7 @@ Liste complète : `data/workers.json`.
 
 ### 6.4 Progression (lot B : implémenté)
 - **Expérience** en jours de travail : +1 par jour déployé, ×2 pour l'**Apprenti**, ×1,5 pour **Bon élève**. Un niveau tous les **2 jours d'expérience**, au maximum le **niveau 4** (+10 % de rendement et +1 de salaire par niveau).
-- **Centre de formation** : un ouvrier posté dessus (clic droit) gagne **0,4 jour d'expérience par minute**, **×2 si un Formateur** y est posté aussi. 3 places (+2 avec un Formateur Pédagogue). Une journée complète de formation vaut 2 jours de travail en expérience (4 avec un Formateur), en plus du jour travaillé.
+- **Centre de formation** : un ouvrier posté dessus (clic droit) gagne **0,4 jour d'expérience par minute**, **×2 si un Formateur** y est posté aussi. 4 places. Une journée complète de formation vaut 2 jours de travail en expérience (4 avec un Formateur), en plus du jour travaillé.
 - **À chaque niveau, une amélioration gratuite au choix** parmi 3 (**Têtu** : 2), tirées dans le pool générique et dans celui du métier. Le choix se fait la nuit ; s'il est oublié, la première option est appliquée au matin.
 - Améliorations génériques : Pied léger, Expérience, Maîtrise, Remise en question (supprime un défaut), Révélation (nouveau trait positif), Fidélité, **Seconde spécialité** (une tâche hors métier, tirée au hasard, passe à 1,4).
 - Améliorations de métier : Scie affûtée (Bûcheron : bois +25 %, portage +1), Brouette (Porteur : portage +2), Chasseur de têtes (DRH : embauches −3), Réseau (Lobbyiste : +1 influence par soir déployé), Négociateur (Marchand : vente +25 %), Pédagogue (Formateur : +2 places), Visionnaire (Paysagiste : aménager à côté d'une case du type voulu ×2).
@@ -138,7 +138,7 @@ Liste complète : `data/workers.json`.
   - DRH, *Mutation* : licenciez une carte de votre main, puis piochez-en 2.
   - Lobbyiste, *Coup de fil* : annule pour vous l'événement négatif du jour (Pluie, Canicule, Grève, Tempête) ; sinon +3 d'influence.
   - Vendeur de souvenirs, *Braderie* : la boutique rapporte ×2 aujourd'hui, même sans vendeur posté.
-  - Formateur, *Cours du soir* : chaque ouvrier déployé aujourd'hui gagne 1 jour d'expérience de plus ce soir.
+  - Formateur, *Stage de remise à niveau* : retire un défaut à une carte de la main et lui donne une qualité (refusé sans défaut). Mobilisé, il travaille à ×0,9 et les ouvriers à 3 cases ou moins (5 avec Pédagogue) gagnent jusqu'à 2 fois plus d'expérience.
   - Animateur, *Grand spectacle* : +10 d'attractivité aujourd'hui, même sans Kiosque.
   - L'IA joue un cadre quand la situation s'y prête (4 chantiers ouverts pour l'Architecte, événement négatif pour le Lobbyiste, gros stock pour le Marchand, etc.).
 

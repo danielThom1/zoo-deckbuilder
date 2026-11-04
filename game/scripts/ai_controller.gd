@@ -140,7 +140,7 @@ func _card_bonus(c: GameState.Card) -> float:
 		"animateur":
 			return (1.5 if strat["spectacle"] else 0.3) if not has.call("animateur") else -1.0  # spectacles au Kiosque
 		"formateur":
-			return 1.0 if strat["formation"] and not has.call("formateur") else -1.5  # sans Centre de formation, inutile
+			return (1.0 if strat["formation"] else 0.6) if not has.call("formateur") else -1.0
 	return 0.0
 
 
@@ -271,8 +271,14 @@ func _play_cadres() -> void:
 				if open and built.call("boutique") and g.money < g.salary(c):
 					g.play_cadre(c)
 			"formateur":
-				if not built.call("formation") and g.hand.filter(func(o): return not o.is_action()).size() >= 5:
-					g.play_cadre(c)
+				# Stage : la meilleure carte qui a un défaut, s'il reste assez de bras pour la journée.
+				if g.hand.filter(func(o): return not o.is_action()).size() >= 4:
+					var eleve: GameState.Card = null
+					for o in g.hand:
+						if not o.is_action() and g.cadre_error(c, o) == "" and (eleve == null or card_value(o) > card_value(eleve)):
+							eleve = o
+					if eleve:
+						g.play_cadre(c, eleve)
 			"animateur":
 				if open and not g.animals.is_empty() and not built.call("kiosque"):
 					g.play_cadre(c)
@@ -295,8 +301,6 @@ func _adapter_au_roster() -> void:
 		strat["mine_prioritaire"] = true
 	if marchands >= 1 and (g.mine_built or mineurs >= 1):
 		strat["marche"] = true
-	if int(n.get("formateur", 0)) > 0 and g.zoo_status()["open"]:
-		strat["formation"] = true
 
 
 ## Portes ouvertes : seulement si le parc peut accueillir le surplus de visiteurs.
@@ -2292,7 +2296,7 @@ func _ensure_job(site: GameState.Site, type: String, wanted: int, task: String, 
 				continue
 			if w.card.traits.has("col_blanc"):
 				continue
-			var v := g.efficiency(w.card, "defaut") - 2.0 * g.efficiency(w.card, task)
+			var v := g.efficiency(w.card, "defaut") - 2.0 * g.efficiency(w.card, task) + (3.0 if w.card.metier["id"] == "formateur" else 0.0)
 			if w.card.metier["id"] == specialist:
 				v -= 5.0
 			if v < best_v:
@@ -2313,6 +2317,8 @@ func _ensure_post(site: GameState.Site, kind: String, wanted := 1) -> void:
 			continue
 		# Les moins utiles ailleurs tiennent les postes (la recette ne dépend que de la présence).
 		var v := g.efficiency(w.card, "defaut")
+		if w.card.metier["id"] == "formateur":
+			v += 3.0  # seul à un poste, il ne forme personne
 		if w.unpaid:
 			v -= 2.0
 		if w.card.traits.has("col_blanc"):
@@ -2349,7 +2355,9 @@ func _best_site_for(w: GameState.Worker) -> GameState.Site:
 		var eff := g.efficiency(w.card, s.type_travail())
 		if strat["specialisation"] and eff < 0.9 and _builders(s) > 0:
 			continue  # spécialisation : les chantiers aux bons ouvriers, les autres récoltent
-		var score := w.pos.distance_to(Vector2(s.rect.get_center())) - (25.0 if strat["specialisation"] else 8.0) * eff + 6.0 * n
+		# Le Formateur rejoint un chantier déjà occupé : c'est là qu'il fait progresser les autres.
+		var foule := -6.0 if w.card.metier["id"] == "formateur" else 6.0
+		var score := w.pos.distance_to(Vector2(s.rect.get_center())) - (25.0 if strat["specialisation"] else 8.0) * eff + foule * n
 		if score < best_score:
 			best_score = score
 			best = s
@@ -2389,6 +2397,8 @@ func _gather(w: GameState.Worker) -> void:
 	var best_n := 99
 	for t in tiles.slice(0, 10):
 		var n := g.workers.filter(func(o): return o.task.get("target") == t).size()
+		if w.card.metier["id"] == "formateur":
+			n = -n  # il récolte près des autres
 		if n < best_n:
 			best_n = n
 			best = t

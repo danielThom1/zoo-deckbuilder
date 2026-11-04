@@ -553,6 +553,18 @@ func _init() -> void:
 		b_g.tick(GameState.TICK)
 	var b_gain2 := b_trainee.xp - b_xp1
 	check(absf(b_gain2 - 2.0 * b_rate) < 0.02, "avec un Formateur posté : ×2 (+%.2f par minute)" % b_gain2)
+	# Apprentissage sur le tas : du temps cumulé à 3 cases ou moins du Formateur, rien plus loin
+	var b_pres: GameState.Card = b_mk.call("macon", [])
+	var b_loin: GameState.Card = b_mk.call("macon", [])
+	b_g.deploy(b_pres)
+	b_g.deploy(b_loin)
+	var b_wf: GameState.Worker = b_g.worker_of(b_form)
+	b_g.worker_of(b_pres).pos = b_wf.pos + Vector2(2, 0)
+	b_g.worker_of(b_loin).pos = b_wf.pos + Vector2(8, 0)
+	for i in 60:
+		b_g.tick(GameState.TICK)
+	check(b_g.worker_of(b_pres).temps_mentor > 0.0 and is_zero_approx(b_g.worker_of(b_loin).temps_mentor), "Formateur : du temps d'apprentissage seulement à 3 cases ou moins")
+	check(b_g.mentor_rayon(b_form) == 3.0 and b_g.mentor_rayon(b_pres) == 0.0, "Formateur : rayon de 3 cases")
 	# Architecte col blanc : supervise sans construire, puis rembourse 25 % à la fin
 	var b_arch: GameState.Card = b_mk.call("architecte", ["col_blanc"])
 	b_g.deploy(b_arch)
@@ -994,11 +1006,16 @@ func _init() -> void:
 	m_g.hand.append(m_anim)
 	var m_att0 := m_g.attractiveness()
 	m_g.play_cadre(m_anim)
-	check(m_g.animals.is_empty() or m_g.attractiveness() == m_att0 + 10, "Animateur joué : +10 d'attractivité")
+	check(m_g.animals.is_empty() or m_g.attractiveness() == m_att0 + 6, "Animateur joué : +6 d'attractivité")
 	var m_form: GameState.Card = b_mk.call("formateur", [])
-	m_g.hand.append(m_form)
-	m_g.play_cadre(m_form)
-	check(is_equal_approx(float(m_g.action_fx.get("xp_soir", 0.0)), 1.0), "Formateur joué : +1 jour d'expérience ce soir")
+	var m_defaut: GameState.Card = b_mk.call("macon", ["lent"])
+	var m_sans: GameState.Card = b_mk.call("macon", ["costaud"])
+	m_g.hand.append_array([m_form, m_defaut, m_sans])
+	check(m_g.cadre_error(m_form, m_sans) != "", "Stage : impossible sur un collaborateur sans défaut")
+	check(m_g.play_cadre(m_form, m_defaut) and not m_defaut.traits.has("lent") and m_defaut.traits.size() == 1 and m_g.is_positive(m_defaut.traits[0]),
+		"Stage : le défaut part et une qualité arrive (%s)" % str(m_defaut.traits))
+	m_g.hand.erase(m_defaut)
+	m_g.hand.erase(m_sans)
 	var m_lob: GameState.Card = b_mk.call("lobbyiste", [])
 	m_g.hand.append(m_lob)
 	var m_inf0 := m_g.influence

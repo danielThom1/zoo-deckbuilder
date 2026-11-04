@@ -5042,7 +5042,7 @@ func _on_play_cadre(card: GameState.Card) -> void:
 			for c in game.hand:
 				if c == card or c.is_action():
 					continue
-				rows.append([c, "Licencier", game.cadre_error(card, c), func():
+				rows.append([c, "Former" if A["effet"].has("stage") else "Licencier", game.cadre_error(card, c), func():
 					_cmd("play_cadre", [card, c])
 					_close_picker()])
 			_open_picker(A["nom"].to_upper(), A["texte"], rows)
