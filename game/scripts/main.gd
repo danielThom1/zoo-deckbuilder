@@ -697,7 +697,7 @@ func _draw() -> void:
 		if moving:
 			phase_pas += minf(d.length() / MARCHE_CASES_PAR_IMAGE, get_process_delta_time() * MARCHE_IMAGES_MAX)
 			marche_phase[w] = phase_pas
-		var pas := absf(sin(phase_pas * PI / 2.0)) * 0.4 if moving and w.pause_left <= 0.0 else 0.0
+		var pas := absf(sin(phase_pas * PI / 2.0)) * 0.2 if moving and w.pause_left <= 0.0 else 0.0
 		# Personnage de la carte, animé : le geste de sa tâche s'il en a un sur sa feuille, sinon l'outil par-dessus
 		var feuille := SpritesBD.feuille_perso(str(game.perso_of(w.card)["id"]))
 		var geste := int(GESTES.get(str(work.get("outil", "")), -1))
@@ -1097,8 +1097,8 @@ func _draw_turned(r: Rect2, turned: bool, draw_fn: Callable) -> void:
 ## Entrée du zoo : deux piliers et un portique.
 ## Marche : jambe avant, jambes croisées, autre jambe, jambes croisées.
 const MARCHE_CYCLE := [0, 1, 2, 1]
-const MARCHE_CASES_PAR_IMAGE := 0.3
-const MARCHE_IMAGES_MAX := 6.0  # images par seconde au plus, même en jeu accéléré
+const MARCHE_CASES_PAR_IMAGE := 0.55  # une foulée complète couvre un peu plus de 2 cases
+const MARCHE_IMAGES_MAX := 3.5  # images par seconde au plus, même en jeu accéléré
 
 
 ## Outil de la tâche -> rangée de la feuille d'animation du personnage.
@@ -2117,6 +2117,10 @@ func _auto_play() -> void:
 		if args.has("peek"):  # --peek : « Voir mon zoo » avec le premier contrat montré sur la carte
 			night_peek = true
 	selected = ws.slice(0, 1 if args.has("un") else 2)
+	if args.has("texte-long"):  # --texte-long : fiche d'un ouvrier aux libellés les plus longs
+		ws[0].card.metier = game.data["workers"]["metiers"].filter(func(mm): return mm["id"] == "agent_entretien")[0]
+		ws[0].card.niveau = 5
+		ws[0].card.upgrade_names.append("Seconde spécialité : Construction en pierre")
 	if args.has("visiteurs"):
 		_open_visiteurs.call_deferred()
 	if args.has("reportage"):  # --reportage : un Journaliste en visite chez le premier rival
@@ -3170,7 +3174,7 @@ func _rebuild_draft() -> void:
 		"  ›  ".join(order), mt.draft_round_size(),
 		" La dernière carte revient d'office au dernier joueur." if mt.draft_round_size() == mt.players.size() else " Les cartes restantes sont défaussées."]
 	for card in mt.draft_pool:
-		draft_grid.add_child(_draft_column(card, not my_turn, _cmd.bind("pick_draft", [card])))
+		draft_grid.add_child(_card_widget(card, "Choisir", not my_turn, _cmd.bind("pick_draft", [card])))
 	var lines: Array[String] = []
 	for p in mt.players.size():
 		var names: Array[String] = []
@@ -3178,34 +3182,6 @@ func _rebuild_draft() -> void:
 			names.append("%s ([color=%s]%s[/color])" % [c.nom, category_colors[c.metier["categorie"]].to_html(false), game.job_name(c)])
 		lines.append("[b]%s[/b] (%d) : %s" % [mt.names[p], names.size(), ", ".join(names)])
 	draft_picks.text = "\n".join(lines)
-
-
-## Colonne du draft : la carte, puis son métier et ses traits écrits en toutes lettres.
-func _draft_column(card: GameState.Card, disabled: bool, cb: Callable) -> Control:
-	var v := VBoxContainer.new()
-	v.custom_minimum_size = Vector2(256, 0)
-	v.add_theme_constant_override("separation", 8)
-	var cc := CenterContainer.new()
-	cc.add_child(_card_widget(card, "Choisir", disabled, cb))
-	v.add_child(cc)
-	var txt := RichTextLabel.new()
-	txt.bbcode_enabled = true
-	txt.fit_content = true
-	txt.scroll_active = false
-	txt.custom_minimum_size = Vector2(250, 0)
-	txt.add_theme_font_size_override("normal_font_size", 14)
-	txt.add_theme_font_size_override("bold_font_size", 14)
-	txt.add_theme_color_override("default_color", UiTokens.ENCRE)
-	var lignes: Array[String] = [_job_text(card).get_slice(". ", 1)]
-	if card.metier.has("capacite"):
-		lignes.append(str(card.metier["capacite"]))
-	for t in game.trait_defs(card):
-		var pos: bool = game.is_positive(t["id"])
-		lignes.append("[color=#%s][b]%s %s[/b][/color] : %s" % [UiTokens.QUALITE.darkened(0.15).to_html(false) if pos else UiTokens.DEFAUT.darkened(0.2).to_html(false),
-			"+" if pos else "−", t["nom"], _trait_texte(t)])
-	txt.text = "\n".join(lignes)
-	v.add_child(txt)
-	return v
 
 
 const EFFETS_TRAITS := {"vitesse": "marche", "construire": "construction", "defaut": "toutes les tâches", "amenager": "aménagement", "construire_enclos": "clôtures d'enclos",
@@ -3729,6 +3705,8 @@ func _fiche_ouvrier(w: GameState.Worker) -> void:
 	var lmax := int(game.data["workers"]["regles"]["niveau_max"])
 	var job := Composants.label("%s · niv. %d  %s" % [game.job_name(c), c.niveau, "★".repeat(c.niveau) + "☆".repeat(maxi(0, lmax - c.niveau))])
 	job.add_theme_font_size_override("font_size", 13)
+	job.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	job.custom_minimum_size.x = 170
 	v.add_child(job)
 	var badge := PanelContainer.new()
 	badge.add_theme_stylebox_override("panel", UiTokens.chip(cat["couleur"], 6, 2))
@@ -3750,6 +3728,8 @@ func _fiche_ouvrier(w: GameState.Worker) -> void:
 		var l := Composants.label("★ " + u)
 		l.add_theme_font_size_override("font_size", 12)
 		l.add_theme_color_override("font_color", Color("8A6A00"))
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.custom_minimum_size.x = 260
 		traits.add_child(l)
 
 
@@ -4192,7 +4172,7 @@ func _build_night_ui() -> void:
 	pv.add_child(Composants.label("CONTRATS DU MARCHÉ", "TitrePanneau"))
 	var pn := Composants.label("Motifs à reproduire (tournés ou retournés) : cherchez sur la carte où les placer.", "TexteSecondaire")
 	pn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	pn.custom_minimum_size.x = 290
+	pn.custom_minimum_size.x = 270
 	pn.add_theme_font_size_override("font_size", 12)
 	pv.add_child(pn)
 	peek_list = VBoxContainer.new()
@@ -4205,7 +4185,7 @@ func _build_night_ui() -> void:
 	night_next.pressed.connect(_on_night_next)
 	hb.add_child(night_next)
 	# Trois colonnes (gauche l 330, centre, droite l 322), chacune défile si besoin
-	var cols := [[14.0, 290.0], [300.0, -290.0], [-280.0, -14.0]]
+	var cols := [[10.0, 292.0], [300.0, -300.0], [-292.0, -10.0]]
 	var boxes: Array[VBoxContainer] = []
 	for k in 3:
 		var sc := ScrollContainer.new()
@@ -4443,7 +4423,7 @@ func _rebuild_night() -> void:
 		closed.add_theme_color_override("font_color", UiTokens.NEGATIF)
 		closed.add_theme_font_size_override("font_size", 12)
 		closed.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		closed.custom_minimum_size.x = 290
+		closed.custom_minimum_size.x = 240
 		night_summary.add_child(closed)
 	night_summary.add_child(HSeparator.new())
 	var total := int(inc["tickets"]) + int(inc["souvenirs"]) - sal - food
