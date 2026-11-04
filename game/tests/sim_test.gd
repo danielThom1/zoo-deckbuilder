@@ -1240,6 +1240,11 @@ func _init() -> void:
 	print("Lot S : autres sources de réputation :")
 	var x_g := _fresh_day(data, 9191)
 	check(x_g.objective() == 100, "objectif : 100 de réputation")
+	x_g.annonce("licenciement", {"nom": "Marcel"})
+	check(x_g.annonces.size() >= 1 and x_g.annonces[-1]["moment"] == "licenciement", "Hubert : une réplique attend le joueur humain")
+	x_g.annonces.clear()
+	var ev_sans_replique: Array = data["events"]["evenements"].filter(func(e): return not data["hubert"]["repliques"].has("ev_" + str(e["id"])))
+	check(ev_sans_replique.is_empty(), "Hubert : une réplique pour chaque événement (%s)" % str(ev_sans_replique.map(func(e): return e["id"])))
 	var x_lab: Dictionary = x_g.label_defs()[0]
 	x_g.stock["or"] = 40.0
 	check(x_g.label_error(x_lab).begins_with("Ouvrez d'abord"), "label : impossible avant l'ouverture du zoo")

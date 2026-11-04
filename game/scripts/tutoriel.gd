@@ -8,8 +8,8 @@ extends Control
 ## Contrôle : godot --path game -- --tutoriel --tuto-auto --tuto-dossier=C:/chemin  joue seul et capture chaque étape.
 
 const GRAINE := 404283
-const CADRE := {"nom": "Hubert de la Marge", "titre": "Directeur de l'Optimisation Humaine, ZooLife™", "perso": "victor"}
-const RIVAUX := ["ZooLife™", "PanZoo Holdings", "Safari Capital", "BioLand Group"]
+const CADRE := {"nom": "Hubert de la Marge", "titre": "Directeur des Ressources, Humaines et Autres, ZooLife™", "perso": "victor"}
+const RIVAUX := ["ZooLife™ (vous)", "PanZoo Holdings", "Safari Capital", "BioLand Group"]
 const ESPECE := "bison_amerique"
 const EQUIPE := ["bucheron", "terrassier", "manoeuvre", "paysagiste", "guichetier", "charpentier", "macon", "animalier"]
 const PARC := Vector2i(10, 8)
@@ -692,9 +692,9 @@ func _scenario() -> Array:
 		_dit("cadre", "L'[b]or[/b] est facultatif : on peut gagner sans. Mais il se vend très bien et peut accélérer votre développement. Il s'extrait d'un filon, une fois la [b]Mine d'or[/b] construite dessus.", {"entree": func(): _onglet("Bâtiments"), "cible": _batiments(["mine"]), "position": "bas"}),
 		_dit("cadre", "Tenez, là-bas : ce scintillement jaune, c'est un filon. Voilà ce que donne une Mine d'or une fois bâtie dessus. Comptez un bon moment de chantier, et de la marche : le chemin du camp n'est pas au budget.", {"entree": func(): _centrer(_filon()), "monde": _cases_filon, "fantome": "mine", "position": "haut"}),
 		_dit("cadre", "Si vos récoltes sont loin du camp, l'[b]Entrepôt[/b] sert de dépôt rapproché : moins de marche, plus de rendement. Je chronomètre.", {"entree": func(): _centrer(game.map.camp.get_center() + Vector2i(0, -5)), "cible": _batiments(["entrepot"])}),
-		_dit("cadre", "Le [b]Marché[/b], enfin, vous fait vendre vos ressources à meilleur prix. Avec un Marchand déployé, encore mieux : ZooLife adore les intermédiaires.", {"cible": _batiments(["comptoir"])}),
+		_dit("cadre", "Le [b]Marché[/b], enfin, vous fait vendre vos ressources à meilleur prix. Avec un Marchand mobilisé, encore mieux : ZooLife adore les intermédiaires.", {"cible": _batiments(["comptoir"])}),
 		# --- Première récolte ---
-		_demande(func(): return "Assez parlé. Au travail ! Vos quatre ouvriers attendent au camp. Cliquez sur %s, sur sa carte ou sur la carte du monde, puis faites un [b]clic droit sur un arbre[/b]." % bucheron.call(),
+		_demande(func(): return "Assez parlé. Au travail ! Vos quatre collaborateurs attendent au camp. Cliquez sur %s, sur sa carte ou sur la carte du monde, puis faites un [b]clic droit sur un arbre[/b]." % bucheron.call(),
 			_a_recolter.bind("bois"), func(): game.order([_ouvrier("bucheron")], _proche("bois")),
 			{"qui": "cadre", "position": "haut", "consigne": "Clic droit sur la forêt en surbrillance", "monde": func(): return _cases_de(GameMap.FORET)}),
 		_demande(func(): return "Parfait. Vous êtes presque rentable. Maintenant %s : clic droit sur un [b]rocher[/b]. Le dernier arrivé paie sa pause." % terrassier.call(),
@@ -705,7 +705,7 @@ func _scenario() -> Array:
 			game.order([_ouvrier("paysagiste")], _proche("bois"))}),
 		{"legende": "▸▸ Fin de journée", "attendre": func(): return mt.time >= mt.day_length - 5.0, "entree": func(): _vitesse(40.0)},
 		# --- Vente ---
-		_dit("cadre", "Fin de journée. Regardez votre trésorerie : [b]8[/b]. Demain matin, il faudra payer le déploiement des ouvriers. Si vous n'avez pas de quoi, ils restent au lit, et moi je n'aime pas ça.", {"entree": func():
+		_dit("cadre", "Fin de journée. Regardez votre trésorerie : [b]8[/b]. Demain matin, il faudra payer la mobilisation des collaborateurs. Si vous n'avez pas de quoi, ils restent au lit, et moi je n'aime pas ça.", {"entree": func():
 			_vitesse(0.0)
 			for w in game.workers:
 				game._unload(w)
@@ -721,27 +721,27 @@ func _scenario() -> Array:
 			func(): return mt.phase == "night", func(): mt.end_day(),
 			{"cible": func(): return [m.end_day_btn], "libre": false, "fin_jour": true, "position": "haut", "consigne": "Cliquez sur Terminer la journée"}),
 		# --- Soir ---
-		_dit("cadre", "Le soir, on fait ses courses : le [b]marché du soir[/b] propose des contrats d'animaux, puis des ouvriers à recruter. Chacun achète à son tour, dans l'ordre d'influence. Nous y reviendrons.", {"entree": _ouvrir_contrats, "voile": true}),
+		_dit("cadre", "Le soir, on fait ses courses : le [b]marché du soir[/b] propose des contrats d'animaux, puis des collaborateurs à recruter. Chacun achète à son tour, dans l'ordre d'influence. Nous y reviendrons.", {"entree": _ouvrir_contrats, "voile": true}),
 		_dit("cadre", func(): return "Voici notre premier pensionnaire, le [b]%s[/b] : commun, pas cher, et qui ne se plaint jamais. Chaque animal exige un [b]motif de terrain[/b] : ici, quatre cases de prairie et une de forêt, disposées exactement ainsi. Vous pouvez le tourner ou le retourner, mais pas négocier." % nom_animal,
 			{"cible": func(): return [m.night_pages["contrats"]], "position": "haut"}),
 		_demande(func(): return "Achetez ce contrat. Je le déduirai de votre trésorerie, pas de mon bonus.",
 			func(): return game.contracts.has(espece), func(): game.buy_contract(espece),
 			{"cible": func(): return [m.night_pages["contrats"]], "libre": false, "position": "haut", "consigne": "Achetez le contrat"}),
-		_dit("cadre", "Ensuite vient le [b]recrutement[/b]. Chaque soir, vous pouvez embaucher un ouvrier, s'il vous reste un logement au camp ou dans une Maison. Plus de cartes, plus de bras, plus de salaires. Ce soir, nous allons passer : les caisses sont vides.", {"entree": func():
+		_dit("cadre", "Ensuite vient le [b]recrutement[/b]. Chaque soir, vous pouvez embaucher un collaborateur, s'il vous reste un logement au camp ou dans une Maison. Plus de cartes, plus de bras, plus de salaires. Ce soir, nous allons passer : les caisses sont vides.", {"entree": func():
 			mt.night_goto("ouvriers", 0)
 			game.version += 1, "cible": func(): return [m.night_pages["ouvriers"]], "position": "haut"}),
 		# --- Lendemain ---
-		_dit("cadre", "Bonjour ! Vous avez [b]4 ouvriers en main[/b], à déployer pour la journée. Chaque déploiement coûte son salaire, indiqué sur la carte.", {"entree": func():
+		_dit("cadre", "Bonjour ! Vous avez [b]4 collaborateurs en main[/b], à mobiliser pour la journée. Chaque mobilisation coûte son salaire, indiqué sur la carte.", {"entree": func():
 			_nuit_blanche()
 			_forcer_main(game, EQUIPE.slice(0, 4)), "cible": func(): return [m.hand_box], "position": "haut"}),
 		_dit("manoeuvre", "Payés le matin même ? Avant, c'était à la fin du mois.", {"cible": func(): return [m.hand_box], "position": "haut"}),
-		_dit("cadre", "Après diverses mésaventures antérieures : le parc de Dubaï, la grève de l'enclos à otaries, les bons d'achat à la boutique… Les ouvriers exigent désormais d'être payés le matin. Quelle époque.", {"cible": func(): return [m.hand_box], "position": "haut"}),
-		_dit("cadre", "Regardez vos cartes. Chaque ouvrier a une [b]spécialité[/b], son métier, qui le rend meilleur à certaines tâches. Et souvent des [b]qualités[/b] (rond bleu) et des [b]défauts[/b] (carré orange). Survolez une carte pour tout lire. Choisissez bien : un défaut, ça se paie aussi.", {"cible": func(): return [m.hand_box], "position": "haut", "survol": true}),
+		_dit("cadre", "Après diverses mésaventures antérieures : le parc de Dubaï, la grève de l'enclos à otaries, les bons d'achat à la boutique… Les collaborateurs exigent désormais d'être payés le matin. Quelle époque.", {"cible": func(): return [m.hand_box], "position": "haut"}),
+		_dit("cadre", "Regardez vos cartes. Chaque collaborateur a une [b]spécialité[/b], son métier, qui le rend meilleur à certaines tâches. Et souvent des [b]qualités[/b] (rond bleu) et des [b]défauts[/b] (carré orange). Survolez une carte pour tout lire. Choisissez bien : un défaut, ça se paie aussi.", {"cible": func(): return [m.hand_box], "position": "haut", "survol": true}),
 		_dit("terrassier", "Et vous, monsieur de la Marge, c'est quoi vos qualités et vos défauts ?", {"cible": func(): return [m.hand_box], "position": "haut"}),
 		_dit("cadre", "Ma qualité ? Ma capacité d'écoute. Mon défaut ? Le perfectionnisme. Sujet suivant.", {"cible": func(): return [m.hand_box], "position": "haut"}),
-		_demande("Déployez vos quatre ouvriers, carte par carte ou avec le bouton [b]Tout déployer[/b].",
+		_demande("Mobilisez vos quatre collaborateurs, carte par carte ou avec le bouton [b]Tout mobiliser[/b].",
 			func(): return game.hand.all(func(c): return c.deployed), _deployer_tout,
-			{"cible": func(): return [m.hand_box, m.deploy_all_btn], "libre": false, "position": "haut", "consigne": "Déployez les 4 ouvriers"}),
+			{"cible": func(): return [m.hand_box, m.deploy_all_btn], "libre": false, "position": "haut", "consigne": "Mobilisez les 4 collaborateurs"}),
 		_dit("cadre", "Quatre, c'est peu ? C'est la capacité du camp. Améliorez-le pour piocher [b]une carte de plus chaque matin[/b] : [b]Camp niveau 2[/b], puis [b]Camp niveau 3[/b]. Certains en font leur priorité absolue. Moi, je préfère le ratio bras / salaire.", {"entree": func(): _onglet("Bâtiments"), "cible": _batiments(["camp_n2", "camp_n3"]), "position": "bas"}),
 		# --- Quelques jours plus tard ---
 		_dit("cadre", "Sautons quelques jours de récolte et quelques doléances syndicales.", {"entree": func(): pass}),
@@ -753,7 +753,7 @@ func _scenario() -> Array:
 		_demande("Maintenant l'[b]Enceinte[/b]. Choisissez-la et peignez le tracé en maintenant le clic. Il faut une enceinte fermée. Astuce budgétaire : une montagne sert de mur gratuit, et un mur peut se bâtir sur l'eau.",
 			func(): return _manquantes(_mur()).is_empty(), func(): _comme_joueur("batiment", game.building_def("cloture"), _mur()),
 			{"cible": _batiments(["cloture"]), "voile": false, "pose": {"cloture": _mur()}, "position": "haut", "consigne": "Enceinte (segment) : peignez toute la zone jaune", "monde": func(): return _manquantes(_mur())}),
-		_dit("cadre", "Vos ouvriers construisent les chantiers qu'on leur désigne d'un clic droit. Il reste la [b]route[/b] : sans route depuis l'Accès jusqu'à l'entrée, aucun visiteur. Celle-ci, je l'ai sous-traitée. C'est retenu sur vos salaires.", {"entree": _finir_enceinte}),
+		_dit("cadre", "Vos collaborateurs construisent les chantiers qu'on leur désigne d'un clic droit. Il reste la [b]route[/b] : sans route depuis l'Accès jusqu'à l'entrée, aucun visiteur. Celle-ci, je l'ai sous-traitée. C'est retenu sur vos salaires.", {"entree": _finir_enceinte}),
 		_demande(func(): return "Au tour de l'[b]enclos[/b] du %s : des [b]Clôtures d'enclos[/b], appuyées sur le mur quand c'est possible. Ça économise du bois. Peignez la zone jaune." % nom_animal,
 			func(): return _manquantes(clotures).is_empty(), func(): _comme_joueur("batiment", game.building_def("enclos"), clotures),
 			{"cible": _batiments(["enclos"]), "voile": false, "pose": {"enclos": clotures}, "position": "haut", "consigne": "Clôture d'enclos : peignez la zone jaune", "monde": func(): return _manquantes(clotures)}),
@@ -784,14 +784,14 @@ func _scenario() -> Array:
 			_forcer_main(game, ["guichetier", "paysagiste", "manoeuvre", "animalier"])
 			_onglet("Zoo"), "cible": func(): return [m.res_chips["reputation"]["racine"]] + m.race_labels.map(func(r): return r[0])}),
 		_dit("cadre", "Des animaux qui ne mangent pas tombent malades. La [b]Cuisine[/b] prépare leurs rations ; un Animalier les livre plus vite. Un Soigneur guérit ceux qui sont malades.", {"cible": _batiments(["cuisine"])}),
-		_dit("cadre", "La [b]Boutique de souvenirs[/b], tenue par un ouvrier, vend à chaque visiteur un souvenir au prix de sa dignité. Argent et réputation.", {"cible": _batiments(["boutique"])}),
+		_dit("cadre", "La [b]Boutique de souvenirs[/b], tenue par un collaborateur, vend à chaque visiteur un souvenir au prix de sa dignité. Argent et réputation.", {"cible": _batiments(["boutique"])}),
 		_dit("cadre", "Le [b]Snack[/b] : les visiteurs restent plus longtemps. Un visiteur qui reste est un visiteur qui compte.", {"cible": _batiments(["snack"])}),
-		_dit("cadre", "Le [b]Kiosque d'animation[/b] attire du monde et donne des spectacles, surtout si un Animateur le tient. Oui, un ouvrier qui chante, c'est au tarif normal.", {"cible": _batiments(["kiosque"])}),
+		_dit("cadre", "Le [b]Kiosque d'animation[/b] attire du monde et donne des spectacles, surtout si un Animateur le tient. Oui, un collaborateur qui chante, c'est au tarif normal.", {"cible": _batiments(["kiosque"])}),
 		_dit("cadre", "Le [b]Local d'entretien[/b] : un parc sale fait fuir les visiteurs et rend les bêtes malades. Un Agent d'entretien y fait des miracles, pour un salaire qui n'en est pas un.", {"cible": _batiments(["entretien"])}),
 		_dit("cadre", "Certaines espèces rares exigent un aménagement dans leur enclos : [b]Grand arbre, Rocher d'observation, Bassin profond, Abri chauffé[/b]. Le contrat vous l'indique. Lisez vos contrats. Je dis ça pour vous.", {"cible": _batiments(["grand_arbre", "rocher_obs", "bassin_profond", "abri_chaud"])}),
-		_dit("cadre", "Les animaux ne font pas tout. Le Kiosque tenu et les souvenirs vendus rapportent de la réputation. Un ouvrier qui atteint le [b]niveau 6[/b] devient légendaire : +5. Il réclamera une augmentation : refusez.", {"cible": func(): return [m.res_chips["reputation"]["racine"]]}),
-		_dit("cadre", "Les [b]labels[/b] s'achètent en or à la Bourse, zoo ouvert. Le double du prix sans Marchand déployé. Oui, la réputation s'achète. Vous pensiez quoi ?", {"cible": func(): return [_bourse()], "position": "bas"}),
-		_dit("cadre", "Reste l'[b]influence[/b]. Envoyez un ouvrier à la [b]Mairie[/b], au bout de la route d'Accès : c'est le lobbying. L'influence décide de qui achète en premier le soir et de qui choisit le bonus du lendemain.", {"entree": func(): _centrer(game.map.exit_tile + Vector2i(0, -4)), "voile": false, "monde": func(): return [game.map.exit_tile], "position": "haut"}),
+		_dit("cadre", "Les animaux ne font pas tout. Le Kiosque tenu et les souvenirs vendus rapportent de la réputation. Un collaborateur qui atteint le [b]niveau 6[/b] devient légendaire : +5. Il réclamera une augmentation : refusez.", {"cible": func(): return [m.res_chips["reputation"]["racine"]]}),
+		_dit("cadre", "Les [b]labels[/b] s'achètent en or à la Bourse, zoo ouvert. Le double du prix sans Marchand mobilisé. Oui, la réputation s'achète. Vous pensiez quoi ?", {"cible": func(): return [_bourse()], "position": "bas"}),
+		_dit("cadre", "Reste l'[b]influence[/b]. Envoyez un collaborateur à la [b]Mairie[/b], au bout de la route d'Accès : c'est le lobbying. L'influence décide de qui achète en premier le soir et de qui choisit le bonus du lendemain.", {"entree": func(): _centrer(game.map.exit_tile + Vector2i(0, -4)), "voile": false, "monde": func(): return [game.map.exit_tile], "position": "haut"}),
 		_dit("cadre", "Et chaque nuit, le premier en influence gagne [b]+3 de réputation[/b], le deuxième +1. On appelle ça le prestige politique. Nous, on appelle ça un mardi.", {"monde": func(): return [game.map.exit_tile], "position": "haut"}),
 		_dit("manoeuvre", "Et notre période d'essai, elle est validée ?", {"entree": func(): _centrer(parc.get_center())}),
 		_dit("cadre", "Votre période d'essai vient de s'achever. Elle n'était pas rémunérée : article 12. Bienvenue à bord. Maintenant, un vrai parc vous attend, de vraies rivales et de vrais trimestres. [b]Le premier à 100 l'emporte[/b]. Le reste, c'est de la communication.", {"fin": true}),

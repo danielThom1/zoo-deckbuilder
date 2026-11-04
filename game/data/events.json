@@ -75,7 +75,7 @@
     {
       "id": "beau_temps",
       "nom": "Grand beau temps",
-      "texte": "+15 % de productivité pour tous les ouvriers.",
+      "texte": "+15 % de productivité pour tous les collaborateurs.",
       "effets": {
         "productivite": 1.15
       }

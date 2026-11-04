@@ -168,6 +168,7 @@ var _aura_cache_valid := false
 
 # Visiteurs (simulés pendant la journée)
 var rep_points := 0.0  # réputation accumulée (condition de victoire)
+var annonces: Array = []  # répliques d'Hubert en attente d'affichage
 var journal_cartes: Array = []  # cartes jouées : {"id", "day"} (étude)
 var journal_contrats: Array = []  # contrats achetés : {"id", "day"} (étude)
 var labels_owned := {}
@@ -486,7 +487,7 @@ func play_action(card: Card, target: Card = null, option := {}) -> bool:
 	if fx.has("licencier"):
 		for pile in [deck, discard, hand]:
 			pile.erase(target)
-		say("%s a été %s." % [target.nom, agree(target, "licencié", "licenciée")])
+		annonce("licenciement", {"nom": target.nom}, "%s a été %s." % [target.nom, agree(target, "licencié", "licenciée")])
 	if fx.has("pioche"):
 		draw_hand(int(fx["pioche"]))
 	if fx.has("ameliorer"):
@@ -516,9 +517,9 @@ func cadre_error(card: Card, target: Card = null, option := "") -> String:
 	match A.get("cible", ""):
 		"main":
 			if target == null or target == card or not hand.has(target) or target.deployed or target.is_action():
-				return "Choisissez un ouvrier de votre main"
+				return "Choisissez un collaborateur de votre main"
 			if employees() <= 2:
-				return "Pas assez d'ouvriers"
+				return "Pas assez de collaborateurs"
 		"ressource":
 			if not option in ["bois", "pierre"] or stock.get(option, 0.0) < 1.0:
 				return "Rien à vendre"
@@ -562,6 +563,7 @@ func play_cadre(card: Card, target: Card = null, option := "") -> bool:
 	if fx.has("licencier_main"):
 		hand.erase(target)
 		extra = " %s a été %s." % [target.nom, agree(target, "licencié", "licenciée")]
+		annonce("licenciement", {"nom": target.nom})
 		draw_hand(int(fx.get("pioche", 0)))
 	say("%s joue %s.%s" % [card.nom, A["nom"], extra if extra != "" else " " + A["texte"]])
 	version += 1
@@ -571,12 +573,12 @@ func play_cadre(card: Card, target: Card = null, option := "") -> bool:
 ## Pourquoi un ouvrier ne peut pas être visé par cette carte d'action ("" s'il le peut).
 func action_target_error(card: Card, target: Card) -> String:
 	if target == null or not all_employees().has(target):
-		return "Choisissez un de vos ouvriers"
+		return "Choisissez un de vos collaborateurs"
 	if card.action["effet"].has("licencier"):
 		if target.deployed:
 			return "Sur le terrain aujourd'hui"
 		if employees() <= 1:
-			return "Votre dernier ouvrier"
+			return "Votre dernier collaborateur"
 	return ""
 
 
@@ -584,6 +586,17 @@ func action_target_error(card: Card, target: Card) -> String:
 
 func say(text: String) -> void:
 	messages.append({"text": text, "at": Time.get_ticks_msec()})
+
+
+## Réplique d'Hubert pour le joueur humain (bulle affichée par main.gd) ; une IA n'a que le message simple.
+func annonce(moment: String, args := {}, repli := "") -> void:
+	if mt.is_ai(index):
+		if repli != "":
+			say(repli)
+		return
+	annonces.append({"moment": moment, "args": args, "repli": repli})
+	if annonces.size() > 8:
+		annonces.pop_front()
 
 
 ## Déploie une carte de la main. Gratuit : sans salaire mais à 25 % de rendement (un par jour).
@@ -599,7 +612,7 @@ func deploy(card: Card, free := false) -> bool:
 	else:
 		var cost := salary(card)
 		if money < cost:
-			say("Pas assez d'argent pour payer %s (%d)." % [card.nom, cost])
+			annonce("pas_argent", {"nom": card.nom, "effet": "Il faut %d d'argent." % cost}, "Pas assez d'argent pour payer %s (%d)." % [card.nom, cost])
 			return false
 		money -= cost
 		day_stats["salaires"] += cost
@@ -710,13 +723,14 @@ func order(targets: Array, target: Vector2i, enqueue := false) -> void:
 		_bring_back(w)
 		w.pause_left = 0.0
 		if target == map.exit_tile:
+			annonce("lobbying", {"nom": w.card.nom})
 			w.task = {"type": "lobby", "phase": "to_exit"}
 			_set_path(w, target)
 			continue
 		if site and not site.done:
 			# Un Architecte col blanc ne construit pas, mais il supervise (économie de ressources).
 			if w.card.traits.has("col_blanc") and w.card.metier["id"] != "architecte":
-				say("%s est un col blanc : %s refuse le travail manuel." % [w.card.nom, agree(w.card, "il", "elle")])
+				annonce("col_blanc", {"nom": w.card.nom}, "%s est un col blanc : %s refuse le travail manuel." % [w.card.nom, agree(w.card, "il", "elle")])
 				continue
 			if site.kind == "amenagement" and not can_landscape(w.card):
 				say("Seuls les Paysagistes et Terrassiers aménagent le terrain (%s est %s)." % [w.card.nom, job_name(w.card)])
@@ -744,7 +758,7 @@ func order(targets: Array, target: Vector2i, enqueue := false) -> void:
 			continue
 		if site and site.done and site.def_id() == "boutique":
 			if workers.any(func(o): return o != w and o.task.get("kind") == "shop" and o.task.get("obj") == site):
-				say("Cette boutique est déjà tenue : un seul ouvrier par boutique (construisez-en une autre).")
+				say("Cette boutique est déjà tenue : un seul collaborateur par boutique (construisez-en une autre).")
 				continue
 			_station(w, "shop", site, target)
 			if job != "vendeur":
@@ -779,7 +793,7 @@ func order(targets: Array, target: Vector2i, enqueue := false) -> void:
 				say("Construisez d'abord une mine d'or sur ce gisement.")
 				continue
 			if w.card.traits.has("col_blanc"):
-				say("%s est un col blanc : %s refuse le travail manuel." % [w.card.nom, agree(w.card, "il", "elle")])
+				annonce("col_blanc", {"nom": w.card.nom}, "%s est un col blanc : %s refuse le travail manuel." % [w.card.nom, agree(w.card, "il", "elle")])
 				continue
 			w.task = {"type": "extract", "res": res, "target": tgt, "phase": "to_resource"}
 			if w.carry > 0.0 and w.carry_type != res:
@@ -1471,6 +1485,7 @@ func _end_day_player() -> void:
 		while card.niveau < int(regles["niveau_max"]) and card.xp >= xp_next_level(card) - 0.0001:
 			card.niveau += 1
 			level_ups.append(card)
+			annonce("niveau", {"nom": card.nom, "niveau": card.niveau})
 			level_choices.append({"card": card, "options": _upgrade_pool(card)})
 			if card.niveau >= int(regles["niveau_max"]):
 				# Légendaire : sa renommée rejaillit sur le parc
@@ -1535,7 +1550,7 @@ func hire_error(card: Card) -> String:
 	if phase != "night":
 		return "Le marché n'ouvre que la nuit"
 	if mt.night_stage != "ouvriers":
-		return "Embauche à l'étape Ouvriers"
+		return "Embauche à l'étape Collaborateurs"
 	if mt.current_buyer() != index:
 		return "Ce n'est pas votre tour au marché"
 	if bought_worker:
@@ -1552,7 +1567,7 @@ func hippo_error() -> String:
 	if not rare_effects().any(func(e): return e.get("echange", false)):
 		return "Il faut un Hippopotame installé"
 	if phase != "night" or mt.night_stage != "ouvriers":
-		return "À l'étape Ouvriers de la nuit"
+		return "À l'étape Collaborateurs de la nuit"
 	if mt.current_buyer() != index:
 		return "Ce n'est pas votre tour"
 	if hippo_used_tonight:
@@ -1582,7 +1597,7 @@ func recruit_error(categorie: String) -> String:
 	if not sites.any(func(s): return s.done and s.def_id() == "cabinet"):
 		return "Construisez un Cabinet de recrutement"
 	if phase != "night" or mt.night_stage != "ouvriers":
-		return "À l'étape Ouvriers de la nuit"
+		return "À l'étape Collaborateurs de la nuit"
 	if mt.current_buyer() != index:
 		return "Ce n'est pas votre tour"
 	if recruited_tonight:
@@ -1614,7 +1629,7 @@ func hire(card: Card) -> bool:
 	discard.append(card)
 	bought_worker = true
 	mt.record_purchase(index, card)
-	say("%s rejoint votre équipe (dans la défausse)." % card.nom)
+	annonce("embauche", {"nom": card.nom, "effet": "Dans la défausse."}, "%s rejoint votre équipe (dans la défausse)." % card.nom)
 	if not mt.is_ai(index):
 		mt.pass_turn()  # une embauche par nuit : au suivant
 	mt.bump()
@@ -1680,7 +1695,7 @@ func buy_contract(def: Dictionary) -> bool:
 	contracts_tonight += 1
 	journal_contrats.append({"id": def["id"], "day": day})
 	mt.record_purchase(index, def)
-	say("Contrat acheté : %s. Construisez-lui un enclos." % def["nom"])
+	annonce("contrat_achete", {"animal": def["nom"]}, "Contrat acheté : %s. Construisez-lui un enclos." % def["nom"])
 	if not mt.is_ai(index) and contracts_tonight >= int(data["buildings"]["marche"]["contrats_par_nuit"]):
 		mt.pass_turn()  # un contrat par tour : au joueur suivant
 	mt.bump()
@@ -1700,9 +1715,9 @@ func loan_error() -> String:
 		return "Déjà un emprunt aujourd'hui"
 	var waiting := hand.filter(func(c): return not c.is_action() and not c.deployed)
 	if waiting.is_empty():
-		return "Aucun ouvrier à déployer"
+		return "Aucun collaborateur à mobiliser"
 	if prime_left > 0 or waiting.any(func(c): return money >= salary(c)):
-		return "Vous pouvez encore payer un ouvrier"
+		return "Vous pouvez encore payer un collaborateur"
 	return ""
 
 
@@ -1744,7 +1759,7 @@ func swap_error(w: Worker, take: Card) -> String:
 	if swapped_today:
 		return "Déjà un échange aujourd'hui"
 	if w == null or not workers.has(w):
-		return "Choisissez un ouvrier sur le terrain"
+		return "Choisissez un collaborateur sur le terrain"
 	if w.offmap:
 		return "Rappelez-le d'abord sur la carte"
 	if take == null or not swap_candidates().has(take):
@@ -1803,7 +1818,7 @@ func fire(card: Card) -> bool:
 		if pile.has(card):
 			pile.erase(card)
 			drh_available -= 1
-			say("%s a été %s." % [card.nom, agree(card, "licencié", "licenciée")])
+			annonce("licenciement", {"nom": card.nom}, "%s a été %s." % [card.nom, agree(card, "licencié", "licenciée")])
 			version += 1
 			return true
 	return false
@@ -1832,7 +1847,7 @@ func label_error(def: Dictionary) -> String:
 	if not zoo_status()["open"]:
 		return "Ouvrez d'abord votre zoo"
 	if stock["or"] < label_price(def) - 0.0001:
-		return "Il faut %d or%s" % [int(label_price(def)), "" if not _traders().is_empty() else " (prix doublé sans Marchand déployé)"]
+		return "Il faut %d or%s" % [int(label_price(def)), "" if not _traders().is_empty() else " (prix doublé sans Marchand mobilisé)"]
 	return ""
 
 
@@ -1843,7 +1858,7 @@ func buy_label(def: Dictionary) -> bool:
 	labels_owned[def["id"]] = true
 	rep_points += float(def["reputation"])
 	add_rep_source("labels", float(def["reputation"]))
-	say("Label obtenu : %s (+%d de réputation)." % [def["nom"], int(def["reputation"])])
+	annonce("label", {"label": def["nom"], "effet": "+%d de réputation" % int(def["reputation"])}, "Label obtenu : %s (+%d de réputation)." % [def["nom"], int(def["reputation"])])
 	version += 1
 	return true
 
@@ -1900,7 +1915,7 @@ func fire_paid(card: Card) -> bool:
 	for pile in [deck, discard, hand]:
 		pile.erase(card)
 	night_action_used = true
-	say("%s a été %s (%d)." % [card.nom, agree(card, "licencié", "licenciée"), cost])
+	annonce("licenciement_cout", {"nom": card.nom, "effet": "Coût : %d d'argent." % cost}, "%s a été %s (%d)." % [card.nom, agree(card, "licencié", "licenciée"), cost])
 	version += 1
 	return true
 
@@ -2612,7 +2627,7 @@ func _roll_diseases() -> Array[String]:
 	for a in animals:
 		a.starved = false
 	if not out.is_empty():
-		say("Animaux malades : %s. Envoyez un Soigneur dans leur enclos." % ", ".join(out))
+		annonce("malade", {"animal": ", ".join(out)}, "Animaux malades : %s. Envoyez un Soigneur dans leur enclos." % ", ".join(out))
 	return out
 
 
@@ -2902,7 +2917,7 @@ func campaign_error(def: Dictionary) -> String:
 	if not campaign.is_empty():
 		return "Campagne en cours : %s" % campaign["def"]["nom"]
 	if outside_workers().is_empty():
-		return "Envoyez d'abord un ouvrier à l'extérieur (case Accès)"
+		return "Envoyez d'abord un collaborateur à l'extérieur (case Accès)"
 	if money < campaign_cost(def):
 		return "Pas assez d'argent (%d)" % campaign_cost(def)
 	return ""
@@ -2922,7 +2937,7 @@ func launch_campaign(def: Dictionary) -> bool:
 		return false
 	money -= campaign_cost(def)
 	campaign = {"def": def, "progress": 0.0}
-	say("Campagne lancée : %s. Vos ouvriers à l'extérieur s'en occupent." % def["nom"])
+	say("Campagne lancée : %s. Vos collaborateurs à l'extérieur s'en occupent." % def["nom"])
 	version += 1
 	return true
 

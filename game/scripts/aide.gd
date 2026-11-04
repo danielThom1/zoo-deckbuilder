@@ -4,22 +4,22 @@ extends ColorRect
 ## existe dans le jeu, généré depuis les fichiers de données. S'ouvre depuis le menu principal et le bouton « ? » en jeu.
 
 const PAGES := [
-	["Le but du jeu", """Vous dirigez un zoo en concurrence avec d'autres directeurs. [b]Le premier à 100 de réputation l'emporte[/b] (sinon, le mieux placé au soir du jour 22).
+	["Le but du jeu", """Vous bâtissez un zoo pour ZooLife™, en concurrence avec d'autres groupes. [b]Le premier à 100 de réputation l'emporte[/b] (sinon, le mieux placé au soir du jour 22).
 
-Vos ouvriers sont des [b]cartes[/b] : vous en choisissez 8 au début, vous en piochez 4 chaque matin, vous les envoyez travailler, puis ils repartent à la défausse. Une partie alterne [b]les jours[/b], en temps réel, où l'on récolte et construit, et [b]les nuits[/b], au tour par tour, où l'on achète."""],
+Vos collaborateurs sont des [b]cartes[/b] : vous en choisissez 8 au début, vous en piochez 4 chaque matin, vous les envoyez travailler, puis ils repartent à la défausse. Une partie alterne [b]les jours[/b], en temps réel, où l'on récolte et construit, et [b]les nuits[/b], au tour par tour, où l'on achète."""],
 	["Le draft", """Avant le premier jour, des cartes sont révélées par groupes de 4 et chacun en prend une à tour de rôle, pendant 8 tours. C'est votre deck de départ.
 
 [b]Peu qualifiés[/b] : bon marché, un seul talent.
 [b]Qualifiés[/b] : plus efficaces, souvent le seul moyen d'aménager le terrain (Paysagiste, Terrassier).
-[b]Cadres[/b] : mauvais à la tâche, mais ils se déploient pour leur capacité ou se [b]jouent[/b] pour un effet immédiat.
+[b]Cadres[/b] : mauvais à la tâche, mais ils se mobilisent pour leur capacité ou se [b]jouent[/b] pour un effet immédiat.
 
 Survolez une carte pour voir son métier et ses traits."""],
 	["Le jour", """Chaque journée commence [b]en pause[/b] : préparez vos ordres, puis lancez le temps (Espace).
 
-[b]Déployer[/b] une carte paie son salaire et la pose sur le camp. Un ouvrier par jour peut partir gratuitement, à 25 % de rendement.
-[b]Clic droit[/b] avec un ouvrier sélectionné : couper du bois, extraire la pierre, construire, tenir un poste. [b]Maj + clic droit[/b] enchaîne un ordre après le précédent.
+[b]Mobiliser[/b] une carte paie son salaire et la pose sur le camp. Un collaborateur par jour peut partir gratuitement, à 25 % de rendement.
+[b]Clic droit[/b] avec un collaborateur sélectionné : couper du bois, extraire la pierre, construire, tenir un poste. [b]Maj + clic droit[/b] enchaîne un ordre après le précédent.
 
-Le bois et la pierre récoltés s'échangent contre de l'argent à la Bourse des ressources, à droite. Un Marchand déployé vend mieux."""],
+Le bois et la pierre récoltés s'échangent contre de l'argent à la Bourse des ressources, à droite. Un Marchand mobilisé vend mieux."""],
 	["Ouvrir son zoo", """Pour accueillir des visiteurs, il faut trois choses :
 1. Une [b]enceinte fermée[/b] avec une [b]entrée[/b] (touche R pour la tourner). Les montagnes servent de mur, et les murs se construisent sur l'eau.
 2. Une [b]route[/b] de l'Accès jusqu'à l'entrée.
@@ -37,22 +37,22 @@ Un animal doit manger (Cuisine) et peut tomber malade : un Soigneur le guérit, 
 [b]Affinités[/b] : plusieurs espèces d'un même continent multiplient cette réputation (2 → +10 %, 3 → +25 %, 4 → +45 %, 5 → +70 %, 6 → +100 %).
 [b]Spectacles et boutique[/b] : un Kiosque tenu et les souvenirs vendus en rapportent aussi.
 [b]Prestige politique[/b] : chaque nuit, le premier en influence gagne +3, le deuxième +1.
-[b]Labels[/b] : achetés en or, zoo ouvert, à la Bourse des ressources. Le prix double sans Marchand déployé.
-[b]Ouvriers légendaires[/b] : +5 quand un ouvrier atteint le niveau 6."""],
+[b]Labels[/b] : achetés en or, zoo ouvert, à la Bourse des ressources. Le prix double sans Marchand mobilisé.
+[b]Collaborateurs légendaires[/b] : +5 quand un collaborateur atteint le niveau 6."""],
 	["La nuit", """La nuit se joue en écrans successifs, chacun à son tour selon l'influence :
 1. [b]Contrats[/b] : un seul par tour. Un contrat pris n'est remplacé que le lendemain.
-2. [b]Ouvriers[/b] : une embauche, s'il reste un logement (une Maison = une place).
+2. [b]Collaborateurs[/b] : une embauche, s'il reste un logement (une Maison = une place).
 3. [b]Cartes d'action[/b] : une carte, à usage unique.
 4. [b]Bonus[/b] : le premier en influence choisit le bonus de demain, valable pour tous, ou aucun.
 5. [b]Équipe[/b] : montées de niveau, amélioration ou licenciement.
 
-Le lobbying (envoyer un ouvrier à la case Accès) fait monter votre influence, donc votre ordre de passage."""],
+Le lobbying (envoyer un collaborateur à la case Accès) fait monter votre influence, donc votre ordre de passage."""],
 	["Choisir un plan de jeu", """Plusieurs routes mènent à la victoire :
 [b]Un continent[/b] : Europe, Amérique, Asie ou Afrique, pour de grosses affinités. Chacun a deux animaux [b]rares[/b], très chers, aux effets puissants.
 [b]L'or[/b] : mine et entrepôt tôt, Mineurs et Marchand, or vendu ou changé en labels.
 [b]Les spectacles[/b] : Kiosque et Animateur, boutiques et Vendeurs.
 [b]La politique[/b] : Lobbyistes, prestige et ordre de passage.
-[b]La formation[/b] : Centre de formation et Formateur, pour des ouvriers légendaires.
+[b]La formation[/b] : Centre de formation et Formateur, pour des collaborateurs légendaires.
 
 Adaptez-vous à vos cartes et à ce que prennent les autres : tout se voit, la nuit."""],
 	["Commandes", """[b]Clic gauche[/b] : sélectionner (glisser pour plusieurs). [b]Clic droit[/b] : donner un ordre. [b]Maj + clic droit[/b] : ordre à la suite.
@@ -70,19 +70,19 @@ const RESSOURCES := [
 	["Or", "Extrait d'un gisement avec une mine. Contrats rares et labels, ou vendu très cher."],
 	["Influence", "Gagnée par le lobbying. Fixe l'ordre de passage la nuit (valeurs cachées) et donne le prestige politique."],
 	["Réputation", "Le score : le premier à 100 gagne."],
-	["Logement", "Nombre maximal d'ouvriers. Le camp en loge 8, chaque Maison un de plus."],
+	["Logement", "Nombre maximal de collaborateurs. Le camp en loge 8, chaque Maison un de plus."],
 	["Propreté", "Les visiteurs salissent le parc. Sous 60, puis sous 30, moins de visiteurs viennent."],
 ]
 const DESCRIPTIONS := {
-	"route": "Relie l'Accès à l'entrée pour les visiteurs ; les ouvriers y vont deux fois plus vite.", "pont": "Une route sur l'eau.",
-	"maison": "Loge un ouvrier de plus.", "entrepot": "Dépôt de ressources : réduit les trajets des récolteurs.",
+	"route": "Relie l'Accès à l'entrée pour les visiteurs ; les collaborateurs y vont deux fois plus vite.", "pont": "Une route sur l'eau.",
+	"maison": "Loge un collaborateur de plus.", "entrepot": "Dépôt de ressources : réduit les trajets des récolteurs.",
 	"comptoir": "Vente à 70 % sans Marchand ; avec un Marchand, vente à 125 % et achats 30 % moins chers.",
-	"agence": "Une fois par jour, remplace un ouvrier sur le terrain par une carte de la pioche ou de la défausse.",
+	"agence": "Une fois par jour, remplace un collaborateur sur le terrain par une carte de la pioche ou de la défausse.",
 	"mine": "Sur un gisement : permet d'extraire de l'or.", "cloture": "Mur de l'enceinte du zoo. Se construit aussi sur l'eau.",
-	"entree": "Porte du zoo : un ouvrier y tient le guichet. Touche R pour la tourner.", "enclos": "Ferme les enclos des animaux. Se construit aussi sur l'eau.",
-	"boutique": "Tenue par un seul ouvrier : souvenirs (×2,5 avec un Vendeur) et un peu de réputation.",
-	"cuisine": "Prépare et livre les rations des animaux.", "entretien": "Un ouvrier y nettoie le parc.",
-	"snack": "Tenu par un ouvrier : les visiteurs restent plus longtemps.", "kiosque": "Tenu par un ouvrier : attractivité et réputation (Animateur ×2).",
+	"entree": "Porte du zoo : un collaborateur y tient le guichet. Touche R pour la tourner.", "enclos": "Ferme les enclos des animaux. Se construit aussi sur l'eau.",
+	"boutique": "Tenue par un seul collaborateur : souvenirs (×2,5 avec un Vendeur) et un peu de réputation.",
+	"cuisine": "Prépare et livre les rations des animaux.", "entretien": "Un collaborateur y nettoie le parc.",
+	"snack": "Tenu par un collaborateur : les visiteurs restent plus longtemps.", "kiosque": "Tenu par un collaborateur : attractivité et réputation (Animateur ×2).",
 	"camp_n2": "Une carte de plus en main.", "camp_n3": "Encore une carte de plus en main.",
 }
 
@@ -297,7 +297,7 @@ func _glossaire_actions() -> void:
 
 
 func _glossaire_labels() -> void:
-	var L: Array[String] = ["S'achètent à la Bourse des ressources, zoo ouvert, une fois chacun. Le prix en or double sans Marchand déployé.\n"]
+	var L: Array[String] = ["S'achètent à la Bourse des ressources, zoo ouvert, une fois chacun. Le prix en or double sans Marchand mobilisé.\n"]
 	for a in data["buildings"]["reputation_autres"]["labels"]:
 		L.append("[b]%s[/b] : %d or → +%d de réputation" % [a["nom"], int(a["or"]), int(a["reputation"])])
 	_feuille("Labels").text = "\n".join(L)

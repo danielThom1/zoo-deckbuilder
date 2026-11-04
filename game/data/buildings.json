@@ -1,5 +1,5 @@
 {
-  "_note": "Valeurs provisoires. travail = points de travail (1 ouvrier à efficacité 1.0 produit 1 point/seconde). type_travail détermine quelle efficacité s'applique (construire_bois, construire_pierre, construire_route, construire_enclos).",
+  "_note": "Valeurs provisoires. travail = points de travail (1 collaborateur à efficacité 1.0 produit 1 point/seconde). type_travail détermine quelle efficacité s'applique (construire_bois, construire_pierre, construire_route, construire_enclos).",
 
   "carte": {
     "taille": [64, 64],
@@ -24,7 +24,7 @@
   },
 
   "extraction": {
-    "_note": "Unités par minute à efficacité 1.0, avant temps de transport. Un ouvrier porte 5 unités (porteur : +2 par amélioration), puis va déposer au Camp ou à l'Entrepôt le plus proche.",
+    "_note": "Unités par minute à efficacité 1.0, avant temps de transport. Un collaborateur porte 5 unités (porteur : +2 par amélioration), puis va déposer au Camp ou à l'Entrepôt le plus proche.",
     "bois": 7.5,
     "pierre": 5,
     "or": 1.875,
@@ -58,21 +58,21 @@
     { "id": "camp_n3",    "nom": "Camp niveau 3", "taille": [3, 3], "travail": 262, "type_travail": "construire_pierre", "cout": { "bois": 30, "pierre": 40, "argent": 60 }, "effet": { "pioche": 1 }, "sur": "camp", "unique": true, "requiert": "camp_n2", "_note_effet": "Après le niveau 2 : encore 1 carte de plus en main chaque jour." },
     { "id": "route",      "nom": "Route",                "taille": [1, 1], "travail": 6,   "type_travail": "construire_route", "cout": { "pierre": 1 },            "effet": { "vitesse": 2.0 }, "peinture": true },
     { "id": "pont",       "nom": "Pont",                 "taille": [1, 1], "travail": 34,  "type_travail": "construire_bois",  "cout": { "bois": 4 },              "effet": { "vitesse": 2.0 }, "sur": "Eau", "peinture": true },
-    { "id": "maison",     "nom": "Maison d'ouvriers",    "taille": [2, 2], "travail": 50,  "type_travail": "construire_bois",  "cout": { "bois": 5, "pierre": 2 }, "effet": { "logement": 1 } },
+    { "id": "maison",     "nom": "Maison du personnel",    "taille": [2, 2], "travail": 50,  "type_travail": "construire_bois",  "cout": { "bois": 5, "pierre": 2 }, "effet": { "logement": 1 } },
     { "id": "entrepot",   "nom": "Entrepôt",             "taille": [2, 2], "travail": 120,  "type_travail": "construire_bois",  "cout": { "bois": 10, "pierre": 6 }, "effet": { "stockage": true }, "hors_enceinte": true },
     { "id": "comptoir",   "nom": "Marché",               "taille": [2, 2], "travail": 90,  "type_travail": "construire_bois",  "cout": { "bois": 10, "pierre": 4 }, "effet": { "commerce": true }, "unique": true, "_note_effet": "Vente du stock à 70 % sans personne. Tenu par un Marchand (clic droit) : vente à 125 % et achat de bois et de pierre 30 % moins cher (Négociateur : +25 % de vente et −10 % d'achat en plus)." },
-    { "id": "agence",     "nom": "Agence d'intérim",     "taille": [2, 2], "travail": 105,  "type_travail": "construire_bois",  "cout": { "bois": 12, "pierre": 6 }, "effet": { "echange": true }, "unique": true, "_note_effet": "En journée, une fois par jour : remplace un ouvrier sur le terrain par une carte de sa pioche ou de sa défausse. Coût : voir la section agence." },
-    { "id": "cabinet",    "nom": "Cabinet de recrutement", "taille": [2, 2], "travail": 112, "type_travail": "construire_bois", "cout": { "bois": 10, "pierre": 8, "argent": 10 }, "effet": { "recrutement": { "peu_qualifie": 12, "qualifie": 25, "cadre": 50 } }, "unique": true, "_note_effet": "La nuit, à votre tour d'embauche, une fois : remplace une carte de la rangée des ouvriers par une carte au hasard de la catégorie choisie (prix selon la rareté)." },
+    { "id": "agence",     "nom": "Agence d'intérim",     "taille": [2, 2], "travail": 105,  "type_travail": "construire_bois",  "cout": { "bois": 12, "pierre": 6 }, "effet": { "echange": true }, "unique": true, "_note_effet": "En journée, une fois par jour : remplace un collaborateur sur le terrain par une carte de sa pioche ou de sa défausse. Coût : voir la section agence." },
+    { "id": "cabinet",    "nom": "Cabinet de recrutement", "taille": [2, 2], "travail": 112, "type_travail": "construire_bois", "cout": { "bois": 10, "pierre": 8, "argent": 10 }, "effet": { "recrutement": { "peu_qualifie": 12, "qualifie": 25, "cadre": 50 } }, "unique": true, "_note_effet": "La nuit, à votre tour d'embauche, une fois : remplace une carte de la rangée des collaborateurs par une carte au hasard de la catégorie choisie (prix selon la rareté)." },
     { "id": "mine",       "nom": "Mine d'or",            "taille": [2, 2], "travail": 225, "type_travail": "construire_pierre", "cout": { "bois": 10, "pierre": 15 }, "effet": { "permet_extraction": "or" }, "sur": "MineOr", "hors_enceinte": true, "_note": "Une mine par gisement (2 gisements par carte)." },
     { "id": "cloture",    "nom": "Enceinte (segment)",   "taille": [1, 1], "travail": 4,   "type_travail": "construire_pierre", "cout": { "pierre": 1 },            "effet": { "enceinte": true }, "peinture": true },
     { "id": "entree",     "nom": "Entrée du zoo",        "taille": [2, 1], "travail": 90,  "type_travail": "construire_pierre", "cout": { "pierre": 8, "bois": 4 }, "effet": { "entree_zoo": true }, "unique": true },
     { "id": "enclos",     "nom": "Clôture d'enclos (segment)", "taille": [1, 1], "travail": 6, "type_travail": "construire_enclos", "cout": { "bois": 1 }, "effet": { "enclos": true }, "peinture": true, "_note": "Une zone fermée de clôtures d'enclos validée contre les exigences d'un contrat d'animal" },
     { "id": "boutique",   "nom": "Boutique de souvenirs","taille": [2, 2], "travail": 112,  "type_travail": "construire_bois",  "cout": { "bois": 8, "pierre": 4, "argent": 5 }, "effet": { "souvenirs_par_visiteur": 1.0 }, "dans_enceinte": true },
-    { "id": "formation",  "nom": "Centre de formation",  "taille": [3, 2], "travail": 90, "type_travail": "construire_pierre", "cout": { "bois": 10, "pierre": 8 }, "effet": { "capacite_formation": 4, "xp_par_minute": 1.5 }, "_note_effet": "Ouvriers postés (clic droit) : +0,4 jour d'XP par minute, ×2 si un Formateur est posté aussi. 3 places (+2 avec Pédagogue)." },
-    { "id": "cuisine",    "nom": "Cuisine des animaux",  "taille": [2, 2], "travail": 60,  "type_travail": "construire_bois",  "cout": { "bois": 8, "pierre": 4 }, "effet": { "cuisine": true }, "dans_enceinte": true, "_note_effet": "Clic droit avec un ouvrier : il prépare des rations (1 argent chacune) et les livre aux animaux qui en ont besoin, en boucle. Animalier ×2." },
-    { "id": "entretien",  "nom": "Local d'entretien",    "taille": [2, 2], "travail": 52,  "type_travail": "construire_bois",  "cout": { "bois": 8, "pierre": 2 }, "effet": { "entretien": true }, "dans_enceinte": true, "_note_effet": "Clic droit avec un ouvrier : il nettoie le parc en circulant dans l'enceinte. Agent d'entretien ×2." },
-    { "id": "snack",      "nom": "Snack",                "taille": [2, 2], "travail": 90, "type_travail": "construire_bois",  "cout": { "bois": 10, "pierre": 4, "argent": 10 }, "effet": { "duree_visite_mult": 1.25 }, "dans_enceinte": true, "_note_effet": "Tenu par un ouvrier (clic droit) : les visiteurs qui entrent restent 25 % plus longtemps." },
-    { "id": "kiosque",    "nom": "Kiosque d'animation",  "taille": [2, 2], "travail": 105, "type_travail": "construire_pierre", "cout": { "bois": 6, "pierre": 10, "argent": 15 }, "effet": { "attractivite": 3 }, "dans_enceinte": true, "_note_effet": "Tenu par un ouvrier (clic droit) : +3 d'attractivité × son efficacité « animer » (Animateur : +6)." },
+    { "id": "formation",  "nom": "Centre de formation",  "taille": [3, 2], "travail": 90, "type_travail": "construire_pierre", "cout": { "bois": 10, "pierre": 8 }, "effet": { "capacite_formation": 4, "xp_par_minute": 1.5 }, "_note_effet": "Collaborateurs postés (clic droit) : +0,4 jour d'XP par minute, ×2 si un Formateur est posté aussi. 3 places (+2 avec Pédagogue)." },
+    { "id": "cuisine",    "nom": "Cuisine des animaux",  "taille": [2, 2], "travail": 60,  "type_travail": "construire_bois",  "cout": { "bois": 8, "pierre": 4 }, "effet": { "cuisine": true }, "dans_enceinte": true, "_note_effet": "Clic droit avec un collaborateur : il prépare des rations (1 argent chacune) et les livre aux animaux qui en ont besoin, en boucle. Animalier ×2." },
+    { "id": "entretien",  "nom": "Local d'entretien",    "taille": [2, 2], "travail": 52,  "type_travail": "construire_bois",  "cout": { "bois": 8, "pierre": 2 }, "effet": { "entretien": true }, "dans_enceinte": true, "_note_effet": "Clic droit avec un collaborateur : il nettoie le parc en circulant dans l'enceinte. Agent d'entretien ×2." },
+    { "id": "snack",      "nom": "Snack",                "taille": [2, 2], "travail": 90, "type_travail": "construire_bois",  "cout": { "bois": 10, "pierre": 4, "argent": 10 }, "effet": { "duree_visite_mult": 1.25 }, "dans_enceinte": true, "_note_effet": "Tenu par un collaborateur (clic droit) : les visiteurs qui entrent restent 25 % plus longtemps." },
+    { "id": "kiosque",    "nom": "Kiosque d'animation",  "taille": [2, 2], "travail": 105, "type_travail": "construire_pierre", "cout": { "bois": 6, "pierre": 10, "argent": 15 }, "effet": { "attractivite": 3 }, "dans_enceinte": true, "_note_effet": "Tenu par un collaborateur (clic droit) : +3 d'attractivité × son efficacité « animer » (Animateur : +6)." },
     { "id": "grand_arbre", "nom": "Grand arbre",          "taille": [1, 1], "travail": 19, "type_travail": "construire_bois",  "cout": { "bois": 8 },             "effet": { "decor": true }, "_note_effet": "Aménagement d'enclos : à placer dans un enclos (clôturé ou en chantier), hors du motif. Exigé par la Girafe, l'Ours, le Jaguar, le Panda roux, le Gorille." },
     { "id": "rocher_obs",  "nom": "Rocher d'observation", "taille": [1, 1], "travail": 22, "type_travail": "construire_pierre", "cout": { "pierre": 8 },           "effet": { "decor": true }, "_note_effet": "Aménagement d'enclos exigé par le Lion, le Loup, le Lynx, le Phoque, l'Aigle royal, la Panthère des neiges." },
     { "id": "bassin_profond", "nom": "Bassin profond",    "taille": [1, 1], "travail": 26, "type_travail": "construire_pierre", "cout": { "pierre": 6 },           "effet": { "decor": true }, "_note_effet": "Aménagement d'enclos exigé par l'Éléphant, le Rhinocéros, le Tapir, le Tigre, le Manchot, l'Hippopotame." },
@@ -88,15 +88,15 @@
     "negociateur_achat": 0.1
   },
   "agence": {
-    "_note": "Échange à l'Agence d'intérim : coût = frais + salaire du remplaçant (celui de l'ouvrier remplacé n'est pas rendu). Le remplaçant arrive à sa place, garde sa charge et reprend sa tâche ; l'ouvrier remplacé part à la défausse.",
+    "_note": "Échange à l'Agence d'intérim : coût = frais + salaire du remplaçant (celui de le collaborateur remplacé n'est pas rendu). Le remplaçant arrive à sa place, garde sa charge et reprend sa tâche ; le collaborateur remplacé part à la défausse.",
     "frais": 4
   },
   "publicite": {
-    "_note": "Campagnes publicitaires : lancées en journée (une à la fois) s'il y a au moins un ouvrier hors de la carte (case Accès). Payées au lancement, elles avancent tant que des ouvriers sont dehors (1 + efficacité de lobbying par seconde et par ouvrier, sans réduire l'influence) et se poursuivent le lendemain. Terminée, une campagne ajoute ses points de publicité pour toute la partie. Visiteurs × (1 + max × points / (points + demi_points)).",
+    "_note": "Campagnes publicitaires : lancées en journée (une à la fois) s'il y a au moins un collaborateur hors de la carte (case Accès). Payées au lancement, elles avancent tant que des collaborateurs sont dehors (1 + efficacité de lobbying par seconde et par collaborateur, sans réduire l'influence) et se poursuivent le lendemain. Terminée, une campagne ajoute ses points de publicité pour toute la partie. Visiteurs × (1 + max × points / (points + demi_points)).",
     "max": 1.0,
     "demi_points": 8,
     "remise_lobbyiste": 0.4,
-    "_note_remise": "Campagne 40 % moins chère si un ouvrier spécialisé en influence (Lobbyiste) est à l'extérieur au lancement.",
+    "_note_remise": "Campagne 40 % moins chère si un collaborateur spécialisé en influence (Lobbyiste) est à l'extérieur au lancement.",
     "campagnes": [
       { "id": "affiches", "nom": "Affiches en ville", "court": "Affiches", "cout": 40,  "travail": 60,  "points": 1,  "texte": "+1 point de publicité" },
       { "id": "radio",    "nom": "Spot radio", "court": "Radio",        "cout": 120, "travail": 150, "points": 4,  "texte": "+4 points de publicité" },
@@ -104,7 +104,7 @@
     ]
   },
   "marche": {
-    "_note": "Marché de nuit commun aux joueurs. Chaque nuit : 1 ouvrier et 1 contrat maximum par joueur, dans l'ordre d'influence. Ouvriers et cartes d'action : une carte non achetée est retirée au hasard chaque nuit. Les contrats ne tournent pas : seul un contrat acheté est remplacé, au jour suivant.",
+    "_note": "Marché de nuit commun aux joueurs. Chaque nuit : 1 collaborateur et 1 contrat maximum par joueur, dans l'ordre d'influence. Collaborateurs et cartes d'action : une carte non achetée est retirée au hasard chaque nuit. Les contrats ne tournent pas : seul un contrat acheté est remplacé, au jour suivant.",
     "ouvriers": 5,
     "contrats": 5,
     "actions": 3,
@@ -144,7 +144,7 @@
     "vitesse_visiteur": 1.5,
     "reputation_par_visiteur_moyen": 0.3,
     "rations": { "cout": 1, "preparation_s": 3, "_note": "Chaque animal mange par jour autant de rations que sa nourriture de palier (T1 2, T2 4, T3 6), réparties sur la journée. Réserve maximale : une journée. À 0, il a faim : il ne compte plus dans l'attractivité. Avant l'ouverture du zoo, le fournisseur le nourrit." },
-    "proprete": { "salete_par_visiteur_minute": 0.3, "nettoyage_par_minute": 18, "seuils": [[60, 0.85], [30, 0.6]], "_note": "Propreté du parc de 0 à 100. Les visiteurs présents la font baisser ; un ouvrier du Local d'entretien la remonte. En dessous des seuils, la demande de visiteurs est multipliée (×0,85 sous 60, ×0,6 sous 30)." },
+    "proprete": { "salete_par_visiteur_minute": 0.3, "nettoyage_par_minute": 18, "seuils": [[60, 0.85], [30, 0.6]], "_note": "Propreté du parc de 0 à 100. Les visiteurs présents la font baisser ; un collaborateur du Local d'entretien la remonte. En dessous des seuils, la demande de visiteurs est multipliée (×0,85 sous 60, ×0,6 sous 30)." },
     "bonus_predateur": 2,
     "bonus_soigneur": 2,
     "maladie": { "_note": "Chaque nuit, chaque animal peut tomber malade (plus souvent s'il a eu faim dans la journée ou si le parc est sale), et un malade peut contaminer les animaux de son enclos. Un animal malade ne compte pas dans l'attractivité. Seul un Soigneur posté dans l'enclos le guérit (soin_travail points, 1 par seconde à efficacité 1).", "proba_nuit": 0.03, "guerison_nuits": 2, "proba_faim": 0.15, "proba_sale": 0.08, "seuil_sale": 40, "contagion": 0.25, "soin_travail": 60 },
@@ -155,7 +155,7 @@
 
 
   "reputation_autres": {
-    "_note": "Autres façons de gagner de la réputation que la fréquentation. Spectacles : par journée de Kiosque tenu (× efficacité « animer » : Animateur ×2). Boutique : par unité d'argent de souvenirs vendue. Prestige politique : chaque nuit, le 1er puis le 2e en influence (s'ils ont au moins influence_min). Labels : achetés en or, avec un Marchand déployé, une fois chacun. Légendaire : un ouvrier qui atteint le niveau 5.",
+    "_note": "Autres façons de gagner de la réputation que la fréquentation. Spectacles : par journée de Kiosque tenu (× efficacité « animer » : Animateur ×2). Boutique : par unité d'argent de souvenirs vendue. Prestige politique : chaque nuit, le 1er puis le 2e en influence (s'ils ont au moins influence_min). Labels : achetés en or, avec un Marchand mobilisé, une fois chacun. Légendaire : un collaborateur qui atteint le niveau 5.",
     "label_sans_marchand": 2, "kiosque_par_jour": 2,
     "boutique_par_souvenir": 0.08,
     "prestige_politique": [3, 1],

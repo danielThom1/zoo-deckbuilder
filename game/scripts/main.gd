@@ -134,6 +134,10 @@ var trade_note: Label
 var trade_card: Control  # carte « Bourse des ressources » du panneau de droite
 var tutoriel: Tutoriel  # tutoriel scénarisé en cours
 var menu_btn: Button
+var hubert: BulleHubert  # Hubert à l'écran (joueur humain, hors tutoriel)
+var hubert_dit := {}  # alertes déjà annoncées aujourd'hui
+var hubert_ouverture := false
+var memo_lignes := {}  # jour -> réplique d'Hubert du mémo du soir
 var pub_note: Label
 var pub_buttons := {}  # id de campagne -> bouton
 # Choix d'un ouvrier (cartes Rupture de contrat et Promotion, échange à l'Agence d'intérim)
@@ -285,6 +289,11 @@ func _start(watch: bool) -> void:
 	mt.autosave = not spectator and not args.has("shot") and not args.has("tutoriel")
 	if args.has("tutoriel"):
 		Tutoriel.preparer(mt)
+	elif not spectator and charge == null:
+		var H: Dictionary = mt.data["hubert"]
+		mt.names[0] = "%s (vous)" % H["entreprise"]
+		for k in range(1, mt.names.size()):
+			mt.names[k] = H["rivaux"][(k - 1) % H["rivaux"].size()]
 	game = mt.players[0]
 	RenderingServer.set_default_clear_color(UiTokens.FOND_ECRAN)
 	_build_terrain()
@@ -300,6 +309,12 @@ func _start(watch: bool) -> void:
 		+ Vector2(0, vh / 2.0 - visible_center_y) / camera.zoom
 	_build_ui()
 	_set_speed(8.0 if spectator else 1.0)
+	if not spectator and not args.has("tutoriel"):
+		var h_layer := CanvasLayer.new()
+		h_layer.layer = 15
+		add_child(h_layer)
+		hubert = BulleHubert.new(mt.data["hubert"], hand_box)
+		h_layer.add_child(hubert)
 	if args.has("tutoriel"):
 		var tuto_layer := CanvasLayer.new()
 		tuto_layer.layer = 20
@@ -360,6 +375,14 @@ func _start(watch: bool) -> void:
 			mt.tick(0.5)
 		_refresh_terrain(true)
 		_focus_zoo()
+	# --hubert=licenciement : bulle d'Hubert ; --hubert=ev_greve : bulle d'événement ; --defaite : écran de fin (captures)
+	if args.has("hubert") and hubert:
+		hubert.annoncer(args["hubert"], {"nom": "Marcel", "effet": "Tous les salaires +1 aujourd'hui." if str(args["hubert"]).begins_with("ev_") else ""})
+		hubert.annoncer("licenciement", {"nom": "Marcel"})
+	if args.has("defaite"):
+		mt.players[1].rep_points = 100.0
+		mt.winner = 1
+		mt.game_over = true
 	# --zoom=2.5 : zoom de la caméra (captures de détail)
 	if args.has("zoom"):
 		camera.zoom = Vector2.ONE * float(args["zoom"])
@@ -440,6 +463,7 @@ func _draw() -> void:
 	var m := game.map
 	# Camp de base (sous les chantiers d'agrandissement)
 	_draw_camp()
+	_draw_affiche()
 	# Routes, ponts et allées pavées : RoutesBD (scripts/rendu/) ; ici la mairie au bout de l'accès
 	_update_occupation()
 	var ex := Vector2(m.exit_tile) * TILE
@@ -940,11 +964,46 @@ func _draw_turned(r: Rect2, turned: bool, draw_fn: Callable) -> void:
 
 
 ## Entrée du zoo : deux piliers et un portique.
+## Plaque au nom de l'entreprise, devant l'entrée du zoo (rien en mode spectateur : les IA n'ont pas de marque).
+func _draw_logo(pied: Vector2) -> void:
+	if spectator:
+		return
+	var nom: String = mt.names[game.index].replace(" (vous)", "")
+	var large := font.get_string_size(nom, HORIZONTAL_ALIGNMENT_LEFT, -1, 7).x + 8.0
+	var plaque := Rect2(pied - Vector2(large / 2.0, 0), Vector2(large, 10))
+	draw_rect(plaque, UiTokens.SARCELLE)
+	draw_rect(plaque, UiTokens.ENCRE, false, 1.0)
+	draw_string(font, plaque.position + Vector2(0, 7.5), nom, HORIZONTAL_ALIGNMENT_CENTER, large, 7, Color.WHITE)
+
+
+## Affiche d'entreprise près du camp : le slogan change chaque jour.
+func _draw_affiche() -> void:
+	if spectator or mt.phase == "draft":
+		return
+	var slogans: Array = mt.data["hubert"]["slogans"]
+	var slogan: String = slogans[(mt.day + mt.seed_value) % slogans.size()]
+	var mots := slogan.split(" ")
+	var coupe := int(mots.size() / 2.0 + 0.5)
+	var l1 := " ".join(mots.slice(0, coupe))
+	var l2 := " ".join(mots.slice(coupe))
+	var large := maxf(font.get_string_size(l1, HORIZONTAL_ALIGNMENT_LEFT, -1, 6).x, font.get_string_size(l2, HORIZONTAL_ALIGNMENT_LEFT, -1, 6).x) + 10.0
+	var c := game.map.camp
+	var bas := Vector2(c.position.x, c.position.y) * TILE + Vector2(-6.0, -4.0)
+	var panneau := Rect2(bas - Vector2(large, 24.0), Vector2(large, 18.0))
+	for x in [panneau.position.x + 5.0, panneau.end.x - 5.0]:
+		draw_line(Vector2(x, panneau.end.y), Vector2(x, bas.y), UiTokens.ENCRE, 2.0)
+	draw_rect(panneau, UiTokens.BOUTON_HAUT)
+	draw_rect(panneau, UiTokens.ENCRE, false, 1.5)
+	draw_string(font, panneau.position + Vector2(0, 7.5), l1, HORIZONTAL_ALIGNMENT_CENTER, large, 6, UiTokens.ENCRE)
+	draw_string(font, panneau.position + Vector2(0, 14.5), l2, HORIZONTAL_ALIGNMENT_CENTER, large, 6, UiTokens.ENCRE)
+
+
 func _draw_gate(r: Rect2, vertical := false) -> void:
 	if vertical:
 		# entrée tournée (verticale) : le portique vu de côté, posé sur la case du bas
 		SpritesBD.dessiner_largeur(self, "entree2", Vector2(r.get_center().x, r.end.y), r.size.x * 1.7)
 		return
+	_draw_logo(Vector2(r.get_center().x, r.end.y + 5.0))
 	SpritesBD.dessiner_largeur(self, "entree", Vector2(r.get_center().x, r.end.y), maxf(r.size.x, r.size.y) * 1.15)
 	return
 	var tex := _image("res://ui/batiments/entree.svg")
@@ -1467,7 +1526,7 @@ func _try_place(t: Vector2i, first_click: bool) -> void:
 		var in_park: bool = game.enclosure_at(t).get("park", false)
 		var aerr := game.install_animal(def, t)
 		if aerr == "" and in_park:
-			game.say("%s : enclos posé en chantier autour, l'animal y est réservé. Envoyez des ouvriers (clic droit)." % def["nom"])
+			game.say("%s : enclos posé en chantier autour, l'animal y est réservé. Envoyez des collaborateurs (clic droit)." % def["nom"])
 		if aerr != "":
 			game.say(aerr)
 		else:
@@ -1677,7 +1736,93 @@ func _process(delta: float) -> void:
 		event_label.visible = mt.phase == "day" and not ev.is_empty()
 		if not ev.is_empty():
 			event_label.text = "  %s : %s  " % [ev["nom"], ev["texte"]]
+		_hubert_alertes()
+	_hubert_annonces()
 	_screenshot_check()
+
+
+## Le bilan du soir signé par Hubert : sa réaction aux chiffres, son humeur, sa signature et le tampon.
+func _note_de_direction(total: int) -> void:
+	if hubert == null:
+		return
+	if not memo_lignes.has(mt.day):
+		memo_lignes[mt.day] = hubert.replique("soir_bon" if total >= 0 else "soir_mauvais")
+	var note := Composants.label("« %s »" % memo_lignes[mt.day])
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.add_theme_font_size_override("font_size", 14)
+	night_summary.add_child(note)
+	var humeur := _hubert_humeur()
+	var hl := Composants.label("Humeur de la direction : %s" % ("satisfaite" if humeur > 0 else ("exécrable" if humeur < 0 else "vigilante")), "TexteSecondaire")
+	hl.add_theme_font_size_override("font_size", 12)
+	night_summary.add_child(hl)
+	var cadre: Dictionary = mt.data["hubert"]["cadre"]
+	var signe := Composants.label("%s\n%s" % [cadre["nom"], cadre["titre"]], "TexteSecondaire")
+	signe.add_theme_font_size_override("font_size", 12)
+	signe.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	night_summary.add_child(signe)
+	var support := Control.new()
+	support.custom_minimum_size = Vector2(0, 34)
+	support.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	night_summary.add_child(support)
+	var tampon := Label.new()
+	tampon.text = "CONFIDENTIEL"
+	tampon.add_theme_font_override("font", UiTokens.police_corps(800))
+	tampon.add_theme_font_size_override("font_size", 14)
+	tampon.add_theme_color_override("font_color", UiTokens.ORANGE)
+	var ts := StyleBoxFlat.new()
+	ts.bg_color = Color(0, 0, 0, 0)
+	ts.border_color = UiTokens.ORANGE
+	ts.set_border_width_all(2)
+	ts.set_corner_radius_all(3)
+	ts.content_margin_left = 8
+	ts.content_margin_right = 8
+	tampon.add_theme_stylebox_override("normal", ts)
+	tampon.position = Vector2(60, 8)
+	tampon.rotation = -0.1
+	support.add_child(tampon)
+
+
+## Répliques en attente : en bulle, ou en message simple si le moment n'a pas de réplique (ou pendant le tutoriel).
+func _hubert_annonces() -> void:
+	if hubert:
+		hubert.humeur = _hubert_humeur()
+	for a in game.annonces:
+		if (hubert == null or not hubert.annoncer(a["moment"], a["args"])) and a["repli"] != "":
+			game.say(a["repli"])
+	game.annonces.clear()
+
+
+## Satisfait en tête, furieux quand un concurrent a pris le large.
+func _hubert_humeur() -> int:
+	var best := 0
+	for i in mt.players.size():
+		if i != game.index:
+			best = maxi(best, mt.players[i].reputation())
+	var moi := game.reputation()
+	if moi > best:
+		return 1
+	return -1 if best - moi >= 15 else 0
+
+
+## Les situations qui durent : Hubert les signale une fois par jour.
+func _hubert_alertes() -> void:
+	if hubert == null or mt.phase != "day":
+		return
+	if hubert_dit.get("jour", -1) != mt.day:
+		hubert_dit = {"jour": mt.day}
+	var ouvert: bool = game.zoo_status()["open"]
+	if ouvert and not hubert_ouverture:
+		hubert_ouverture = true
+		hubert.annoncer("ouverture")
+	var alertes := {
+		"guichet": ouvert and game.visitor_queue >= 3 and not game.workers.any(func(w): return w.task.get("kind") == "ticket"),
+		"affame": game.animals.any(func(a): return a.arrived and not a.fed),
+		"sale": ouvert and game.proprete < 50.0,
+	}
+	for k in alertes:
+		if alertes[k] and not hubert_dit.has(k):
+			hubert_dit[k] = true
+			hubert.annoncer(k)
 
 
 func _screenshot_check() -> void:
@@ -1861,7 +2006,7 @@ func _build_ui() -> void:
 	market_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	market_btn.custom_minimum_size.y = 46
 	market_btn.theme_type_variation = "BoutonPrincipal"
-	market_btn.tooltip_text = "Ouvriers, contrats et cartes d'action proposés cette nuit, dans l'ordre d'influence"
+	market_btn.tooltip_text = "Collaborateurs, contrats et cartes d'action proposés cette nuit, dans l'ordre d'influence"
 	market_btn.pressed.connect(func():
 		market_root.visible = not market_root.visible
 		_rebuild_market_preview())
@@ -2024,7 +2169,7 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 			row.add_child(bb)
 			trade_rows[res] = [spin, sb, bb]
 		# Labels : de la réputation contre de l'or, achetés par un Marchand déployé (une fois chacun)
-		var lt := Composants.label("Labels (or ; prix doublé sans Marchand déployé)", "TexteSecondaire")
+		var lt := Composants.label("Labels (or ; prix doublé sans Marchand mobilisé)", "TexteSecondaire")
 		lt.add_theme_font_size_override("font_size", 12)
 		rv.add_child(lt)
 		for ld in game.label_defs():
@@ -2176,13 +2321,13 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 	rotate_btn.pressed.connect(_rotate_build)
 	ui.add_child(rotate_btn)
 	# Tout déployer : chaque carte de la main payable part sur le terrain (au-dessus de la pioche)
-	deploy_all_btn = Composants.bouton("Tout déployer", "BoutonPrincipal")
+	deploy_all_btn = Composants.bouton("Tout mobiliser", "BoutonPrincipal")
 	deploy_all_btn.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 	deploy_all_btn.offset_left = 16
 	deploy_all_btn.offset_right = 160
 	deploy_all_btn.offset_top = -244
 	deploy_all_btn.offset_bottom = -206
-	deploy_all_btn.tooltip_text = "Déploie toutes les cartes ouvriers de la main, tant que l'argent suffit à payer leur salaire"
+	deploy_all_btn.tooltip_text = "Mobilise toutes les cartes collaborateurs de la main, tant que l'argent suffit à payer leur salaire"
 	deploy_all_btn.pressed.connect(_deploy_all)
 	ui.add_child(deploy_all_btn)
 	hand_scroll = ScrollContainer.new()
@@ -2412,7 +2557,7 @@ func _build_button(parent: Control, kind: String, def: Dictionary) -> void:
 		costs.add_child(Composants.label("gratuit", "TexteSecondaire"))
 	var dur := Composants.label("%d:%02d" % [int(def["travail"]) / 60, int(def["travail"]) % 60], "NomCarte")
 	dur.add_theme_font_size_override("font_size", 15)
-	dur.tooltip_text = "Durée pour un ouvrier à 100 %"
+	dur.tooltip_text = "Durée pour un collaborateur à 100 %"
 	row.add_child(dur)
 	var tip: Array[String] = ["%s : %s" % [def["nom"], game.cost_text(cost) if not cost.is_empty() else "gratuit"], "Travail : %d" % int(def["travail"])]
 	if kind == "amenagement":
@@ -2458,7 +2603,7 @@ func _rebuild_market_preview() -> void:
 	info.fit_content = true
 	info.custom_minimum_size = Vector2(1060, 0)
 	var rank := mt.night_order.find(game.index)
-	info.text = "Cette nuit, on achète dans l'ordre d'influence (valeurs cachées) : 1 ouvrier et jusqu'à 2 contrats chacun, et le premier choisit le bonus de demain pour tous.\nVotre influence : [b]%.1f[/b]%s. Envoyez des ouvriers en lobbying (case Accès) pour passer devant." % [
+	info.text = "Cette nuit, on achète dans l'ordre d'influence (valeurs cachées) : 1 collaborateur et jusqu'à 2 contrats chacun, et le premier choisit le bonus de demain pour tous.\nVotre influence : [b]%.1f[/b]%s. Envoyez des collaborateurs en lobbying (case Accès) pour passer devant." % [
 		game.influence, " · la nuit dernière, vous étiez [b]%de[/b] sur %d" % [rank + 1, mt.players.size()] if rank >= 0 else ""]
 	market_box.add_child(info)
 	var workers := HBoxContainer.new()
@@ -2632,7 +2777,7 @@ func _rebuild_hand() -> void:
 		if not card.deployed:
 			var sal := 0 if game.prime_left > 0 else game.salary(card)
 			var short := game.money < sal
-			var main_btn := ["Prime" if game.prime_left > 0 else ("Manque %d" % ceili(sal - game.money) if short else "Déployer"),
+			var main_btn := ["Prime" if game.prime_left > 0 else ("Manque %d" % ceili(sal - game.money) if short else "Mobiliser"),
 				"BoutonPrincipal", spectator or short, _on_deploy.bind(card)]
 			var free_btn := ["25" + Composants.NBSP + "%", "BoutonSecondaire", spectator or not game.free_deploy_available(), _on_deploy_free.bind(card)]
 			var btns := [main_btn, free_btn]
@@ -2774,7 +2919,7 @@ func _task_text(w: GameState.Worker) -> String:
 		if not w.path.is_empty():
 			return "Va à son poste"
 		if w.task["kind"] == "formation":
-			return "Forme les ouvriers du centre" if w.card.metier["id"] == "formateur" else "Se forme au centre de formation"
+			return "Forme les collaborateurs du centre" if w.card.metier["id"] == "formateur" else "Se forme au centre de formation"
 		return {"trade": "Tient le comptoir du camp", "shop": "Tient la boutique", "ticket": "Tient le guichet", "snack": "Tient le snack",
 			"kiosque": "Anime le kiosque", "care": "Soigne : " + str(w.task["obj"].def["nom"] if w.task["obj"] else "")}[w.task["kind"]]
 	if w.task["type"] == "feed":
@@ -2834,9 +2979,9 @@ func _update_info() -> void:
 		_rendre_fiche([])
 		return
 	if selected.size() > 1:
-		zoo_title.text = "%d OUVRIERS" % selected.size()
+		zoo_title.text = "%d COLLABORATEURS" % selected.size()
 	elif selected.size() == 1:
-		zoo_title.text = "OUVRIER"
+		zoo_title.text = "COLLABORATEUR"
 		info_subtitle.text = "%d sur %d" % [game.workers.find(selected[0]) + 1, game.workers.size()]
 	elif selected_site:
 		zoo_title.text = "BÂTIMENT" if selected_site.done else "CHANTIER"
@@ -2865,17 +3010,17 @@ func _update_info() -> void:
 				"maison":
 					fiche.append(["ligne", "ressource_logement", UiTokens.RESSOURCES["logement"]["couleur"], "Logement", "+%d" % int(st.def["effet"]["logement"])])
 				"entrepot":
-					fiche.append(["texte", "Dépôt de ressources : les ouvriers y rapportent leur charge s'il est plus proche que le camp."])
+					fiche.append(["texte", "Dépôt de ressources : les collaborateurs y rapportent leur charge s'il est plus proche que le camp."])
 				"mine":
-					fiche.append(["texte", "Clic droit avec des ouvriers pour extraire de l'or."])
+					fiche.append(["texte", "Clic droit avec des collaborateurs pour extraire de l'or."])
 				_:
 					fiche.append(["texte", str(st.def.get("_note_effet", "Bâtiment en service."))])
 		else:
 			fiche.append(["carte", "AVANCEMENT", "ordre_construire", UiTokens.ORANGE])
 			fiche.append(["barre", "Travail", clampf(st.work / st.travail(), 0.0, 1.0), "%d / %d" % [int(st.work), int(st.travail())], UiTokens.SELECTION])
-			fiche.append(["ligne", "metier_contremaitre", UiTokens.SARCELLE, "Ouvriers dessus", str(builders)])
+			fiche.append(["ligne", "metier_contremaitre", UiTokens.SARCELLE, "Collaborateurs dessus", str(builders)])
 			fiche.append(["ligne", "ressource_argent", UiTokens.RESSOURCES["argent"]["couleur"], "Coût payé", game.cost_text(st.paid) if not st.paid.is_empty() else "—"])
-			fiche.append(["texte", "Clic droit avec des ouvriers sélectionnés pour y travailler. L'avancement est conservé d'un jour à l'autre."])
+			fiche.append(["texte", "Clic droit avec des collaborateurs sélectionnés pour y travailler. L'avancement est conservé d'un jour à l'autre."])
 		_rendre_fiche(fiche)
 		return
 	if selected.is_empty():
@@ -2958,7 +3103,7 @@ func _fiche_zoo(fiche: Array) -> void:
 			fiche.append(["alerte", "%d animal(aux) affamé(s) : Cuisine des animaux !" % hungry])
 	if not game.day_bonus.is_empty():
 		fiche.append(["bonus", str(game.day_bonus["nom"]), str(game.day_bonus["texte"])])
-	fiche.append(["texte", "Déployez un ouvrier depuis votre main, puis clic droit sur une forêt, une roche, un chantier ou la case Accès (lobbying). Postes : Marchand sur le camp, Vendeur sur une boutique, Soigneur dans un enclos."])
+	fiche.append(["texte", "Mobilisez un collaborateur depuis votre main, puis clic droit sur une forêt, une roche, un chantier ou la case Accès (lobbying). Postes : Marchand sur le camp, Vendeur sur une boutique, Soigneur dans un enclos."])
 	fiche.append(["pied", "Graine %d · Pioche %d · Défausse %d" % [game.seed_value, game.deck.size(), game.discard.size()]])
 
 
@@ -3323,7 +3468,7 @@ func _update_hud() -> void:
 			elif site.def_id() == "comptoir":
 				status += " : clic droit avec un Marchand (vente à 125 %, achat 30 % moins cher)"
 			elif site.def_id() == "agence":
-				status += " : sélectionnez un ouvrier puis « Remplacer (Agence) » pour l'échanger contre une carte du deck"
+				status += " : sélectionnez un collaborateur puis « Remplacer (Agence) » pour l'échanger contre une carte du deck"
 			elif site.def_id() == "entrepot":
 				status += " : clic droit pour y déposer la charge"
 		else:
@@ -3365,6 +3510,9 @@ func _update_hud() -> void:
 		end_built = true
 		if mt.autosave:
 			Sauvegarde.effacer()
+		if hubert:
+			hubert.grande_en_bas = true
+			hubert.annoncer("victoire" if mt.winner == game.index else "defaite")
 		_rebuild_end()
 	end_root.visible = mt.game_over and not end_dismissed
 	end_reopen.visible = mt.game_over and end_dismissed
@@ -3732,7 +3880,7 @@ func _build_night_ui() -> void:
 		sc.add_child(v)
 		boxes.append(v)
 	# Gauche : bilan de la journée
-	var p := _titled_panel(boxes[0], "BILAN DE LA JOURNÉE")
+	var p := _titled_panel(boxes[0], "BILAN DE LA JOURNÉE" if spectator else "NOTE DE LA DIRECTION")
 	night_summary = p[1]
 	# Centre : ordre d'influence (tour en cours), puis la page de l'étape de la nuit en grand
 	var inf := PanelContainer.new()
@@ -3884,7 +4032,7 @@ func _rebuild_night() -> void:
 
 	# Étapes : faites (✓), en cours (or), à venir
 	_clear(night_steps)
-	var step_names := {"contrats": "Contrats", "ouvriers": "Ouvriers", "cartes": "Cartes", "bonus": "Bonus", "equipe": "Équipe"}
+	var step_names := {"contrats": "Contrats", "ouvriers": "Collaborateurs", "cartes": "Cartes", "bonus": "Bonus", "equipe": "Équipe"}
 	var cur := Match.NIGHT_STAGES.find(stage)
 	for k in Match.NIGHT_STAGES.size() + 1:
 		var label: String = step_names[Match.NIGHT_STAGES[k]] if k < Match.NIGHT_STAGES.size() else "Jour %d" % (r["day"] + 1)
@@ -3899,7 +4047,7 @@ func _rebuild_night() -> void:
 			night_stage_title.text = "CONTRATS D'ANIMAUX"
 			night_stage_note.text = "Chacun à son tour, dans l'ordre d'influence : un contrat par joueur. Un contrat pris n'est remplacé que demain. " + turn_text
 		"ouvriers":
-			night_stage_title.text = "OUVRIERS À EMBAUCHER"
+			night_stage_title.text = "COLLABORATEURS À EMBAUCHER"
 			night_stage_note.text = "Chacun à son tour : 1 embauche au plus, si votre logement le permet. " + turn_text
 		"cartes":
 			night_stage_title.text = "CARTES D'ACTION"
@@ -3954,6 +4102,7 @@ func _rebuild_night() -> void:
 	tv.add_theme_color_override("font_color", UiTokens.POSITIF if total >= 0 else UiTokens.NEGATIF)
 	total_row.add_child(tv)
 	night_summary.add_child(total_row)
+	_note_de_direction(total)
 
 	# Ordre d'influence (valeurs des adversaires cachées)
 	_clear(night_influence)
@@ -3994,7 +4143,7 @@ func _rebuild_night() -> void:
 	night_chips["argent"]["valeur"].text = str(floori(game.money))
 	night_chips["logement"]["valeur"].text = "%d/%d" % [game.employees(), game.housing()]
 	night_chips["logement"]["valeur"].add_theme_color_override("font_color", UiTokens.NEGATIF if full else UiTokens.TEXTE)
-	night_money_lbl.text = "Logement plein : construisez une Maison d'ouvriers" if full \
+	night_money_lbl.text = "Logement plein : construisez une Maison de collaborateurs" if full \
 		else "Argent disponible : %d" % floori(game.money)
 	night_money_lbl.add_theme_color_override("font_color", UiTokens.NEGATIF if full else UiTokens.TEXTE_SECONDAIRE)
 	_clear(night_workers)
@@ -4207,11 +4356,11 @@ func _rebuild_night() -> void:
 	if inc["visitors"] > 0:
 		lines.append("%d visiteurs (%d repartis faute de place), %.1f présents en moyenne%s" % [inc["visitors"], inc["lost"], inc["avg_present"],
 			" · affinités +%d %%" % roundi(inc.get("affinity", 0.0) * 100) if inc.get("affinity", 0.0) > 0.0 else ""])
-	lines.append("%d ouvrier(s) déployé(s) aujourd'hui" % r["deployed"])
+	lines.append("%d collaborateur(s) mobilisé(s) aujourd'hui" % r["deployed"])
 	for l in mt.log:
 		lines.append("[color=#8A6A00]%s[/color]" % l)
 	if game.employees() >= game.housing():
-		lines.append("[color=#B5452A]Logement plein (%d / %d) : construisez une maison d'ouvriers pour embaucher.[/color]" % [game.employees(), game.housing()])
+		lines.append("[color=#B5452A]Logement plein (%d / %d) : construisez une maison de collaborateurs pour embaucher.[/color]" % [game.employees(), game.housing()])
 	night_text.text = "\n".join(lines)
 
 
@@ -4299,7 +4448,7 @@ func _open_recruit(card: GameState.Card) -> void:
 				game.hippo_swap(c, card)
 				_close_picker()])
 	_open_picker("REMPLACER %s" % card.nom.to_upper(), "%s%s" % [
-		"Hippopotame : échangez un de vos ouvriers contre %s. " % card.nom if not rows.is_empty() else "",
+		"Hippopotame : échangez un de vos collaborateurs contre %s. " % card.nom if not rows.is_empty() else "",
 		"Cabinet de recrutement : remplacez cette carte par une carte tirée au hasard dans la catégorie choisie. Une fois par nuit." if game.has_building("cabinet") else ""], rows)
 	if not game.has_building("cabinet"):
 		return
@@ -4430,7 +4579,7 @@ func _update_proposal_box(def: Dictionary, interior: Dictionary) -> void:
 		proposal_btn.visible = n > 0 or enclosure_proposal.has("decor")
 		proposal_btn.text = ("Construire l'enclos et réserver l'animal · %s" if enclosure_proposal["missing"] == 0 else "Construire cet enclos · %s") % game.cost_text(cost)
 		proposal_btn.disabled = not game.can_afford(cost) or game.phase != "day"
-		proposal_btn.tooltip_text = "Pose %d segments de clôture d'enclos (1 bois chacun) en chantier. Envoyez des ouvriers (clic droit) : l'animal, réservé, arrive la nuit suivant la fin des clôtures." % n
+		proposal_btn.tooltip_text = "Pose %d segments de clôture d'enclos (1 bois chacun) en chantier. Envoyez des collaborateurs (clic droit) : l'animal, réservé, arrive la nuit suivant la fin des clôtures." % n
 	elif near > 0:
 		lines.append("[color=#8A6A00]Aucun enclos ne convient tel quel : les cases orange sont à aménager (onglet Terrain).[/color]")
 	else:
@@ -4444,7 +4593,7 @@ func _build_proposal() -> void:
 	if enclosure_proposal.is_empty():
 		return
 	var placed := game.place_enclosure(enclosure_proposal)
-	game.say("Enclos proposé : %d clôture(s) en chantier. Envoyez des ouvriers (clic droit dessus)." % placed)
+	game.say("Enclos proposé : %d clôture(s) en chantier. Envoyez des collaborateurs (clic droit dessus)." % placed)
 	enclosure_proposal["new"] = enclosure_proposal["new"].filter(func(t): return game.site_at(t) == null)
 	enclosure_proposal.erase("decor")
 	# Motif déjà présent : l'animal est réservé dans l'enclos en chantier et arrivera une fois les clôtures finies.
@@ -4579,7 +4728,7 @@ func _update_trade() -> void:
 		lb.disabled = lerr != ""
 		lb.tooltip_text = lerr
 	var rate := game.sell_rate()
-	var who := "Marchand + bâtiment Marché" if game.buy_mult() < 1.0 else ("Marchand déployé" if game.marchand_present() else ("bâtiment Marché" if game.market_built() else "sans Marchand"))
+	var who := "Marchand + bâtiment Marché" if game.buy_mult() < 1.0 else ("Marchand mobilisé" if game.marchand_present() else ("bâtiment Marché" if game.market_built() else "sans Marchand"))
 	trade_note.text = "Vente à %d %%%s (%s)" % [roundi(rate * 100), " · achat −%d %%" % roundi((1.0 - game.buy_mult()) * 100) if game.buy_mult() < 1.0 else "", who]
 	for res in trade_rows:
 		var row: Array = trade_rows[res]
@@ -4609,7 +4758,7 @@ func _update_publicity() -> void:
 		lines.append("En cours : %s, %d %% · %s" % [c["def"]["nom"], pct,
 			"personne dehors : en pause" if eta == INF else "encore ~%d s" % ceili(eta)])
 	elif game.outside_workers().is_empty():
-		lines.append("Envoyez un ouvrier à l'extérieur (case Accès) pour lancer une campagne.")
+		lines.append("Envoyez un collaborateur à l'extérieur (case Accès) pour lancer une campagne.")
 	pub_note.text = "\n".join(lines)
 	for d in game.campaign_defs():
 		var b: Button = pub_buttons[d["id"]]
@@ -4758,7 +4907,7 @@ func _open_promotion(card: GameState.Card, target: GameState.Card) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	picker_box.add_child(row)
-	var back := Composants.bouton("Autre ouvrier", "BoutonSecondaire")
+	var back := Composants.bouton("Autre collaborateur", "BoutonSecondaire")
 	back.pressed.connect(_open_action_picker.bind(card))
 	row.add_child(back)
 	var close := Composants.bouton("Annuler", "BoutonSecondaire")
@@ -4841,7 +4990,7 @@ func _open_pile() -> void:
 ## Raison courte à écrire sur un bouton désactivé (le détail reste dans l'infobulle).
 func _short_reason(err: String) -> String:
 	for pair in [["Logement plein", "Logement plein"], ["pas votre tour", "Pas votre tour"], ["Déjà un échange", "Déjà échangé"], ["Déjà", "Déjà embauché"],
-			["terrain", "Sur le terrain"], ["dernier", "Dernier ouvrier"],
+			["terrain", "Sur le terrain"], ["dernier", "Dernier collaborateur"],
 			["argent", "Pas assez d'argent"], ["spectateur", "Spectateur"], ["n'ouvre", "Marché fermé"]]:
 		if pair[0] in err:
 			return pair[1]
@@ -4995,7 +5144,7 @@ func _rebuild_end() -> void:
 	bs.content_margin_right = 70
 	band.add_theme_stylebox_override("panel", bs)
 	band_c.add_child(band)
-	var bl := Composants.label("VICTOIRE" if won else ("DÉFAITE" if not spectator else "FIN DE PARTIE"), "TitreEcran")
+	var bl := Composants.label("CONCESSION REMPORTÉE" if won else ("FILIALE LIQUIDÉE" if not spectator else "FIN DE PARTIE"), "TitreEcran")
 	bl.add_theme_font_size_override("font_size", 48)
 	bl.add_theme_color_override("font_color", UiTokens.OR_CLAIR)
 	band.add_child(bl)
@@ -5008,7 +5157,7 @@ func _rebuild_end() -> void:
 	sub.offset_top = 124
 	sub.offset_bottom = 152
 	sub.add_theme_font_size_override("normal_font_size", 17)
-	sub.text = "[center]%s %s [color=#8A6A00]%d[/color] de réputation au soir du jour %d[/center]" % [
+	sub.text = "[center]Rapport annuel aux actionnaires · %s %s [color=#8A6A00]%d[/color] de réputation au soir du jour %d[/center]" % [
 		mt.names[w], "atteint" if reached else "termine en tête avec", mt.players[w].reputation(), mt.day]
 	end_root.add_child(sub)
 	# Podium : 2e, 1er, 3e, 4e
@@ -5073,6 +5222,11 @@ func _rebuild_end() -> void:
 		vl.add_theme_font_size_override("font_size", 12)
 		vl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		Composants.placer(box, vl, Vector2(0, 48), Vector2(150, 18))
+		var sort_ := Composants.label("Concession remportée" if rank == 0 else "Filiale liquidée", "TexteSecondaire")
+		sort_.add_theme_font_size_override("font_size", 12)
+		sort_.add_theme_color_override("font_color", UiTokens.POSITIF if rank == 0 else UiTokens.NEGATIF)
+		sort_.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		Composants.placer(box, sort_, Vector2(0, 108), Vector2(150, 18))
 		# Voir le zoo de ce joueur sur la carte finale
 		var see := Composants.bouton("Voir son zoo" if i != me_index else "Voir mon zoo", "BoutonSecondaire")
 		see.add_theme_font_size_override("font_size", 13)
@@ -5100,7 +5254,7 @@ func _rebuild_end() -> void:
 			species[a.def["id"]] = true
 			biomes[a.def["biome"]] = true
 	for t in [[str(species.size()), "espèces", UiTokens.POSITIF], ["%d" % biomes.size(), "biomes sur %d" % biome_noms.size(), UiTokens.SELECTION],
-			[str(_visitors_total(me)), "visiteurs cumulés", Color("C8A8F0")], [str(game.all_employees().size()), "ouvriers dans le deck", Color("8CC4FF")]]:
+			[str(_visitors_total(me)), "visiteurs cumulés", Color("C8A8F0")], [str(game.all_employees().size()), "collaborateurs dans le deck", Color("8CC4FF")]]:
 		var tile := PanelContainer.new()
 		tile.add_theme_stylebox_override("panel", UiTokens.chip(Color(UiTokens.ENCRE, 0.06), 8, 8))
 		tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -5122,7 +5276,7 @@ func _rebuild_end() -> void:
 			["spectacles", "Spectacles et boutique", "batiment_boutique", Color("E04A8A")],
 			["labels", "Labels (or)", "ressource_or", UiTokens.RESSOURCES["or"]["couleur"]],
 			["prestige", "Prestige politique", "ressource_influence", UiTokens.RESSOURCES["influence"]["couleur"]],
-			["legendaires", "Ouvriers légendaires", "ui_ameliorer", UiTokens.OR]]:
+			["legendaires", "Collaborateurs légendaires", "ui_ameliorer", UiTokens.OR]]:
 		var pts := float(game.rep_sources.get(src[0], 0.0))
 		if pts < 0.05:
 			continue

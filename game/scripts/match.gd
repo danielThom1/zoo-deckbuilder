@@ -40,6 +40,7 @@ var bonus_offer: Array = []  # bonus de nuit proposés (3)
 ## Le premier en influence peut refuser tous les bonus proposés.
 const NO_BONUS := {"id": "aucun", "nom": "Aucun bonus", "texte": "Aucun bonus demain.", "effets": {}}
 var bonus_choice := {}  # bonus choisi par le premier en influence : actif le lendemain pour tous les joueurs
+var rival_en_tete := -1  # dernier concurrent annoncé en tête par Hubert
 var offres := {}  # espèce -> nuits passées au marché (étude)
 var autosave := false  # partie d'un joueur humain : sauvegarde automatique chaque matin
 var history: Array = []  # statistiques par jour et par joueur (simulations)
@@ -281,7 +282,7 @@ func _finish_draft() -> void:
 	phase = "day"
 	_refresh_market(1, false)
 	for p in players:
-		p.say("Draft terminé : votre deck compte %d ouvriers." % p.deck.size())
+		p.say("Draft terminé : votre deck compte %d collaborateurs." % p.deck.size())
 		p._start_day_player()
 	if autosave:
 		Sauvegarde.ecrire(self)
@@ -340,6 +341,9 @@ func end_day() -> void:
 			p.rep_points += pts
 			p.add_rep_source("prestige", pts)
 			p.night_report["prestige"] = pts
+			if k == 0:
+				p.annonce("prestige", {"effet": "+%d de réputation" % int(pts)})
+	_annoncer_rival()
 	night_turn = 0
 	night_stage = NIGHT_STAGES[0]
 	night_taken.clear()
@@ -473,6 +477,22 @@ func influence_leader() -> int:
 	return night_order[0] if not night_order.is_empty() else -1
 
 
+## Un concurrent vient de passer devant le joueur humain : Hubert le fait savoir, une fois par concurrent en tête.
+func _annoncer_rival() -> void:
+	for p in players:
+		if is_ai(p.index):
+			continue
+		var best := -1
+		for k in players.size():
+			if k != p.index and (best < 0 or players[k].rep_points > players[best].rep_points):
+				best = k
+		if best < 0 or players[best].rep_points <= p.rep_points:
+			rival_en_tete = -1
+		elif best != rival_en_tete:
+			rival_en_tete = best
+			p.annonce("rival_devant", {"rival": names[best]})
+
+
 func start_next_day() -> void:
 	if phase != "night" or game_over:
 		return
@@ -490,6 +510,9 @@ func start_next_day() -> void:
 	for p in players:
 		p._start_day_player()
 	_apply_event()
+	if current_event.is_empty():
+		for p in players:
+			p.annonce("matin")
 	if autosave:
 		Sauvegarde.ecrire(self)
 	for ai in ais:
@@ -523,7 +546,7 @@ func _apply_event() -> void:
 				victim.sick = true
 				victim.heal = 0.0
 		if not current_event.is_empty():
-			p.say("Événement : %s. %s" % [current_event["nom"], current_event["texte"]])
+			p.annonce("ev_" + str(current_event["id"]), {"effet": current_event["texte"]}, "Événement : %s. %s" % [current_event["nom"], current_event["texte"]])
 
 
 ## Fait tourner le marché : retire une carte restante au hasard de chaque rangée, puis complète.

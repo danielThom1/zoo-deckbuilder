@@ -122,11 +122,11 @@ void fragment() {
 	titres.alignment = BoxContainer.ALIGNMENT_CENTER
 	titres.add_theme_constant_override("separation", -6)
 	entete.add_child(titres)
-	titres.add_child(_label("ZOO", _police_espacee(police_titre, 6), 68, OR, true))
-	titres.add_child(_label("DECKBUILDER", _police_espacee(police_titre, 7), 34, OR_CLAIR, true))
+	titres.add_child(_label("ZOOLIFE™", _police_espacee(police_titre, 6), 62, OR, true))
+	titres.add_child(_label("DIVERTISSEMENT ANIMALIER RESPONSABLE", _police_espacee(police_titre, 2), 15, OR_CLAIR, true))
 
 	col.add_child(_espace(26))
-	var accroche := _label("Recrutez, formez et déployez vos ouvriers.\nBâtissez le zoo le plus réputé de la vallée.", police_texte, 18, TEXTE_2)
+	var accroche := _label("Bâtissez le zoo le plus rentable de la vallée,\navec le personnel que vous méritez.", police_texte, 18, TEXTE_2)
 	col.add_child(accroche)
 	col.add_child(_espace(26))
 	var filet := Control.new()
@@ -161,6 +161,27 @@ void fragment() {
 	b_quitter.pressed.connect(func(): get_tree().quit())
 	boutons.add_child(b_quitter)
 	bouton_jouer = b_jouer
+	# Affiche d'entreprise : un slogan différent à chaque ouverture
+	var slogans: Array = donnees["hubert"]["slogans"]
+	var affiche := Label.new()
+	affiche.text = slogans[randi() % slogans.size()]
+	affiche.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	affiche.custom_minimum_size = Vector2(420, 0)
+	affiche.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	affiche.add_theme_font_override("font", UiTokens.police_corps(700))
+	affiche.add_theme_font_size_override("font_size", 15)
+	affiche.add_theme_color_override("font_color", UiTokens.ENCRE)
+	var affiche_style := StyleBoxFlat.new()
+	affiche_style.bg_color = UiTokens.BOUTON_HAUT
+	affiche_style.border_color = UiTokens.ENCRE
+	affiche_style.set_border_width_all(3)
+	affiche_style.content_margin_left = 12
+	affiche_style.content_margin_right = 12
+	affiche_style.content_margin_top = 6
+	affiche_style.content_margin_bottom = 6
+	affiche.add_theme_stylebox_override("normal", affiche_style)
+	col.add_child(_espace(14))
+	col.add_child(affiche)
 
 	var pied := _label("Prototype jouable · Godot 4.7 · Entrée pour jouer", police_texte, 13, Color(TEXTE_2, 0.7))
 	pied.name = "Pied"
