@@ -36,6 +36,7 @@ Un animal doit manger (Cuisine) et peut tomber malade : un Soigneur le guérit, 
 	["Gagner de la réputation", """[b]Fréquentation[/b] : la source principale, selon le nombre moyen de visiteurs présents. L'attractivité des animaux et la publicité amènent les visiteurs ; le zoo doit rester propre.
 [b]Affinités[/b] : plusieurs espèces d'un même continent multiplient cette réputation (2 → +10 %, 3 → +25 %, 4 → +45 %, 5 → +70 %, 6 → +100 %).
 [b]Spectacles et boutique[/b] : un Kiosque tenu et les souvenirs vendus en rapportent aussi.
+[b]Objectifs des actionnaires[/b] : 3 objectifs, les mêmes pour tous, affichés dans le panneau du zoo. Chacun rapporte +10 de réputation à tous ceux qui le remplissent.
 [b]Prestige politique[/b] : chaque nuit, le premier en influence gagne +3, le deuxième +1.
 [b]Labels[/b] : achetés en or, zoo ouvert, à la Bourse des ressources. Le prix double sans Marchand mobilisé.
 [b]Collaborateurs légendaires[/b] : +5 quand un collaborateur atteint le niveau 6."""],
@@ -82,7 +83,7 @@ const DESCRIPTIONS := {
 	"entree": "Porte du zoo : un collaborateur y tient le guichet. Touche R pour la tourner.", "enclos": "Ferme les enclos des animaux. Se construit aussi sur l'eau.",
 	"boutique": "Tenue par un seul collaborateur : souvenirs (×2,5 avec un Vendeur) et un peu de réputation.",
 	"cuisine": "Prépare et livre les rations des animaux.", "entretien": "Un collaborateur y nettoie le parc.",
-	"snack": "Tenu par un collaborateur : les visiteurs restent plus longtemps.", "kiosque": "Tenu par un collaborateur : attractivité et réputation (Animateur ×2).",
+	"snack": "Tenu par un collaborateur : les visiteurs restent 50 % plus longtemps et dépensent 1 d'argent de plus.", "kiosque": "Tenu par un collaborateur : attractivité et réputation (Animateur ×2).",
 	"camp_n2": "Une carte de plus en main.", "camp_n3": "Encore une carte de plus en main.",
 }
 

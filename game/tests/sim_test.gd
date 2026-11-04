@@ -670,7 +670,7 @@ func _init() -> void:
 	c_snack.def = c_g.building_def("snack")
 	c_snack.rect = Rect2i(c_in, Vector2i(2, 2))
 	c_aw.task = {"type": "station", "kind": "snack", "obj": c_snack, "tile": c_in}
-	check(is_equal_approx(c_g.snack_mult(), 1.25), "Snack tenu : visites 25 % plus longues")
+	check(is_equal_approx(c_g.snack_mult(), 1.5), "Snack tenu : visites 50 % plus longues")
 	data["events"]["proba_evenement"] = c_proba
 
 	print("Lot D : évolution des cartes, cartes d'action, terrain :")
@@ -825,7 +825,8 @@ func _init() -> void:
 	fm.stock["pierre"] = 60.0
 	fm.money = 100.0
 	for c in fm.hand.duplicate():
-		fm.deploy(c)
+		if c.metier["id"] != "marchand":  # un Marchand en main fausserait le test du prix sans Marchand
+			fm.deploy(c)
 	var f_site := fm.place("batiment", fm.building_def("comptoir"), fm.map.camp.position + Vector2i(-4, 0))
 	check(f_site != null, "bâtiment Marché placé")
 	f_site.work = f_site.travail()
@@ -1051,10 +1052,6 @@ func _init() -> void:
 	check(v_g.pending_installs.is_empty() and v_g.animals.size() == 2, "arbre terminé : l'animal s'installe")
 	check(v_g.animals[1].pattern_tiles.size() == 3, "le motif peut passer sur la case de l'aménagement")
 	v_g.end_day()
-	var v_nb := v_g.continent_neighbours(v_g.animals[0])
-	check(v_nb.size() == 1 and v_nb[0] == v_g.animals[1], "voisinage : deux animaux d'Afrique dans des enclos voisins")
-	var v_lone: Array = [v_g.animals[0]]
-	check(v_g.attractiveness() > v_g.attractiveness(v_lone) + int(v_d["reputation"]) + 3, "voisinage : +2 d'attractivité par voisin du même continent")
 	var v_enc := v_g.enclosure_at(v_g.animals[1].tiles[0])
 	v_g.start_next_day()
 	var v_r: Dictionary = v_d.duplicate(true)
@@ -1284,6 +1281,57 @@ func _init() -> void:
 	var mp_c: Variant = Commandes.coder({"a": [Vector2i(1, 2)], "b": 3})
 	check(mp_c["a"][0] == Vector2i(1, 2) and mp_c["b"] == 3, "codage : les valeurs simples restent telles quelles")
 
+	print("Objectifs des actionnaires et Journaliste :")
+	var ob_m := Match.new(data, 4242, 3, 0, [{}, {}, {}])
+	ob_m.advance_ai_draft()
+	while ob_m.phase == "draft":
+		ob_m.pick_draft(ob_m.draft_pool[0])
+		ob_m.advance_ai_draft()
+	check(ob_m.objectifs.size() == 3, "3 objectifs des actionnaires tirés")
+	var ob_g: GameState = ob_m.players[0]
+	var ob_r: GameState = ob_m.players[1]
+	ob_m.objectifs = [{"id": "test", "type": "effectif", "n": 1, "texte": "test"}]
+	var ob_rep := ob_g.rep_points
+	ob_g.verifier_objectifs()
+	check(is_equal_approx(ob_g.rep_points, ob_rep + 10.0) and ob_g.objectifs_faits.has("test"), "objectif rempli : +10 de réputation")
+	ob_g.verifier_objectifs()
+	check(is_equal_approx(ob_g.rep_points, ob_rep + 10.0), "un objectif ne paie qu'une fois")
+	var ob_c: GameState.Card = ob_g.hand[0]
+	ob_c.metier = data["workers"]["metiers"].filter(func(mm): return mm["id"] == "journaliste")[0]
+	ob_g.money = 500.0
+	ob_g.deploy(ob_c)
+	var ob_w := ob_g.worker_of(ob_c)
+	check(ob_g.report_error(ob_w, 1) != "", "reportage : il faut d'abord sortir de la carte")
+	ob_w.offmap = true
+	check(ob_g.report_error(ob_w, 0) != "" and ob_g.report_start(ob_w, 1), "reportage : seulement chez un rival")
+	check(not ob_g.vus[1].is_empty() and ob_g.vus[1].size() < ob_r.map.w * ob_r.map.h / 4, "brouillard : seules les cases autour du Journaliste sont dévoilées")
+	var ob_pub := ob_r.publicity_mult()
+	check(ob_g.publish_article(ob_w) and is_equal_approx(ob_r.publicity_mult(), ob_pub * 0.8), "article : publicité du rival ×0,8")
+	check(ob_g.article_error(ob_w) != "", "un seul article par jour")
+	for ob_k in ob_r.hand.duplicate():
+		ob_r.deploy(ob_k)
+	var ob_cible: GameState.Worker = ob_r.workers[0]
+	ob_cible.pos = ob_w.reportage["pos"]
+	ob_cible.card.niveau = int(data["workers"]["regles"]["niveau_max"])
+	var ob_rep_r := ob_r.rep_points
+	var ob_eff := ob_r.all_employees().size()
+	check(ob_g.accuse_error(ob_w, -1) != "", "accusation : la cible doit être en vue")
+	check(ob_g.accuse_worker(ob_w, ob_cible.card.id) and ob_r.all_employees().size() == ob_eff - 1 and not ob_r.workers.has(ob_cible), "accusation : le collaborateur est licencié")
+	check(is_equal_approx(ob_r.rep_points, ob_rep_r - 5.0), "un légendaire licencié emporte son bonus de réputation")
+	var ob_ep: Array = data["events"]["evenements"].filter(func(e): return e["effets"].get("epidemie", false))
+	check(ob_ep.size() == 1, "l'épidémie existe")
+	var ob_n: Match = Match.new(data, 4243, 2, -1, [{}, {}])
+	var ob_vieux: Variant = data["events"]["proba_evenement"]
+	data["events"]["proba_evenement"] = 1.0
+	var ob_vu := false
+	ob_n.day = 3
+	for ob_i in 200:
+		ob_n._draw_event()
+		ob_vu = ob_vu or ob_n.current_event.get("effets", {}).get("epidemie", false)
+	data["events"]["proba_evenement"] = ob_vieux
+	check(not ob_vu, "pas d'épidémie tant que personne n'a d'animal")
+	ob_m.dispose()
+	ob_n.dispose()
 	print("Lot S : autres sources de réputation :")
 	var x_g := _fresh_day(data, 9191)
 	check(x_g.objective() == 100, "objectif : 100 de réputation")

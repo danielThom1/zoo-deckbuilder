@@ -71,7 +71,7 @@
     { "id": "formation",  "nom": "Centre de formation",  "taille": [3, 2], "travail": 90, "type_travail": "construire_pierre", "cout": { "bois": 10, "pierre": 8 }, "effet": { "capacite_formation": 4, "xp_par_minute": 1.5 }, "_note_effet": "Collaborateurs postés (clic droit) : +0,4 jour d'XP par minute, ×2 si un Formateur est posté aussi. Le Formateur n'a pas besoin du Centre pour former sur le terrain." },
     { "id": "cuisine",    "nom": "Cuisine des animaux",  "taille": [2, 2], "travail": 60,  "type_travail": "construire_bois",  "cout": { "bois": 8, "pierre": 4 }, "effet": { "cuisine": true }, "dans_enceinte": true, "_note_effet": "Clic droit avec un collaborateur : il prépare des rations (1 argent chacune) et les livre aux animaux qui en ont besoin, en boucle. Animalier ×2." },
     { "id": "entretien",  "nom": "Local d'entretien",    "taille": [2, 2], "travail": 52,  "type_travail": "construire_bois",  "cout": { "bois": 8, "pierre": 2 }, "effet": { "entretien": true }, "dans_enceinte": true, "_note_effet": "Clic droit avec un collaborateur : il nettoie le parc en circulant dans l'enceinte. Agent d'entretien ×2." },
-    { "id": "snack",      "nom": "Snack",                "taille": [2, 2], "travail": 90, "type_travail": "construire_bois",  "cout": { "bois": 10, "pierre": 4, "argent": 10 }, "effet": { "duree_visite_mult": 1.25 }, "dans_enceinte": true, "_note_effet": "Tenu par un collaborateur (clic droit) : les visiteurs qui entrent restent 25 % plus longtemps." },
+    { "id": "snack",      "nom": "Snack",                "taille": [2, 2], "travail": 90, "type_travail": "construire_bois",  "cout": { "bois": 10, "pierre": 4, "argent": 10 }, "effet": { "duree_visite_mult": 1.5, "depense_visiteur": 1 }, "dans_enceinte": true, "_note_effet": "Tenu par un collaborateur (clic droit) : les visiteurs qui entrent restent 50 % plus longtemps et dépensent 1 d'argent de plus." },
     { "id": "kiosque",    "nom": "Kiosque d'animation",  "taille": [2, 2], "travail": 105, "type_travail": "construire_pierre", "cout": { "bois": 6, "pierre": 10, "argent": 15 }, "effet": { "attractivite": 3 }, "dans_enceinte": true, "_note_effet": "Tenu par un collaborateur (clic droit) : +3 d'attractivité × son efficacité « animer » (Animateur : +6)." },
     { "id": "grand_arbre", "nom": "Grand arbre",          "taille": [1, 1], "travail": 19, "type_travail": "construire_bois",  "cout": { "bois": 8 },             "effet": { "decor": true }, "_note_effet": "Aménagement d'enclos : à placer dans un enclos (clôturé ou en chantier), hors du motif. Exigé par la Girafe, l'Ours, le Jaguar, le Panda roux, le Gorille." },
     { "id": "rocher_obs",  "nom": "Rocher d'observation", "taille": [1, 1], "travail": 22, "type_travail": "construire_pierre", "cout": { "pierre": 8 },           "effet": { "decor": true }, "_note_effet": "Aménagement d'enclos exigé par le Lion, le Loup, le Lynx, le Phoque, l'Aigle royal, la Panthère des neiges." },
@@ -168,6 +168,37 @@
     ]
   },
 
+  "objectifs": {
+    "_note": "Objectifs des actionnaires : par_partie objectifs tirés en début de partie, les mêmes pour tous. Chaque joueur qui en remplit un gagne reputation points, une seule fois par objectif.",
+    "reputation": 10,
+    "par_partie": 3,
+    "liste": [
+      { "id": "continent", "type": "continent", "n": 3, "texte": "3 espèces d'un même continent" },
+      { "id": "type", "type": "type", "n": 3, "texte": "3 espèces d'un même type" },
+      { "id": "rare", "type": "palier", "palier": "T3", "n": 1, "texte": "1 animal rare installé" },
+      { "id": "peu_communs", "type": "palier", "palier": "T2", "n": 2, "texte": "2 animaux peu communs" },
+      { "id": "especes", "type": "especes", "n": 5, "texte": "5 espèces installées" },
+      { "id": "parc", "type": "parc", "n": 250, "texte": "Enceinte de 250 cases" },
+      { "id": "visiteurs", "type": "visiteurs", "n": 80, "texte": "80 visiteurs en une journée" },
+      { "id": "veterans", "type": "niveau", "niveau": 4, "n": 2, "texte": "2 collaborateurs au niveau 4" },
+      { "id": "cadres", "type": "cadres", "n": 3, "texte": "3 cadres dans l'équipe" },
+      { "id": "effectif", "type": "effectif", "n": 11, "texte": "11 collaborateurs" },
+      { "id": "camp", "type": "camp", "n": 2, "texte": "Camp au niveau 3" },
+      { "id": "services", "type": "services", "n": 3, "texte": "Boutique, Kiosque et Snack" },
+      { "id": "publicite", "type": "publicite", "n": 4, "texte": "4 points de publicité" },
+      { "id": "label", "type": "label", "n": 1, "texte": "1 label obtenu" }
+    ]
+  },
+  "presse": {
+    "_note": "Journaliste : hors de la carte, il visite un parc rival et dévoile ce qu'il voit (brouillard de guerre). Article : la publicité du rival est multipliée par mult_article pendant jours_article jours. Accusation : un collaborateur du rival en vue est licencié d'office (un légendaire emporte son bonus de réputation). Une action de chaque sorte par jour.",
+    "article": 40,
+    "accusation": 90,
+    "jours_article": 3,
+    "mult_article": 0.8,
+    "rayon_vue": 6,
+    "vitesse": 1.6,
+    "effectif_min": 3
+  },
   "partie": {
     "duree_jour_s": 300,
     "argent_depart": 30,

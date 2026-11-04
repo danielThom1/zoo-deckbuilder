@@ -281,6 +281,12 @@ Liste complète : `data/workers.json`.
 - Points par espèce, selon le palier : T1 = 4, T2 = 8, T3 = 14 ❓ (voir le JSON, par espèce).
 - Bonus de collection ❓ : 3 espèces du même biome → +5.
 
+## 10 bis. Objectifs, presse (04/11)
+- **Objectifs des actionnaires** : 3 objectifs tirés après le draft (`buildings.json > objectifs`), les mêmes pour tous. Chaque joueur qui en remplit un gagne **+10 de réputation**, une fois, à la fin de la journée.
+- **Journaliste** (cadre, 12 d'embauche, 3 de salaire) : envoyé à l'extérieur, il part en reportage dans un parc rival. Le parc est sous **brouillard de guerre** : seules les cases à 6 cases ou moins de son chemin sont dévoilées, et elles le restent. Il se promène seul, ou va où on clique. **Article** (40, un par jour) : publicité du rival ×0,8 pendant 3 jours. **Accusation** (90, une par jour) : un collaborateur en vue est licencié d'office, s'il reste au rival plus de 3 collaborateurs ; un légendaire emporte ses 5 points de réputation.
+- **Bonus retirés** : diversité et collection de biomes, voisinage. Restent les paliers de continent, le bonus de type en enclos partagé et les effets des rares.
+- **Snack** : visites 50 % plus longues et 1 d'argent de plus par visiteur.
+
 ## 11. IA (prototype Godot)
 
 - **Architecture** : `Match` porte l'horloge, le draft et le marché, qui sont partagés. Chaque joueur (`GameState`) a sa propre carte, générée avec la même graine. L'IA (`AIController`) n'utilise que les actions d'un joueur humain.

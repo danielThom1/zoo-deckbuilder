@@ -31,6 +31,7 @@ class Card:
 class Worker:
 	var card: Card
 	var temps_mentor := 0.0  # secondes passées aujourd'hui près d'un Formateur (expérience en plus le soir)
+	var reportage := {}  # Journaliste en visite chez un rival : cible, pos, but, t
 	var pos := Vector2.ZERO  # en cases ; le centre d'une case est à +0.5
 	var path: Array[Vector2i] = []
 	var task := {}  # vide = aucune tâche
@@ -159,6 +160,12 @@ var action_fx := {}  # effets du jour des cartes d'action jouées (productivite,
 var prime_left := 0  # déploiements sans salaire offerts par la carte Prime aujourd'hui
 var bought_action := false  # carte d'action achetée cette nuit
 var swapped_today := false  # échange fait à l'Agence d'intérim aujourd'hui
+var objectifs_faits := {}  # identifiant d'objectif -> jour où il a été rempli
+var record_visiteurs := 0  # le plus de visiteurs entrés en une journée
+var presse_jours := 0  # jours de mauvaise presse restants (article d'un Journaliste rival)
+var vus := {}  # indice du rival -> cases dévoilées par le Journaliste
+var article_du_jour := false
+var accusation_du_jour := false
 var loan_today := false  # emprunt du jour, remboursé automatiquement le soir
 var pending_installs: Array = []  # animaux réservés dans un enclos en chantier : [{"def", "tile"}]
 var _zoo_cache_version := -1
@@ -703,6 +710,7 @@ func _bring_back(w: Worker) -> void:
 	if not w.offmap:
 		return
 	w.offmap = false
+	w.reportage = {}
 	w.pos = Vector2(map.exit_tile) + Vector2(0.5, 0.5)
 	w.path.clear()
 	w.task = {}
@@ -828,6 +836,220 @@ func tick(dt: float) -> void:
 	mt.tick(dt)
 
 
+# --- Objectifs des actionnaires ---------------------------------------------
+
+## Avancement d'un objectif : valeur actuelle (à comparer à o["n"]).
+func objectif_valeur(o: Dictionary) -> int:
+	var arrives := animals.filter(func(a): return a.arrived)
+	match str(o["type"]):
+		"continent", "type":
+			var champ := "continent" if o["type"] == "continent" else "type"
+			var compte := {}
+			for a in arrives:
+				compte[a.def.get(champ, "")] = int(compte.get(a.def.get(champ, ""), 0)) + 1
+			var best := 0
+			for k in compte:
+				best = maxi(best, int(compte[k]))
+			return best
+		"palier":
+			return arrives.filter(func(a): return a.def["palier"] == o["palier"]).size()
+		"especes":
+			return arrives.size()
+		"parc":
+			return zoo_status().get("interior", {}).size()
+		"visiteurs":
+			return record_visiteurs
+		"niveau":
+			return all_employees().filter(func(c): return c.niveau >= int(o["niveau"])).size()
+		"cadres":
+			return all_employees().filter(func(c): return c.metier["categorie"] == "cadre").size()
+		"effectif":
+			return all_employees().size()
+		"camp":
+			return sites.filter(func(s): return s.done and s.def_id() in ["camp_n2", "camp_n3"]).size()
+		"services":
+			var n := 0
+			for id in ["boutique", "kiosque", "snack"]:
+				if sites.any(func(s): return s.done and s.def_id() == id):
+					n += 1
+			return n
+		"publicite":
+			return roundi(publicite)
+		"label":
+			return labels_owned.size()
+	return 0
+
+
+## Fin de journée : les objectifs nouvellement remplis rapportent leur réputation, une seule fois.
+func verifier_objectifs() -> void:
+	var pts := float(data["buildings"]["objectifs"]["reputation"])
+	for o in mt.objectifs:
+		if not objectifs_faits.has(o["id"]) and objectif_valeur(o) >= int(o["n"]):
+			objectifs_faits[o["id"]] = day
+			rep_points += pts
+			add_rep_source("objectifs", pts)
+			annonce("objectif", {"objectif": o["texte"], "effet": "+%d de réputation" % int(pts)}, "Objectif des actionnaires rempli : %s (+%d)." % [o["texte"], int(pts)])
+	version += 1
+
+
+# --- Journaliste ---------------------------------------------------------------
+
+func est_journaliste(w: Worker) -> bool:
+	return w != null and w.card.metier.get("presse", false)
+
+
+func report_error(w: Worker, cible: int) -> String:
+	if phase != "day":
+		return "Uniquement en journée"
+	if not est_journaliste(w) or not workers.has(w):
+		return "Seul un Journaliste peut partir en reportage"
+	if not w.offmap:
+		return "Envoyez-le d'abord à l'extérieur (case Accès)"
+	if cible == index or cible < 0 or cible >= mt.players.size():
+		return "Choisissez un parc rival"
+	return ""
+
+
+## Le Journaliste commence sa visite à l'entrée du parc rival, ou près de son camp s'il n'a pas encore d'entrée.
+func report_start(w: Worker, cible: int) -> bool:
+	if report_error(w, cible) != "":
+		return false
+	var rival: GameState = mt.players[cible]
+	var depart := Vector2(rival.map.camp.get_center())
+	for s in rival.sites:
+		if s.def_id() == "entree":
+			depart = Vector2(s.rect.position) + Vector2(0.5, 0.5)
+	w.reportage = {"cible": cible, "pos": depart, "but": depart, "t": 0.0}
+	vus[cible] = vus.get(cible, {})
+	_report_voir(w)
+	annonce("reportage", {"groupe": mt.names[cible]})
+	version += 1
+	return true
+
+
+## Le joueur choisit où va le Journaliste. Sans ordre, il se promène.
+func report_goto(w: Worker, tile: Vector2i) -> bool:
+	if w == null or w.reportage.is_empty() or not mt.players[int(w.reportage["cible"])].map.in_bounds(tile.x, tile.y):
+		return false
+	w.reportage["but"] = Vector2(tile) + Vector2(0.5, 0.5)
+	return true
+
+
+func _update_reportage(w: Worker, dt: float) -> void:
+	var r := w.reportage
+	var pos: Vector2 = r["pos"]
+	var but: Vector2 = r["but"]
+	var pas := float(data["buildings"]["presse"]["vitesse"]) * float(event_effects().get("vitesse", 1.0)) * dt
+	if pos.distance_to(but) <= pas:
+		r["pos"] = but
+		var rival: GameState = mt.players[int(r["cible"])]
+		var dedans: Array = rival.zoo_status().get("interior", {}).keys()
+		if not dedans.is_empty():
+			r["but"] = Vector2(dedans[rng.randi_range(0, dedans.size() - 1)]) + Vector2(0.5, 0.5)
+		else:
+			r["but"] = Vector2(rival.map.camp.get_center()) + Vector2(rng.randf_range(-14.0, 14.0), rng.randf_range(-14.0, 14.0))
+			r["but"] = r["but"].clamp(Vector2.ONE, Vector2(rival.map.w - 2, rival.map.h - 2))
+	else:
+		r["pos"] = pos + (but - pos).normalized() * pas
+	r["t"] = float(r["t"]) + dt
+	if float(r["t"]) >= 0.5:
+		r["t"] = 0.0
+		_report_voir(w)
+
+
+func _report_voir(w: Worker) -> void:
+	var r := w.reportage
+	var c := Vector2i(r["pos"])
+	var rayon := int(data["buildings"]["presse"]["rayon_vue"])
+	var carte: GameMap = mt.players[int(r["cible"])].map
+	var vu: Dictionary = vus[int(r["cible"])]
+	for dy in range(-rayon, rayon + 1):
+		for dx in range(-rayon, rayon + 1):
+			var t := c + Vector2i(dx, dy)
+			if dx * dx + dy * dy <= rayon * rayon and carte.in_bounds(t.x, t.y):
+				vu[t] = true
+
+
+## Collaborateurs du rival actuellement en vue.
+func report_visibles(w: Worker) -> Array:
+	if w == null or w.reportage.is_empty():
+		return []
+	var rival: GameState = mt.players[int(w.reportage["cible"])]
+	var pos: Vector2 = w.reportage["pos"]
+	var rayon := float(data["buildings"]["presse"]["rayon_vue"])
+	return rival.workers.filter(func(o): return not o.offmap and o.pos.distance_to(pos) <= rayon)
+
+
+func article_error(w: Worker) -> String:
+	if phase != "day" or w == null or w.reportage.is_empty() or not workers.has(w):
+		return "Le Journaliste doit être en reportage"
+	if article_du_jour:
+		return "Un article par jour"
+	if money < float(data["buildings"]["presse"]["article"]):
+		return "Pas assez d'argent"
+	return ""
+
+
+func publish_article(w: Worker) -> bool:
+	if article_error(w) != "":
+		return false
+	var P: Dictionary = data["buildings"]["presse"]
+	money -= float(P["article"])
+	article_du_jour = true
+	var cible := int(w.reportage["cible"])
+	var rival: GameState = mt.players[cible]
+	rival.presse_jours = int(P["jours_article"])
+	rival.annonce("article_subi", {"groupe": mt.names[index], "effet": "Visiteurs ×%s pendant %d jours" % [str(P["mult_article"]).replace(".", ","), int(P["jours_article"])]},
+		"%s publie un article contre vous : moins de visiteurs pendant %d jours." % [mt.names[index], int(P["jours_article"])])
+	say("Article publié contre %s : visiteurs ×%s pendant %d jours." % [mt.names[cible], str(P["mult_article"]).replace(".", ","), int(P["jours_article"])])
+	rival.version += 1
+	version += 1
+	return true
+
+
+func accuse_error(w: Worker, carte_id: int) -> String:
+	if phase != "day" or w == null or w.reportage.is_empty() or not workers.has(w):
+		return "Le Journaliste doit être en reportage"
+	if accusation_du_jour:
+		return "Une accusation par jour"
+	if money < float(data["buildings"]["presse"]["accusation"]):
+		return "Pas assez d'argent"
+	if mt.players[int(w.reportage["cible"])].all_employees().size() <= int(data["buildings"]["presse"]["effectif_min"]):
+		return "Son équipe est déjà trop réduite"
+	if not report_visibles(w).any(func(o): return o.card.id == carte_id):
+		return "Ce collaborateur n'est plus en vue"
+	return ""
+
+
+## Accusation : la direction du rival ne vérifie rien et licencie. Un légendaire emporte son bonus de réputation.
+func accuse_worker(w: Worker, carte_id: int) -> bool:
+	if accuse_error(w, carte_id) != "":
+		return false
+	money -= float(data["buildings"]["presse"]["accusation"])
+	accusation_du_jour = true
+	var cible := int(w.reportage["cible"])
+	var rival: GameState = mt.players[cible]
+	var cible_w: Worker = report_visibles(w).filter(func(o): return o.card.id == carte_id)[0]
+	var nom := cible_w.card.nom
+	rival.subir_accusation(cible_w, mt.names[index])
+	say("%s est accusé par votre Journaliste : %s l'a licencié." % [nom, mt.names[cible]])
+	version += 1
+	return true
+
+
+func subir_accusation(w: Worker, groupe: String) -> void:
+	var c := w.card
+	workers.erase(w)
+	for pile in [hand, deck, discard]:
+		pile.erase(c)
+	if c.niveau >= int(data["workers"]["regles"]["niveau_max"]):
+		var lr := float(data["buildings"]["reputation_autres"]["legendaire"])
+		rep_points -= lr
+		add_rep_source("legendaires", -lr)
+	annonce("accusation_subie", {"nom": c.nom, "groupe": groupe}, "%s, accusé par la presse de %s, a été licencié d'office." % [c.nom, groupe])
+	version += 1
+
+
 ## Rayon d'apprentissage d'un Formateur (0 pour les autres métiers).
 func mentor_rayon(card: Card) -> float:
 	var M: Dictionary = card.metier.get("mentor", {})
@@ -890,6 +1112,8 @@ func lobbying_rate(card: Card) -> float:
 
 func _update_worker(w: Worker, dt: float) -> void:
 	if w.offmap:
+		if not w.reportage.is_empty():
+			_update_reportage(w, dt)
 		var gain := lobbying_rate(w.card) * unpaid_mult(w) * float(bonus_effects().get("lobbying", 1.0)) * dt
 		influence += gain
 		day_stats["influence"] += gain
@@ -1551,6 +1775,9 @@ func _start_day_player() -> void:
 	action_fx = {}
 	prime_left = 0
 	swapped_today = false
+	presse_jours = maxi(0, presse_jours - 1)
+	article_du_jour = false
+	accusation_du_jour = false
 	loan_today = false
 	# Améliorations de niveau non choisies pendant la nuit : la première proposée est appliquée.
 	while not level_choices.is_empty():
@@ -2866,7 +3093,7 @@ func reputation() -> int:
 	return floori(rep_points)
 
 
-## Attractivité : points par espèce + collections (+ soins et prédateurs).
+## Attractivité : points par espèce et effets des rares (+ soins et prédateurs).
 ## Elle fixe combien de visiteurs se présentent. `only` : restreint aux animaux donnés (ceux de l'enceinte).
 func attractiveness(only = null) -> int:
 	var species := {}
@@ -2881,13 +3108,11 @@ func attractiveness(only = null) -> int:
 		if cared_today.has(a):
 			extra += int(Z["bonus_soigneur"])
 	var total := extra + (kiosque_bonus() + int(action_fx.get("attractivite", 0)) if not species.is_empty() else 0)
-	var biomes := {}
 	# Bonus de nuit favorisant un type d'animal ou un continent (Festival des oiseaux, Semaine de l'Afrique…)
 	var by_type: Dictionary = bonus_effects().get("attractivite_type", {})
 	var by_cont: Dictionary = bonus_effects().get("attractivite_continent", {})
 	for d in species.values():
 		total += roundi(float(d["reputation"]) * float(by_type.get(d.get("type", ""), 1.0)) * float(by_cont.get(d.get("continent", ""), 1.0)))
-		biomes[d["biome"]] = biomes.get(d["biome"], 0) + 1
 	# Animaux rares : +5 par AUTRE espèce du type qu'ils favorisent (Aigle royal, Loutre géante, Panda géant, Lion)
 	for d in species.values():
 		var rare: Dictionary = d.get("effet_rare", {})
@@ -2895,55 +3120,14 @@ func attractiveness(only = null) -> int:
 			for o in species.values():
 				if o != d and o.get("type", "") == rare["type_bonus"]:
 					total += int(rare["points"])
-	var A: Dictionary = data["animals"]
-	# Voisinage : +2 par animal voisin du même continent (enclos différents, de part et d'autre d'une clôture)
-	var counted: Array = (animals if only == null else only).filter(func(a): return a.arrived and a.fed and not a.sick)
-	for a in counted:
-		total += int(A.get("voisinage_continent", {}).get("points", 0)) * continent_neighbours(a, counted).size()
-	for b in biomes:
-		if biomes[b] >= int(A["bonus_collection"]["especes_meme_biome"]):
-			total += int(A["bonus_collection"]["points"])
 	return total
-
-
-## Animaux voisins de a venant du même continent : dans un autre enclos, à `distance` cases au plus (Tchebychev).
-## among : animaux pris en compte (par défaut, tous ceux arrivés).
-func continent_neighbours(a: Animal, among = null) -> Array:
-	if a.park:
-		return []
-	var near := _near_tiles(a)
-	var out := []
-	for b in (animals.filter(func(o): return o.arrived) if among == null else among):
-		if b == a or b.park or b.key == a.key or b.def.get("continent", "") != a.def.get("continent", ""):
-			continue
-		if b.tiles.any(func(t): return near.has(t)):
-			out.append(b)
-	return out
-
-
-var _near_version := -1
-var _near := {}
-
-
-func _near_tiles(a: Animal) -> Dictionary:
-	if _near_version != version:
-		_near_version = version
-		_near = {}
-	if not _near.has(a):
-		var dist := int(data["animals"].get("voisinage_continent", {}).get("distance", 2))
-		var out := {}
-		for t in a.tiles:
-			for dy in range(-dist, dist + 1):
-				for dx in range(-dist, dist + 1):
-					out[t + Vector2i(dx, dy)] = true
-		_near[a] = out
-	return _near[a]
 
 
 ## Publicité : les campagnes terminées attirent plus de visiteurs, avec un rendement décroissant.
 func publicity_mult() -> float:
 	var P: Dictionary = data["buildings"]["publicite"]
-	return 1.0 + float(P["max"]) * publicite / (publicite + float(P["demi_points"]))
+	var m := 1.0 + float(P["max"]) * publicite / (publicite + float(P["demi_points"]))
+	return m * (float(data["buildings"]["presse"]["mult_article"]) if presse_jours > 0 else 1.0)
 
 
 func campaign_defs() -> Array:
@@ -3363,6 +3547,10 @@ func _update_visitors(dt: float) -> void:
 		money += ticket
 		visit["tickets"] += ticket
 		_sell_souvenirs()
+		if snack_mult() > 1.0:
+			var depense := float(building_def("snack")["effet"]["depense_visiteur"])
+			money += depense
+			visit["tickets"] += depense
 		var t: Vector2i = interior[rng.randi_range(0, interior.size() - 1)]
 		var ecart := float(Z["duree_visite_ecart_s"])
 		var duree := (float(Z["duree_visite_s"]) + rng.randf_range(-ecart, ecart)) * snack_mult()
@@ -3396,6 +3584,7 @@ func _close_zoo_day() -> Dictionary:
 	rep_points += show + shop_rep
 	add_rep_source("spectacles", show)
 	add_rep_source("boutique", shop_rep)
+	record_visiteurs = maxi(record_visiteurs, int(visit["admitted"]))
 	var reason: String = z["reason"]
 	if z["open"] and visitor_path().is_empty():
 		reason = "Aucune route ne relie l'Accès à l'Entrée du zoo"
@@ -3428,6 +3617,14 @@ func affinity_bonus() -> float:
 	for k in groups:
 		bonus += maxi(0, groups[k] - 1) * float(data["animals"]["affinite_type"]["par_animal"])
 	return bonus
+
+
+## Part de réputation en plus qu'apporterait une espèce de plus de ce continent (palier suivant des affinités).
+func affinity_gain(def: Dictionary) -> float:
+	var steps: Array = data["animals"]["affinite_continent"]["paliers"]
+	var n := animals.filter(func(a): return a.def.get("continent", "") == def.get("continent", "")).size() \
+		+ contracts.filter(func(d): return d.get("continent", "") == def.get("continent", "")).size()
+	return float(steps[mini(n + 1, steps.size() - 1)]) - float(steps[mini(n, steps.size() - 1)])
 
 
 ## Nom affiché d'un continent ou d'un type d'animal.

@@ -13,6 +13,7 @@ var names: Array[String] = []
 var day := 1
 var time := 0.0
 var day_length := 300.0
+var objectifs: Array = []  # objectifs des actionnaires de cette partie
 var phase := "draft"  # draft, day, night
 var game_over := false
 var winner := -1
@@ -275,7 +276,17 @@ func advance_ai_draft() -> void:
 		pick_draft(ai_choice())
 
 
+## Objectifs des actionnaires : les mêmes pour tous, tirés une fois pour toutes.
+func _tirer_objectifs() -> void:
+	var O: Dictionary = data["buildings"]["objectifs"]
+	var liste: Array = O["liste"].duplicate()
+	shuffle(liste)
+	objectifs = liste.slice(0, int(O["par_partie"]))
+
+
 func _finish_draft() -> void:
+	if objectifs.is_empty():
+		_tirer_objectifs()
 	for i in players.size():
 		players[i].deck.assign(drafted[i])
 		players[i]._shuffle(players[i].deck)
@@ -332,6 +343,8 @@ func end_day() -> void:
 	night_order.assign(order)
 	for d in market_contracts:
 		offres[d["id"]] = int(offres.get(d["id"], 0)) + 1
+	for p in players:
+		p.verifier_objectifs()
 	# Prestige politique : le 1er puis le 2e en influence gagnent un peu de réputation (s'ils ont fait du lobbying)
 	var R: Dictionary = data["buildings"]["reputation_autres"]
 	for k in mini(order.size(), R["prestige_politique"].size()):
@@ -534,7 +547,11 @@ func _draw_event() -> void:
 	current_event = {}
 	var E: Dictionary = data["events"]
 	if day >= 2 and rng.randf() < float(E["proba_evenement"]):
-		current_event = pick(E["evenements"])
+		# Pas d'épidémie tant que personne n'a d'animal.
+		var possibles: Array = E["evenements"]
+		if not players.any(func(p): return p.animals.any(func(a): return a.arrived)):
+			possibles = possibles.filter(func(e): return not e["effets"].get("epidemie", false))
+		current_event = pick(possibles)
 
 
 ## Effets immédiats de l'événement, après le début de journée de chaque joueur.
@@ -553,7 +570,8 @@ func _apply_event() -> void:
 				var victim = pick(arrived)
 				victim.sick = true
 				victim.heal = 0.0
-		if not current_event.is_empty():
+		# Une épidémie ne concerne que ceux qui ont des animaux.
+		if not current_event.is_empty() and (not fx.get("epidemie", false) or p.animals.any(func(a): return a.arrived)):
 			p.annonce("ev_" + str(current_event["id"]), {"effet": current_event["texte"]}, "Événement : %s. %s" % [current_event["nom"], current_event["texte"]])
 
 

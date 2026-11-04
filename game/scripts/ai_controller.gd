@@ -75,6 +75,8 @@ var _ext_cache := {}  # recherches d'agrandissement, valables une journée
 var _ext_jour := -1
 var roster_kiosque := false  # un Animateur dans l'équipe : le Kiosque dès l'ouverture
 var epargne := 0.0  # argent mis de côté pour un contrat convoité, visible au marché
+var agence_voulue := false  # il a manqué un ouvrier précis : l'Agence d'intérim servira
+var cabinet_voulu := false  # la rangée n'avait personne d'utile : le Cabinet de recrutement servira
 
 
 func _init(the_match: Match, state: GameState, strategy: Dictionary) -> void:
@@ -141,6 +143,8 @@ func _card_bonus(c: GameState.Card) -> float:
 			return (1.5 if strat["spectacle"] else 0.3) if not has.call("animateur") else -1.0  # spectacles au Kiosque
 		"formateur":
 			return (1.0 if strat["formation"] else 0.6) if not has.call("formateur") else -1.0
+		"journaliste":
+			return 0.5 if not has.call("journaliste") else -1.0
 	return 0.0
 
 
@@ -483,6 +487,9 @@ func update(dt: float) -> void:
 	_staff_posts()
 	_heal_sick()
 	_reassign_idle_extractors()
+	if _opt("agence"):
+		_gerer_agence()
+	_gerer_journaliste()
 	for w in g.workers:
 		if not w.offmap and w.task.is_empty() and w.path.is_empty():
 			_assign(w)
@@ -516,6 +523,76 @@ func update(dt: float) -> void:
 
 
 # --- Nuit : marché ------------------------------------------------------------
+
+## Reportage chez le rival le mieux placé ; un article quand l'argent le permet, une accusation quand il abonde.
+func _gerer_journaliste() -> void:
+	for w in g.workers:
+		if not g.est_journaliste(w) or not w.offmap:
+			continue
+		if w.reportage.is_empty():
+			var cible := -1
+			for i in mt.players.size():
+				if i != g.index and (cible < 0 or mt.players[i].rep_points > mt.players[cible].rep_points):
+					cible = i
+			if cible >= 0:
+				g.report_start(w, cible)
+			continue
+		var P: Dictionary = g.data["buildings"]["presse"]
+		var rival: GameState = mt.players[int(w.reportage["cible"])]
+		if rival.presse_jours == 0 and rival.zoo_status()["open"] and g.article_error(w) == "" \
+			and g.money - float(P["article"]) >= _floor_achats() + float(strat["reserve"]) + 10.0:
+			g.publish_article(w)
+		if g.money - float(P["accusation"]) >= _floor_achats() + float(strat["reserve"]) + 20.0:
+			var vise: GameState.Worker = null
+			for o in g.report_visibles(w):
+				if g.accuse_error(w, o.card.id) == "" and (vise == null or o.card.niveau > vise.card.niveau):
+					vise = o
+			if vise and (vise.card.niveau >= 3 or vise.card.metier["categorie"] != "peu_qualifie"):
+				g.accuse_worker(w, vise.card.id)
+
+
+## L'ouvrier qu'il faudrait sur le terrain tout de suite (celui que l'Agence d'intérim va chercher), ou "".
+func _ouvrier_voulu() -> String:
+	var present := func(id: String) -> bool:
+		return g.workers.any(func(o): return o.card.metier["id"] == id)
+	if not g.sick_animals().is_empty() and not present.call("soigneur"):
+		return "soigneur"
+	if plans.any(func(p): return not p["conv"].is_empty()) and not g.workers.any(func(o): return g.can_landscape(o.card)):
+		return "amenageur"
+	if g.visitor_queue >= 10 and not present.call("guichetier"):
+		return "guichetier"
+	if g.has_building("boutique") and g.zoo_status()["open"] and not present.call("vendeur"):
+		return "vendeur"
+	return ""
+
+
+## Agence d'intérim : va chercher dans le deck l'ouvrier précis qui manque aujourd'hui, à la place du moins utile.
+func _gerer_agence() -> void:
+	if g.time > g.day_length * 0.7:
+		return
+	var voulu := _ouvrier_voulu()
+	if voulu == "":
+		return
+	var cand: GameState.Card = null
+	for c in g.swap_candidates():
+		var ok: bool = g.can_landscape(c) if voulu == "amenageur" else c.metier["id"] == voulu
+		if ok and (cand == null or card_value(c) > card_value(cand)):
+			cand = c
+	if cand == null:
+		return
+	agence_voulue = true
+	if not g.agency_built() or g.money - g.swap_cost(cand) < _cash_floor():
+		return
+	var sort_de: GameState.Worker = null
+	for w in g.workers:
+		if w.offmap or w.task.get("kind") == "ticket" or w.task.get("type") == "feed":
+			continue
+		if sort_de == null or (w.unpaid and not sort_de.unpaid) or (w.unpaid == sort_de.unpaid and card_value(w.card) < card_value(sort_de.card)):
+			sort_de = w
+	if sort_de and g.swap_error(sort_de, cand) == "" and g.swap_worker(sort_de, cand):
+		sort_de.task = {}
+		sort_de.path.clear()
+
 
 ## Étape Bonus : le premier en influence choisit (sans effet pour les autres).
 func on_night_bonus() -> void:
@@ -608,8 +685,45 @@ func _contract_score(def: Dictionary, cost: float) -> float:
 			return 0.0
 		var jours := maxf(0.5, _days_left() - 1.0 - effort)
 		var marge := maxf(1.0, g.money - _cash_floor())
-		score = _contract_value(def) * jours * pow(tier, (pref - 1.0) * 2.0) / (1.0 + cost / marge)
+		score = (_contract_value(def) * jours + _objectif_bonus(def)) * pow(tier, (pref - 1.0) * 2.0) / (1.0 + cost / marge)
 	return score * pow(2.0, float(strat.get("poids_animaux", {}).get(def["id"], 0.0)))
+
+
+## Réputation qu'un contrat rapproche via les objectifs des actionnaires : le gain entier s'il remplit un objectif,
+## une part s'il en rapproche.
+func _objectif_bonus(def: Dictionary) -> float:
+	var pts := float(g.data["buildings"]["objectifs"]["reputation"])
+	var owned := _owned_defs()
+	var bonus := 0.0
+	for o in mt.objectifs:
+		if g.objectifs_faits.has(o["id"]):
+			continue
+		var n := -1
+		match str(o["type"]):
+			"continent":
+				n = owned.filter(func(d): return d.get("continent", "") == def.get("continent", "")).size()
+			"type":
+				n = owned.filter(func(d): return d.get("type", "") == def.get("type", "")).size()
+			"palier":
+				if def["palier"] == o["palier"]:
+					n = owned.filter(func(d): return d["palier"] == o["palier"]).size()
+			"especes":
+				n = owned.size()
+		if n < 0:
+			continue
+		if n + 1 >= int(o["n"]):
+			bonus += pts
+		elif n + 2 == int(o["n"]):
+			bonus += pts * 0.3
+	return bonus
+
+
+## Objectif encore ouvert de ce type, ou vide.
+func _objectif_ouvert(type: String) -> Dictionary:
+	for o in mt.objectifs:
+		if o["type"] == type and not g.objectifs_faits.has(o["id"]):
+			return o
+	return {}
 
 
 ## Espèces acquises ou attendues.
@@ -646,18 +760,12 @@ func _owned_attr() -> float:
 	return maxf(float(g.attractiveness()), somme)
 
 
-## Attractivité ajoutée par une nouvelle espèce : la sienne, collection, effets des rares.
+## Attractivité ajoutée par une nouvelle espèce : la sienne et les effets des rares.
 func _attr_gain(def: Dictionary) -> float:
 	var owned := _owned_defs()
 	if owned.any(func(d): return d["id"] == def["id"]):
 		return 0.0
-	var A: Dictionary = g.data["animals"]
 	var gain := float(def["reputation"])
-	var biomes := {}
-	for d in owned:
-		biomes[d["biome"]] = int(biomes.get(d["biome"], 0)) + 1
-	if int(biomes.get(def["biome"], 0)) + 1 == int(A["bonus_collection"]["especes_meme_biome"]):
-		gain += float(A["bonus_collection"]["points"])
 	var rare: Dictionary = def.get("effet_rare", {})
 	for d in owned:
 		if rare.has("type_bonus") and rare["type_bonus"] == d.get("type", ""):
@@ -783,17 +891,41 @@ func _night_hippo() -> void:
 func _night_hire() -> void:
 	_night_hippo()
 	if strat["embauche"] and g.employees() < g.housing():
-		var best_card: GameState.Card = null
-		var best_v := 1.8
-		for c in g.market_workers:
-			if g.hire_error(c) != "" or g.money - g.hire_cost(c) < float(strat["reserve"]) + _floor_achats():
-				continue
-			var v := card_value(c) - g.hire_cost(c) * 0.05
-			if v > best_v:
-				best_v = v
-				best_card = c
+		var best_card := _meilleure_embauche()
+		# Personne d'utile dans la rangée : le Cabinet de recrutement fait venir un profil plus qualifié.
+		if best_card == null and _opt("agence"):
+			cabinet_voulu = true
+			_recruter_au_cabinet()
+			best_card = _meilleure_embauche()
 		if best_card and g.hire(best_card):
 			mt.log.append("%s embauche %s (%s)." % [mt.names[g.index], best_card.nom, g.job_name(best_card)])
+
+
+func _meilleure_embauche() -> GameState.Card:
+	var best_card: GameState.Card = null
+	var best_v := 1.8
+	for c in g.market_workers:
+		if g.hire_error(c) != "" or g.money - g.hire_cost(c) < float(strat["reserve"]) + _floor_achats():
+			continue
+		var v := card_value(c) - g.hire_cost(c) * 0.05
+		if v > best_v:
+			best_v = v
+			best_card = c
+	return best_card
+
+
+func _recruter_au_cabinet() -> void:
+	if g.market_workers.is_empty():
+		return
+	var pire: GameState.Card = g.market_workers[0]
+	for c in g.market_workers:
+		if card_value(c) < card_value(pire):
+			pire = c
+	for cat in ["cadre", "qualifie"]:
+		# De quoi payer le remplacement et l'embauche qui suit.
+		if g.recruit_error(cat) == "" and g.money - g.recruit_price(cat) - 16.0 >= _floor_achats() + float(strat["reserve"]):
+			g.recruit_replace(pire, cat)
+			return
 
 
 ## Carte d'action : une par nuit quand l'argent abonde, 4 au plus dans le deck (sinon elles diluent la main).
@@ -1292,16 +1424,6 @@ func _compute_plan(def: Dictionary, park := Rect2i(), scan := Rect2i()) -> Dicti
 		for t in _ring(park):
 			if t != entrance and t != entrance + Vector2i(1, 0):
 				walls[t] = true
-	# Voisins du même continent : +2 d'attractivité chacun, de part et d'autre d'une clôture.
-	var voisins := {}
-	for a in g.animals:
-		if a.def.get("continent", "") == def.get("continent", ""):
-			for t in a.tiles:
-				voisins[t] = true
-	for p in plans:
-		if p["def"].get("continent", "") == def.get("continent", ""):
-			for t in _rect_tiles(p["interior"]):
-				voisins[t] = true
 	# Devant l'entrée, on laisse le passage aux visiteurs.
 	var gate := Rect2i(entrance - Vector2i(1, 2), Vector2i(4, 5))
 	var best := {}
@@ -1341,8 +1463,6 @@ func _compute_plan(def: Dictionary, park := Rect2i(), scan := Rect2i()) -> Dicti
 				# Moins d'aménagements, clôtures partagées et enclos tassés contre les murs : on garde de la place.
 				var wall_dist := maxi(0, mini(mini(x - park.position.x, y - park.position.y), mini(park.end.x - outer.end.x, park.end.y - outer.end.y)))
 				var cost: float = _conv_cost(conv) * 2.0 - shared * 0.6 + wall_dist * 0.4
-				if not voisins.is_empty() and _ring(outer.grow(1)).any(func(t): return voisins.has(t)):
-					cost -= 2.5
 				if cost < best_cost:
 					best_cost = cost
 					best = {"def": def, "interior": interior, "ring": _ring(outer), "conv": conv}
@@ -1382,7 +1502,9 @@ func _maybe_extend() -> void:
 			if not ext.is_empty():
 				_start_extension(ext["rect"], "pour accueillir : " + str(def["nom"]))
 				return
-	if g.zoo_status()["open"] and _owned_attr() >= _attr_limit() * 0.85:
+	var parc := _objectif_ouvert("parc")
+	var pour_objectif: bool = not parc.is_empty() and _park_area().grow(-1).get_area() < int(parc["n"]) and g.money > _cash_floor() + 20.0
+	if g.zoo_status()["open"] and (_owned_attr() >= _attr_limit() * 0.85 or pour_objectif):
 		var best: Dictionary = {}
 		var best_note := INF
 		for c in _extension_rects():
@@ -1682,7 +1804,7 @@ func _wants() -> Array:
 		var camp_max := 2 if g.money > _cash_floor() + ARGENT_ABONDANT else int(strat["camp"])
 		# Zoo ouvert, trois ouvriers sur quatre tiennent des postes : il faut des bras en plus avant tout le reste.
 		if _opt("camp") and g.zoo_status()["open"]:
-			camp_max = maxi(camp_max, 2 if g.has_building("camp_n2") and g.animals.size() >= 3 else 1)
+			camp_max = maxi(camp_max, 2 if g.has_building("camp_n2") and (g.animals.size() >= 3 or not _objectif_ouvert("camp").is_empty()) else 1)
 		if lvl - 1 > camp_max or day < 2:
 			break
 		var cid := "camp_n%d" % lvl
@@ -1793,6 +1915,22 @@ func _wants() -> Array:
 		var kspot := _park_spot(g.building_def("kiosque"))
 		if kspot.x >= 0:
 			out.append(["batiment", g.building_def("kiosque"), kspot])
+	# 3 quater. Snack : quand l'argent suit, ou pour un objectif des actionnaires.
+	var services := not _objectif_ouvert("services").is_empty()
+	if _opt("agence") and not g.has_building("snack") and g.zoo_status()["open"] and g.money > _floor_achats() + (15.0 if services else 45.0):
+		var sspot := _park_spot(g.building_def("snack"))
+		if sspot.x >= 0:
+			out.append(["batiment", g.building_def("snack"), sspot])
+	if services and not g.has_building("kiosque") and g.zoo_status()["open"] and g.money > _floor_achats() + 15.0:
+		var ospot := _park_spot(g.building_def("kiosque"))
+		if ospot.x >= 0:
+			out.append(["batiment", g.building_def("kiosque"), ospot])
+	# 3 quinquies. Agence d'intérim et Cabinet de recrutement, quand ils ont manqué et que l'argent suit.
+	for b in [["agence", agence_voulue], ["cabinet", cabinet_voulu]]:
+		if b[1] and not g.has_building(b[0]) and g.zoo_status()["open"] and g.money > _floor_achats() + 25.0:
+			var bspot := _spot_near_camp(g.building_def(b[0]))
+			if bspot.x >= 0:
+				out.append(["batiment", g.building_def(b[0]), bspot])
 	# 4. Boutique, une fois le premier animal installé.
 	if strat["boutique"] and not g.animals.is_empty() and g.site_at(shop_rect.position) == null:
 		out.append(["batiment", g.building_def("boutique"), shop_rect.position])
@@ -2078,7 +2216,7 @@ func _search_mine_spot() -> Vector2i:
 
 func _assign(w: GameState.Worker) -> void:
 	var job: String = w.card.metier["id"]
-	if job == "lobbyiste" or w.card.traits.has("col_blanc"):
+	if job == "lobbyiste" or job == "journaliste" or w.card.traits.has("col_blanc"):
 		g.order([w], g.map.exit_tile)
 		return
 	# Équipe réduite (faute d'argent) et zoo fermé : les chantiers avant les soins, sinon le zoo n'ouvre jamais.
@@ -2221,7 +2359,7 @@ func _staff_posts() -> void:
 	# Zoo fermé (aucun animal arrivé) : personne au guichet ni à la boutique, ils retournent aux chantiers.
 	if not g.zoo_status()["open"]:
 		for w in g.workers:
-			if w.task.get("kind") in ["ticket", "shop"]:
+			if w.task.get("kind") in ["ticket", "shop", "snack", "kiosque"]:
 				w.task = {}
 				w.path.clear()
 	if g.animals.filter(func(a): return a.arrived).is_empty() and g.contracts.is_empty():
@@ -2240,6 +2378,9 @@ func _staff_posts() -> void:
 		elif s.done and s.def_id() == "boutique" and open:
 			if _free_hands() > bras:
 				_ensure_post(s, "shop")
+		elif s.done and s.def_id() == "snack" and open:
+			if _free_hands() > bras:
+				_ensure_post(s, "snack")
 		elif s.done and s.def_id() == "kiosque" and open:
 			if _free_hands() > (0 if strat["spectacle"] else bras):
 				_ensure_post(s, "kiosque")
@@ -2255,7 +2396,7 @@ func _staff_posts() -> void:
 
 ## Ouvriers disponibles pour les chantiers : ni postés, ni dehors.
 func _free_hands() -> int:
-	return g.workers.filter(func(w): return not w.offmap and not w.task.get("type") in ["station", "feed", "clean"] and not w.card.metier["id"] in ["lobbyiste", "marchand"]).size()
+	return g.workers.filter(func(w): return not w.offmap and not w.task.get("type") in ["station", "feed", "clean"] and not w.card.metier["id"] in ["lobbyiste", "marchand", "journaliste"]).size()
 
 
 ## Bras à garder aux chantiers : aucun s'il n'y a plus rien à construire.
@@ -2269,7 +2410,7 @@ func _builders_needed() -> int:
 func _release_posts(bras: int) -> void:
 	if _free_hands() >= bras:
 		return
-	for kind in ["kiosque", "shop"]:
+	for kind in ["snack", "kiosque", "shop"]:
 		if kind == "kiosque" and strat["spectacle"]:
 			continue
 		for w in g.workers:
@@ -2292,7 +2433,7 @@ func _ensure_job(site: GameState.Site, type: String, wanted: int, task: String, 
 		var best: GameState.Worker = null
 		var best_v := INF
 		for w in g.workers:
-			if w.offmap or w.task.get("type") in ["station", "feed", "clean"] or w.card.metier["id"] in ["lobbyiste", "marchand"]:
+			if w.offmap or w.task.get("type") in ["station", "feed", "clean"] or w.card.metier["id"] in ["lobbyiste", "marchand", "journaliste"]:
 				continue
 			if w.card.traits.has("col_blanc"):
 				continue
@@ -2313,7 +2454,7 @@ func _ensure_post(site: GameState.Site, kind: String, wanted := 1) -> void:
 	var best: GameState.Worker = null
 	var best_v := INF
 	for w in g.workers:
-		if w.offmap or w.task.get("type") in ["station", "feed", "clean"] or w.card.metier["id"] in ["lobbyiste", "marchand"]:
+		if w.offmap or w.task.get("type") in ["station", "feed", "clean"] or w.card.metier["id"] in ["lobbyiste", "marchand", "journaliste"]:
 			continue
 		# Les moins utiles ailleurs tiennent les postes (la recette ne dépend que de la présence).
 		var v := g.efficiency(w.card, "defaut")

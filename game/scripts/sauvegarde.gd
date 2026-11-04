@@ -64,6 +64,7 @@ static func ecrire(m: Match) -> void:
 			"contracts": p.contracts, "pending": p.pending_installs, "day_bonus": p.day_bonus, "night_bonus": p.night_bonus,
 			"animals": p.animals.map(func(a): return {"def": a.def, "tiles": Array(a.tiles), "pattern": Array(a.pattern_tiles), "arrived": a.arrived, "fed": a.fed, "food": a.food,
 				"key": a.key, "park": a.park, "sick": a.sick, "heal": a.heal, "sick_nights": a.sick_nights, "starved": a.starved}),
+			"objectifs_faits": p.objectifs_faits, "record_visiteurs": p.record_visiteurs, "presse_jours": p.presse_jours, "vus": p.vus,
 			"rep": p.rep_points, "labels": p.labels_owned, "sources": p.rep_sources, "proprete": p.proprete, "rng": p.rng.state,
 			"tiles": p.map.tiles, "road": p.map.road, "bridge": p.map.bridge, "res_left": p.map.res_left})
 	var ias := []
@@ -71,8 +72,8 @@ static func ecrire(m: Match) -> void:
 		ias.append(null if ai == null else {"strat": ai.strat, "zoo_rect": ai.zoo_rect, "target_rect": ai.target_rect, "expanded": ai.expanded, "entrance": ai.entrance,
 			"shop_rect": ai.shop_rect, "plans": ai.plans, "reserved": ai.reserved, "fence_tiles": ai.fence_tiles,
 			"agrandissements": ai.agrandissements, "agrandis": ai.agrandis, "agrandi_jour": ai.agrandi_jour, "agrandir_refus": ai.agrandir_refus,
-			"roster_kiosque": ai.roster_kiosque, "epargne": ai.epargne})
-	var d := {"version": VERSION, "seed": m.seed_value, "joueurs": joueurs, "ias": ias, "match": {"day": m.day, "next_card_id": m.next_card_id, "perso_bag": m.perso_bag,
+			"roster_kiosque": ai.roster_kiosque, "epargne": ai.epargne, "agence_voulue": ai.agence_voulue, "cabinet_voulu": ai.cabinet_voulu})
+	var d := {"version": VERSION, "seed": m.seed_value, "joueurs": joueurs, "ias": ias, "match": {"objectifs": m.objectifs, "day": m.day, "next_card_id": m.next_card_id, "perso_bag": m.perso_bag,
 		"names": Array(m.names), "market_workers": _cartes(m.market_workers), "market_contracts": m.market_contracts, "market_actions": _cartes(m.market_actions),
 		"current_event": m.current_event, "history": m.history, "rng": m.rng.state}}
 	var f := FileAccess.open(CHEMIN, FileAccess.WRITE)
@@ -90,6 +91,7 @@ static func charger(data: Dictionary) -> Match:
 	var strategies: Array = d["ias"].map(func(a): return null if a == null else a["strat"])
 	var m := Match.new(data, d["seed"], d["joueurs"].size(), human, strategies)
 	var w: Dictionary = d["match"]
+	m.objectifs = w.get("objectifs", [])
 	m.day = w["day"]
 	m.next_card_id = w["next_card_id"]
 	m.perso_bag = w["perso_bag"]
@@ -120,6 +122,10 @@ static func charger(data: Dictionary) -> Match:
 		p.pending_installs = j["pending"]
 		p.day_bonus = j["day_bonus"]
 		p.night_bonus = j["night_bonus"]
+		p.objectifs_faits = j.get("objectifs_faits", {})
+		p.record_visiteurs = int(j.get("record_visiteurs", 0))
+		p.presse_jours = int(j.get("presse_jours", 0))
+		p.vus = j.get("vus", {})
 		p.rep_points = j["rep"]
 		p.labels_owned = j["labels"]
 		p.rep_sources = j["sources"]
@@ -176,6 +182,8 @@ static func charger(data: Dictionary) -> Match:
 			ai.agrandir_refus = ia.get("agrandir_refus", [])
 			ai.roster_kiosque = bool(ia.get("roster_kiosque", false))
 			ai.epargne = float(ia.get("epargne", 0.0))
+			ai.agence_voulue = bool(ia.get("agence_voulue", false))
+			ai.cabinet_voulu = bool(ia.get("cabinet_voulu", false))
 			ai.entrance = ia["entrance"]
 			ai.shop_rect = ia["shop_rect"]
 			ai.plans = ia["plans"]

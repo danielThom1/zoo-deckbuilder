@@ -1,52 +1,186 @@
 {
   "_note": "Répliques d'Hubert de la Marge, choisies dans le Dossier Hubert. Quand un moment en a plusieurs, elles tournent (scripts/bulle_hubert.gd). {nom}, {animal}, {label}, {rival}, {niveau} sont remplacés par le jeu ; aucune réplique n'a besoin d'accord.",
-  "cadre": { "nom": "Hubert de la Marge", "titre": "Directeur des Ressources, Humaines et Autres" },
+  "cadre": {
+    "nom": "Hubert de la Marge",
+    "titre": "Directeur des Ressources, Humaines et Autres"
+  },
   "_note_expressions": "Expression d'Hubert (assets/bd/hubert) selon le moment ; sinon selon son humeur : content, furieux, neutre.",
   "expressions": {
-    "licenciement": "moqueur", "licenciement_cout": "contrarie", "embauche": "moqueur", "pas_argent": "contrarie", "emprunt": "moqueur",
-    "contrat_achete": "content", "ouverture": "content", "guichet": "furieux", "affame": "contrarie", "malade": "contrarie", "sale": "furieux",
-    "label": "moqueur", "niveau": "moqueur", "legendaire": "moqueur", "col_blanc": "moqueur", "paresseux": "contrarie", "lobbying": "moqueur",
-    "prestige": "content", "rival_devant": "furieux", "victoire": "content", "defaite": "furieux",
-    "ev_pluie": "moqueur", "ev_journaliste": "contrarie", "ev_penurie_bois": "content", "ev_ruee_or": "content", "ev_canicule": "moqueur",
-    "ev_greve": "furieux", "ev_subvention": "content", "ev_tempete": "contrarie", "ev_beau_temps": "moqueur", "ev_epidemie": "contrarie"
+    "licenciement": "moqueur",
+    "licenciement_cout": "contrarie",
+    "embauche": "moqueur",
+    "pas_argent": "contrarie",
+    "emprunt": "moqueur",
+    "contrat_achete": "content",
+    "ouverture": "content",
+    "guichet": "furieux",
+    "affame": "contrarie",
+    "malade": "contrarie",
+    "sale": "furieux",
+    "label": "moqueur",
+    "niveau": "moqueur",
+    "legendaire": "moqueur",
+    "col_blanc": "moqueur",
+    "paresseux": "contrarie",
+    "lobbying": "moqueur",
+    "prestige": "content",
+    "rival_devant": "furieux",
+    "victoire": "content",
+    "defaite": "furieux",
+    "ev_pluie": "moqueur",
+    "ev_journaliste": "contrarie",
+    "ev_penurie_bois": "content",
+    "ev_ruee_or": "content",
+    "ev_canicule": "moqueur",
+    "ev_greve": "furieux",
+    "ev_subvention": "content",
+    "ev_tempete": "contrarie",
+    "ev_beau_temps": "moqueur",
+    "ev_epidemie": "contrarie"
   },
   "entreprise": "ZooLife™",
-  "rivaux": ["PanZoo Holdings", "Safari Capital", "BioLand Group"],
+  "rivaux": [
+    "PanZoo Holdings",
+    "Safari Capital",
+    "BioLand Group"
+  ],
   "repliques": {
-    "ev_pluie": ["Il pleut. Votre contrat ne prévoit pas de parapluie.", "Enfin de l'eau gratuite. Profitez-en, la direction étudie la question."],
-    "ev_journaliste": ["Un journaliste visite le parc. Souriez. Ceux qui ne savent pas sourire, derrière les fauves."],
-    "ev_penurie_bois": ["La ville manque de bois. Le malheur des autres est une opportunité de marché. Vendez."],
-    "ev_ruee_or": ["L'or monte de 50 %. Vos salaires, de 0 %. C'est ce qu'on appelle un écart de performance.", "L'or flambe. Si vous trouvez une pépite, elle appartient à ZooLife™. Article 31."],
-    "ev_canicule": ["Il fait 42 degrés. L'enclos des manchots est climatisé. Pas le vôtre.", "Canicule annoncée. Hydratez les animaux, ils ont coûté cher."],
-    "ev_greve": ["Grève des transports. Vous voilà tous à +1 de salaire. Je note les noms."],
-    "ev_subvention": ["Subvention reçue : 15. L'argent public, c'est comme le bois : ça se récolte."],
-    "ev_tempete": ["Tempête cette nuit. Quelqu'un aurait dû mieux fixer ces planches. Je ne cite personne : je le ferai dans votre évaluation."],
-    "ev_beau_temps": ["Superbe journée pour travailler dehors. Pour moi, ce sera le bureau climatisé.", "Grand beau temps. Productivité +15 %. Je vais en faire le nouvel objectif permanent."],
-    "ev_epidemie": ["Un de nos actifs est souffrant. Trouvez un Soigneur avant que les actionnaires ne l'apprennent."],
-    "licenciement": ["{nom}, ça dégage. Et laisse la pelle : elle, elle a encore de la valeur.", "{nom}, ton poste vient d'être optimisé. Toi aussi. La sortie est au bout de la route d'Accès.", "{nom}, on ne va pas se mentir : tu nous coûtes plus que l'hippopotame, et lui, il attire du monde. Dehors."],
-    "licenciement_cout": ["Indemnités de {nom} versées. Ça me fait plus mal qu'à {nom}, croyez-moi."],
-    "embauche": ["{nom} a signé sans lire. C'est exactement le profil que nous recherchons."],
-    "matin": ["Une nouvelle journée d'opportunités. Pour moi. Mobilisez.", "Ceux qui sont mobilisés sont payés. Les autres sont une charge fixe."],
-    "pas_argent": ["Caisse vide : {nom} reste au lit. Vendez quelque chose. N'importe quoi.", "On ne mobilise pas {nom} avec des promesses. J'ai essayé."],
-    "emprunt": ["La banque vous fait confiance. Elle ne vous connaît pas encore.", "ZooLife™ vous avance de l'argent à un taux très familial.", "Emprunt accordé. Ce soir, vous rendez plus que vous n'avez reçu : c'est le principe, et il est magnifique."],
-    "soir_bon": ["Résultats en hausse. Attendez-vous à ce que l'objectif de demain le soit aussi."],
-    "soir_mauvais": ["Nous avons perdu de l'argent. Quelqu'un va devoir assumer. Ce ne sera pas moi.", "Journée déficitaire. J'ai déjà une liste de noms."],
-    "contrat_achete": ["Nouvel actif acquis : {animal}. Construisez-lui un enclos. L'article 47 ne s'applique pas aux animaux."],
-    "ouverture": ["Nous sommes ouverts ! Enfin, des gens qui paient pour être ici. Le contraire de vous.", "Premier visiteur en vue. Rappelez-vous : c'est lui, le patron. Après moi."],
-    "guichet": ["Des gens veulent nous donner de l'argent, et personne ne le prend. Je vais faire une attaque.", "Il y a une file d'attente et un guichet vide. Trouvez l'erreur et le responsable."],
-    "affame": ["On ne fait pas payer l'entrée pour voir un animal affamé. Enfin si, mais moins."],
-    "malade": ["Un Soigneur, vite. Je tiens à {animal}, c'est écrit dans le bilan."],
-    "sale": ["Un visiteur a marché dans quelque chose. Il a demandé un remboursement. Je veux un coupable.", "Ça sent mauvais, et ce ne sont pas les animaux. Local d'entretien, tout de suite."],
-    "label": ["« {label} » obtenu. La qualité, ça s'achète. Le prix est sur la facture.", "Nous voilà certifiés. Le certificateur a très bien déjeuné."],
-    "niveau": ["{nom} passe au niveau {niveau}. Son salaire, lui, va bien, merci."],
-    "legendaire": ["On parlera de {nom} dans les générations futures. Surtout au tribunal."],
-    "col_blanc": ["{nom} refuse de se salir les mains. Je comprends, moi non plus.", "{nom} est un col blanc. Une perte de temps, mais une perte de temps en cravate."],
-    "paresseux": ["{nom} fait une pause. J'ai déclenché le chronomètre."],
-    "lobbying": ["Lobbying en cours. La démocratie, c'est un bâtiment comme un autre.", "{nom} part à la mairie, avec une enveloppe. C'est de la communication institutionnelle."],
-    "prestige": ["Premier en influence. Le maire m'a appelé par mon prénom. Je ne lui ai pas rendu la pareille.", "Nous tenons la mairie. Le reste, ce ne sont plus que des formalités."],
-    "rival_devant": ["{rival} passe devant. Je veux savoir qui, chez nous, en est responsable. J'ai déjà une idée. C'est vous."],
-    "victoire": ["Victoire. Les actionnaires sont ravis, et je vous fais part de leur gratitude : elle est purement verbale."],
-    "defaite": ["Nous avons perdu. Le plan social commence maintenant : c'est vous, le plan social."]
+    "ev_pluie": [
+      "Il pleut. Votre contrat ne prévoit pas de parapluie.",
+      "Enfin de l'eau gratuite. Profitez-en, la direction étudie la question."
+    ],
+    "ev_journaliste": [
+      "Un journaliste visite le parc. Souriez. Ceux qui ne savent pas sourire, derrière les fauves."
+    ],
+    "ev_penurie_bois": [
+      "La ville manque de bois. Le malheur des autres est une opportunité de marché. Vendez."
+    ],
+    "ev_ruee_or": [
+      "L'or monte de 50 %. Vos salaires, de 0 %. C'est ce qu'on appelle un écart de performance.",
+      "L'or flambe. Si vous trouvez une pépite, elle appartient à ZooLife™. Article 31."
+    ],
+    "ev_canicule": [
+      "Il fait 42 degrés. L'enclos des manchots est climatisé. Pas le vôtre.",
+      "Canicule annoncée. Hydratez les animaux, ils ont coûté cher."
+    ],
+    "ev_greve": [
+      "Grève des transports. Vous voilà tous à +1 de salaire. Je note les noms."
+    ],
+    "ev_subvention": [
+      "Subvention reçue : 15. L'argent public, c'est comme le bois : ça se récolte."
+    ],
+    "ev_tempete": [
+      "Tempête cette nuit. Quelqu'un aurait dû mieux fixer ces planches. Je ne cite personne : je le ferai dans votre évaluation."
+    ],
+    "ev_beau_temps": [
+      "Superbe journée pour travailler dehors. Pour moi, ce sera le bureau climatisé.",
+      "Grand beau temps. Productivité +15 %. Je vais en faire le nouvel objectif permanent."
+    ],
+    "ev_epidemie": [
+      "Un de nos actifs est souffrant. Trouvez un Soigneur avant que les actionnaires ne l'apprennent."
+    ],
+    "licenciement": [
+      "{nom}, ça dégage. Et laisse la pelle : elle, elle a encore de la valeur.",
+      "{nom}, ton poste vient d'être optimisé. Toi aussi. La sortie est au bout de la route d'Accès.",
+      "{nom}, on ne va pas se mentir : tu nous coûtes plus que l'hippopotame, et lui, il attire du monde. Dehors."
+    ],
+    "licenciement_cout": [
+      "Indemnités de {nom} versées. Ça me fait plus mal qu'à {nom}, croyez-moi."
+    ],
+    "embauche": [
+      "{nom} a signé sans lire. C'est exactement le profil que nous recherchons."
+    ],
+    "matin": [
+      "Une nouvelle journée d'opportunités. Pour moi. Mobilisez.",
+      "Ceux qui sont mobilisés sont payés. Les autres sont une charge fixe."
+    ],
+    "pas_argent": [
+      "Caisse vide : {nom} reste au lit. Vendez quelque chose. N'importe quoi.",
+      "On ne mobilise pas {nom} avec des promesses. J'ai essayé."
+    ],
+    "emprunt": [
+      "La banque vous fait confiance. Elle ne vous connaît pas encore.",
+      "ZooLife™ vous avance de l'argent à un taux très familial.",
+      "Emprunt accordé. Ce soir, vous rendez plus que vous n'avez reçu : c'est le principe, et il est magnifique."
+    ],
+    "soir_bon": [
+      "Résultats en hausse. Attendez-vous à ce que l'objectif de demain le soit aussi."
+    ],
+    "soir_mauvais": [
+      "Nous avons perdu de l'argent. Quelqu'un va devoir assumer. Ce ne sera pas moi.",
+      "Journée déficitaire. J'ai déjà une liste de noms."
+    ],
+    "contrat_achete": [
+      "Nouvel actif acquis : {animal}. Construisez-lui un enclos. L'article 47 ne s'applique pas aux animaux."
+    ],
+    "ouverture": [
+      "Nous sommes ouverts ! Enfin, des gens qui paient pour être ici. Le contraire de vous.",
+      "Premier visiteur en vue. Rappelez-vous : c'est lui, le patron. Après moi."
+    ],
+    "guichet": [
+      "Des gens veulent nous donner de l'argent, et personne ne le prend. Je vais faire une attaque.",
+      "Il y a une file d'attente et un guichet vide. Trouvez l'erreur et le responsable."
+    ],
+    "affame": [
+      "On ne fait pas payer l'entrée pour voir un animal affamé. Enfin si, mais moins."
+    ],
+    "malade": [
+      "Un Soigneur, vite. Je tiens à {animal}, c'est écrit dans le bilan."
+    ],
+    "sale": [
+      "Un visiteur a marché dans quelque chose. Il a demandé un remboursement. Je veux un coupable.",
+      "Ça sent mauvais, et ce ne sont pas les animaux. Local d'entretien, tout de suite."
+    ],
+    "label": [
+      "« {label} » obtenu. La qualité, ça s'achète. Le prix est sur la facture.",
+      "Nous voilà certifiés. Le certificateur a très bien déjeuné."
+    ],
+    "niveau": [
+      "{nom} passe au niveau {niveau}. Son salaire, lui, va bien, merci."
+    ],
+    "legendaire": [
+      "On parlera de {nom} dans les générations futures. Surtout au tribunal."
+    ],
+    "col_blanc": [
+      "{nom} refuse de se salir les mains. Je comprends, moi non plus.",
+      "{nom} est un col blanc. Une perte de temps, mais une perte de temps en cravate."
+    ],
+    "paresseux": [
+      "{nom} fait une pause. J'ai déclenché le chronomètre."
+    ],
+    "lobbying": [
+      "Lobbying en cours. La démocratie, c'est un bâtiment comme un autre.",
+      "{nom} part à la mairie, avec une enveloppe. C'est de la communication institutionnelle."
+    ],
+    "prestige": [
+      "Premier en influence. Le maire m'a appelé par mon prénom. Je ne lui ai pas rendu la pareille.",
+      "Nous tenons la mairie. Le reste, ce ne sont plus que des formalités."
+    ],
+    "rival_devant": [
+      "{rival} passe devant. Je veux savoir qui, chez nous, en est responsable. J'ai déjà une idée. C'est vous."
+    ],
+    "victoire": [
+      "Victoire. Les actionnaires sont ravis, et je vous fais part de leur gratitude : elle est purement verbale."
+    ],
+    "defaite": [
+      "Nous avons perdu. Le plan social commence maintenant : c'est vous, le plan social."
+    ],
+    "objectif": [
+      "Objectif atteint : « {objectif} ». Les actionnaires applaudissent. D'une main : l'autre compte.",
+      "« {objectif} » : c'est fait. Je m'en attribue le mérite, comme convenu avec moi-même."
+    ],
+    "article_subi": [
+      "{groupe} nous traîne dans la boue dans la presse. Ils ont raison, mais ils n'ont pas le droit.",
+      "Article incendiaire signé par {groupe}. Le service juridique est prévenu : c'est un stagiaire, il pleure."
+    ],
+    "accusation_subie": [
+      "{nom} est accusé d'agression par la presse de {groupe}. Nous n'avons rien vérifié et nous l'avons viré. C'est ça, la réactivité.",
+      "Plainte contre {nom}, relayée par {groupe}. Innocent ou non, la sortie est au bout de la route d'Accès."
+    ],
+    "reportage": [
+      "Notre journaliste part fouiller chez {groupe}. Si on vous pose la question, c'est du tourisme.",
+      "Reportage chez {groupe}. Note de frais illimitée, résultats exigés."
+    ]
   },
   "slogans": [
     "Un collaborateur fatigué est un collaborateur qui a travaillé.",

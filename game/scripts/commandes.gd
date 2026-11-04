@@ -7,7 +7,8 @@ extends RefCounted
 ## Ordres du joueur, sur GameState (ou Match pour SUR_PARTIE). Rien d'autre n'est exécuté.
 const ORDRES := ["order", "place", "deploy", "recall", "cancel_site", "demolish", "install_animal", "construire_proposition", "sell_amount",
 	"buy_material", "buy_label", "launch_campaign", "take_loan", "swap_worker", "play_action", "play_cadre", "hire", "buy_contract", "buy_action",
-	"pick_bonus", "choose_level_upgrade", "fire", "fire_paid", "apply_upgrade", "hippo_swap", "recruit_replace", "cancel_pending"]
+	"pick_bonus", "choose_level_upgrade", "fire", "fire_paid", "apply_upgrade", "hippo_swap", "recruit_replace", "cancel_pending",
+	"report_start", "report_goto", "publish_article", "accuse_worker"]
 const SUR_PARTIE := ["pick_draft", "pass_turn", "confirm_bonus"]
 
 

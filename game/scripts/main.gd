@@ -102,6 +102,7 @@ var info_view: VBoxContainer  # fiche structurée du panneau de droite
 var info_subtitle: Label
 var info_sig := ""
 var btn_lobby: Button
+var btn_reportage: Button
 var btn_swap: Button
 var btn_recall: Button
 var btn_cancel_site: Button
@@ -120,6 +121,7 @@ var night_fire_box: Control
 var night_bonus_box: VBoxContainer
 var night_actions: Container
 var night_pages := {}  # étape de la nuit -> page du centre
+var night_objectifs: VBoxContainer
 var night_stage_title: Label
 var night_stage_note: Label
 var night_level_box: Control
@@ -225,6 +227,10 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		var kv := a.trim_prefix("--").split("=", true, 1)
 		args[kv[0]] = kv[1] if kv.size() > 1 else ""
+	# Les captures gardent la fenêtre demandée et restent muettes.
+	if not args.has("shot") and not args.has("tuto-auto"):
+		Reglages.appliquer_fenetre()
+		Sons.demarrer(get_tree())
 	font = UiTokens.police_corps(600)
 	if font is FontVariation and font.base_font is FontFile:
 		font.base_font.generate_mipmaps = true  # réduit sans scintiller (voir _ecrire)
@@ -261,6 +267,9 @@ func _show_menu() -> void:
 	add_child(layer)
 	var menu := MenuPrincipal.new()
 	layer.add_child(menu)
+	Sons.musique("menu")
+	if args.has("reglages"):
+		menu.add_child(Reglages.new())
 	menu.multijoueur.connect(func(): _ouvrir_salon(layer))
 	if args.has("salon"):
 		_ouvrir_salon(layer)
@@ -460,6 +469,8 @@ func _start(watch: bool) -> void:
 			aide.call_deferred("_glossaire_animaux")
 	if args.has("pioche"):
 		_open_pile()
+	if args.has("reglages"):
+		ui.add_child(Reglages.new())
 	if args.has("marche"):
 		market_root.visible = true
 		_rebuild_market_preview()
@@ -1838,6 +1849,11 @@ func _process(delta: float) -> void:
 		or not hover_src.get_global_rect().has_point(hover_src.get_global_mouse_position())):
 		_hide_hover_card()
 	# Chaque nouvelle journée commence en pause : on prépare ses ordres, puis on lance le temps.
+	_sons_de_la_partie()
+	# Les bulles d'Hubert sont sur un calque au-dessus de l'interface : elles s'effacent devant les fenêtres.
+	if hubert:
+		hubert.get_parent().visible = not ((picker_root != null and picker_root.visible) \
+			or ui.get_children().any(func(c): return c is Reportage or c is Reglages or c is Aide))
 	if mt.phase != last_phase:
 		if mt.phase == "day" and last_phase != "" and not spectator:
 			_set_speed(0.0)
@@ -1943,12 +1959,58 @@ func _note_de_direction(total: int) -> void:
 ## Tous les ordres du joueur passent ici : exécutés aussitôt en solo, envoyés à l'hôte en multijoueur (null : le résultat
 ## arrivera avec la trame suivante).
 func _cmd(nom: String, args := []) -> Variant:
+	if SONS_ORDRES.has(nom):
+		Sons.effet(SONS_ORDRES[nom])
 	if reseau:
 		reseau.envoyer(nom, Commandes.coder(args))
 		return null
 	if nom in Commandes.SUR_PARTIE:
 		return mt.callv(nom, args)
 	return game.callv(nom, args)
+
+
+const SONS_ORDRES := {"deploy": "carte", "play_action": "carte", "play_cadre": "carte", "place": "pose", "buy_contract": "achat", "hire": "achat", "buy_action": "achat",
+	"buy_label": "achat", "launch_campaign": "achat", "sell_amount": "piece", "buy_material": "piece", "publish_article": "presse", "accuse_worker": "presse"}
+var _son_phase := ""
+var _son_chantiers := -1
+var _son_animaux := -1
+var _son_niveaux := 0
+var _son_objectifs := 0
+var _son_fin := false
+
+
+## Musique et bruitages selon ce qui vient de se passer. Ne fait qu'observer la partie.
+func _sons_de_la_partie() -> void:
+	if mt.game_over:
+		if not _son_fin:
+			_son_fin = true
+			Sons.musique("menu")
+			Sons.effet("victoire" if mt.winner == game.index else "defaite")
+		return
+	if mt.phase != _son_phase:
+		if mt.phase == "night" and _son_phase == "day":
+			Sons.effet("nuit")
+		elif mt.phase == "day" and _son_phase == "night":
+			Sons.effet("matin")
+		_son_phase = mt.phase
+		Sons.musique("nuit" if mt.phase == "night" else "jour")
+	var chantiers := game.sites.filter(func(s): return s.done).size()
+	if _son_chantiers >= 0 and chantiers > _son_chantiers:
+		Sons.effet("chantier")
+	_son_chantiers = chantiers
+	var animaux := game.animals.filter(func(a): return a.arrived).size()
+	if _son_animaux >= 0 and animaux > _son_animaux:
+		Sons.effet("animal")
+	_son_animaux = animaux
+	if game.level_choices.size() > _son_niveaux:
+		Sons.effet("niveau")
+	_son_niveaux = game.level_choices.size()
+	if game.objectifs_faits.size() > _son_objectifs:
+		Sons.effet("objectif")
+	_son_objectifs = game.objectifs_faits.size()
+	# Un collaborateur accusé par la presse disparaît de la sélection.
+	if not selected.is_empty():
+		selected = selected.filter(func(w): return game.workers.has(w))
 
 
 func _cmd_texte(nom: String, args := []) -> String:
@@ -1964,6 +2026,7 @@ func _hubert_annonces() -> void:
 	if hubert:
 		hubert.humeur = _hubert_humeur()
 	for a in game.annonces:
+		Sons.effet("hubert")
 		if (hubert == null or not hubert.annoncer(a["moment"], a["args"])) and a["repli"] != "":
 			game.say(a["repli"])
 	game.annonces.clear()
@@ -2054,6 +2117,22 @@ func _auto_play() -> void:
 		if args.has("peek"):  # --peek : « Voir mon zoo » avec le premier contrat montré sur la carte
 			night_peek = true
 	selected = ws.slice(0, 1 if args.has("un") else 2)
+	if args.has("visiteurs"):
+		_open_visiteurs.call_deferred()
+	if args.has("reportage"):  # --reportage : un Journaliste en visite chez le premier rival
+		var jc: GameState.Card = game.hand[0]
+		jc.metier = game.data["workers"]["metiers"].filter(func(mm): return mm["id"] == "journaliste")[0]
+		var jw: GameState.Worker = game.worker_of(jc)
+		if jw == null:
+			game.deploy(jc)
+			jw = game.worker_of(jc)
+		jw.offmap = true
+		var rival_i := (game.index + 1) % mt.players.size()
+		game.report_start(jw, rival_i)
+		for k in 500:
+			game.tick(GameState.TICK)
+		var rv_panel := Reportage.new(self, game, jw)
+		ui.add_child(rv_panel)
 
 
 func _nearest(terrain: int) -> Vector2i:
@@ -2197,6 +2276,18 @@ func _build_ui() -> void:
 Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter un bâtiment · double-clic : tout un tracé de clôture, mur ou route · Suppr : démolir\nMenu de gauche : placer un bâtiment (glisser pour routes et clôtures, R pour tourner l'entrée), Échap pour arrêter\nMolette : zoom · ZQSD : vue · Espace : pause"
 	help.pressed.connect(func(): ui.add_child(Aide.new(game.data)))
 	bar.add_child(help)
+	var reg_btn := Button.new()
+	reg_btn.icon = UiTokens.icone("ui_reglages")
+	reg_btn.expand_icon = true
+	reg_btn.focus_mode = Control.FOCUS_NONE
+	reg_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	reg_btn.custom_minimum_size = Vector2(46, 46)
+	reg_btn.add_theme_color_override("icon_normal_color", UiTokens.ENCRE)
+	reg_btn.add_theme_color_override("icon_hover_color", UiTokens.ENCRE)
+	reg_btn.add_theme_color_override("icon_pressed_color", UiTokens.ENCRE)
+	reg_btn.tooltip_text = "Réglages : résolution, plein écran, volume"
+	reg_btn.pressed.connect(func(): ui.add_child(Reglages.new()))
+	bar.add_child(reg_btn)
 	var quit_btn := Button.new()
 	menu_btn = quit_btn
 	quit_btn.text = "Menu"
@@ -2279,6 +2370,14 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 	btn_lobby.focus_mode = Control.FOCUS_NONE
 	btn_lobby.pressed.connect(func(): _cmd("order", [selected, game.map.exit_tile]))
 	rv.add_child(btn_lobby)
+	btn_reportage = Button.new()
+	btn_reportage.text = "Carnet de reportage"
+	btn_reportage.focus_mode = Control.FOCUS_NONE
+	btn_reportage.visible = false
+	btn_reportage.pressed.connect(func():
+		if selected.size() == 1:
+			ui.add_child(Reportage.new(self, game, selected[0])))
+	rv.add_child(btn_reportage)
 	btn_recall = Button.new()
 	btn_recall.text = "Rappeler sur la carte"
 	btn_recall.focus_mode = Control.FOCUS_NONE
@@ -2893,7 +2992,7 @@ func _job_text(card: GameState.Card) -> String:
 		cat += "e"  # qualifiée, peu qualifiée
 	var line := "Métier : %s (%s). " % [game.job_name(card), cat]
 	if best.is_empty():
-		line += "Polyvalent : rendement ×%s partout." % ("%.1f" % base).replace(".", ",")
+		line += "Sans spécialité : rendement ×%s partout." % ("%.2f" % base).trim_suffix("0").replace(".", ",")
 	else:
 		line += "Spécialité : %s ; ailleurs ×%s." % [", ".join(best), ("%.1f" % base).replace(".", ",")]
 	return line
@@ -2907,13 +3006,7 @@ func _card_tooltip(card: GameState.Card) -> String:
 	if not A.is_empty():
 		lines.append("Jouée comme action (%s) : %s" % [A["nom"], A["texte"]])
 	for t in game.trait_defs(card):
-		var txt: String = t.get("texte", "")
-		if txt == "":
-			var effets: Array[String] = []
-			for k in t["effet"]:
-				effets.append("%s %s" % [k, str(t["effet"][k])])
-			txt = ", ".join(effets)
-		lines.append("%s : %s" % [t["nom"], txt])
+		lines.append("%s : %s" % [t["nom"], _trait_texte(t)])
 	return "\n".join(lines)
 
 
@@ -3077,7 +3170,7 @@ func _rebuild_draft() -> void:
 		"  ›  ".join(order), mt.draft_round_size(),
 		" La dernière carte revient d'office au dernier joueur." if mt.draft_round_size() == mt.players.size() else " Les cartes restantes sont défaussées."]
 	for card in mt.draft_pool:
-		draft_grid.add_child(_card_widget(card, "Choisir", not my_turn, _cmd.bind("pick_draft", [card])))
+		draft_grid.add_child(_draft_column(card, not my_turn, _cmd.bind("pick_draft", [card])))
 	var lines: Array[String] = []
 	for p in mt.players.size():
 		var names: Array[String] = []
@@ -3087,9 +3180,58 @@ func _rebuild_draft() -> void:
 	draft_picks.text = "\n".join(lines)
 
 
+## Colonne du draft : la carte, puis son métier et ses traits écrits en toutes lettres.
+func _draft_column(card: GameState.Card, disabled: bool, cb: Callable) -> Control:
+	var v := VBoxContainer.new()
+	v.custom_minimum_size = Vector2(256, 0)
+	v.add_theme_constant_override("separation", 8)
+	var cc := CenterContainer.new()
+	cc.add_child(_card_widget(card, "Choisir", disabled, cb))
+	v.add_child(cc)
+	var txt := RichTextLabel.new()
+	txt.bbcode_enabled = true
+	txt.fit_content = true
+	txt.scroll_active = false
+	txt.custom_minimum_size = Vector2(250, 0)
+	txt.add_theme_font_size_override("normal_font_size", 14)
+	txt.add_theme_font_size_override("bold_font_size", 14)
+	txt.add_theme_color_override("default_color", UiTokens.ENCRE)
+	var lignes: Array[String] = [_job_text(card).get_slice(". ", 1)]
+	if card.metier.has("capacite"):
+		lignes.append(str(card.metier["capacite"]))
+	for t in game.trait_defs(card):
+		var pos: bool = game.is_positive(t["id"])
+		lignes.append("[color=#%s][b]%s %s[/b][/color] : %s" % [UiTokens.QUALITE.darkened(0.15).to_html(false) if pos else UiTokens.DEFAUT.darkened(0.2).to_html(false),
+			"+" if pos else "−", t["nom"], _trait_texte(t)])
+	txt.text = "\n".join(lignes)
+	v.add_child(txt)
+	return v
+
+
+const EFFETS_TRAITS := {"vitesse": "marche", "construire": "construction", "defaut": "toutes les tâches", "amenager": "aménagement", "construire_enclos": "clôtures d'enclos",
+	"lobbying": "lobbying", "xp": "expérience"}
+
+
+## Effet d'un trait en mots, à partir de son texte ou de ses chiffres.
+func _trait_texte(t: Dictionary) -> String:
+	var txt = t.get("texte")
+	if txt is String and txt != "":
+		return txt
+	var effets: Array[String] = []
+	var fx: Dictionary = t.get("effet", {})
+	for k in fx:
+		if k == "salaire":
+			effets.append("salaire %+d" % int(fx[k]))
+		elif EFFETS_TRAITS.has(k):
+			effets.append("%s ×%s" % [EFFETS_TRAITS[k], str(fx[k]).replace(".", ",")])
+	return ", ".join(effets)
+
+
 func _task_text(w: GameState.Worker) -> String:
+	if not w.reportage.is_empty():
+		return "En reportage chez %s" % mt.names[int(w.reportage["cible"])]
 	if w.offmap:
-		return "En lobbying (hors carte)"
+		return "À l'extérieur, en attente de reportage" if game.est_journaliste(w) else "En lobbying (hors carte)"
 	if w.pause_left > 0.0:
 		return "En pause"
 	if w.task.is_empty():
@@ -3145,6 +3287,7 @@ func _update_info() -> void:
 			fiche.append(["ligne", "", Color(), k, "× %d" % counts[k]])
 		fiche.append(["texte", "Suppr : démolit les bâtiments (sans remboursement) et annule les chantiers (remboursés à 100 % s'ils n'ont pas commencé, 50 % sinon)."])
 		btn_lobby.visible = false
+		btn_reportage.visible = false
 		btn_recall.visible = false
 		btn_swap.visible = false
 		btn_cancel_site.visible = false
@@ -3155,6 +3298,7 @@ func _update_info() -> void:
 	btn_demolish.text = "Démolir (sans remboursement)"
 	if show_animal:
 		btn_lobby.visible = false
+		btn_reportage.visible = false
 		btn_recall.visible = false
 		btn_swap.visible = false
 		btn_cancel_site.visible = false
@@ -3172,6 +3316,8 @@ func _update_info() -> void:
 		zoo_title.text = "VOTRE ZOO" if not spectator else mt.names[game.index].to_upper()
 		info_subtitle.text = "partie terminée" if mt.game_over else "jour %d" % mt.day
 	btn_lobby.visible = not selected.is_empty()
+	btn_lobby.text = "Partir en reportage" if selected.size() == 1 and game.est_journaliste(selected[0]) else "Envoyer en lobbying"
+	btn_reportage.visible = selected.size() == 1 and game.est_journaliste(selected[0]) and selected[0].offmap
 	btn_lobby.disabled = selected.is_empty() or game.phase != "day"
 	btn_recall.visible = selected.any(func(w): return w.offmap)
 	btn_recall.disabled = not btn_recall.visible
@@ -3256,9 +3402,17 @@ func _fiche_zoo(fiche: Array) -> void:
 	var z := game.zoo_live()
 	var hungry := game.animals.filter(func(a): return a.arrived and not a.fed).size()
 	fiche.append(["etat", z["open"], "Zoo ouvert" if z["open"] else "Zoo fermé", "" if z["open"] else str(z["reason"])])
+	if not mt.objectifs.is_empty():
+		fiche.append(["carte", "OBJECTIFS DES ACTIONNAIRES", "ressource_reputation", UiTokens.RESSOURCES["reputation"]["couleur"]])
+		for o in mt.objectifs:
+			var fait := game.objectifs_faits.has(o["id"])
+			fiche.append(["ligne", "ui_valide" if fait else "ui_suivant", UiTokens.QUALITE if fait else UiTokens.TEXTE_SECONDAIRE, str(o["texte"]),
+				"fait" if fait else "%d / %d" % [mini(game.objectif_valeur(o), int(o["n"])), int(o["n"])]])
 	if z["open"]:
 		fiche.append(["chiffres", [["%d" % z["attract"], "attractivité", "ressource_reputation", UiTokens.RESSOURCES["reputation"]["couleur"]],
-			["+%d %%" % roundi((z["pub"] - 1.0) * 100), "publicité", "ressource_influence", UiTokens.RESSOURCES["influence"]["couleur"]]]])
+			["%+d %%" % roundi((z["pub"] - 1.0) * 100), "publicité", "ressource_influence", UiTokens.RESSOURCES["influence"]["couleur"]]]])
+		if game.presse_jours > 0:
+			fiche.append(["alerte", "Mauvaise presse : moins de visiteurs encore %d jour(s)." % game.presse_jours])
 		fiche.append(["carte", "VISITEURS", "ressource_visiteurs", UiTokens.SARCELLE])
 		fiche.append(["barre", "Dans le zoo", clampf(float(z["inside"]) / maxf(1.0, z["capacity"]), 0.0, 1.0), "%d / %d" % [z["inside"], z["capacity"]],
 			UiTokens.ORANGE if z["inside"] >= z["capacity"] else UiTokens.SELECTION])
@@ -3266,6 +3420,7 @@ func _fiche_zoo(fiche: Array) -> void:
 		fiche.append(["ligne", "batiment_entree_zoo", UiTokens.SARCELLE, "En file d'attente", str(z["queue"])])
 		fiche.append(["ligne", "ressource_visiteurs", UiTokens.QUALITE, "Demande estimée", "≈ %d / jour" % roundi(z["demand_day"])])
 		fiche.append(["ligne", "metier_vendeur_souvenirs", UiTokens.SARCELLE, "Guichet", "%d / min" % roundi(z["guichet_min"])])
+		fiche.append(["bouton", "Pourquoi ce nombre de visiteurs ?", _open_visiteurs])
 		fiche.append(["carte", "AUJOURD'HUI", "ressource_argent", UiTokens.RESSOURCES["argent"]["couleur"]])
 		fiche.append(["chiffres", [["%d" % z["admitted"], "entrés", "ui_valide", UiTokens.QUALITE], ["%d" % z["lost"], "repartis", "ui_invalide", UiTokens.ORANGE]]])
 		fiche.append(["ligne", "ressource_billetterie", UiTokens.RESSOURCES["argent"]["couleur"], "Billets", "%d" % z["tickets"]])
@@ -3396,6 +3551,11 @@ func _rendre_fiche(fiche: Array) -> void:
 				_fiche_ligne(corps, e[1], e[2], e[3], "×%.2f" % k, UiTokens.POSITIF if k > 1.001 else (UiTokens.NEGATIF if k < 0.999 else UiTokens.TEXTE))
 			"barre":
 				_fiche_barre(corps, e[1], e[2], e[3], e[4])
+			"bouton":
+				var fb := Composants.bouton(e[1], "BoutonSecondaire")
+				fb.add_theme_font_size_override("font_size", 13)
+				fb.pressed.connect(e[2])
+				corps.add_child(fb)
 			"texte", "pied":
 				var l := Composants.label(e[1], "TexteSecondaire")
 				l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -4045,7 +4205,7 @@ func _build_night_ui() -> void:
 	night_next.pressed.connect(_on_night_next)
 	hb.add_child(night_next)
 	# Trois colonnes (gauche l 330, centre, droite l 322), chacune défile si besoin
-	var cols := [[20.0, 350.0], [372.0, -362.0], [-342.0, -20.0]]
+	var cols := [[14.0, 290.0], [300.0, -290.0], [-280.0, -14.0]]
 	var boxes: Array[VBoxContainer] = []
 	for k in 3:
 		var sc := ScrollContainer.new()
@@ -4092,8 +4252,8 @@ func _build_night_ui() -> void:
 		night_pages[st] = page
 	var flow := func(parent: Control) -> HFlowContainer:
 		var f := HFlowContainer.new()
-		f.add_theme_constant_override("h_separation", 14)
-		f.add_theme_constant_override("v_separation", 14)
+		f.add_theme_constant_override("h_separation", 8)
+		f.add_theme_constant_override("v_separation", 12)
 		parent.add_child(f)
 		return f
 	night_contracts_note = _section_title(night_pages["contrats"], "")
@@ -4119,12 +4279,14 @@ func _build_night_ui() -> void:
 	# Droite : réputation, journal
 	p = _titled_panel(boxes[2], "RÉPUTATION")
 	night_rep_rows = p[1]
+	p = _titled_panel(boxes[2], "OBJECTIFS DES ACTIONNAIRES")
+	night_objectifs = p[1]
 	p = _titled_panel(boxes[2], "JOURNAL DE LA NUIT")
 	night_text = RichTextLabel.new()
 	night_text.bbcode_enabled = true
 	night_text.fit_content = true
 	night_text.scroll_active = false
-	night_text.custom_minimum_size = Vector2(290, 0)
+	night_text.custom_minimum_size = Vector2(240, 0)
 	night_text.add_theme_font_size_override("normal_font_size", 13)
 	night_text.add_theme_font_size_override("bold_font_size", 13)
 	p[1].add_child(night_text)
@@ -4244,6 +4406,15 @@ func _rebuild_night() -> void:
 			night_stage_note.text = "Chacun de son côté : montées de niveau, une amélioration ou un licenciement payant, et le licenciement offert par le DRH." \
 				+ ("\nBonus de demain : %s (%s)" % [mt.bonus_choice.get("nom", "?"), mt.bonus_choice.get("texte", "")] if not mt.bonus_choice.is_empty() else "")
 
+	_clear(night_objectifs)
+	for o in mt.objectifs:
+		var fait := game.objectifs_faits.has(o["id"])
+		var ol := Composants.label(("✓ " if fait else "") + "%s (%s)" % [o["texte"], "fait" if fait else "%d / %d" % [mini(game.objectif_valeur(o), int(o["n"])), int(o["n"])]],
+			"" if fait else "TexteSecondaire")
+		ol.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		ol.custom_minimum_size.x = 230
+		ol.add_theme_font_size_override("font_size", 13)
+		night_objectifs.add_child(ol)
 	# Bilan de la journée
 	_clear(night_summary)
 	var sal := roundi(float(s.get("salaires", 0.0)))
@@ -4876,10 +5047,6 @@ func _animal_info(a: GameState.Animal) -> void:
 	var same := game.animals.filter(func(o): return o != a and o.arrived and o.def.get("continent", "") == d.get("continent", "")).size()
 	if same > 0:
 		lines.append("[color=#8A6A00]Affinité : %d autre(s) animal(aux) d'%s dans le zoo[/color]" % [same, game.continent_name(d.get("continent", ""))])
-	var nb := game.continent_neighbours(a)
-	if not nb.is_empty():
-		lines.append("[color=#8A6A00]Voisins d'%s : %s (+%d d'attractivité)[/color]" % [game.continent_name(d.get("continent", "")),
-			", ".join(nb.map(func(o): return o.def["nom"])), nb.size() * int(game.data["animals"]["voisinage_continent"]["points"])])
 	if d.has("decor"):
 		lines.append("Aménagement requis : %s" % game.building_def(d["decor"])["nom"])
 	if d.has("effet_texte"):
@@ -4958,6 +5125,65 @@ func _update_publicity() -> void:
 # --- Choix d'un ouvrier : cartes d'action ciblées, Agence d'intérim ----------------
 
 ## rows : [carte, texte du bouton, erreur ("" si possible), action]. En journée, la partie est en pause pendant le choix.
+## Explique le nombre de visiteurs : d'où vient l'attractivité, la demande, puis ce qui la freine aujourd'hui.
+func _open_visiteurs() -> void:
+	var z := game.zoo_live()
+	var Z: Dictionary = game.data["buildings"]["zoo"]
+	var L: Array[String] = ["[b]Attractivité : %d[/b]" % int(z["attract"])]
+	var compte := 0
+	var vus_noms := {}
+	for a in game.animals:
+		if not a.arrived or vus_noms.has(a.def["id"]):
+			continue
+		vus_noms[a.def["id"]] = true
+		if a.sick or not a.fed:
+			L.append("   %s : 0 (%s)" % [a.def["nom"], "malade" if a.sick else "affamé"])
+		else:
+			L.append("   %s : +%d" % [a.def["nom"], int(a.def["reputation"])])
+			compte += int(a.def["reputation"])
+	if int(z["attract"]) != compte:
+		L.append("   Rares, Kiosque, soins et bonus : %+d" % (int(z["attract"]) - compte))
+	var par_point := float(Z["visiteurs_par_point_attractivite"])
+	var demande := float(z["demand_day"])
+	L.append("\n[b]Demande : environ %d visiteurs par jour[/b]" % roundi(demande))
+	L.append("   Attractivité %d × %d par point" % [int(z["attract"]), int(par_point)])
+	var facteurs: Array[String] = []
+	for f in [["Publicité", game.publicity_mult()], ["Événement", float(game.event_effects().get("visiteurs", 1.0))], ["Bonus de nuit", float(game.bonus_effects().get("visiteurs", 1.0))],
+			["Propreté", game.cleanliness_mult()], ["Cartes jouées", float(game.action_fx.get("visiteurs", 1.0))]]:
+		if not is_equal_approx(f[1], 1.0):
+			facteurs.append("%s ×%s" % [f[0], ("%.2f" % f[1]).replace(".", ",")])
+	if not facteurs.is_empty():
+		L.append("   " + ", ".join(facteurs))
+	var guichet := float(z["guichet_min"]) * game.day_length / 60.0
+	var duree := float(Z["duree_visite_s"]) * game.snack_mult()
+	var capacite := float(z["capacity"]) * game.day_length / duree
+	L.append("\n[b]Ce qui peut freiner[/b]")
+	L.append("   Guichet : %d visiteurs par jour au plus (%d par minute)" % [roundi(guichet), roundi(z["guichet_min"])])
+	L.append("   Parc : %d en même temps, soit environ %d par jour" % [int(z["capacity"]), roundi(capacite)])
+	var frein := "Votre attractivité : ajoutez des animaux, ou faites de la publicité."
+	if guichet < demande and guichet <= capacite:
+		frein = "Le guichet : mettez-y un collaborateur de plus, ou un Guichetier."
+	elif capacite < demande:
+		frein = "La place : agrandissez l'enceinte."
+	L.append("\n[b]Aujourd'hui, ce qui vous limite : [/b]" + frein)
+	var aff := game.affinity_bonus()
+	L.append("\nRéputation : %s par visiteur présent en moyenne%s." % [str(Z["reputation_par_visiteur_moyen"]).replace(".", ","),
+		", +%d %% d'affinités" % roundi(aff * 100.0) if aff > 0.0 else ""])
+	_open_picker("POURQUOI CE NOMBRE DE VISITEURS ?", "", [])
+	var t := RichTextLabel.new()
+	t.bbcode_enabled = true
+	t.fit_content = true
+	t.scroll_active = false
+	t.custom_minimum_size = Vector2(580, 0)
+	t.add_theme_font_size_override("normal_font_size", 15)
+	t.add_theme_font_size_override("bold_font_size", 15)
+	t.add_theme_color_override("default_color", UiTokens.ENCRE)
+	t.text = "\n".join(L)
+	picker_box.add_child(t)
+	picker_box.move_child(t, picker_box.get_child_count() - 2)
+	picker_box.get_child(picker_box.get_child_count() - 1).text = "Fermer"
+
+
 func _open_picker(title: String, subtitle: String, rows: Array) -> void:
 	if picker_root == null:
 		var o := _overlay()
@@ -5468,6 +5694,7 @@ func _rebuild_end() -> void:
 	for src in [["frequentation", "Fréquentation (visiteurs)", "ressource_visiteurs", Color("8A6AD0")],
 			["spectacles", "Spectacles du Kiosque", "batiment_kiosque", Color("D0A040")],
 			["boutique", "Boutique", "batiment_boutique", Color("E04A8A")],
+			["objectifs", "Objectifs des actionnaires", "ressource_reputation", UiTokens.SELECTION],
 			["labels", "Labels (or)", "ressource_or", UiTokens.RESSOURCES["or"]["couleur"]],
 			["prestige", "Prestige politique", "ressource_influence", UiTokens.RESSOURCES["influence"]["couleur"]],
 			["legendaires", "Collaborateurs légendaires", "ui_ameliorer", UiTokens.OR]]:
@@ -5699,7 +5926,7 @@ func _contract_widget(def: Dictionary, button_text: String, err: String, cb: Cal
 	var biome: String = def["biome"]
 	var bcol: Color = biome_colors[biome]
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(204, 0)
+	panel.custom_minimum_size = Vector2(190, 0)
 	panel.add_theme_stylebox_override("panel", UiTokens.panel(UiTokens.PANNEAU_MILIEU, UiTokens.OR, 10, 2, 0))
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 0)
@@ -5745,12 +5972,12 @@ func _contract_widget(def: Dictionary, button_text: String, err: String, cb: Cal
 	arow.alignment = BoxContainer.ALIGNMENT_CENTER
 	arow.add_theme_constant_override("separation", 6)
 	art.add_child(arow)
-	var illus := _animal_picture(def["id"], Vector2(104, 78))
+	var illus := _animal_picture(def["id"], Vector2(86, 70))
 	if illus:
 		arow.add_child(illus)
 	var cc := CenterContainer.new()
 	arow.add_child(cc)
-	cc.add_child(_pattern_view(def, 16.0 if illus else 18.0))
+	cc.add_child(_pattern_view(def, 13.0 if illus else 18.0))
 	# Corps
 	var body := MarginContainer.new()
 	body.add_theme_constant_override("margin_left", 10)
@@ -5777,12 +6004,12 @@ func _contract_widget(def: Dictionary, button_text: String, err: String, cb: Cal
 	var origin := Composants.label("%s · %s" % [game.continent_name(def.get("continent", "")), game.type_name(def.get("type", ""))], "TexteSecondaire")
 	origin.add_theme_font_size_override("font_size", 12)
 	inner.add_child(origin)
-	var same_continent := game.animals.filter(func(a): return a.def.get("continent", "") == def.get("continent", "")).size()
+	var gain_affinite := game.affinity_gain(def)
 	var stats := HBoxContainer.new()
 	stats.add_theme_constant_override("separation", 4)
 	inner.add_child(stats)
 	for st in [["+%d" % int(def["reputation"]), "attractivité", Color("C8A8F0")], [str(game.food_cost(def)), "nourriture/j", UiTokens.POSITIF],
-			["+5 %" if same_continent > 0 else "—", "affinité", UiTokens.SELECTION if same_continent > 0 else UiTokens.TEXTE_SECONDAIRE]]:
+			["+%d %%" % roundi(gain_affinite * 100.0) if gain_affinite > 0.0 else "—", "affinité", UiTokens.SELECTION if gain_affinite > 0.0 else UiTokens.TEXTE_SECONDAIRE]]:
 		var col := VBoxContainer.new()
 		col.add_theme_constant_override("separation", -3)
 		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -5822,7 +6049,7 @@ func _contract_widget(def: Dictionary, button_text: String, err: String, cb: Cal
 	panel.tooltip_text = "%s (%s, palier %s)\n%s · %s\nEnclos : %s\nAttractivité %d · nourriture %d / jour\nCoût : %s%s" % [
 		def["nom"], biome_noms[biome], def["palier"], game.continent_name(def.get("continent", "")), game.type_name(def.get("type", "")),
 		_requirements_text(def), int(def["reputation"]), game.food_cost(def), game.cost_text(game.contract_cost(def)),
-		"\nAffinité : %d animal(aux) du même continent dans votre zoo (+5 %% de réputation)" % same_continent if same_continent > 0 else ""]
+		"\nAffinité : +%d %% de réputation avec une espèce de plus de ce continent" % roundi(gain_affinite * 100.0) if gain_affinite > 0.0 else ""]
 	return panel
 
 
