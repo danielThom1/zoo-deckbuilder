@@ -47,7 +47,7 @@ var history: Array = []  # statistiques par jour et par joueur (simulations)
 
 
 ## human = index du joueur humain, ou -1 pour une partie entièrement jouée par des IA.
-func _init(game_data: Dictionary, map_seed: int, nb_players := 4, human := 0, strategies: Array = []) -> void:
+func _init(game_data: Dictionary, map_seed: int, nb_players := 4, human := 0, strategies: Array = [], autres_humains: Array = []) -> void:
 	data = game_data
 	seed_value = map_seed
 	rng.seed = map_seed ^ 0x5bd1e995
@@ -61,7 +61,7 @@ func _init(game_data: Dictionary, map_seed: int, nb_players := 4, human := 0, st
 		drafted.append([])
 	var ia_count := 0
 	for i in nb_players:
-		if i == human:
+		if i == human or autres_humains.has(i):
 			ais.append(null)
 			names.append("Vous")
 		else:
@@ -491,6 +491,14 @@ func _annoncer_rival() -> void:
 		elif best != rival_en_tete:
 			rival_en_tete = best
 			p.annonce("rival_devant", {"rival": names[best]})
+
+
+## Un joueur a quitté la partie : une IA reprend son zoo, là où il en était.
+func remplacer_par_ia(i: int) -> void:
+	if ais[i] != null:
+		return
+	ais[i] = AIController.new(self, players[i], {})
+	ais[i].reprendre_zoo()
 
 
 func start_next_day() -> void:

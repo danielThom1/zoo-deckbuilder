@@ -136,6 +136,10 @@ var trade_note: Label
 var trade_card: Control  # carte « Bourse des ressources » du panneau de droite
 var tutoriel: Tutoriel  # tutoriel scénarisé en cours
 var menu_btn: Button
+var reseau: Reseau  # partie multijoueur en cours (null en solo)
+var partie_reseau := {}
+var bandeau_multi: Label
+var a_selectionner: GameState.Card  # carte mobilisée, en attente de la trame qui fera apparaître l'ouvrier
 var hubert: BulleHubert  # Hubert à l'écran (joueur humain, hors tutoriel)
 var hubert_dit := {}  # alertes déjà annoncées aujourd'hui
 var hubert_ouverture := false
@@ -240,6 +244,10 @@ func _ready() -> void:
 		return
 	# icônes SVG du monde lissées quand on dézoome
 	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	# Test du multijoueur : un joueur automatique héberge ou rejoint (tests/mp_auto.gd)
+	if args.has("mp-hote") or args.has("mp-rejoindre"):
+		add_child(load("res://tests/mp_auto.gd").new(self))
+		return
 	# Arguments de test : on démarre directement. Sinon, menu de lancement.
 	if args.has("spectateur") or args.has("autodraft") or args.has("autoplay") or args.has("joueurs") or args.has("tutoriel"):
 		_start(args.has("spectateur"))
@@ -253,6 +261,9 @@ func _show_menu() -> void:
 	add_child(layer)
 	var menu := MenuPrincipal.new()
 	layer.add_child(menu)
+	menu.multijoueur.connect(func(): _ouvrir_salon(layer))
+	if args.has("salon"):
+		_ouvrir_salon(layer)
 	menu.tutoriel.connect(func():
 		args["tutoriel"] = ""
 		layer.queue_free()
@@ -270,6 +281,68 @@ func _show_menu() -> void:
 		_start(watch))
 
 
+## Salon multijoueur par-dessus le menu ; la partie démarre quand l'hôte la lance (--salon : ouvert d'office, pour les captures).
+func _ouvrir_salon(layer: CanvasLayer) -> void:
+	var r := Reseau.new()
+	r.name = "Reseau"  # même chemin sur toutes les machines : les messages réseau en dépendent
+	add_child(r)
+	var salon := Salon.new(r)
+	layer.add_child(salon)
+	salon.retour.connect(func():
+		salon.queue_free()
+		r.queue_free())
+	r.demarrage.connect(func(params: Dictionary):
+		reseau = r
+		partie_reseau = params
+		layer.queue_free()
+		_start(false))
+
+
+## Multijoueur : le bandeau d'information, les boutons « prêt », la vitesse commune. Hôte parti : retour au menu.
+func _maj_multijoueur() -> void:
+	if bandeau_multi == null:
+		bandeau_multi = Label.new()
+		bandeau_multi.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+		bandeau_multi.offset_top = 62
+		bandeau_multi.grow_horizontal = Control.GROW_DIRECTION_BOTH
+		bandeau_multi.add_theme_stylebox_override("normal", UiTokens.panel(UiTokens.BOUTON_HAUT, UiTokens.ENCRE, 8, 2, 4))
+		bandeau_multi.add_theme_font_override("font", UiTokens.police_corps(700))
+		bandeau_multi.add_theme_font_size_override("font_size", 15)
+		bandeau_multi.add_theme_color_override("font_color", UiTokens.ENCRE)
+		bandeau_multi.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var calque := CanvasLayer.new()
+		calque.layer = 14
+		add_child(calque)
+		calque.add_child(bandeau_multi)
+		event_label.offset_top = 96
+		if hubert:
+			hubert.haut = 104.0
+		reseau.coupure.connect(func(t):
+			game.say(t)
+			_restart("menu"))
+	if a_selectionner and game.worker_of(a_selectionner):
+		selected = [game.worker_of(a_selectionner)]
+		a_selectionner = null
+	var e: Dictionary = reseau.etat
+	var morceaux: Array[String] = []
+	if reseau.desynchro:
+		morceaux.append("ATTENTION : les parties ne sont plus identiques sur toutes les machines")
+	if int(e.get("prep", 0)) > 0:
+		morceaux.append("Préparation : %d s" % int(e["prep"]))
+	if int(e.get("delai", 0)) > 0:
+		morceaux.append("Temps pour choisir : %d s" % int(e["delai"]))
+	if mt.phase == "day":
+		morceaux.append("Vitesse ×%d" % int(e.get("vitesse", 1.0)))
+	bandeau_multi.text = "  " + " · ".join(morceaux) + "  "
+	bandeau_multi.visible = not morceaux.is_empty() and not mt.game_over
+	var prets := "%d/%d" % [int(e.get("prets", 0)), int(e.get("humains", 1))]
+	if mt.phase == "day":
+		end_day_btn.text = ("EN ATTENTE (%s)" if reseau.est_pret else "JE SUIS PRÊT (%s)") % prets
+	elif mt.phase == "night" and mt.night_stage == "equipe" and night_next:
+		night_next.text = ("En attente des autres (%s)" if reseau.est_pret else "Je suis prêt (%s)  ›") % prets
+		night_next.disabled = mt.game_over
+
+
 ## Stratégies des IA en mode spectateur (mêmes réglages que les simulations d'équilibrage).
 const WATCH_STRATEGIES := [
 	{"nom": "Rush or", "rush_or": true}, {"nom": "Grand parc", "taille_zoo": "grand"},
@@ -281,6 +354,17 @@ func _start(watch: bool) -> void:
 	spectator = watch
 	var map_seed: int = int(args["seed"]) if args.has("seed") else randi() % 1000000000
 	var nb := int(args.get("joueurs", "4"))
+	var local := 0
+	var autres_humains: Array = []
+	if reseau:
+		map_seed = int(partie_reseau["graine"])
+		nb = int(partie_reseau["nb"])
+		local = int(partie_reseau["index"])
+		for i in partie_reseau["humains"].size():
+			if i != local:
+				autres_humains.append(i)
+		if partie_reseau["difficile"]:
+			args["difficile"] = ""
 	if args.has("tutoriel"):
 		map_seed = Tutoriel.GRAINE
 		nb = 4
@@ -290,18 +374,25 @@ func _start(watch: bool) -> void:
 		var hard: Array = JSON.parse_string(FileAccess.get_file_as_string("res://data/ia_difficile.json"))["strategies"]
 		strategies = []
 		for i in nb:
-			strategies.append(null if i == 0 and not spectator else hard[(i - (0 if spectator else 1)) % hard.size()])
+			var humain: bool = (i == 0 and not spectator) if reseau == null else (i == local or autres_humains.has(i))
+			strategies.append(null if humain else hard[(i - (0 if spectator else 1)) % hard.size()])
 	var charge: Match = Sauvegarde.charger(GameData.load_all()) if args.has("charger") else null
-	mt = charge if charge else Match.new(GameData.load_all(), map_seed, nb, -1 if spectator else 0, strategies)
-	mt.autosave = not spectator and not args.has("shot") and not args.has("tutoriel")
+	mt = charge if charge else Match.new(GameData.load_all(), map_seed, nb, -1 if spectator else local, strategies, autres_humains)
+	mt.autosave = not spectator and not args.has("shot") and not args.has("tutoriel") and reseau == null
 	if args.has("tutoriel"):
 		Tutoriel.preparer(mt)
 	elif not spectator and charge == null:
+		# Chacun dirige ZooLife sur son écran ; les autres sont les groupes rivaux, avec le nom de l'ami qui les dirige
 		var H: Dictionary = mt.data["hubert"]
-		mt.names[0] = "%s (vous)" % H["entreprise"]
-		for k in range(1, mt.names.size()):
-			mt.names[k] = H["rivaux"][(k - 1) % H["rivaux"].size()]
-	game = mt.players[0]
+		var r := 0
+		for k in mt.names.size():
+			if k == local:
+				mt.names[k] = "%s (vous)" % H["entreprise"]
+			else:
+				var groupe: String = H["rivaux"][r % H["rivaux"].size()]
+				r += 1
+				mt.names[k] = "%s (%s)" % [groupe, partie_reseau["humains"][k]["pseudo"]] if reseau and k < partie_reseau["humains"].size() else groupe
+	game = mt.players[local]
 	RenderingServer.set_default_clear_color(UiTokens.FOND_ECRAN)
 	_build_terrain()
 	camera = Camera2D.new()
@@ -316,6 +407,8 @@ func _start(watch: bool) -> void:
 		+ Vector2(0, vh / 2.0 - visible_center_y) / camera.zoom
 	_build_ui()
 	_set_speed(8.0 if spectator else 1.0)
+	if reseau:
+		reseau.attacher(self, mt)
 	if not spectator and not args.has("tutoriel"):
 		var h_layer := CanvasLayer.new()
 		h_layer.layer = 15
@@ -1464,7 +1557,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				var targets := selected.filter(func(w): return game.workers.has(w))
 				if not targets.is_empty():
 					var t := _screen_to_world(event.position) / TILE
-					game.order(targets, Vector2i(floori(t.x), floori(t.y)), event.shift_pressed)
+					_cmd("order", [targets, Vector2i(floori(t.x), floori(t.y)), event.shift_pressed])
 	elif event is InputEventKey and event.pressed and not event.echo:
 		match event.physical_keycode:
 			KEY_ESCAPE:
@@ -1570,7 +1663,7 @@ func _try_place(t: Vector2i, first_click: bool) -> void:
 		return
 	if kind == "animal":
 		var in_park: bool = game.enclosure_at(t).get("park", false)
-		var aerr := game.install_animal(def, t)
+		var aerr := _cmd_texte("install_animal", [def, t])
 		if aerr == "" and in_park:
 			game.say("%s : enclos posé en chantier autour, l'animal y est réservé. Envoyez des collaborateurs (clic droit)." % def["nom"])
 		if aerr != "":
@@ -1584,8 +1677,8 @@ func _try_place(t: Vector2i, first_click: bool) -> void:
 		if first_click:
 			game.say(err)
 		return
-	var s := game.place(kind, def, origin)
-	if s and not _is_paint_build() and not Input.is_key_pressed(KEY_SHIFT):
+	var s: Variant = _cmd("place", [kind, def, origin])
+	if (s or reseau) and not _is_paint_build() and not Input.is_key_pressed(KEY_SHIFT):
 		_set_build({})
 		selected_site = s
 
@@ -1698,10 +1791,10 @@ func _delete_selection() -> void:
 		if not game.sites.has(site):
 			continue
 		if site.done:
-			if game.demolish(site):
+			if _cmd("demolish", [site]) != false:
 				demolished += 1
 		else:
-			game.cancel_site(site)
+			_cmd("cancel_site", [site])
 			cancelled += 1
 	if demolished + cancelled > 1:
 		game.say("%d démoli(s), %d chantier(s) annulé(s)." % [demolished, cancelled])
@@ -1726,6 +1819,10 @@ func _pan_keys(delta: float) -> void:
 func _set_speed(s: float) -> void:
 	if tutoriel and tutoriel.temps_verrouille:
 		return
+	if reseau:
+		if s <= 0.0:  # pas de pause en multijoueur
+			return
+		reseau.demander_vitesse(s)
 	speed = s
 	for k in speed_buttons:
 		speed_buttons[k].button_pressed = (k == s)
@@ -1744,25 +1841,29 @@ func _process(delta: float) -> void:
 	if mt.phase != last_phase:
 		if mt.phase == "day" and last_phase != "" and not spectator:
 			_set_speed(0.0)
+			selected.clear()
 		last_phase = mt.phase
 	_pan_keys(delta)
-	if mt.phase == "draft" and mt.is_ai(mt.current_drafter()):
+	if reseau == null and mt.phase == "draft" and mt.is_ai(mt.current_drafter()):
 		ai_timer += delta
 		if ai_timer > 0.35:
 			ai_timer = 0.0
 			mt.pick_draft(mt.ai_choice())
 	# La nuit, les IA jouent l'une après l'autre (on voit ce qu'elles prennent) ; en spectateur, la nuit passe seule.
-	if mt.phase == "night" and not mt.game_over:
+	if reseau == null and mt.phase == "night" and not mt.game_over:
 		night_clock += delta
 		var pause := 0.3 if speed >= 8.0 else (2.0 if mt.night_stage == "bonus" else 1.1)
 		if night_clock > pause:
 			night_clock = 0.0
 			if not mt.step_night() and spectator and mt.night_stage == "equipe":
 				mt.start_next_day()
-	acc += minf(delta, 0.1) * speed
-	while acc >= GameState.TICK:
-		game.tick(GameState.TICK)
-		acc -= GameState.TICK
+	if reseau:
+		_maj_multijoueur()
+	else:
+		acc += minf(delta, 0.1) * speed
+		while acc >= GameState.TICK:
+			game.tick(GameState.TICK)
+			acc -= GameState.TICK
 	selected = selected.filter(func(w): return game.workers.has(w))
 	if selected_site and not game.sites.has(selected_site):
 		selected_site = null
@@ -1837,6 +1938,22 @@ func _note_de_direction(total: int) -> void:
 	tampon.position = Vector2(60, 8)
 	tampon.rotation = -0.1
 	support.add_child(tampon)
+
+
+## Tous les ordres du joueur passent ici : exécutés aussitôt en solo, envoyés à l'hôte en multijoueur (null : le résultat
+## arrivera avec la trame suivante).
+func _cmd(nom: String, args := []) -> Variant:
+	if reseau:
+		reseau.envoyer(nom, Commandes.coder(args))
+		return null
+	if nom in Commandes.SUR_PARTIE:
+		return mt.callv(nom, args)
+	return game.callv(nom, args)
+
+
+func _cmd_texte(nom: String, args := []) -> String:
+	var r: Variant = _cmd(nom, args)
+	return r if r is String else ""
 
 
 ## Répliques en attente : en bulle, ou en message simple si le moment n'a pas de réplique (ou pendant le tutoriel).
@@ -2049,7 +2166,7 @@ func _build_ui() -> void:
 	speeds.add_theme_constant_override("separation", 4)
 	speeds.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	hb.add_child(speeds)
-	for s in [0.0, 1.0, 2.0, 4.0, 8.0, 16.0]:
+	for s in ([1.0, 2.0, 4.0, 8.0, 16.0] if reseau else [0.0, 1.0, 2.0, 4.0, 8.0, 16.0]):
 		var b := Button.new()
 		b.text = "II" if s == 0.0 else "×%d" % int(s)
 		b.toggle_mode = true
@@ -2160,14 +2277,14 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 	btn_lobby = Button.new()
 	btn_lobby.text = "Envoyer en lobbying"
 	btn_lobby.focus_mode = Control.FOCUS_NONE
-	btn_lobby.pressed.connect(func(): game.order(selected, game.map.exit_tile))
+	btn_lobby.pressed.connect(func(): _cmd("order", [selected, game.map.exit_tile]))
 	rv.add_child(btn_lobby)
 	btn_recall = Button.new()
 	btn_recall.text = "Rappeler sur la carte"
 	btn_recall.focus_mode = Control.FOCUS_NONE
 	btn_recall.pressed.connect(func():
 		for w in selected:
-			game.recall(w))
+			_cmd("recall", [w]))
 	rv.add_child(btn_recall)
 	btn_swap = Button.new()
 	btn_swap.text = "Remplacer (Agence d'intérim)"
@@ -2181,7 +2298,7 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 	btn_cancel_site.focus_mode = Control.FOCUS_NONE
 	btn_cancel_site.pressed.connect(func():
 		if selected_site:
-			game.cancel_site(selected_site)
+			_cmd("cancel_site", [selected_site])
 			selected_site = null)
 	rv.add_child(btn_cancel_site)
 	btn_demolish = Button.new()
@@ -2219,12 +2336,12 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 			var sb := Composants.bouton("", "BoutonSecondaire")
 			sb.add_theme_font_size_override("font_size", 12)
 			sb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			sb.pressed.connect(func(): game.sell_amount(res, int(spin.value)))
+			sb.pressed.connect(func(): _cmd("sell_amount", [res, int(spin.value)]))
 			row.add_child(sb)
 			var bb := Composants.bouton("", "BoutonSecondaire")
 			bb.add_theme_font_size_override("font_size", 12)
 			bb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			bb.pressed.connect(func(): game.buy_material(res, int(spin.value)))
+			bb.pressed.connect(func(): _cmd("buy_material", [res, int(spin.value)]))
 			bb.visible = res != "or"
 			row.add_child(bb)
 			trade_rows[res] = [spin, sb, bb]
@@ -2235,7 +2352,7 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 		for ld in game.label_defs():
 			var lb := Composants.bouton("", "BoutonSecondaire")
 			lb.add_theme_font_size_override("font_size", 12)
-			lb.pressed.connect(func(): game.buy_label(ld))
+			lb.pressed.connect(func(): _cmd("buy_label", [ld]))
 			rv.add_child(lb)
 			label_buttons[ld["id"]] = lb
 		# Publicité : campagnes menées par les ouvriers à l'extérieur, elles seules augmentent l'affluence
@@ -2251,7 +2368,7 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 			var pb := Composants.bouton("", "BoutonSecondaire")
 			pb.add_theme_font_size_override("font_size", 11)
 			pb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			pb.pressed.connect(func(): game.launch_campaign(d))
+			pb.pressed.connect(func(): _cmd("launch_campaign", [d]))
 			prow.add_child(pb)
 			pub_buttons[d["id"]] = pb
 
@@ -2367,7 +2484,7 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 	loan_btn.offset_top = -246
 	loan_btn.offset_bottom = -210
 	loan_btn.visible = false
-	loan_btn.pressed.connect(func(): game.take_loan())
+	loan_btn.pressed.connect(func(): _cmd("take_loan"))
 	ui.add_child(loan_btn)
 	rotate_btn = Composants.bouton("⟲ Tourner (R)", "BoutonPrincipal")
 	rotate_btn.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
@@ -2425,7 +2542,9 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 	end_day_btn.offset_top = -64
 	end_day_btn.offset_bottom = -18
 	end_day_btn.pressed.connect(func():
-		if tutoriel == null or tutoriel.fin_de_journee_permise():
+		if reseau:
+			reseau.basculer_pret()
+		elif tutoriel == null or tutoriel.fin_de_journee_permise():
 			game.end_day())
 	end_day_btn.visible = not spectator
 	ui.add_child(end_day_btn)
@@ -2829,7 +2948,7 @@ func _rebuild_hand() -> void:
 		if card.is_action():
 			var ciblee: bool = card.action.get("cible", false)
 			hand_box.add_child(Composants.carte_action(card, "Choisir…" if ciblee else "Jouer", spectator or game.phase != "day",
-				_open_action_picker.bind(card) if ciblee else game.play_action.bind(card)))
+				_open_action_picker.bind(card) if ciblee else _cmd.bind("play_action", [card])))
 			continue
 		var w := game.worker_of(card)
 		var d := Composants.donnees_ouvrier(game, card)
@@ -2868,17 +2987,21 @@ func _action_widget(card: GameState.Card, button_text: String, disabled: bool, c
 func _deploy_all() -> void:
 	for card in game.hand.duplicate():
 		if not card.is_action() and not card.deployed and game.money >= (0 if game.prime_left > 0 else game.salary(card)):
-			game.deploy(card)
+			_cmd("deploy", [card])
 
 
 func _on_deploy(card: GameState.Card) -> void:
-	if game.deploy(card):
+	if _cmd("deploy", [card]):
 		selected = [game.worker_of(card)]
+	elif reseau:
+		a_selectionner = card
 
 
 func _on_deploy_free(card: GameState.Card) -> void:
-	if game.deploy(card, true):
+	if _cmd("deploy", [card, true]):
 		selected = [game.worker_of(card)]
+	elif reseau:
+		a_selectionner = card
 
 
 ## Mode spectateur : affiche le zoo d'une autre IA.
@@ -2920,7 +3043,7 @@ func _focus_zoo() -> void:
 
 
 func _on_recall(w: GameState.Worker) -> void:
-	game.recall(w)
+	_cmd("recall", [w])
 	selected = [w]
 
 
@@ -2954,7 +3077,7 @@ func _rebuild_draft() -> void:
 		"  ›  ".join(order), mt.draft_round_size(),
 		" La dernière carte revient d'office au dernier joueur." if mt.draft_round_size() == mt.players.size() else " Les cartes restantes sont défaussées."]
 	for card in mt.draft_pool:
-		draft_grid.add_child(_card_widget(card, "Choisir", not my_turn, mt.pick_draft.bind(card)))
+		draft_grid.add_child(_card_widget(card, "Choisir", not my_turn, _cmd.bind("pick_draft", [card])))
 	var lines: Array[String] = []
 	for p in mt.players.size():
 		var names: Array[String] = []
@@ -3751,15 +3874,15 @@ func _unit_order(kind: String) -> void:
 		return
 	match kind:
 		"lobby":
-			game.order(selected, game.map.exit_tile)
+			_cmd("order", [selected, game.map.exit_tile])
 		"camp":
-			game.order(selected, game.map.camp.get_center())
+			_cmd("order", [selected, game.map.camp.get_center()])
 		_:
 			var t := _nearest_resource(kind, Vector2i(selected[0].pos))
 			if t.x < 0:
 				game.say("Aucun gisement de %s accessible%s." % [res_noms[kind], " (construisez une mine d'or)" if kind == "or" else ""])
 			else:
-				game.order(selected, t)
+				_cmd("order", [selected, t])
 
 
 ## Case exploitable la plus proche (bois, pierre, or avec mine) parmi celles qu'on peut atteindre.
@@ -4219,7 +4342,7 @@ func _rebuild_night() -> void:
 		if (game.has_building("cabinet") or game.rare_effects().any(func(e): return e.get("echange", false))) and not spectator:
 			recruit = ["⟳", game.hippo_error() != "" and game.recruit_error("peu_qualifie") != "" and game.recruit_error("cadre") != "" and game.recruit_error("qualifie") != "",
 				_open_recruit.bind(card)]
-		var w := _card_widget(card, hire_text, err != "", game.hire.bind(card), recruit)
+		var w := _card_widget(card, hire_text, err != "", _cmd.bind("hire", [card]), recruit)
 		w.tooltip_text = (err + "\n" if err != "" else "") + w.tooltip_text
 		for b in w.find_children("*", "Button", true, false):
 			b.tooltip_text = err if err != "" else "Embaucher %s pour %d argent" % [card.nom, cost]
@@ -4231,14 +4354,14 @@ func _rebuild_night() -> void:
 	for def in game.market_contracts:
 		var err := game.contract_error(def)
 		night_contracts.add_child(_contract_widget(def, "Acheter · %s" % game.cost_text(game.contract_cost(def)),
-			"Mode spectateur" if spectator else err, game.buy_contract.bind(def)))
+			"Mode spectateur" if spectator else err, _cmd.bind("buy_contract", [def])))
 	for t in _taken("contrats"):
 		night_contracts.add_child(_taken_mark(_contract_widget(t["objet"], "Pris · %s" % mt.names[t["joueur"]], "Pris par %s" % mt.names[t["joueur"]],
 			Callable()), t["joueur"]))
 	_clear(night_actions)
 	for card in mt.market_actions:
 		var aerr := game.action_error(card)
-		var aw := _action_widget(card, "Acheter · %d" % int(card.action["cout"]), spectator or aerr != "", game.buy_action.bind(card))
+		var aw := _action_widget(card, "Acheter · %d" % int(card.action["cout"]), spectator or aerr != "", _cmd.bind("buy_action", [card]))
 		if aerr != "":
 			aw.tooltip_text = aerr + "\n" + aw.tooltip_text
 		night_actions.add_child(aw)
@@ -4336,14 +4459,14 @@ func _rebuild_night() -> void:
 		btn.add_theme_stylebox_override("pressed", normal)
 		btn.add_theme_stylebox_override("disabled", normal)
 		btn.add_theme_color_override("font_disabled_color", UiTokens.SELECTION if chosen else Color(UiTokens.TEXTE, 0.55))
-		btn.pressed.connect(game.pick_bonus.bind(b))
+		btn.pressed.connect(_cmd.bind("pick_bonus", [b]))
 		night_bonus_box.add_child(btn)
 	# Le premier en influence peut n'en choisir aucun
 	if mt.influence_leader() == game.index and not spectator:
 		var none := Composants.bouton("Aucun bonus : aucun ne m'intéresse", "BoutonSecondaire")
 		none.custom_minimum_size = Vector2(620, 40)
 		none.disabled = game.bonus_error(Match.NO_BONUS) != ""
-		none.pressed.connect(game.pick_bonus.bind(Match.NO_BONUS))
+		none.pressed.connect(_cmd.bind("pick_bonus", [Match.NO_BONUS]))
 		night_bonus_box.add_child(none)
 
 	# Montées de niveau : une amélioration gratuite à choisir par niveau gagné
@@ -4378,7 +4501,7 @@ func _rebuild_night() -> void:
 			ob.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			ob.add_theme_font_size_override("font_size", 12)
 			ob.custom_minimum_size = Vector2(290, 0)
-			ob.pressed.connect(game.choose_level_upgrade.bind(card, opt))
+			ob.pressed.connect(_cmd.bind("choose_level_upgrade", [card, opt]))
 			night_level_rows.add_child(ob)
 
 	# Améliorer ou licencier : ↑ ouvre les améliorations payantes, ✕ demande confirmation
@@ -4407,7 +4530,7 @@ func _rebuild_night() -> void:
 		row.add_child(nl)
 		var fb := Composants.bouton("Licencier", "BoutonSecondaire")
 		fb.add_theme_font_size_override("font_size", 12)
-		fb.pressed.connect(game.fire.bind(card))
+		fb.pressed.connect(_cmd.bind("fire", [card]))
 		row.add_child(fb)
 		night_fire.add_child(row)
 
@@ -4493,10 +4616,12 @@ func _toggle_peek_hint(def: Dictionary) -> void:
 func _on_night_next() -> void:
 	if mt.market_stage():
 		if mt.current_buyer() == game.index:
-			mt.pass_turn()
+			_cmd("pass_turn")
 	elif mt.night_stage == "bonus":
 		if mt.influence_leader() == game.index:
-			mt.confirm_bonus()
+			_cmd("confirm_bonus")
+	elif reseau:
+		reseau.basculer_pret()
 	else:
 		game.start_next_day()
 		selected.clear()
@@ -4509,7 +4634,7 @@ func _open_recruit(card: GameState.Card) -> void:
 		# Hippopotame : on garde cette carte de la rangée en échange d'un de ses ouvriers
 		for c in game.all_employees():
 			rows.append([c, "Échanger", "", func():
-				game.hippo_swap(c, card)
+				_cmd("hippo_swap", [c, card])
 				_close_picker()])
 	_open_picker("REMPLACER %s" % card.nom.to_upper(), "%s%s" % [
 		"Hippopotame : échangez un de vos collaborateurs contre %s. " % card.nom if not rows.is_empty() else "",
@@ -4522,7 +4647,7 @@ func _open_recruit(card: GameState.Card) -> void:
 		b.disabled = err != ""
 		b.tooltip_text = err
 		b.pressed.connect(func():
-			game.recruit_replace(card, cat)
+			_cmd("recruit_replace", [card, cat])
 			_close_picker())
 		picker_box.add_child(b)
 		picker_box.move_child(b, picker_box.get_child_count() - 2)
@@ -4656,17 +4781,14 @@ func _update_proposal_box(def: Dictionary, interior: Dictionary) -> void:
 func _build_proposal() -> void:
 	if enclosure_proposal.is_empty():
 		return
-	var placed := game.place_enclosure(enclosure_proposal)
-	game.say("Enclos proposé : %d clôture(s) en chantier. Envoyez des collaborateurs (clic droit dessus)." % placed)
-	enclosure_proposal["new"] = enclosure_proposal["new"].filter(func(t): return game.site_at(t) == null)
+	var def: Dictionary = build_choice["def"] if build_choice.get("kind") == "animal" else {}
+	var err := _cmd_texte("construire_proposition", [enclosure_proposal, def])
+	if err != "":
+		game.say(err)
+	elif enclosure_proposal["missing"] == 0 and not def.is_empty():
+		_set_build({})
+	enclosure_proposal["new"] = []
 	enclosure_proposal.erase("decor")
-	# Motif déjà présent : l'animal est réservé dans l'enclos en chantier et arrivera une fois les clôtures finies.
-	if enclosure_proposal["new"].is_empty() and enclosure_proposal["missing"] == 0 and build_choice.get("kind") == "animal":
-		var err := game.install_animal(build_choice["def"], enclosure_proposal["pattern"][0])
-		if err == "":
-			_set_build({})
-		else:
-			game.say(err)
 
 
 func _draw_peek_hint() -> void:
@@ -4921,7 +5043,7 @@ func _on_play_cadre(card: GameState.Card) -> void:
 				if c == card or c.is_action():
 					continue
 				rows.append([c, "Licencier", game.cadre_error(card, c), func():
-					game.play_cadre(card, c)
+					_cmd("play_cadre", [card, c])
 					_close_picker()])
 			_open_picker(A["nom"].to_upper(), A["texte"], rows)
 		"ressource":
@@ -4932,12 +5054,12 @@ func _on_play_cadre(card: GameState.Card) -> void:
 				var b := Composants.bouton("Vendre %d %s · +%d" % [n, res, gain], "BoutonPrincipal")
 				b.disabled = game.cadre_error(card, null, res) != ""
 				b.pressed.connect(func():
-					game.play_cadre(card, null, res)
+					_cmd("play_cadre", [card, null, res])
 					_close_picker())
 				picker_box.add_child(b)
 				picker_box.move_child(b, picker_box.get_child_count() - 2)
 		_:
-			game.play_cadre(card)
+			_cmd("play_cadre", [card])
 
 
 ## Rupture de contrat : l'ouvrier à licencier. Promotion : l'ouvrier, puis son amélioration.
@@ -4948,7 +5070,7 @@ func _open_action_picker(card: GameState.Card) -> void:
 		var err := game.action_target_error(card, c)
 		if fire:
 			rows.append([c, "Licencier", err, func():
-				game.play_action(card, c)
+				_cmd("play_action", [card, c])
 				_close_picker()])
 		else:
 			rows.append([c, "Choisir", err, _open_promotion.bind(card, c)])
@@ -4965,7 +5087,7 @@ func _open_promotion(card: GameState.Card, target: GameState.Card) -> void:
 		ob.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		ob.custom_minimum_size = Vector2(560, 0)
 		ob.pressed.connect(func():
-			game.play_action(card, target, opt)
+			_cmd("play_action", [card, target, opt])
 			_close_picker())
 		picker_box.add_child(ob)
 	var row := HBoxContainer.new()
@@ -4984,7 +5106,7 @@ func _open_swap_picker(w: GameState.Worker) -> void:
 	var rows := []
 	for c in game.swap_candidates():
 		rows.append([c, "Prendre · %d" % game.swap_cost(c), game.swap_error(w, c), func():
-			game.swap_worker(w, c)
+			_cmd("swap_worker", [w, c])
 			_close_picker()])
 	_open_picker("AGENCE D'INTÉRIM", "Remplacer %s (%s) : le remplaçant arrive à sa place, garde sa charge et reprend sa tâche ; %s part à la défausse. Coût : %d de frais + salaire du remplaçant. Une fois par jour." % [
 		w.card.nom, game.job_name(w.card), w.card.nom, int(game.data["buildings"]["agence"]["frais"])], rows)
@@ -5146,7 +5268,7 @@ func _employee_row(card: GameState.Card, cost_up: int, cost_fire: int) -> Contro
 				ub.add_theme_font_size_override("font_size", 12)
 				ub.disabled = game.night_action_error(cost_up) != ""
 				ub.pressed.connect(func():
-					game.apply_upgrade(card, opt)
+					_cmd("apply_upgrade", [card, opt])
 					action_card = null)
 				v.add_child(ub)
 		else:
@@ -5154,7 +5276,7 @@ func _employee_row(card: GameState.Card, cost_up: int, cost_fire: int) -> Contro
 			fb.add_theme_font_size_override("font_size", 12)
 			fb.disabled = game.night_action_error(cost_fire) != ""
 			fb.pressed.connect(func():
-				game.fire_paid(card)
+				_cmd("fire_paid", [card])
 				action_card = null)
 			v.add_child(fb)
 	return box
@@ -5723,7 +5845,7 @@ func _rebuild_contracts() -> void:
 			var cb := Composants.bouton("Annuler", "BoutonSecondaire")
 			cb.add_theme_font_size_override("font_size", 12)
 			cb.tooltip_text = "Annule la réservation : le contrat revient dans les contrats à installer (les clôtures restent)"
-			cb.pressed.connect(game.cancel_pending.bind(r))
+			cb.pressed.connect(_cmd.bind("cancel_pending", [r]))
 			row.add_child(cb)
 			contracts_box.add_child(row)
 	if game.contracts.is_empty():

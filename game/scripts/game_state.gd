@@ -2569,6 +2569,15 @@ func place_enclosure(site: Dictionary) -> int:
 	return placed
 
 
+## Enclos proposé par l'interface : les clôtures, puis l'animal réservé si le motif est déjà là. Renvoie l'erreur éventuelle.
+func construire_proposition(site: Dictionary, def: Dictionary) -> String:
+	var placed := place_enclosure(site)
+	say("Enclos proposé : %d clôture(s) en chantier. Envoyez des collaborateurs (clic droit dessus)." % placed)
+	if def.is_empty() or int(site["missing"]) != 0 or site["new"].any(func(t): return site_at(t) == null):
+		return ""
+	return install_animal(def, site["pattern"][0])
+
+
 ## Coût de la nourriture d'un animal pour une journée (rations × prix d'une ration).
 func food_cost(def: Dictionary) -> int:
 	return roundi(rations_per_day(def) * float(data["buildings"]["zoo"]["rations"]["cout"]))

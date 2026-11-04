@@ -9,6 +9,7 @@ const ATTENTE_MEME_MOMENT := 20.0  # secondes avant de redire quelque chose sur 
 var data: Dictionary
 var main_box: Control  # la main : la petite bulle s'arrête au-dessus
 var humeur := 0  # -1 furieux, 0 neutre, 1 satisfait
+var haut := 78.0  # position de la grande bulle
 var grande_en_bas := false  # fin de partie : la grande bulle laisse le haut de l'écran au classement
 var _rng := RandomNumberGenerator.new()
 var _sacs := {}
@@ -211,7 +212,7 @@ func _process(delta: float) -> void:
 		var x: float
 		if b == _grande:
 			x = (vue.x - cadre.size.x - b["tete"] - 16.0) / 2.0
-			y = vue.y - maxf(haut, b["tete"]) - 135.0 if grande_en_bas else 78.0
+			y = vue.y - maxf(haut, b["tete"]) - 135.0 if grande_en_bas else haut
 		else:
 			x = 284.0
 			y = (main_box.get_global_rect().position.y if main_box.is_visible_in_tree() else vue.y) - maxf(haut, b["tete"]) - 12.0

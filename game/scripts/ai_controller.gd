@@ -691,6 +691,28 @@ func _rep_gain(def: Dictionary) -> float:
 ## Choisit l'emplacement de l'enceinte : terrain adapté aux motifs des contrats détenus, murs constructibles,
 ## entrée qu'une route peut rejoindre, proche du camp. Une part de hasard propre à chaque IA évite
 ## que toutes choisissent le même endroit. Parc évolutif : on vise un grand parc mais on commence petit.
+## Reprise d'un zoo commencé par un joueur parti : l'enceinte et l'entrée déjà posées définissent le parc.
+func reprendre_zoo() -> void:
+	var murs := g.sites.filter(func(s): return s.def_id() in ["cloture", "entree"])
+	var portes := g.sites.filter(func(s): return s.def_id() == "entree")
+	if murs.is_empty() or portes.is_empty():
+		return
+	var zone: Rect2i = murs[0].rect
+	for s in murs:
+		zone = zone.merge(s.rect)
+	if zone.size.x < 5 or zone.size.y < 5:
+		return  # quelques murs seulement : l'IA choisira son propre emplacement
+	zoo_rect = zone
+	entrance = portes[0].rect.position
+	var inner := zoo_rect.grow(-1)
+	shop_rect = Rect2i(clampi(entrance.x + 3, inner.position.x, inner.end.x - 2), clampi(entrance.y, inner.position.y, inner.end.y - 2), 2, 2)
+	for t in _ring(zoo_rect):
+		reserved[t] = true
+	for s in g.sites:
+		for t in _rect_tiles(s.rect):
+			reserved[t] = true
+
+
 func _choose_zoo() -> void:
 	var m := g.map
 	var camp_c := Vector2(m.camp.get_center())

@@ -1238,6 +1238,35 @@ func _init() -> void:
 	check(s_c.day == s_m.day + 1, "la partie rechargée continue normalement (jour %d)" % s_c.day)
 	Sauvegarde.effacer()
 
+	print("Multijoueur :")
+	# La même partie jouée deux fois, avec les mêmes ordres, doit donner exactement le même état
+	var mp_empreintes := []
+	for essai in 2:
+		var mp := Match.new(data, 3131, 4, 0, [], [1])
+		while mp.phase == "draft":
+			mp.pick_draft(mp.ai_choice())
+		for jour in 2:
+			for j in 2:
+				var mg: GameState = mp.players[j]
+				for c in mg.hand.duplicate():
+					Commandes.executer(mp, j, "deploy", Commandes.coder([c]))
+				for w in mg.workers:
+					Commandes.executer(mp, j, "order", Commandes.coder([[w], mg.map.camp.get_center() + Vector2i(-3, j)]))
+			for k in 600:
+				mp.tick(GameState.TICK)
+			Commandes.decision(mp, "fin_jour", 0)
+			Commandes.decision(mp, "jour_suivant", 0)
+		mp_empreintes.append(Commandes.empreinte(mp))
+		if essai == 1:
+			var d_av: Variant = mp.ais[1]
+			Commandes.decision(mp, "ia_reprend", 1)
+			check(d_av == null and mp.ais[1] != null, "joueur parti : une IA reprend son zoo")
+			for k in 200:
+				mp.tick(GameState.TICK)
+	check(mp_empreintes[0] == mp_empreintes[1], "même graine et mêmes ordres : parties identiques")
+	var mp_c: Variant = Commandes.coder({"a": [Vector2i(1, 2)], "b": 3})
+	check(mp_c["a"][0] == Vector2i(1, 2) and mp_c["b"] == 3, "codage : les valeurs simples restent telles quelles")
+
 	print("Lot S : autres sources de réputation :")
 	var x_g := _fresh_day(data, 9191)
 	check(x_g.objective() == 100, "objectif : 100 de réputation")
