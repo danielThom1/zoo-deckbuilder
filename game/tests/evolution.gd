@@ -12,6 +12,7 @@ const POPULATION := 16
 const PARTIES_PAR_GENOME := 6
 const PARTIES_PAR_GENOME_LONGUE := 12  # à partir de 2000 parties : moins de chance dans la sélection
 const ETUDE_LONGUE := 2000
+const ECHECS_MAX := 3  # générations en erreur d'affilée avant de passer à la finale
 const ATTENTE_MAX_MS := 600000  # sans nouveau résultat pendant 10 min, les processus bloqués sont arrêtés
 const PART_FINALE := 0.1  # part des parties gardée pour la phase finale
 const EXPLORATION := 0.25  # part de choix au hasard (améliorations, cartes) pour que tout soit essayé
@@ -139,8 +140,21 @@ func _init() -> void:
 	var history: Array = []
 	var order: Array = []
 	var scores: Array = []
+	var pop_notee: Array = pop  # la population à laquelle correspondent order et scores
+	var echecs := 0
 	for gen in n_gen:
-		scores = _evaluate(pop, jobs, gen)
+		# Une erreur de script fait revenir _evaluate sans résultat : on rejoue la même population, l'étude ne s'arrête pas.
+		var notes := _evaluate(pop, jobs, gen)
+		if notes.size() != pop.size():
+			echecs += 1
+			print("Attention : génération %d perdue à cause d'une erreur (%d d'affilée)." % [gen + 1, echecs])
+			if echecs >= ECHECS_MAX:
+				print("Trop d'erreurs d'affilée : passage à la finale.")
+				break
+			continue
+		echecs = 0
+		scores = notes
+		pop_notee = pop
 		order = range(pop.size())
 		order.sort_custom(func(a, b): return scores[a]["fitness"] > scores[b]["fitness"])
 		var best: Dictionary = scores[order[0]]
@@ -150,6 +164,7 @@ func _init() -> void:
 		print("Génération %d / %d : meilleure %d %% de victoires, jour %.1f, rép. %.0f · %d parties en %d min, reste ~%d min" % [
 			gen + 1, n_gen, roundi(100.0 * best["wins"]), best["win_day"], best["rep"], parties_jouees, int(ecoule / 60.0), int(reste / 60.0)])
 		_write_report(pop, order, scores, history, [])
+		_meilleures(pop, order)
 		if budget_ms > 0 and Time.get_ticks_msec() - t0 >= budget_ms * 0.88:
 			# Le temps tourne : la finale garde ce qu'il reste, à la vitesse mesurée jusqu'ici.
 			var par_ms := float(parties_jouees) / maxf(1.0, Time.get_ticks_msec() - t0)
@@ -159,8 +174,8 @@ func _init() -> void:
 			break
 		if gen < n_gen - 1:
 			pop = _next_generation(pop, order)
-	var classement := _finale(pop, order, finale, jobs)
-	_write_report(pop, order, scores, history, classement)
+	var classement := _finale(pop_notee, order, finale, jobs)
+	_write_report(pop_notee, order, scores, history, classement)
 	print("Étude terminée en %d min. Rapport : %s" % [int((Time.get_ticks_msec() - t0) / 60000), ProjectSettings.globalize_path("res://").path_join("../rapport_etude.md")])
 	quit(0)
 
@@ -284,8 +299,11 @@ func _jouer(matches: Array, jobs: int) -> Dictionary:
 		var fini := pids.all(func(p): return not OS.is_process_running(p))
 		for f in DirAccess.get_files_at(dir):
 			if f.ends_with(".res") and not results.has(f.get_basename().to_int()):
-				results[f.get_basename().to_int()] = JSON.parse_string(FileAccess.get_file_as_string(dir.path_join(f)))
-				dernier_resultat = Time.get_ticks_msec()
+				# Lecture parfois refusée sous Windows (antivirus, fichier tout juste renommé) : on réessaie au tour suivant.
+				var lu = JSON.parse_string(FileAccess.get_file_as_string(dir.path_join(f)))
+				if lu is Dictionary:
+					results[f.get_basename().to_int()] = lu
+					dernier_resultat = Time.get_ticks_msec()
 		if fini:
 			break
 		# Une erreur de script bloque un processus sans le fermer : on l'arrête, l'étude continue avec les parties jouées.
@@ -340,17 +358,24 @@ func _evaluate(pop: Array, jobs: int, gen: int) -> Array:
 	return sc
 
 
-## Phase finale : stratégies écrites à la main contre les meilleures stratégies apprises, sans exploration.
-func _finale(pop: Array, order: Array, n: int, jobs: int) -> Array:
-	var candidats: Array = STRATEGIES.duplicate(true)
+## Les 4 meilleures stratégies, sans exploration. Écrites à chaque génération : un arrêt de l'étude ne perd pas ce qui a été appris.
+func _meilleures(pop: Array, order: Array) -> Array:
+	var out: Array = []
 	for k in mini(4, order.size()):
 		var g: Dictionary = pop[order[k]].duplicate(true)
 		g["nom"] = "Apprise %d" % (k + 1)
 		g["explore"] = 0.0
-		candidats.append(g)
+		out.append(g)
 	var fj := FileAccess.open("res://data/ia_evolution.json", FileAccess.WRITE)
-	fj.store_string(JSON.stringify({"_note": "Meilleures stratégies trouvées par tests/evolution.gd.", "strategies": candidats.slice(STRATEGIES.size())}, "  "))
+	fj.store_string(JSON.stringify({"_note": "Meilleures stratégies trouvées par tests/evolution.gd.", "strategies": out}, "  "))
 	fj.close()
+	return out
+
+
+## Phase finale : stratégies écrites à la main contre les meilleures stratégies apprises, sans exploration.
+func _finale(pop: Array, order: Array, n: int, jobs: int) -> Array:
+	var candidats: Array = STRATEGIES.duplicate(true)
+	candidats.append_array(_meilleures(pop, order))
 	var matches: Array = []
 	var pile: Array = []
 	for k in n:
