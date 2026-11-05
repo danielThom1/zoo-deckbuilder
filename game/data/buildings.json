@@ -27,7 +27,7 @@
     "_note": "Unités par minute à efficacité 1.0, avant temps de transport. Un collaborateur porte 5 unités (porteur : +2 par amélioration), puis va déposer au Camp ou à l'Entrepôt le plus proche.",
     "bois": 7.5,
     "pierre": 5,
-    "or": 1.875,
+    "or": 1.75,
     "capacite_portage": 5
   },
 
@@ -158,8 +158,8 @@
   "reputation_autres": {
     "_note": "Autres façons de gagner de la réputation que la fréquentation. Spectacles : par journée de Kiosque tenu (× efficacité « animer » : Animateur ×2). Boutique : par souvenir vendu, une seule boutique comptée (la mieux tenue), Braderie exclue. Prestige politique : chaque nuit, le 1er puis le 2e en influence (s'ils ont au moins influence_min). Labels : achetés en or, avec un Marchand mobilisé, une fois chacun. Légendaire : un collaborateur qui atteint le niveau 5.",
     "embellissement": { "_note": "Intendance : travail par décoration (efficacité « embellir » par seconde), matériaux de chaque décoration, réputation par décoration et par nuit zoo ouvert, une décoration au plus pour tant de cases du parc.", "travail": 100, "cout": { "bois": 1, "pierre": 1 }, "reputation_nuit": 0.1, "cases_par_decoration": 10, "types": ["massif", "banc", "lampadaire", "topiaire", "fontaine", "statue", "tonnelle", "parterre"] },
-    "label_sans_marchand": 2, "kiosque_par_jour": 2,
-    "boutique_par_souvenir": 0.05,
+    "label_sans_marchand": 2, "kiosque_par_jour": 2.5,
+    "boutique_par_souvenir": 0.07,
     "prestige_politique": [3, 1],
     "influence_min": 1,
     "legendaire": 5,
@@ -180,7 +180,7 @@
       { "id": "rare", "type": "palier", "palier": "T3", "n": 1, "texte": "1 animal rare installé" },
       { "id": "peu_communs", "type": "palier", "palier": "T2", "n": 2, "texte": "2 animaux peu communs" },
       { "id": "especes", "type": "especes", "n": 5, "texte": "5 espèces installées" },
-      { "id": "parc", "type": "parc", "n": 250, "texte": "Enceinte de 250 cases" },
+      { "id": "parc", "type": "parc", "n": 350, "texte": "Enceinte de 350 cases" },
       { "id": "visiteurs", "type": "visiteurs", "n": 80, "texte": "80 visiteurs en une journée" },
       { "id": "veterans", "type": "niveau", "niveau": 5, "n": 4, "texte": "4 collaborateurs au niveau 5" },
       { "id": "cadres", "type": "cadres", "n": 3, "texte": "3 cadres dans l'équipe" },

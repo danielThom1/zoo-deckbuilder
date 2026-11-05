@@ -7,6 +7,13 @@ extends RefCounted
 const ARGENT_ABONDANT := 100.0  # au-dessus du plancher de dépenses, l'IA améliore son camp quelle que soit sa stratégie
 const SURPLUS_STOCK := 30.0  # stock gardé en plus des besoins avant de vendre pour payer les chantiers
 const SURPLUS_ARGENT := 30.0  # argent visé au-dessus du plancher de dépenses
+const JOUR_SANS_ANIMAL := 3
+const JOUR_FIN_FAST_EXPAND := 5
+const PLANCHER_SANS_ANIMAL := 0.0  # sans recette, garder les salaires de demain ne sert à rien : une carte cédée les paie
+const EQUIPE_MINIMALE := 6
+const BRAS_MINIMUM_SANS_ANIMAL := 2
+const OR_A_GARDER := 30.0
+
 const DEFAULT_STRATEGY := {
 	"nom": "Équilibrée",
 	"lobbyistes_max": 0,  # ouvriers non-Lobbyistes envoyés en lobbying chaque jour
@@ -235,23 +242,37 @@ func on_day_start() -> void:
 				g.play_action(c)
 	_play_cadres()
 	var hand := g.hand.filter(func(c): return not c.is_action())
-	hand.sort_custom(func(a, b): return card_value(a) > card_value(b))
+	hand.sort_custom(func(a, b): return _valeur_du_jour(a) > _valeur_du_jour(b))
 	# Salaire hors de portée : la journée de la carte la moins utile paie celui de la meilleure.
 	var attente := hand.duplicate()
 	var k := 0
+	# Sans animal, le premier contrat passe avant les salaires : on ne dépense pas l'argent qui doit le payer.
+	var a_garder := 0.0
+	if _sans_animal() and zoo_rect.size != Vector2i.ZERO and _walls_progress() >= 0.6:
+		var prix_animal := _prix_premier_animal()
+		a_garder = prix_animal * 1.1 if prix_animal != INF else 0.0
 	while k < attente.size():
 		var c: GameState.Card = attente[k]
-		if g.money >= g.salary(c):
+		if g.money - g.salary(c) >= (0.0 if g.workers.size() < BRAS_MINIMUM_SANS_ANIMAL else a_garder):
 			g.deploy(c)
 			attente.remove_at(k)
 		elif attente.size() - 1 > k and g.money + g.ceder_gain() >= g.salary(c):
 			g.ceder_carte(attente.pop_back())
 		else:
 			k += 1
+	# Une carte qu'on ne mobilise pas rapporte quand même sa journée cédée.
+	for c in attente:
+		if g.ceder_error(c) == "":
+			g.ceder_carte(c)
 	for c in g.hand.duplicate():
 		if c.is_action() and c.action["id"] == "formation_express":
 			g.play_action(c)
 	think_clock = 0.0
+
+
+## Valeur d'une carte pour la journée : un aménageur passe en tête quand un enclos n'attend que lui.
+func _valeur_du_jour(c: GameState.Card) -> float:
+	return card_value(c) + (3.0 if g.can_landscape(c) and _amenagement_en_attente() else 0.0)
 
 
 ## Cadres joués pour leur action plutôt que déployés, quand la situation s'y prête.
@@ -280,7 +301,7 @@ func _play_cadres() -> void:
 				for o in g.hand:
 					if o != c and g.cadre_error(c, o) == "" and card_value(o) < 0.5 and (worst == null or card_value(o) < card_value(worst)):
 						worst = o
-				if worst and g.all_employees().size() > 5:
+				if worst and not g.animals.is_empty() and g.all_employees().size() > EQUIPE_MINIMALE:
 					g.play_cadre(c, worst)
 			"lobbyiste":
 				if g.event_is_negative():
@@ -355,7 +376,7 @@ func _base_action_value(c: GameState.Card) -> float:
 			return 1.5
 		"licenciement":
 			var cards := g.all_employees()
-			return 1.5 if cards.size() > 4 and cards.any(func(c): return card_value(c) < 0.5) else 0.0
+			return 1.5 if not g.animals.is_empty() and cards.size() > EQUIPE_MINIMALE and cards.any(func(c): return card_value(c) < 0.5) else 0.0
 	return 0.0
 
 
@@ -366,6 +387,8 @@ func _play_targeted(c: GameState.Card) -> void:
 		return
 	cards.sort_custom(func(a, b): return card_value(a) > card_value(b))
 	if c.action["effet"].has("licencier"):
+		if g.animals.is_empty() or cards.size() <= EQUIPE_MINIMALE:
+			return
 		for k in range(cards.size() - 1, -1, -1):
 			if g.action_target_error(c, cards[k]) == "":
 				g.play_action(c, cards[k])
@@ -400,22 +423,26 @@ func _sell_surplus() -> void:
 	var target := _cash_floor() + float(strat["reserve"]) + SURPLUS_ARGENT
 	if g.money >= target:
 		return
-	# Avant l'ouverture, tout le stock servira à l'enceinte et au premier enclos.
+	# Avant l'ouverture, le bois et la pierre serviront à l'enceinte et au premier enclos ; l'or en trop, lui, dort.
+	var a_vendre_ici: Array = ["or", "bois", "pierre"]
 	if strat["adaptatif"] and not g.zoo_status()["open"] and g.money >= _cash_floor():
-		return
+		a_vendre_ici = ["or"]
 	var needs := _needs()
 	var keep := {}
 	var missing := target - g.money
 	var a_vendre := false
-	for res in ["bois", "pierre"]:
-		var extra := maxf(0.0, floorf(g.stock[res] - float(needs[res]) - SURPLUS_STOCK))
+	for res in ["or", "bois", "pierre"]:
+		if not a_vendre_ici.has(res):
+			keep[res] = g.stock[res]
+			continue
+		var extra := maxf(0.0, floorf(g.stock[res] - float(needs[res]) - (OR_A_GARDER if res == "or" else SURPLUS_STOCK)))
 		var price := g.sell_price(res)
 		var units := minf(extra, ceilf(missing / price)) if price > 0.0 else 0.0
 		missing -= units * price
 		keep[res] = g.stock[res] - units
 		a_vendre = a_vendre or units >= 1.0
 	if a_vendre:
-		g.sell_stock(keep, ["bois", "pierre"])
+		g.sell_stock(keep, ["or", "bois", "pierre"])
 
 
 ## Vend juste assez de stock (l'or d'abord, puis le bois, puis la pierre) pour atteindre `target` d'argent.
@@ -432,6 +459,55 @@ func _sell_for(target: float) -> void:
 			missing -= units * price
 		keep[res] = g.stock[res] - units
 	g.sell_stock(keep, ["bois", "pierre", "or"])
+
+
+## Ni animal ni contrat au bout de quelques jours : sans premier animal, il n'y aura jamais de recette.
+func _sans_animal() -> bool:
+	return g.animals.is_empty() and g.contracts.is_empty() and g.pending_installs.is_empty() and g.day >= JOUR_SANS_ANIMAL
+
+
+## Fast expand : le camp d'abord, mais pas au point de manquer la première semaine.
+func _fast_expand_actif() -> bool:
+	return strat["fast_expand"] and not _camp_upgraded() and g.day < JOUR_FIN_FAST_EXPAND
+
+
+## Prix du contrat le moins cher qu'on saurait installer, INF s'il n'y en a pas.
+func _prix_premier_animal() -> float:
+	var prix := INF
+	for d in g.market_contracts:
+		if g.has_species(d["id"]) or (zoo_rect.size != Vector2i.ZERO and _plan_enclosure(d).is_empty() and not _can_extend_for(d)):
+			continue
+		if not _strategy_allows(d) or (not _has_landscaper() and not _natural_fit(d)):
+			continue
+		prix = minf(prix, _money_cost(d))
+	return prix
+
+
+## Vend l'or et le stock en trop pour pouvoir signer le contrat le moins cher ce soir.
+func _financer_premier_animal() -> void:
+	if not _sans_animal():
+		return
+	var prix := _prix_premier_animal()
+	if prix == INF:
+		return
+	var manque: float = prix * 1.1 + PLANCHER_SANS_ANIMAL - g.money
+	if manque <= 0.0:
+		return
+	var needs := _needs()
+	var keep := {}
+	for res in ["or", "bois", "pierre"]:
+		var garde := 0.0 if res == "or" else float(needs[res])
+		var extra := maxf(0.0, floorf(g.stock[res] - garde))
+		var pr := g.sell_price(res)
+		var unites := minf(extra, ceilf(manque / pr)) if pr > 0.0 else 0.0
+		manque -= unites * pr
+		keep[res] = g.stock[res] - unites
+		if manque <= 0.0:
+			for reste in ["or", "bois", "pierre"]:
+				if not keep.has(reste):
+					keep[reste] = g.stock[reste]
+			break
+	g.sell_stock(keep, ["or", "bois", "pierre"])
 
 
 ## Aucun animal ni contrat réalisable, et une enceinte presque prête : le premier contrat est la priorité.
@@ -519,6 +595,7 @@ func update(dt: float) -> void:
 				g.order([w], market[0].rect.position if not market.is_empty() else g.map.camp.get_center())
 	if g.money < 6.0 and g.stock["bois"] + g.stock["pierre"] + g.stock["or"] >= 5:
 		_sell_for(_cash_floor())
+	_financer_premier_animal()
 	_sell_surplus()
 	var a_marchand := g.all_employees().any(func(c): return c.metier["id"] == "marchand")
 	for ld in g.label_defs():
@@ -641,7 +718,7 @@ func on_night_stage(stage: String) -> void:
 
 
 func _night_contracts() -> void:
-	if strat["fast_expand"] and not _camp_upgraded():
+	if _fast_expand_actif():
 		return
 	# Contrats (jusqu'à 2 par nuit, le 2e plus cher)
 	for attempt in 2:
@@ -658,8 +735,10 @@ func _night_contracts() -> void:
 				if g.has_species(def["id"]) or g.contracts_tonight >= int(g.data["buildings"]["marche"]["contrats_par_nuit"]):
 					continue
 				var cost := _money_cost(def)
-				var margin := 0.0 if _needs_first_animal() else float(strat["reserve"])
-				var abordable: bool = g.contract_error(def) == "" and g.money - cost >= margin + _cash_floor()
+				var margin := 0.0 if _needs_first_animal() or _sans_animal() else float(strat["reserve"])
+				# Sans animal, pas de recette : le premier contrat passe avant les salaires de demain.
+				var plancher := minf(_cash_floor(), PLANCHER_SANS_ANIMAL) if _sans_animal() else _cash_floor()
+				var abordable: bool = g.contract_error(def) == "" and g.money - cost >= margin + plancher
 				if not abordable and (g.animals.is_empty() or g.money + _revenu_estime() * 1.5 - cost < _cash_floor()):
 					continue
 				if zoo_rect.size != Vector2i.ZERO and _plan_enclosure(def).is_empty() and not _can_extend_for(def):
@@ -1869,7 +1948,7 @@ func _ring_left(p: Dictionary) -> int:
 func _wants() -> Array:
 	var out := []
 	var day := g.day
-	if strat["fast_expand"] and not _camp_upgraded():
+	if _fast_expand_actif():
 		if not g.has_building("camp_n2") and g.placement_error("batiment", g.building_def("camp_n2"), g.map.camp.position, false) == "":
 			out.append(["batiment", g.building_def("camp_n2"), g.map.camp.position])
 		return out
@@ -1954,7 +2033,7 @@ func _wants() -> Array:
 		out.append(["batiment", g.building_def("cloture"), t])
 	# 2 bis. Parc évolutif : une fois le petit parc lancé, on construit l'enceinte du grand parc,
 	# puis on démolit les anciens murs intérieurs.
-	if target_rect.size != Vector2i.ZERO and not expanded and _walls_progress() >= 1.0 and (day >= 6 or g.animals.size() >= 2 or agrandissements > 0):
+	if target_rect.size != Vector2i.ZERO and not expanded and not _sans_animal() and _walls_progress() >= 1.0 and (day >= 6 or g.animals.size() >= 2 or agrandissements > 0):
 		var big_ring := _ring_depuis_camp(target_rect)
 		var pending := false
 		for t in big_ring:
@@ -2331,7 +2410,7 @@ func _assign(w: GameState.Worker) -> void:
 		and (not g.campaign.is_empty() or not _campaign_wanted().is_empty()):
 		g.order([w], g.map.exit_tile)
 		return
-	if lobby_today < int(strat["lobbyistes_max"]) and not w.unpaid and g.money > _cash_floor() + float(strat["reserve"]):
+	if lobby_today < int(strat["lobbyistes_max"]) and not w.unpaid and g.money > _cash_floor() + float(strat["reserve"]) and not _reserve_amenagement(w):
 		lobby_today += 1
 		g.order([w], g.map.exit_tile)
 		return
@@ -2452,7 +2531,7 @@ func _repartir() -> void:
 
 ## Le déplacement vaut-il le coup ? Un récolteur reste à sa récolte ; un bâtisseur ne traverse pas la carte pour dix secondes de travail.
 func _va_construire(w: GameState.Worker, site: GameState.Site) -> bool:
-	if strat.get("sans_roles", false):
+	if strat.get("sans_roles", false) or (site.kind == "amenagement" and g.can_landscape(w.card)):
 		return true
 	if roles.get(w.card.id, "chantier") == "recolte" and attente_chantier < ATTENTE_CHANTIER_MAX * 2.0:
 		return false
@@ -2570,8 +2649,22 @@ func _heal_sick() -> void:
 			return
 
 
+## Des cases d'enclos restent à aménager : seuls le Terrassier et le Paysagiste peuvent le faire.
+func _amenagement_en_attente() -> bool:
+	return plans.any(func(p): return p["conv"].any(func(c): return GameMap.TERRAINS[g.map.get_t(c[0].x, c[0].y)] != c[1]))
+
+
+## Cet ouvrier est le seul à pouvoir finir l'enclos : on ne le poste nulle part ailleurs.
+func _reserve_amenagement(w: GameState.Worker) -> bool:
+	return g.can_landscape(w.card) and _amenagement_en_attente()
+
+
 ## Une fois le zoo ouvert, quelqu'un tient le guichet et la boutique (sinon pas de recettes).
 func _staff_posts() -> void:
+	for w in g.workers:
+		if _reserve_amenagement(w) and (w.task.get("type") in ["feed", "clean"] or w.task.get("kind") in ["ticket", "shop", "snack", "kiosque", "intendance", "care"]):
+			w.task = {}
+			w.path.clear()
 	# Zoo fermé (aucun animal arrivé) : personne au guichet ni à la boutique, ils retournent aux chantiers.
 	if not g.zoo_status()["open"]:
 		for w in g.workers:
@@ -2652,7 +2745,7 @@ func _ensure_job(site: GameState.Site, type: String, wanted: int, task: String, 
 		var best: GameState.Worker = null
 		var best_v := INF
 		for w in g.workers:
-			if w.offmap or w.task.get("type") in ["station", "feed", "clean"] or w.card.metier["id"] in ["lobbyiste", "marchand", "journaliste"]:
+			if w.offmap or w.task.get("type") in ["station", "feed", "clean"] or w.card.metier["id"] in ["lobbyiste", "marchand", "journaliste"] or _reserve_amenagement(w):
 				continue
 			if w.card.traits.has("col_blanc"):
 				continue
@@ -2673,7 +2766,7 @@ func _ensure_post(site: GameState.Site, kind: String, wanted := 1) -> void:
 	var best: GameState.Worker = null
 	var best_v := INF
 	for w in g.workers:
-		if w.offmap or w.task.get("type") in ["station", "feed", "clean"] or w.card.metier["id"] in ["lobbyiste", "marchand", "journaliste"]:
+		if w.offmap or w.task.get("type") in ["station", "feed", "clean"] or w.card.metier["id"] in ["lobbyiste", "marchand", "journaliste"] or _reserve_amenagement(w):
 			continue
 		# Les moins utiles ailleurs tiennent les postes (la recette ne dépend que de la présence).
 		var v := g.efficiency(w.card, "defaut")
@@ -2720,6 +2813,8 @@ func _best_site_for(w: GameState.Worker) -> GameState.Site:
 		# Le Formateur rejoint un chantier déjà occupé : c'est là qu'il fait progresser les autres.
 		var foule := -6.0 if w.card.metier["id"] == "formateur" else 6.0
 		var score := w.pos.distance_to(Vector2(s.rect.get_center())) - (25.0 if strat["specialisation"] else 8.0) * eff + foule * n
+		if s.kind == "amenagement":
+			score -= 40.0  # un aménageur va d'abord là où lui seul peut travailler
 		if score < best_score:
 			best_score = score
 			best = s
