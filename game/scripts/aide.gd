@@ -16,7 +16,7 @@ Vos collaborateurs sont des [b]cartes[/b] : vous en choisissez 8 au début, vous
 Survolez une carte pour voir son métier et ses traits."""],
 	["Le jour", """Chaque journée commence [b]en pause[/b] : préparez vos ordres, puis lancez le temps (Espace).
 
-[b]Mobiliser[/b] une carte paie son salaire et la pose sur le camp. Un collaborateur par jour peut partir gratuitement, à 25 % de rendement. Plus d'argent ? Le bouton +4 d'une carte cède sa journée : elle ne travaille pas et part à la défausse.
+[b]Mobiliser[/b] une carte paie son salaire et la pose sur le camp. Plus d'argent ? Le bouton +4 d'une carte cède sa journée : elle ne travaille pas et part à la défausse.
 [b]Clic droit[/b] avec un collaborateur sélectionné : couper du bois, extraire la pierre, construire, tenir un poste. [b]Maj + clic droit[/b] enchaîne un ordre après le précédent.
 
 Le bois et la pierre récoltés s'échangent contre de l'argent à la Bourse des ressources, à droite. Un Marchand mobilisé vend mieux."""],

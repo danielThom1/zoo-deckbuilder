@@ -180,7 +180,7 @@
       { "id": "especes", "type": "especes", "n": 5, "texte": "5 espèces installées" },
       { "id": "parc", "type": "parc", "n": 250, "texte": "Enceinte de 250 cases" },
       { "id": "visiteurs", "type": "visiteurs", "n": 80, "texte": "80 visiteurs en une journée" },
-      { "id": "veterans", "type": "niveau", "niveau": 5, "n": 2, "texte": "2 collaborateurs au niveau 5" },
+      { "id": "veterans", "type": "niveau", "niveau": 5, "n": 4, "texte": "4 collaborateurs au niveau 5" },
       { "id": "cadres", "type": "cadres", "n": 3, "texte": "3 cadres dans l'équipe" },
       { "id": "effectif", "type": "effectif", "n": 11, "texte": "11 collaborateurs" },
       { "id": "camp", "type": "camp", "n": 2, "texte": "Camp au niveau 3" },

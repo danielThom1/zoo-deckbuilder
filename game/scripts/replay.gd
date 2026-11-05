@@ -7,6 +7,8 @@ extends RefCounted
 ##   (partie la plus courte, fichier replay_plus_courte.json à la racine du dépôt, réservé au développement).
 
 const FICHIER_ETUDE := "../replay_plus_courte.json"
+const PREFIXE_ZERO := "replay_ia_a_zero_"  # parties où une IA finit à 0, pour comprendre ce qu'elle a mal fait
+const ZERO_MAX := 3
 
 var graine := 0
 var nb := 4
@@ -45,19 +47,35 @@ static func chemin_etude() -> String:
 	return ProjectSettings.globalize_path("res://").path_join(FICHIER_ETUDE)
 
 
+static func chemin_zero(n: int) -> String:
+	return ProjectSettings.globalize_path("res://").path_join("../%s%d.json" % [PREFIXE_ZERO, n])
+
+
+## Parties à 0 enregistrées par la dernière étude.
+static func chemins_zero() -> Array:
+	var out := []
+	for n in range(1, ZERO_MAX + 1):
+		if FileAccess.file_exists(chemin_zero(n)):
+			out.append(chemin_zero(n))
+	return out
+
+
 ## Partie la plus courte d'une étude : tout ce qu'il faut pour la rejouer tient en quelques lignes.
-static func ecrire_etude(seed_partie: int, genomes: Array, gagnant: int, jour: int, rep: float) -> void:
-	var f := FileAccess.open(chemin_etude(), FileAccess.WRITE)
+## voir : le joueur montré au départ ; chemin : vide pour le fichier de la partie la plus courte.
+static func ecrire_etude(seed_partie: int, genomes: Array, gagnant: int, jour: int, rep: float, voir := -1, chemin := "") -> void:
+	var f := FileAccess.open(chemin if chemin != "" else chemin_etude(), FileAccess.WRITE)
 	if f:
-		f.store_string(JSON.stringify({"graine": seed_partie, "strategies": genomes, "gagnant": gagnant, "jour": jour, "rep": rep, "version": Reseau.version_jeu()}, "  "))
+		f.store_string(JSON.stringify({"graine": seed_partie, "strategies": genomes, "gagnant": gagnant, "voir": voir if voir >= 0 else gagnant, "jour": jour, "rep": rep, "version": Reseau.version_jeu()}, "  "))
 		f.close()
 
 
 ## null s'il n'y a pas de fichier. Si les règles ont changé depuis l'étude, la partie rejouée ne sera plus la même.
-static func lire_etude() -> Replay:
-	if not FileAccess.file_exists(chemin_etude()):
+static func lire_etude(chemin := "") -> Replay:
+	if chemin == "":
+		chemin = chemin_etude()
+	if not FileAccess.file_exists(chemin):
 		return null
-	var d: Variant = JSON.parse_string(FileAccess.get_file_as_string(chemin_etude()))
+	var d: Variant = JSON.parse_string(FileAccess.get_file_as_string(chemin))
 	if not d is Dictionary:
 		return null
 	var r := Replay.new()
@@ -65,7 +83,7 @@ static func lire_etude() -> Replay:
 	r.strategies = d["strategies"]
 	r.automatique = true
 	r.dt = 1.0
-	r.voir = int(d["gagnant"])
+	r.voir = int(d.get("voir", d["gagnant"]))
 	r.attendu = {"gagnant": int(d["gagnant"]), "jour": int(d["jour"]), "rep": float(d["rep"])}
 	r.version = str(d.get("version", ""))
 	return r

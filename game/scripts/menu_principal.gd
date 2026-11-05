@@ -8,7 +8,7 @@ signal lancer(spectateur: bool, graine: int, adversaires: int, difficile: bool)
 signal continuer
 signal tutoriel
 signal multijoueur
-signal replay_etude
+signal replay_etude(chemin: String)
 
 # Couleurs (thème Émeraude, cf. docs/handoff_emeraude/tokens.json)
 # Style « BD néo ligne claire » (docs/handoff_bd) : papier blanc, encre marine, accent jaune, bandeau sarcelle
@@ -152,8 +152,15 @@ void fragment() {
 		if FileAccess.file_exists(Replay.chemin_etude()):
 			var b_record := Button.new()
 			b_record.text = "Dév. : partie la plus courte"
-			b_record.pressed.connect(func(): replay_etude.emit())
+			b_record.pressed.connect(func(): replay_etude.emit(Replay.chemin_etude()))
 			dev.add_child(b_record)
+		var n_zero := 0
+		for chemin in Replay.chemins_zero():
+			n_zero += 1
+			var b_zero := Button.new()
+			b_zero.text = "Dév. : IA à 0 n° %d" % n_zero
+			b_zero.pressed.connect(func(): replay_etude.emit(chemin))
+			dev.add_child(b_zero)
 	var b_multi := _bouton_menu("Multijoueur", "Par Internet, de 2 à 4 joueurs : héberger ou rejoindre", "jouer", false)
 	b_multi.pressed.connect(func(): multijoueur.emit())
 	boutons.add_child(b_multi)

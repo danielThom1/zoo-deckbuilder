@@ -274,7 +274,7 @@ static func donnees_ouvrier(g: GameState, card: GameState.Card) -> Dictionary:
 ##   bandeau : [texte, couleur] affiché au bas du portrait (ex. « SUR LE TERRAIN »), ou []
 ##   clic    : Callable appelée par un clic sur la carte (hors boutons), ou Callable()
 static func carte_ouvrier(d: Dictionary, etat := "normale", taille := "main", boutons: Array = [], bandeau: Array = [],
-		clic := Callable(), bouton_argent: Array = []) -> Control:
+		clic := Callable()) -> Control:
 	var t: Vector2 = DIMS.get(taille, DIMS["main"])
 	var hp: int = HAUTEUR_PORTRAIT.get(taille, 98)
 	var cat: Dictionary = UiTokens.CATEGORIES[d["categorie"]]
@@ -387,9 +387,6 @@ static func carte_ouvrier(d: Dictionary, etat := "normale", taille := "main", bo
 	elif boutons.size() >= 2:
 		carte.add_child(_bouton_carte(boutons[0], Vector2(8, by), Vector2(t.x - 62, 30)))
 		carte.add_child(_bouton_carte(boutons[1], Vector2(t.x - 50, by), Vector2(42, 30)))
-	if not bouton_argent.is_empty():
-		# Céder la journée de la carte contre de l'argent, en pilule sur le portrait
-		carte.add_child(_bouton_carte(bouton_argent, Vector2(t.x - 46, hp - 56), Vector2(40, 24)))
 	if boutons.size() >= 3:
 		# Cadre : « Jouer » son action, en pilule sur le bas du portrait
 		carte.add_child(_bouton_carte(boutons[2], Vector2(t.x - 66, hp - 28), Vector2(60, 26)))

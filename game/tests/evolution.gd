@@ -66,6 +66,8 @@ var record := {}
 var parties_par_genome := PARTIES_PAR_GENOME
 var objectifs_tires := {}  # objectif -> parties où il a été tiré
 var processus_bloques := 0
+var parties_a_zero := 0
+var derniere_a_zero := -1
 var processus: Array[int] = []
 var serie := 0  # numéro de la série de parties en cours
 var dernier_signe := -100000
@@ -138,6 +140,8 @@ func _init() -> void:
 	var finale := maxi(4, total_parties - n_gen * par_generation)
 	total_parties = n_gen * par_generation + finale
 	DirAccess.make_dir_recursive_absolute(dir)
+	for chemin in Replay.chemins_zero():
+		DirAccess.remove_absolute(chemin)  # celles de l'étude précédente : d'autres règles
 	_signe_de_vie()
 	t0 = Time.get_ticks_msec()
 	print("Étude : %d parties (%d générations de %d parties, puis %d parties de finale), %d processus." % [total_parties, n_gen, par_generation, finale, jobs])
@@ -574,6 +578,12 @@ func _cumuler(r: Dictionary, genomes: Array) -> void:
 		if gagne and (record.is_empty() or int(r["day"]) < int(record["day"])):
 			record = {"day": int(r["day"]), "seed": int(r["seed"]), "rep": rep}
 			Replay.ecrire_etude(int(r["seed"]), genomes, i, int(r["day"]), rep)
+		# Une IA qui finit à 0 : la partie est gardée pour voir ce qu'elle a mal fait (3 au plus, montrée sur cette IA).
+		if rep < 1.0 and parties_a_zero < Replay.ZERO_MAX and int(r["winner"]) >= 0 and int(r["seed"]) != derniere_a_zero:
+			parties_a_zero += 1
+			derniere_a_zero = int(r["seed"])
+			Replay.ecrire_etude(int(r["seed"]), genomes, int(r["winner"]), int(r["day"]), float(r["joueurs"][int(r["winner"])]["rep"]), i, Replay.chemin_zero(parties_a_zero))
+			print("Partie gardée : l'IA %d finit à 0 (graine %d)." % [i + 1, int(r["seed"])])
 		for cat in ["traits", "metiers", "ameliorations", "batiments"]:
 			for k in j[cat]:
 				_note(cat, k, gagne, rep)

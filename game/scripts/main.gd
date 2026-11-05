@@ -264,7 +264,7 @@ func _ready() -> void:
 		args.erase("replay")
 	# --replay : rejoue la partie la plus courte de la dernière étude
 	if args.has("replay"):
-		replay = Replay.lire_etude()
+		replay = Replay.lire_etude(str(args["replay"]))
 		if replay == null:
 			push_warning("Pas de replay : lancez d'abord une étude.")
 			_show_menu()
@@ -288,8 +288,8 @@ func _show_menu() -> void:
 	if args.has("reglages"):
 		menu.add_child(Reglages.new())
 	menu.multijoueur.connect(func(): _ouvrir_salon(layer))
-	menu.replay_etude.connect(func():
-		replay = Replay.lire_etude()
+	menu.replay_etude.connect(func(chemin: String):
+		replay = Replay.lire_etude(chemin)
 		if replay:
 			layer.queue_free()
 			_start(true))
@@ -3171,16 +3171,15 @@ func _rebuild_hand() -> void:
 			var short := game.money < sal
 			var main_btn := ["Prime" if game.prime_left > 0 else ("Manque %d" % ceili(sal - game.money) if short else "Mobiliser"),
 				"BoutonPrincipal", spectator or short, _on_deploy.bind(card)]
-			var free_btn := ["25" + Composants.NBSP + "%", "BoutonSecondaire", spectator or not game.free_deploy_available(), _on_deploy_free.bind(card)]
-			var btns := [main_btn, free_btn]
+			var ceder_btn := ["+%d" % game.ceder_gain(), "BoutonSecondaire", spectator or game.phase != "day", _cmd.bind("ceder_carte", [card]),
+				"Céder sa journée : +%d d'argent.\nCe collaborateur ne travaille pas aujourd'hui et part à la défausse." % game.ceder_gain()]
+			var btns := [main_btn, ceder_btn]
 			var A := game.cadre_action(card)
 			if not A.is_empty():
 				btns.append(["Jouer", "BoutonOrdre", spectator or game.phase != "day", _on_play_cadre.bind(card),
 					"%s : %s
 Le cadre ne travaille pas aujourd'hui (pas de salaire) et part à la défausse." % [A["nom"], A["texte"]]])
-			var ceder := ["+%d" % game.ceder_gain(), "BoutonSecondaire", spectator or game.phase != "day", _cmd.bind("ceder_carte", [card]),
-				"Céder sa journée : +%d d'argent.\nCe collaborateur ne travaille pas aujourd'hui et part à la défausse." % game.ceder_gain()]
-			widget = Composants.carte_ouvrier(d, "non_abordable" if short else "normale", "main", btns, [], Callable(), ceder)
+			widget = Composants.carte_ouvrier(d, "non_abordable" if short else "normale", "main", btns)
 		elif w and w.offmap:
 			widget = Composants.carte_ouvrier(d, "hors_carte", "main", [["Rappeler", "BoutonSecondaire", spectator, _on_recall.bind(w)]],
 				["LOBBYING", Color("6A3AB0")], _on_focus.bind(w))
@@ -3207,13 +3206,6 @@ func _deploy_all() -> void:
 
 func _on_deploy(card: GameState.Card) -> void:
 	if _cmd("deploy", [card]):
-		selected = [game.worker_of(card)]
-	elif reseau:
-		a_selectionner = card
-
-
-func _on_deploy_free(card: GameState.Card) -> void:
-	if _cmd("deploy", [card, true]):
 		selected = [game.worker_of(card)]
 	elif reseau:
 		a_selectionner = card

@@ -245,14 +245,6 @@ func on_day_start() -> void:
 			g.ceder_carte(attente.pop_back())
 		else:
 			k += 1
-	# Le meilleur ouvrier restant part gratuitement (rendement réduit) plutôt que de rester en main. Un ouvrier
-	# manuel de préférence : sans argent, un cadre gratuit (lobbying, col blanc) ne ferait avancer aucun chantier.
-	var free_pick: GameState.Card = null
-	for c in attente:
-		if not c.deployed and (free_pick == null or _manual_value(c) > _manual_value(free_pick)):
-			free_pick = c
-	if free_pick:
-		g.deploy(free_pick, true)
 	for c in g.hand.duplicate():
 		if c.is_action() and c.action["id"] == "formation_express":
 			g.play_action(c)
