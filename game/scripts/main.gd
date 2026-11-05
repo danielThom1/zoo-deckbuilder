@@ -156,11 +156,7 @@ var biome_noms := {"Savane": "Savane", "Foret": "Forêt", "Jungle": "Jungle", "A
 var terrain_req_noms := {"Prairie": "Prairie", "Foret": "Forêt", "Eau": "Eau", "Roche": "Roche", "Sable": "Sable", "PrairieOuSable": "Prairie ou sable"}
 var market_root: Control  # aperçu du marché du soir, consultable en journée
 var suivis: Array = []  # éléments du marché suivis par le joueur (interface seulement)
-var draft_root: Control
-var draft_title: Label
-var draft_order_lbl: RichTextLabel
-var draft_grid: GridContainer
-var draft_picks: RichTextLabel
+var draft_root: DraftComite
 # Interface Émeraude
 var res_chips := {}  # clé -> [Label valeur, Label légende]
 var race_labels: Array = []  # [segment du bandeau, valeur, delta du jour]
@@ -198,6 +194,7 @@ var pile_panel: PanelContainer
 var hand_scroll: ScrollContainer
 var unit_panel: PanelContainer
 var fiche_onglet := "fiche"
+var aide_badges_vue := false
 var repere_monde := {}
 var selection_nav: HBoxContainer
 var unit_stars: Label
@@ -483,6 +480,7 @@ func _start(watch: bool) -> void:
 			var dt := game._case_decoration()
 			if dt.x >= 0:
 				game.decorations.append({"t": dt, "id": dtypes[k % dtypes.size()]})
+				camera.position = Vector2(dt) * TILE
 	if args.has("contrat"):
 		var cid: String = args["contrat"]
 		var cdef: Dictionary = game.data["animals"]["animaux"].filter(func(d): return d["id"] == cid if cid != "" else (d["palier"] == "T1" and d["id"] != "zebre"))[0]
@@ -1982,7 +1980,7 @@ func _process(delta: float) -> void:
 	_sons_de_la_partie()
 	# Les bulles d'Hubert sont sur un calque au-dessus de l'interface : elles s'effacent devant les fenêtres.
 	if hubert:
-		hubert.get_parent().visible = mt.phase != "night" and not market_root.visible and build_choice.get("kind") != "animal" and not ((picker_root != null and picker_root.visible) \
+		hubert.get_parent().visible = mt.phase != "night" and not market_root.visible and build_choice.get("kind") != "animal" and not draft_root.visible and not (pile_root != null and pile_root.visible) and not ((picker_root != null and picker_root.visible) \
 			or ui.get_children().any(func(c): return c is Reportage or c is Reglages or c is Aide))
 	if mt.phase != last_phase:
 		if mt.phase == "day" and last_phase != "" and not spectator:
@@ -2877,32 +2875,8 @@ func _build_ui() -> void:
 	ui.add_child(market_root)
 
 	# Écran de draft
-	var draft := _overlay()
-	draft_root = draft[0]
-	var dv: VBoxContainer = draft[1]
-	draft_title = Label.new()
-	draft_title.theme_type_variation = "TitreEcran"
-	draft_title.add_theme_font_size_override("font_size", 26)
-	dv.add_child(draft_title)
-	draft_order_lbl = RichTextLabel.new()
-	draft_order_lbl.bbcode_enabled = true
-	draft_order_lbl.fit_content = true
-	draft_order_lbl.custom_minimum_size = Vector2(1060, 0)
-	dv.add_child(draft_order_lbl)
-	var dscroll := ScrollContainer.new()
-	dscroll.custom_minimum_size = Vector2(1060, 520)
-	dscroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	dv.add_child(dscroll)
-	draft_grid = GridContainer.new()
-	draft_grid.columns = 4
-	draft_grid.add_theme_constant_override("h_separation", 10)
-	draft_grid.add_theme_constant_override("v_separation", 10)
-	dscroll.add_child(draft_grid)
-	draft_picks = RichTextLabel.new()
-	draft_picks.bbcode_enabled = true
-	draft_picks.fit_content = true
-	draft_picks.custom_minimum_size = Vector2(1060, 0)
-	dv.add_child(draft_picks)
+	draft_root = DraftComite.new(self)
+	ui.add_child(draft_root)
 
 
 ## Médaillon du jour (Ø 154) : anneau doré qui se vide au fil de la journée, jour et temps restant au centre.
@@ -3070,7 +3044,7 @@ func _rebuild_market_preview() -> void:
 
 func _overlay() -> Array:
 	var root := ColorRect.new()
-	root.color = Color(UiTokens.MARINE, 0.6)
+	root.color = Color(UiTokens.ENCRE, 0.55)
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_STOP
 	root.visible = false
@@ -3079,8 +3053,7 @@ func _overlay() -> Array:
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.add_child(center)
 	var panel := PanelContainer.new()
-	var style := UiTokens.panel(UiTokens.PANNEAU_MILIEU, UiTokens.OR, 12, 2, 20)
-	panel.add_theme_stylebox_override("panel", style)
+	panel.add_theme_stylebox_override("panel", UiTokens.panneau(UiTokens.FOND_FENETRE, 12, 2, 20, true))
 	center.add_child(panel)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 12)
@@ -3187,7 +3160,37 @@ func _card_full_tooltip(card: GameState.Card) -> String:
 		RegEx.create_from_string("\\[[^\\]]*\\]").sub(_traits_bbcode(card), "", true), _card_tooltip(card)]
 
 
+## Une seule fois, sur le premier jour : ce que font les deux boutons d'un badge.
+func _aide_badges() -> void:
+	if aide_badges_vue or spectator or tutoriel or args.has("shot") or game.phase != "day" or game.day != 1:
+		return
+	aide_badges_vue = true
+	var cfg := ConfigFile.new()
+	cfg.load(Reglages.FICHIER)
+	if cfg.get_value("aides", "badges", false):
+		return
+	cfg.set_value("aides", "badges", true)
+	cfg.save(Reglages.FICHIER)
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", UiTokens.panneau(UiTokens.ENCRE, 8, 0, 10, false))
+	p.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	p.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	p.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	p.offset_bottom = -(UiTokens.H_DOCK + 92)
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var l := Composants.label("Survolez un collaborateur.\nMobiliser : payez son salaire et il part travailler.\n+%d : il cède sa journée et rapporte de l'argent." % game.ceder_gain())
+	l.add_theme_color_override("font_color", UiTokens.PAPIER)
+	l.add_theme_font_size_override("font_size", 14)
+	p.add_child(l)
+	ui.add_child(p)
+	var tw := p.create_tween()
+	tw.tween_interval(10.0)
+	tw.tween_property(p, "modulate:a", 0.0, 0.6)
+	tw.tween_callback(p.queue_free)
+
+
 func _rebuild_hand() -> void:
+	_aide_badges()
 	for c in hand_box.get_children():
 		c.queue_free()
 	if game.phase == "draft":
@@ -3304,37 +3307,8 @@ func _on_focus(w: GameState.Worker) -> void:
 
 func _rebuild_draft() -> void:
 	draft_root.visible = game.phase == "draft"
-	if game.phase != "draft":
-		return
-	for c in draft_grid.get_children():
-		c.queue_free()
-	var my_turn := not mt.is_ai(mt.current_drafter())
-	draft_title.text = "DRAFT · TOUR %d / %d — %s" % [mt.draft_round() + 1, mt.draft_rounds(),
-		"À VOUS DE CHOISIR" if my_turn else "%s choisit…" % mt.names[mt.current_drafter()]]
-	# Ordre du tour : déjà passés en gris, joueur courant en or, la dernière carte revient d'office au dernier.
-	var order: Array[String] = []
-	var pos_in_round := mt.draft_turn % mt.players.size()
-	var round_order := mt.draft_round_order()
-	for i in round_order.size():
-		var nom := mt.names[round_order[i]]
-		if i < pos_in_round:
-			order.append("[color=#4A5664]%s[/color]" % nom)
-		elif i == pos_in_round:
-			order.append("[color=#8A6A00][b]%s[/b][/color]" % nom)
-		else:
-			order.append(nom)
-	draft_order_lbl.text = "Ordre du tour : %s\n[color=#4A5664]%d cartes révélées, une chacun. Le premier à choisir change à chaque tour.%s[/color]" % [
-		"  ›  ".join(order), mt.draft_round_size(),
-		" La dernière carte revient d'office au dernier joueur." if mt.draft_round_size() == mt.players.size() else " Les cartes restantes sont défaussées."]
-	for card in mt.draft_pool:
-		draft_grid.add_child(_card_widget(card, "Choisir", not my_turn, _cmd.bind("pick_draft", [card])))
-	var lines: Array[String] = []
-	for p in mt.players.size():
-		var names: Array[String] = []
-		for c in mt.drafted[p]:
-			names.append("%s ([color=%s]%s[/color])" % [c.nom, category_colors[c.metier["categorie"]].to_html(false), game.job_name(c)])
-		lines.append("[b]%s[/b] (%d) : %s" % [mt.names[p], names.size(), ", ".join(names)])
-	draft_picks.text = "\n".join(lines)
+	if game.phase == "draft":
+		draft_root.rafraichir()
 
 
 const EFFETS_TRAITS := {"vitesse": "marche", "construire": "construction", "defaut": "toutes les tâches", "amenager": "aménagement", "construire_enclos": "clôtures d'enclos",
@@ -5154,7 +5128,7 @@ func _open_picker(title: String, subtitle: String, rows: Array) -> void:
 		_set_speed(0.0)
 	picker_root.visible = true
 	_clear(picker_box)
-	picker_box.add_child(Composants.label(title, "TitrePanneau"))
+	picker_box.add_child(_titre_fenetre(title))
 	if subtitle != "":
 		var s := Composants.label(subtitle, "TexteSecondaire")
 		s.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -5306,45 +5280,108 @@ func _open_pile() -> void:
 	pile_root.visible = true
 	_clear(pile_box)
 	var n := game.hand_size()
-	pile_box.add_child(Composants.label("PIOCHE ET DÉFAUSSE", "TitrePanneau"))
+	pile_box.add_child(_titre_fenetre("Pioche et défausse"))
 	var info := "Demain matin, vous piocherez %d cartes au hasard dans la pioche (l'ordre est caché)." % n
 	if game.deck.size() < n:
-		info = "La pioche (%d carte(s)) ne suffit pas pour une main de %d : demain, vous prendrez toute la pioche, puis la défausse, avec la main d'aujourd'hui, sera remélangée pour compléter." % [game.deck.size(), n]
+		info = "La pioche (%d carte(s)) ne suffit pas pour une main de %d : demain, vous prendrez toute la pioche, puis la défausse sera mélangée pour compléter." % [game.deck.size(), n]
 	var il := Composants.label(info, "TexteSecondaire")
 	il.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	il.custom_minimum_size.x = 1100
+	il.custom_minimum_size.x = 900
 	pile_box.add_child(il)
-	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(1120, 560)
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	pile_box.add_child(scroll)
-	var inner := VBoxContainer.new()
-	inner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	inner.add_theme_constant_override("separation", 8)
-	scroll.add_child(inner)
+	var cols := HBoxContainer.new()
+	cols.add_theme_constant_override("separation", 16)
+	pile_box.add_child(cols)
 	for section in [["PIOCHE", game.deck], ["DÉFAUSSE", game.discard]]:
 		var cards: Array = section[1]
-		var st := Composants.label("%s · %d" % [section[0], cards.size()], "TitrePanneau")
-		st.add_theme_font_size_override("font_size", 16)
-		inner.add_child(st)
-		var flow := HFlowContainer.new()
-		flow.add_theme_constant_override("h_separation", 10)
-		flow.add_theme_constant_override("v_separation", 10)
-		inner.add_child(flow)
+		var col := VBoxContainer.new()
+		col.add_theme_constant_override("separation", 6)
+		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		col.custom_minimum_size.x = 442
+		cols.add_child(col)
+		var ti := Composants.label("%s · %d" % [section[0], cards.size()])
+		ti.add_theme_font_override("font", UiTokens.police_titre())
+		ti.add_theme_font_size_override("font_size", 16)
+		col.add_child(ti)
+		var scroll := ScrollContainer.new()
+		scroll.custom_minimum_size.y = 500
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		col.add_child(scroll)
+		var inner := VBoxContainer.new()
+		inner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		inner.add_theme_constant_override("separation", 6)
+		scroll.add_child(inner)
 		var sorted := cards.duplicate()
 		sorted.sort_custom(func(a, b): return a.nom < b.nom)  # trié : la pioche ne révèle pas son ordre
 		for c in sorted:
-			if c.is_action():
-				flow.add_child(_action_widget(c, "Carte d'action", true, func(): pass))
-			else:
-				flow.add_child(_card_widget(c, "Salaire %d" % game.salary(c), true, func(): pass, [], "draft"))
+			inner.add_child(_mini_carte(c))
 		if cards.is_empty():
-			flow.add_child(Composants.label("Vide", "TexteSecondaire"))
+			inner.add_child(Composants.label("Vide", "TexteSecondaire"))
 	var close := Composants.bouton("Fermer", "BoutonPrincipal")
-	close.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	close.custom_minimum_size = Vector2(220, 36)
+	close.size_flags_horizontal = Control.SIZE_SHRINK_END
+	close.custom_minimum_size = Vector2(160, 40)
 	close.pressed.connect(func(): pile_root.visible = false)
 	pile_box.add_child(close)
+
+
+func _titre_fenetre(texte: String) -> Label:
+	var l := Composants.label(texte)
+	l.add_theme_font_override("font", UiTokens.police_titre())
+	l.add_theme_font_size_override("font_size", 30)
+	return l
+
+
+## Carte de la pile en une ligne : portrait, nom, métier, salaire.
+func _mini_carte(c: GameState.Card) -> Control:
+	var p := PanelContainer.new()
+	var sb := UiTokens.panneau(Color("FFFBEA") if c.is_action() else UiTokens.PAPIER, 8, 2, 6, false)
+	p.add_theme_stylebox_override("panel", sb)
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 10)
+	p.add_child(h)
+	if c.is_action():
+		var ta := Composants.label(str(c.action["nom"]).to_upper())
+		ta.add_theme_font_override("font", UiTokens.police_titre())
+		ta.add_theme_font_size_override("font_size", 18)
+		h.add_child(ta)
+		var tx := Composants.label(str(c.action["texte"]), "TexteSecondaire")
+		tx.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		tx.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		tx.tooltip_text = str(c.action["texte"])
+		tx.mouse_filter = Control.MOUSE_FILTER_PASS
+		h.add_child(tx)
+		return p
+	var cat: Dictionary = UiTokens.CATEGORIES[c.metier["categorie"]]
+	var cadre := PanelContainer.new()
+	var sc := StyleBoxFlat.new()
+	sc.bg_color = cat["portrait"]
+	sc.border_color = UiTokens.ENCRE
+	sc.set_border_width_all(2)
+	sc.set_corner_radius_all(6)
+	cadre.add_theme_stylebox_override("panel", sc)
+	cadre.custom_minimum_size = Vector2(42, 50)
+	cadre.clip_contents = true
+	cadre.add_child(Composants.portrait_rect(game.perso_of(c)["id"], Vector2(38, 46)))
+	h.add_child(cadre)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 0)
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var nm := Composants.label(c.nom.to_upper())
+	nm.add_theme_font_override("font", UiTokens.police_titre())
+	nm.add_theme_font_size_override("font_size", 18)
+	v.add_child(nm)
+	var mt_ := Composants.label("%s · N%d" % [game.job_name(c), c.niveau], "TexteSecondaire")
+	mt_.add_theme_font_size_override("font_size", 12)
+	mt_.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	v.add_child(mt_)
+	h.add_child(v)
+	var sal := Composants.label("%d / j" % game.salary(c))
+	sal.add_theme_font_override("font", UiTokens.police_mono(600))
+	sal.add_theme_font_size_override("font_size", 13)
+	sal.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	h.add_child(sal)
+	p.tooltip_text = _card_full_tooltip(c)
+	return p
 
 
 ## Raison courte à écrire sur un bouton désactivé (le détail reste dans l'infobulle).

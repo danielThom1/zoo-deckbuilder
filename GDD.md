@@ -339,3 +339,7 @@ Liste complète : `data/workers.json`.
 
 1. Valeur exacte de l'objectif de réputation (100 proposé) : à fixer après les premiers tests.
 2. Ordre de service de la nourriture quand l'argent manque : les plus chers d'abord (proposé), ou choix du joueur ?
+
+## Intendance du parc
+
+L'Intendance du parc est un bâtiment de l'enceinte. Tout collaborateur peut y travailler ; l'Intendant de parc, un cadre, y va 2,5 fois plus vite. Chaque décoration demande 100 de travail, 1 bois et 1 pierre, et paraît sur une case libre du parc : massif, banc, lampadaire, topiaire, fontaine, statue, tonnelle ou parterre. Le parc compte au plus une décoration pour 10 cases. Chaque nuit, zoo ouvert, chaque décoration rapporte 0,1 de réputation. Construire sur une décoration la retire.

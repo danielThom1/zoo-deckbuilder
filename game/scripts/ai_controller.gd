@@ -2004,7 +2004,8 @@ func _wants() -> Array:
 		if kspot.x >= 0:
 			out.append(["batiment", g.building_def("kiosque"), kspot])
 	# Intendance du parc : la beauté rapporte chaque nuit, mais après les animaux et les salaires.
-	if strat["intendance"] and not g.has_building("intendance") and g.zoo_status()["open"] and day >= 4 and g.money > _floor_achats() + 25.0:
+	if strat["intendance"] and not g.has_building("intendance") and g.zoo_status()["open"] and day >= 4 and g.money > _floor_achats() + 25.0 \
+		and (_free_hands() > _builders_needed() or g.all_employees().any(func(c): return c.metier["id"] == "intendant")):
 		var ispot := _park_spot(g.building_def("intendance"))
 		if ispot.x >= 0:
 			out.append(["batiment", g.building_def("intendance"), ispot])
