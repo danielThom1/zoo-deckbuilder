@@ -71,7 +71,12 @@ func _init() -> void:
 		var kv := a.trim_prefix("--").split("=", true, 1)
 		args[kv[0]] = kv[1] if kv.size() > 1 else ""
 	data = GameData.load_all()
+	# Un dossier par étude : deux études lancées en même temps ne lisent pas les résultats l'une de l'autre.
 	dir = ProjectSettings.globalize_path("user://evolution")
+	if args.has("dir"):
+		dir = str(args["dir"])
+	elif not args.has("lot"):
+		dir = dir.path_join(str(OS.get_process_id()))
 
 	# Processus de travail : joue les parties de son lot (fichier matches.json) et écrit un résultat par partie.
 	if args.has("lot"):
@@ -176,6 +181,9 @@ func _init() -> void:
 			pop = _next_generation(pop, order)
 	var classement := _finale(pop_notee, order, finale, jobs)
 	_write_report(pop_notee, order, scores, history, classement)
+	for f in DirAccess.get_files_at(dir):
+		DirAccess.remove_absolute(dir.path_join(f))
+	DirAccess.remove_absolute(dir)
 	print("Étude terminée en %d min. Rapport : %s" % [int((Time.get_ticks_msec() - t0) / 60000), ProjectSettings.globalize_path("res://").path_join("../rapport_etude.md")])
 	quit(0)
 
@@ -292,7 +300,7 @@ func _jouer(matches: Array, jobs: int) -> Dictionary:
 	var pids: Array[int] = []
 	for lot in mini(jobs, matches.size()):
 		pids.append(OS.create_process(OS.get_executable_path(), ["--headless", "--path", ProjectSettings.globalize_path("res://"),
-			"--script", "res://tests/evolution.gd", "--", "--lot=%d" % lot, "--lots=%d" % mini(jobs, matches.size())]))
+			"--script", "res://tests/evolution.gd", "--", "--lot=%d" % lot, "--lots=%d" % mini(jobs, matches.size()), "--dir=" + dir]))
 	var results := {}
 	var dernier_resultat := Time.get_ticks_msec()
 	while results.size() < matches.size():
