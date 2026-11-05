@@ -548,6 +548,8 @@ func _start(watch: bool) -> void:
 		for i in 120:
 			mt.tick(0.5)
 		_refresh_terrain(true)
+	if args.has("essai3d") and OS.has_feature("editor"):  # essai visuel de la 2,5D (tests/essai_25d.gd)
+		add_child.call_deferred(load(args["essai3d"]).new(self))
 		_focus_zoo()
 	# --perso=victor : tous les ouvriers prennent ce personnage (contrôle d'une nouvelle planche)
 	if args.has("perso"):
