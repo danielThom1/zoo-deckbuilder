@@ -63,7 +63,7 @@
     { "id": "comptoir",   "nom": "Marché",               "taille": [2, 2], "travail": 90,  "type_travail": "construire_bois",  "cout": { "bois": 10, "pierre": 4 }, "effet": { "commerce": true }, "unique": true, "_note_effet": "Vente du stock à 70 % sans personne. Tenu par un Marchand (clic droit) : vente à 125 % et achat de bois et de pierre 30 % moins cher (Négociateur : +25 % de vente et −10 % d'achat en plus)." },
     { "id": "agence",     "nom": "Agence d'intérim",     "taille": [2, 2], "travail": 105,  "type_travail": "construire_bois",  "cout": { "bois": 12, "pierre": 6 }, "effet": { "echange": true }, "unique": true, "_note_effet": "En journée, une fois par jour : remplace un collaborateur sur le terrain par une carte de sa pioche ou de sa défausse. Coût : voir la section agence." },
     { "id": "cabinet",    "nom": "Cabinet de recrutement", "taille": [2, 2], "travail": 112, "type_travail": "construire_bois", "cout": { "bois": 10, "pierre": 8, "argent": 10 }, "effet": { "recrutement": { "peu_qualifie": 12, "qualifie": 25, "cadre": 50 } }, "unique": true, "_note_effet": "La nuit, à votre tour d'embauche, une fois : remplace une carte de la rangée des collaborateurs par une carte au hasard de la catégorie choisie (prix selon la rareté)." },
-    { "id": "mine",       "nom": "Mine d'or",            "taille": [2, 2], "travail": 225, "type_travail": "construire_pierre", "cout": { "bois": 10, "pierre": 15 }, "effet": { "permet_extraction": "or" }, "sur": "MineOr", "hors_enceinte": true, "_note": "Une mine par gisement (2 gisements par carte)." },
+    { "id": "mine",       "nom": "Mine d'or",            "taille": [2, 2], "travail": 150, "type_travail": "construire_pierre", "cout": { "bois": 10, "pierre": 15 }, "effet": { "permet_extraction": "or" }, "sur": "MineOr", "hors_enceinte": true, "_note": "Une mine par gisement (2 gisements par carte)." },
     { "id": "cloture",    "nom": "Enceinte (segment)",   "taille": [1, 1], "travail": 4,   "type_travail": "construire_pierre", "cout": { "pierre": 1 },            "effet": { "enceinte": true }, "peinture": true },
     { "id": "entree",     "nom": "Entrée du zoo",        "taille": [2, 1], "travail": 90,  "type_travail": "construire_pierre", "cout": { "pierre": 8, "bois": 4 }, "effet": { "entree_zoo": true }, "unique": true },
     { "id": "enclos",     "nom": "Clôture d'enclos (segment)", "taille": [1, 1], "travail": 6, "type_travail": "construire_enclos", "cout": { "bois": 1 }, "effet": { "enclos": true }, "peinture": true, "_note": "Une zone fermée de clôtures d'enclos validée contre les exigences d'un contrat d'animal" },
@@ -162,9 +162,9 @@
     "influence_min": 1,
     "legendaire": 5,
     "labels": [
-      { "id": "certifie", "nom": "Zoo certifié", "or": 12, "reputation": 5 },
-      { "id": "mecenat", "nom": "Club des mécènes", "or": 22, "reputation": 10 },
-      { "id": "excellence", "nom": "Label d'excellence", "or": 35, "reputation": 15 }
+      { "id": "certifie", "nom": "Zoo certifié", "or": 8, "reputation": 5 },
+      { "id": "mecenat", "nom": "Club des mécènes", "or": 15, "reputation": 10 },
+      { "id": "excellence", "nom": "Label d'excellence", "or": 24, "reputation": 15 }
     ]
   },
 
@@ -180,7 +180,7 @@
       { "id": "especes", "type": "especes", "n": 5, "texte": "5 espèces installées" },
       { "id": "parc", "type": "parc", "n": 250, "texte": "Enceinte de 250 cases" },
       { "id": "visiteurs", "type": "visiteurs", "n": 80, "texte": "80 visiteurs en une journée" },
-      { "id": "veterans", "type": "niveau", "niveau": 4, "n": 2, "texte": "2 collaborateurs au niveau 4" },
+      { "id": "veterans", "type": "niveau", "niveau": 5, "n": 2, "texte": "2 collaborateurs au niveau 5" },
       { "id": "cadres", "type": "cadres", "n": 3, "texte": "3 cadres dans l'équipe" },
       { "id": "effectif", "type": "effectif", "n": 11, "texte": "11 collaborateurs" },
       { "id": "camp", "type": "camp", "n": 2, "texte": "Camp au niveau 3" },

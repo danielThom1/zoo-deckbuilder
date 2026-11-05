@@ -96,7 +96,7 @@ Ordre de résolution (avant le lot N, pour mémoire) :
 | Former | Centre de formation | +XP pour les ouvriers qui s'y entraînent |
 
 - **Construction** (prototype Godot) : on choisit un bâtiment ou un aménagement dans le menu de gauche et on le place sur la carte. Les routes, clôtures et aménagements se placent en glissant la souris. Le coût est payé **au placement** : il est remboursé en entier si on annule avant tout travail, et à moitié ensuite. On envoie ensuite des ouvriers sur le chantier par clic droit, et l'avancement est conservé d'un jour à l'autre. Un ouvrier qui termine un chantier passe tout seul au chantier voisin du même type, dans un rayon de 10 cases (pratique pour une route). Pour l'instant, les bâtiments ne bloquent pas le passage.
-- **Effets de zone** : *Charismatique* donne +15 % de productivité aux autres ouvriers dans un rayon de 3 cases, le *Contremaître* +25 % dans un rayon de 3 cases, et *Rabat-joie* −10 % aux autres ouvriers dans un rayon de 3 cases. Les effets se cumulent et s'appliquent à l'extraction, à la construction et à l'aménagement.
+- **Effets de zone** : *Charismatique* donne +20 % de productivité aux autres ouvriers dans un rayon de 3 cases, le *Contremaître* +25 % dans un rayon de 3 cases, et *Rabat-joie* −10 % aux autres ouvriers dans un rayon de 3 cases. Les effets se cumulent et s'appliquent à l'extraction, à la construction et à l'aménagement.
 - Tout ouvrier peut faire un **travail manuel** (efficacité de base 1.0, ×1.5 dans sa spécialité), sauf s'il a le trait *Col blanc*.
 - Les **cadres** ont accès aux tâches spéciales et ont une faible efficacité manuelle (0.6).
 
@@ -120,7 +120,7 @@ Liste complète : `data/workers.json`.
 ### 6.4 Progression (lot B : implémenté)
 - **Expérience** en jours de travail : +1 par jour déployé, ×2 pour l'**Apprenti**, ×1,5 pour **Bon élève**. Un niveau tous les **2 jours d'expérience**, au maximum le **niveau 4** (+10 % de rendement et +1 de salaire par niveau).
 - **Centre de formation** : un ouvrier posté dessus (clic droit) gagne **0,4 jour d'expérience par minute**, **×2 si un Formateur** y est posté aussi. 4 places. Une journée complète de formation vaut 2 jours de travail en expérience (4 avec un Formateur), en plus du jour travaillé.
-- **À chaque niveau, une amélioration gratuite au choix** parmi 3 (**Têtu** : 2), tirées dans le pool générique et dans celui du métier. Le choix se fait la nuit ; s'il est oublié, la première option est appliquée au matin.
+- **À chaque niveau, une amélioration gratuite au choix** parmi 3 (**Têtu** : 2, et expérience −15 %), tirées dans le pool générique et dans celui du métier. Le choix se fait la nuit ; s'il est oublié, la première option est appliquée au matin.
 - Améliorations génériques : Pied léger, Expérience, Maîtrise, Remise en question (supprime un défaut), Révélation (nouveau trait positif), Fidélité, **Seconde spécialité** (une tâche hors métier, tirée au hasard, passe à 1,4).
 - Améliorations de métier : Scie affûtée (Bûcheron : bois +25 %, portage +1), Brouette (Porteur : portage +2), Chasseur de têtes (DRH : embauches −3), Réseau (Lobbyiste : +1 influence par soir déployé), Négociateur (Marchand : vente +25 %), Pédagogue (Formateur : +2 places), Visionnaire (Paysagiste : aménager à côté d'une case du type voulu ×2).
 - L'amélioration payante de milieu de partie (12, à partir du jour 7) reste disponible en plus.
@@ -143,8 +143,8 @@ Liste complète : `data/workers.json`.
   - L'IA joue un cadre quand la situation s'y prête (4 chantiers ouverts pour l'Architecte, événement négatif pour le Lobbyiste, gros stock pour le Marchand, etc.).
 
 ### 6.5 bis Capacités et traits (lot B : implémentés)
-- **Architecte** : un chantier où il a travaillé rembourse **25 % des ressources** à la fin. Même col blanc, il peut superviser (sans construire). **Débrouillard** : 15 %.
-- **Matinal** : commence la journée sur sa dernière case de travail. **Casanier** : −30 % de vitesse à plus de 15 cases du camp. **Peureux** : abandonne sa tâche à 2 cases ou moins d'un enclos de prédateur.
+- **Architecte** : un chantier où il a travaillé rembourse **25 % des ressources** à la fin. Même col blanc, il peut superviser (sans construire). **Débrouillard** : 40 %.
+- **Matinal** : commence la journée sur sa dernière case de travail. **Casanier** : −50 % de vitesse à plus de 10 cases du camp. **Peureux** : abandonne sa tâche à 2 cases ou moins d'un enclos de prédateur.
 
 ### 6.4 ter Améliorations du camp (v6)
 - **Camp niveau 2** (25 bois, 20 pierre, 20 argent, 200 de travail) puis **niveau 3** (30 bois, 40 pierre, 30 argent, 350 de travail) : chacun donne **une carte de plus en main** chaque jour. Ils se construisent sur le camp, un à la fois et dans l'ordre.
@@ -275,7 +275,7 @@ Liste complète : `data/workers.json`.
 - **Fréquentation** : 0,3 × visiteurs présents en moyenne (inchangé).
 - **Spectacles et boutique** : le Kiosque tenu rapporte 3 de réputation par journée (×2 avec un Animateur), la boutique 0,04 par unité d'argent de souvenirs.
 - **Prestige politique** : chaque nuit, le premier en influence gagne +1, le deuxième +0,5 (avec au moins 1 d'influence).
-- **Labels** (une fois chacun, en or, seulement avec un Marchand déployé) : Zoo certifié (8 or, +5), Club des mécènes (15 or, +10), Label d'excellence (25 or, +15).
+- **Labels** (une fois chacun, en or, au double du prix sans Marchand déployé) : Zoo certifié (8 or, +5), Club des mécènes (15 or, +10), Label d'excellence (24 or, +15).
 - **Ouvriers légendaires** : un ouvrier qui atteint le niveau 5 rapporte +5 au parc.
 
 - Points par espèce, selon le palier : T1 = 4, T2 = 8, T3 = 14 ❓ (voir le JSON, par espèce).

@@ -1095,7 +1095,7 @@ func _move(w: Worker, dt: float) -> void:
 		var spd := speed(w.card) * map.move_speed(t.x, t.y) * speed_mult()
 		if w.unpaid:
 			spd *= float(data["workers"]["regles"]["deploiement_gratuit"].get("vitesse", 1.0))
-		if w.card.traits.has("casanier") and w.pos.distance_to(Vector2(map.camp.get_center())) > 15.0:
+		if w.card.traits.has("casanier") and w.pos.distance_to(Vector2(map.camp.get_center())) > 10.0:
 			spd *= 0.5
 		var target := Vector2(w.path[0]) + Vector2(0.5, 0.5)
 		var dist := w.pos.distance_to(target)
@@ -1268,7 +1268,7 @@ func _work_traits(w: Worker, dt: float) -> void:
 	if w.card.traits.has("paresseux"):
 		w.pause_left = 25.0
 		say("%s fait une pause (%s)." % [w.card.nom, agree(w.card, "paresseux", "paresseuse")])
-	if w.card.traits.has("distrait") and rng.randf() < 0.25:
+	if w.card.traits.has("distrait") and rng.randf() < 0.4:
 		w.task = {}
 		say("%s a oublié ce qu'%s faisait (%s)." % [w.card.nom, agree(w.card, "il", "elle"), agree(w.card, "distrait", "distraite")])
 

@@ -120,7 +120,7 @@ func _init() -> void:
 	a.card.traits.assign(["charismatique"])
 	b.card.traits.assign([])
 	b.pos = a.pos + Vector2(2, 0)
-	check(is_equal_approx(ga.aura_mult(b), 1.25), "Charismatique à 2 cases : +25 %% (x%.2f)" % ga.aura_mult(b))
+	check(is_equal_approx(ga.aura_mult(b), 1.2), "Charismatique à 2 cases : +20 %% (x%.2f)" % ga.aura_mult(b))
 	b.pos = a.pos + Vector2(5, 0)
 	check(is_equal_approx(ga.aura_mult(b), 1.0), "à 5 cases : aucun bonus")
 	check(is_equal_approx(ga.aura_mult(a), 1.0), "pas de bonus pour lui-même")
@@ -508,7 +508,7 @@ func _init() -> void:
 	# Montée de niveau : une amélioration gratuite au choix
 	var b_lc: GameState.Card = b_g.hand[0]
 	b_g.deploy(b_lc, true)
-	b_lc.xp = 1.0
+	b_lc.xp = 1.9  # un jour de travail suffit, même à −15 % (Têtu)
 	var b_niv0 := b_lc.niveau
 	b_g.end_day()
 	var b_nopt := 2 if b_lc.traits.has("tetu") else 3

@@ -77,8 +77,8 @@
     { "id": "polyvalent",    "nom": "Polyvalent", "nom_f": "Polyvalente",    "effet": {}, "texte": "Efficacité hors spécialité au minimum 1,15" },
     { "id": "bon_eleve",     "nom": "Bon élève", "nom_f": "Bonne élève",     "effet": { "xp": 2.0 }, "texte": "Expérience ×2" },
     { "id": "econome",       "nom": "Économe",       "effet": { "salaire": -1 } },
-    { "id": "charismatique", "nom": "Charismatique", "effet": { "lobbying": 1.5 }, "aura": { "rayon": 3, "bonus": 0.25 }, "texte": "+25 % de productivité aux autres collaborateurs dans un rayon de 3 cases ; lobbying ×1,5" },
-    { "id": "debrouillard",  "nom": "Débrouillard", "nom_f": "Débrouillarde",  "effet": { "cout_ressources_chantier": 0.7 }, "texte": "Un chantier où il a travaillé : 30 % des ressources remboursées à la fin" },
+    { "id": "charismatique", "nom": "Charismatique", "effet": { "lobbying": 1.5 }, "aura": { "rayon": 3, "bonus": 0.2 }, "texte": "+20 % de productivité aux autres collaborateurs dans un rayon de 3 cases ; lobbying ×1,5" },
+    { "id": "debrouillard",  "nom": "Débrouillard", "nom_f": "Débrouillarde",  "effet": { "cout_ressources_chantier": 0.6 }, "texte": "Un chantier où il a travaillé : 40 % des ressources remboursées à la fin" },
     { "id": "matinal",       "nom": "Matinal", "nom_f": "Matinale",       "effet": {}, "texte": "Commence la journée sur la case de son dernier chantier au lieu du Camp" },
     { "id": "naturaliste",   "nom": "Naturaliste",   "effet": { "amenager": 1.5, "construire_enclos": 1.5 } }
   ],
@@ -90,10 +90,10 @@
     { "id": "gourmand",      "nom": "Gourmand", "nom_f": "Gourmande",      "effet": { "salaire": 2 } },
     { "id": "rabat_joie",    "nom": "Rabat-joie",    "effet": {}, "aura": { "rayon": 3, "bonus": -0.20 }, "texte": "−20 % de productivité aux autres collaborateurs dans un rayon de 3 cases" },
     { "id": "col_blanc",     "nom": "Col blanc",     "effet": {}, "categories": ["cadre"], "texte": "Refuse tout travail manuel" },
-    { "id": "distrait",      "nom": "Distrait", "nom_f": "Distraite",      "effet": {}, "texte": "25 % de chance par minute d'abandonner sa tâche (redevient inactif)" },
-    { "id": "tetu",          "nom": "Têtu", "nom_f": "Têtue",          "effet": { "choix_ameliorations": 2 }, "texte": "Améliorations : choix entre 2 au lieu de 3" },
+    { "id": "distrait",      "nom": "Distrait", "nom_f": "Distraite",      "effet": {}, "texte": "40 % de chance par minute d'abandonner sa tâche (redevient inactif)" },
+    { "id": "tetu",          "nom": "Têtu", "nom_f": "Têtue",          "effet": { "choix_ameliorations": 2, "xp": 0.85 }, "texte": "Améliorations : choix entre 2 au lieu de 3 ; expérience −15 %" },
     { "id": "peureux",       "nom": "Peureux", "nom_f": "Peureuse",       "effet": {}, "texte": "Refuse de travailler à moins de 2 cases d'un enclos de prédateur" },
-    { "id": "casanier",      "nom": "Casanier", "nom_f": "Casanière",      "effet": {}, "texte": "−50 % de vitesse à plus de 15 cases du Camp" }
+    { "id": "casanier",      "nom": "Casanier", "nom_f": "Casanière",      "effet": {}, "texte": "−50 % de vitesse à plus de 10 cases du Camp" }
   ],
 
   "ameliorations_generiques": [
@@ -127,7 +127,7 @@
   "cartes_action": [
     { "id": "heures_sup",       "nom": "Heures sup",          "cout": 8,  "effet": { "productivite": 1.4 },  "texte": "Aujourd'hui, tous vos collaborateurs travaillent 40 % plus vite." },
     { "id": "prime",            "nom": "Prime",               "cout": 10,  "effet": { "prime": 4, "pioche": 1 }, "texte": "Piochez 1 carte. Les 4 prochains collaborateurs mobilisés aujourd'hui ne coûtent pas de salaire (rendement plein)." },
-    { "id": "portes_ouvertes",  "nom": "Portes ouvertes",     "cout": 10, "hausse_par_jour": 0.08, "effet": { "visiteurs": 2.0 },     "texte": "Aujourd'hui, deux fois plus de visiteurs." },
+    { "id": "portes_ouvertes",  "nom": "Portes ouvertes",     "cout": 14, "hausse_par_jour": 0.08, "effet": { "visiteurs": 2.0 },     "texte": "Aujourd'hui, deux fois plus de visiteurs." },
     { "id": "livraison",        "nom": "Livraison",           "cout": 25,  "effet": { "bois": 30, "pierre": 25 }, "texte": "Reçoit immédiatement 30 bois et 25 pierre." },
     { "id": "recrutement",      "nom": "Recrutement express", "cout": 8,  "effet": { "pioche": 2 },          "texte": "Piochez 2 cartes de plus aujourd'hui." },
     { "id": "formation_express","nom": "Formation express",   "cout": 14, "hausse_par_jour": 0.08,  "effet": { "xp": 2 },              "texte": "Tous vos collaborateurs, deck compris, gagnent 2 jours d'expérience." },
