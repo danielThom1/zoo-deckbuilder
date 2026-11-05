@@ -19,7 +19,7 @@ const ECHECS_MAX := 3  # générations en erreur d'affilée avant de passer à l
 const ATTENTE_MAX_MS := 600000  # sans nouveau résultat pendant 10 min, les processus bloqués sont arrêtés
 const PART_FINALE := 0.1  # part des parties gardée pour la phase finale
 const EXPLORATION := 0.25  # part de choix au hasard (améliorations, cartes) pour que tout soit essayé
-const BOOLS := ["marche", "rush_or", "formation", "cartes", "spectacle", "affinite", "boutique", "mine", "specialisation", "fast_expand", "route_mine", "adaptatif", "agrandir", "meme_type"]
+const BOOLS := ["marche", "rush_or", "formation", "cartes", "spectacle", "affinite", "boutique", "mine", "specialisation", "fast_expand", "route_mine", "adaptatif", "agrandir", "meme_type", "intendance"]
 const TYPES := ["herbivore", "predateur", "aquatique", "aerien"]
 const CONTINENTS := ["Afrique", "Amerique", "Asie", "Europe"]
 const TAILLES := ["moyen", "grand", "evolutif"]
@@ -32,12 +32,12 @@ const POIDS := ["poids_metiers", "poids_traits", "poids_animaux", "poids_cartes"
 const STRATEGIES := [
 	{"nom": "Équilibrée"}, {"nom": "Marché", "marche": true}, {"nom": "Rush or", "rush_or": true},
 	{"nom": "Rush or + route", "rush_or": true, "route_mine": true}, {"nom": "Fast expand", "fast_expand": true, "camp": 1},
-	{"nom": "Spécialisation", "specialisation": true}, {"nom": "Formation", "formation": true}, {"nom": "Cartes", "cartes": true},
+	{"nom": "Spécialisation", "specialisation": true}, {"nom": "Formateur", "formation": true}, {"nom": "Cartes", "cartes": true},
 	{"nom": "Parc évolutif", "taille_zoo": "evolutif"}, {"nom": "Affinités", "affinite": true},
 	{"nom": "Haut de gamme", "preference_palier": 3.0, "palier_min": 2, "reserve": 15},
 	{"nom": "Petits contrats", "preference_palier": 0.4, "contrats_en_attente_max": 3}, {"nom": "Grand parc", "taille_zoo": "grand"},
 	{"nom": "Lobbying", "lobbyistes_max": 2}, {"nom": "Camp amélioré", "camp": 1}, {"nom": "Grand camp", "camp": 2},
-	{"nom": "Spectacle", "spectacle": true},
+	{"nom": "Spectacle", "spectacle": true}, {"nom": "Sans intendance", "intendance": false},
 	{"nom": "Ancienne IA", "adaptatif": false, "agrandir": false, "score_simple": true}, {"nom": "Sans agrandir", "agrandir": false},
 	{"nom": "Même type", "meme_type": true}, {"nom": "Prédateurs", "type_cible": "predateur"}, {"nom": "Aériens", "type_cible": "aerien"},
 	{"nom": "Aquatiques", "type_cible": "aquatique"}, {"nom": "Herbivores", "type_cible": "herbivore"},
@@ -67,6 +67,8 @@ var parties_par_genome := PARTIES_PAR_GENOME
 var objectifs_tires := {}  # objectif -> parties où il a été tiré
 var processus_bloques := 0
 var parties_a_zero := 0
+var ia_a_zero := 0  # joueurs à 0 de réputation en fin de partie
+var ia_sans_animal := 0  # joueurs sans aucun animal en fin de partie
 var derniere_a_zero := -1
 var processus: Array[int] = []
 var serie := 0  # numéro de la série de parties en cours
@@ -222,7 +224,7 @@ func _random_genome() -> Dictionary:
 		var r: Array = NUMS[k]
 		g[k] = rng.randi_range(int(r[0]), int(r[1])) if r[2] else rng.randf_range(float(r[0]), float(r[1]))
 	for b in BOOLS:
-		g[b] = rng.randf() < (0.8 if b in ["boutique", "mine", "adaptatif", "agrandir"] else (0.05 if b == "specialisation" else 0.2))
+		g[b] = rng.randf() < (0.8 if b in ["boutique", "mine", "adaptatif", "agrandir", "intendance"] else (0.05 if b == "specialisation" else 0.2))
 	g["type_cible"] = TYPES[rng.randi_range(0, TYPES.size() - 1)] if rng.randf() < 0.15 else ""
 	g["continent_cible"] = CONTINENTS[rng.randi_range(0, CONTINENTS.size() - 1)] if rng.randf() < 0.15 else ""
 	for f in POIDS:
@@ -529,7 +531,8 @@ func _play(seed: int, genomes: Array) -> Dictionary:
 			"continents": p.animals.filter(func(a): return a.arrived).map(func(a): return a.def["continent"]), "labels": p.labels_owned.keys(), "sources": p.rep_sources,
 			"types": p.animals.filter(func(a): return a.arrived).map(func(a): return a.def.get("type", "")),
 			"paliers": p.animals.filter(func(a): return a.arrived).map(func(a): return a.def["palier"]),
-			"objectifs": p.objectifs_faits.keys(), "bonus": p.journal_bonus, "agrandis": m.ais[i].agrandis, "parc": m.ais[i].zoo_rect.get_area()})
+			"objectifs": p.objectifs_faits.keys(), "bonus": p.journal_bonus, "agrandis": m.ais[i].agrandis, "parc": m.ais[i].zoo_rect.get_area(),
+			"decorations": p.decorations.size(), "animaux_tous": p.animals.size()})
 	var out := {"day": m.day, "winner": m.winner, "seed": seed, "joueurs": joueurs, "offres": m.offres, "objectifs": m.objectifs.map(func(o): return o["id"])}
 	m.dispose()
 	return out
@@ -615,6 +618,13 @@ func _cumuler(r: Dictionary, genomes: Array) -> void:
 		_note("parc", "Parc agrandi %s" % ("jamais" if ag == 0 else ("1 fois" if ag == 1 else "2 fois et plus")), gagne, rep)
 		var surface := int(j["parc"])
 		_note("parc", "Parc de %s" % ("moins de 250 cases" if surface < 250 else ("250 à 449 cases" if surface < 450 else "450 cases et plus")), gagne, rep)
+		# Intendance : beauté du parc en fin de partie
+		var deco := int(j.get("decorations", 0))
+		_note("parc", "Beauté du parc : %s" % ("aucune décoration" if deco == 0 else ("1 à 5 décorations" if deco <= 5 else "6 décorations et plus")), gagne, rep)
+		if rep < 1.0:
+			ia_a_zero += 1
+		if int(j.get("animaux_tous", 1)) == 0:
+			ia_sans_animal += 1
 		var compte := {}
 		for c in j["continents"]:
 			compte[c] = int(compte.get(c, 0)) + 1
@@ -707,6 +717,7 @@ func _write_report(pop: Array, order: Array, scores: Array, history: Array, clas
 		int((Time.get_ticks_msec() - t0) / 60000), _mean(jours_fin)])
 	if not record.is_empty():
 		L.append("Record : victoire au jour %d (%.0f de réputation, graine %d)." % [record["day"], record["rep"], record["seed"]])
+	L.append("IA bloquées : %d joueurs sur %d finissent à 0 de réputation, %d sans aucun animal." % [ia_a_zero, int(base["n"]), ia_sans_animal])
 	L.append("")
 	L.append("**Comment lire les tableaux** : « Victoires avec » est le taux de victoire des joueurs qui avaient cet élément en fin de partie, « sans » celui des autres. Un écart positif veut dire que l'élément accompagne la victoire, sans le prouver : un joueur qui gagne a aussi plus d'ouvriers, de bâtiments et d'animaux. « ≈ » signale un écart trop faible pour conclure, compte tenu du nombre de parties.")
 	L.append("")
