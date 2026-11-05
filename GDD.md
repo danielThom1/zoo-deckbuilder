@@ -28,9 +28,9 @@ Jeu de gestion vu du dessus, 1 à 4 joueurs (humain contre IA pour la v1). Chaqu
 1. Génération de la carte (graine commune).
 2. Chaque joueur reçoit un **Camp de base** (logement pour 10) avec 30 💰, **15 bois et 15 pierre** pour pouvoir construire des routes dès le début. Le camp est placé **en bas au centre** de la carte, au milieu d'une zone de départ toujours en Prairie (13×9 cases), et une **route d'accès** le relie au bord bas de la carte : c'est la porte vers l'extérieur.
 3. **Draft par tours** de 10 ouvriers (10 tours) :
-   - à chaque tour, **4 cartes** sont révélées (`cartes_par_tour`, au moins une par joueur) ;
+   - à chaque tour, **une carte de plus que de joueurs** est révélée ;
    - chaque carte tire sa catégorie au hasard : **70 % peu qualifiés, 20 % qualifiés, 10 % cadres** ;
-   - chaque joueur en prend une, à tour de rôle. À 4 joueurs, la dernière carte revient d'office au dernier joueur ; à moins de 4 joueurs, les cartes restantes sont défaussées ;
+   - chaque joueur en prend une, à tour de rôle. Le dernier a encore le choix entre deux cartes ; celle qui reste est défaussée ;
    - le premier à choisir est tiré au sort au premier tour, puis **avance d'un joueur à chaque tour** (1-2-3-4, puis 2-3-4-1, puis 3-4-1-2…) ;
    - **les premiers tours sont plus faibles** : au 1er tour, chaque carte a un défaut de plus et une chance sur deux d'avoir une qualité de moins ; l'effet décroît jusqu'au dernier tour, normal (`defauts_debut`).
 4. Le deck est mélangé et chaque joueur pioche 5 cartes.

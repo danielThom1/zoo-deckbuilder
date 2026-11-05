@@ -7,7 +7,7 @@ const PAGES := [
 	["Le but du jeu", """Vous bâtissez un zoo pour ZooLife™, en concurrence avec d'autres groupes. [b]Le premier à 100 de réputation l'emporte[/b] (sinon, le mieux placé au soir du jour 22).
 
 Vos collaborateurs sont des [b]cartes[/b] : vous en choisissez 8 au début, vous en piochez 4 chaque matin, vous les envoyez travailler, puis ils repartent à la défausse. Une partie alterne [b]les jours[/b], en temps réel, où l'on récolte et construit, et [b]les nuits[/b], au tour par tour, où l'on achète."""],
-	["Le draft", """Avant le premier jour, des cartes sont révélées par groupes de 4 et chacun en prend une à tour de rôle, pendant 8 tours. C'est votre deck de départ.
+	["Le draft", """Avant le premier jour, à chaque tour, une carte de plus que de joueurs est révélée et chacun en prend une à tour de rôle, pendant 8 tours. C'est votre deck de départ.
 
 [b]Peu qualifiés[/b] : bon marché, un seul talent.
 [b]Qualifiés[/b] : plus efficaces, souvent le seul moyen d'aménager le terrain (Paysagiste, Terrassier).

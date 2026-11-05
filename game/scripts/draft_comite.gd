@@ -80,7 +80,7 @@ func rafraichir() -> void:
 		return
 	var mt: Match = m.mt
 	var mon_tour: bool = not mt.is_ai(mt.current_drafter())
-	sur.text = "DRAFT · TOUR %d / %d · %d CARTES RÉVÉLÉES, UNE CHACUN" % [mt.draft_round() + 1, mt.draft_rounds(), mt.draft_round_size()]
+	sur.text = "DRAFT · TOUR %d / %d · %d CARTES, UNE CHACUN, LA DERNIÈRE EST DÉFAUSSÉE" % [mt.draft_round() + 1, mt.draft_rounds(), mt.draft_round_size()]
 	titre.text = "À vous de choisir" if mon_tour else "%s choisit…" % _nom_court(mt.current_drafter())
 	_clear(tour)
 	var ordre := mt.draft_round_order()

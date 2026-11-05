@@ -60,23 +60,26 @@ func _init() -> void:
 	check(col_ok and cols > 0, "Col blanc uniquement chez les cadres (%d tirés)" % cols)
 	var mt := Match.new(data, 42, 2, 0)
 	var g: GameState = mt.players[0]
-	check(mt.draft_pool.size() == 4 and mt.draft_reserve.size() == 28, "4 cartes révélées par tour, 8 tours (2 joueurs)")
+	check(mt.draft_pool.size() == 3 and mt.draft_reserve.size() == 21, "3 cartes révélées par tour, 8 tours (2 joueurs)")
 	var order := mt.draft_order.slice(0, 4)
 	check(order[0] != order[1] and order[2] == order[1], "le premier à choisir tourne (%s)" % str(order))
 	mt.pick_draft(mt.ai_choice())
-	check(mt.draft_pool.size() == 3 and mt.draft_round() == 0, "un choix retire la carte, le tour continue")
+	check(mt.draft_pool.size() == 2 and mt.draft_round() == 0, "un choix retire la carte, le tour continue")
 	mt.pick_draft(mt.ai_choice())
-	check(mt.draft_round() == 1 and mt.draft_pool.size() == 4, "à 2 joueurs, les 2 cartes restantes sont défaussées")
+	check(mt.draft_round() == 1 and mt.draft_pool.size() == 3, "à 2 joueurs, la carte restante est défaussée")
 	while mt.phase == "draft":
 		mt.pick_draft(mt.ai_choice())
 	check(mt.drafted[0].size() == 8 and mt.drafted[1].size() == 8, "8 cartes chacun")
-	# À 4 joueurs : la 4e carte du tour revient d'office au 4e joueur, puis le premier change.
+	# À 4 joueurs : 5 cartes, le dernier choisit encore entre deux, puis le premier change.
 	var m4 := Match.new(data, 43, 4, -1)
 	var first4 := m4.current_drafter()
+	check(m4.draft_pool.size() == 5, "4 joueurs : 5 cartes révélées")
 	for k in 3:
 		m4.pick_draft(m4.ai_choice())
-	check(m4.draft_round() == 1 and m4.draft_pool.size() == 4 and m4.drafted.all(func(d): return d.size() == 1),
-		"4 joueurs : 3 choix, la dernière carte attribuée d'office")
+	check(m4.draft_pool.size() == 2, "4 joueurs : le dernier choisit entre deux cartes")
+	m4.pick_draft(m4.ai_choice())
+	check(m4.draft_round() == 1 and m4.draft_pool.size() == 5 and m4.drafted.all(func(d): return d.size() == 1),
+		"4 joueurs : une carte chacun, la cinquième est défaussée")
 	check(m4.current_drafter() == (first4 + 1) % 4, "4 joueurs : le premier à choisir avance d'un joueur")
 	while m4.phase == "draft":
 		m4.pick_draft(m4.ai_choice())

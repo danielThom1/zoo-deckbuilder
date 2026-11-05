@@ -195,6 +195,7 @@ var pile_panel: PanelContainer
 var hand_scroll: ScrollContainer
 var unit_panel: PanelContainer
 var fiche_onglet := "fiche"
+var iso: Vue25D = null  # essai de la vue isométrique (F2)
 var lagence_annonce := {}
 var aide_badges_vue := false
 var repere_monde := {}
@@ -562,6 +563,10 @@ func _start(watch: bool) -> void:
 		for i in 120:
 			mt.tick(0.5)
 		_refresh_terrain(true)
+	if args.has("iso") or MenuPrincipal.iso_demande:
+		MenuPrincipal.iso_demande = false
+		basculer_iso.call_deferred()
+		camera.position = (Vector2(game.map.camp.get_center()) + Vector2(0, -7)) * TILE  # le camp est dans un coin du losange
 	if args.has("essai3d") and OS.has_feature("editor"):  # essai visuel de la 2,5D (tests/essai_25d.gd)
 		add_child.call_deferred(load(args["essai3d"]).new(self))
 		_focus_zoo()
@@ -655,9 +660,37 @@ func _update_occupation() -> void:
 func _draw() -> void:
 	if mt == null:
 		return
+	if iso == null:
+		_dessiner_monde()
+		return
+	SpritesBD.collecte = []
+	_dessiner_monde()
+	var notes: Array = SpritesBD.collecte
+	SpritesBD.collecte = null
+	iso.recevoir(notes)
+
+
+## F2 : passe à l'essai isométrique, ou en revient. La partie continue sans rien changer.
+func basculer_iso() -> void:
+	if mt == null:
+		return
+	if iso:
+		iso.quitter()
+		iso = null
+		game.say("Vue habituelle.")
+	else:
+		iso = Vue25D.new(self)
+		add_child(iso)
+		game.say("Essai de la vue isométrique. F2 pour revenir à la vue habituelle.")
+	queue_redraw()
+
+
+func _dessiner_monde() -> void:
 	var m := game.map
 	# Camp de base (sous les chantiers d'agrandissement)
+	SpritesBD.collecte_objet = "camp"
 	_draw_camp()
+	SpritesBD.collecte_objet = null
 	_draw_affiche()
 	# Routes, ponts et allées pavées : RoutesBD (scripts/rendu/) ; ici la mairie au bout de l'accès
 	_update_occupation()
@@ -682,7 +715,9 @@ func _draw() -> void:
 	for s in sites_tries:
 		if not s.def_id() in ["cloture", "enclos"]:
 			_dessiner_poteaux()  # les poteaux déjà vus passent derrière ce bâtiment
+		SpritesBD.collecte_objet = s
 		_draw_site(s)
+	SpritesBD.collecte_objet = null
 	_dessiner_poteaux()
 	# Plan de l'IA regardée : enceinte prévue et enclos en projet
 	if spectator and mt.ais[game.index]:
@@ -797,18 +832,21 @@ func _draw() -> void:
 		if feuille:
 			var rangee: int = geste if geste >= 0 else SpritesBD.PERSO_MARCHE
 			var image: int = MARCHE_CYCLE[int(phase_pas) % MARCHE_CYCLE.size()] if moving else (int(tw * float(work["rythme"]) * 0.45) if geste >= 0 else 1)
+			SpritesBD.collecte_objet = w
 			SpritesBD.dessiner_perso(self, feuille, rangee, image, p + Vector2(0, 6.2 - pas), TILE * SpritesBD.HAUTEUR_PERSONNE, f[1])
+			SpritesBD.collecte_objet = null
 		else:
 			SpritesBD.dessiner(self, SpritesBD.pour_metier(str(w.card.metier["id"]), game.is_female(w.card)), body + Vector2(0, 6.2 - pas), TILE * SpritesBD.HAUTEUR_PERSONNE, f[1])
 		if not work.is_empty() and (geste < 0 or feuille == null):
 			_draw_work(work, body, tw, f[1])
 		# pastille du métier (couleur de catégorie) au-dessus de l'épaule
 		var bp := p + Vector2(-r - 1.5, -r * 1.9)
-		draw_circle(bp, 3.4, Color.WHITE)
-		draw_circle(bp, 2.8, _worker_color(w.card))
-		var ic := UiTokens.icone(Composants.icone_metier(str(w.card.metier["id"])))
-		if ic:
-			draw_texture_rect(ic, Rect2(bp - Vector2(2.1, 2.1), Vector2(4.2, 4.2)), false)
+		if iso == null:
+			draw_circle(bp, 3.4, Color.WHITE)
+			draw_circle(bp, 2.8, _worker_color(w.card))
+			var ic := UiTokens.icone(Composants.icone_metier(str(w.card.metier["id"])))
+			if ic:
+				draw_texture_rect(ic, Rect2(bp - Vector2(2.1, 2.1), Vector2(4.2, 4.2)), false)
 		if w.unpaid:
 			_label("25 %", p + Vector2(0, -r - 2), 7)
 		if w.carry > 0.0:
@@ -821,7 +859,7 @@ func _draw() -> void:
 		if w.pause_left > 0.0:
 			draw_circle(p + Vector2(r, -r), 3.2, Color.WHITE)
 			draw_circle(p + Vector2(r, -r), 2.5, UiTokens.PAUSE)
-		elif w.task.is_empty() and w.path.is_empty():
+		elif w.task.is_empty() and w.path.is_empty() and iso == null:
 			# Inactif : des « z » qui montent en grossissant au-dessus de la tête
 			for k in 3:
 				var zf := fmod(now * 0.7 + k / 3.0 + w.card.id * 0.13, 1.0)
@@ -1282,7 +1320,7 @@ func _dessiner_decorations() -> void:
 			var larg := haut / ratio if haut > 0.0 else TILE * float(DECO_LARGEUR.get(d["id"], 1.0))
 			if haut <= 0.0:
 				haut = larg * ratio
-			draw_texture_rect(tex, Rect2(pied - Vector2(larg / 2.0, haut), Vector2(larg, haut)), false)
+			SpritesBD.image_debout(self, tex, Rect2(pied - Vector2(larg / 2.0, haut), Vector2(larg, haut)))
 		else:
 			_decoration_repli(str(d["id"]), pied)
 
@@ -1376,7 +1414,7 @@ func _draw_camp() -> void:
 		var tex_camp := SpritesBD.texture(nom_camp)
 		var taille_camp := Vector2(full.size.x * 1.08, full.size.x * 1.08 * tex_camp.get_height() / float(tex_camp.get_width()))
 		var haut_camp := full.end.y + 1.0 - taille_camp.y
-		draw_texture_rect(tex_camp, Rect2(full.get_center().x - taille_camp.x / 2.0, haut_camp, taille_camp.x, taille_camp.y), false)
+		SpritesBD.image_debout(self, tex_camp, Rect2(full.get_center().x - taille_camp.x / 2.0, haut_camp, taille_camp.x, taille_camp.y))
 		_label("Camp" + (" niv. %d" % level if level > 1 else ""), Vector2(full.get_center().x, haut_camp - 5.0), 10)
 		return
 	draw_rect(Rect2(c.position + Vector2(2, 3), c.size), Color(0, 0, 0, 0.22))
@@ -1494,6 +1532,9 @@ const TENUES_VISITEURS := [Color("C98E8E"), Color("8EA6C9"), Color("C9B98E"), Co
 
 
 func _draw_visitor(pos: Vector2, k: int) -> void:
+	if iso:
+		SpritesBD.dessiner(self, SpritesBD.VISITEURS[k % SpritesBD.VISITEURS.size()], pos, TILE * (0.7 if k % 4 == 1 else 0.95))
+		return
 	var sc := 0.7 if k % 4 == 1 else 1.0
 	var t := Time.get_ticks_msec() / 1000.0 + k * 0.37
 	var p := pos + Vector2(0, -absf(sin(t * 8.0)) * 0.4)
@@ -1514,6 +1555,8 @@ func _progress(r: Rect2, ratio: float) -> void:
 ## Enceinte : mur de pierre claire (ombre, chaperon, piliers). Enclos : palissade de bois à double lisse.
 ## Une palissade ne rejoint le mur que si l'enclos qu'elle ferme utilise ce mur comme côté.
 func _draw_fence(s: GameState.Site, color: Color) -> void:
+	if iso:
+		return  # panneaux dans l'espace (Vue25D)
 	var p := s.rect.position
 	var c := (Vector2(p) + Vector2(0.5, 0.5)) * TILE
 	var wall := s.def_id() == "cloture"
@@ -1781,6 +1824,9 @@ func _build_origin(hover: Vector2i) -> Vector2i:
 
 
 func _label(text: String, pos: Vector2, size: int) -> void:
+	if iso and SpritesBD.collecte != null:
+		SpritesBD.collecte.append({"texte": text, "pos": pos, "taille": size + 6, "encre": Color.WHITE, "fond": UiTokens.ENCRE})
+		return
 	# largeur à la mesure du texte (une largeur fixe coupait les libellés longs)
 	var taille := size + 2  # Bangers est étroite : un peu plus grande pour rester lisible
 	var width := maxf(80.0, font_noms.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, taille).x + 8.0)
@@ -1815,6 +1861,8 @@ func _worker_color_old(card: GameState.Card) -> Color:
 # --- Caméra et entrées -------------------------------------------------------
 
 func _screen_to_world(p: Vector2) -> Vector2:
+	if iso:
+		return iso.monde_depuis_ecran(p)
 	return camera.position + (p - get_viewport_rect().size / 2) / camera.zoom
 
 
@@ -1824,6 +1872,11 @@ func _hover_tile() -> Vector2i:
 
 
 func _zoom_at(factor: float, screen_pos: Vector2) -> void:
+	if iso:
+		var avant := iso.sol(screen_pos)
+		camera.zoom = (camera.zoom * factor).clamp(Vector2(0.5, 0.5), Vector2(4, 4))
+		camera.position += avant - iso.sol(screen_pos)
+		return
 	var before := _screen_to_world(screen_pos)
 	camera.zoom = (camera.zoom * factor).clamp(Vector2(0.5, 0.5), Vector2(4, 4))
 	camera.position += before - _screen_to_world(screen_pos)
@@ -1867,6 +1920,8 @@ func _unhandled_input(event: InputEvent) -> void:
 					selected_site = null
 					selected_sites.clear()
 					selected_animal = null
+			KEY_F2:
+				basculer_iso()
 			KEY_DELETE, KEY_BACKSPACE:
 				_delete_selection()
 			KEY_B, KEY_E, KEY_O, KEY_L, KEY_R, KEY_F:
@@ -1905,7 +1960,10 @@ func _input(event: InputEvent) -> void:
 		if drag_start != null:
 			drag_end = event.position
 		if panning:
-			camera.position -= event.relative / camera.zoom
+			if iso:
+				camera.position -= iso.delta_monde(event.relative)
+			else:
+				camera.position -= event.relative / camera.zoom
 		if painting and _is_paint_build():
 			var t := _hover_tile()
 			if t != last_paint:
@@ -2150,6 +2208,9 @@ func _pan_keys(delta: float) -> void:
 		dir.y -= 1
 	if Input.is_physical_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
 		dir.y += 1
+	if iso:
+		camera.position += iso.delta_monde(dir * 600.0 * delta)
+		return
 	camera.position += dir * 600.0 * delta / camera.zoom.x
 
 
@@ -5173,6 +5234,8 @@ func _draw_peek_hint() -> void:
 func _draw_animal_hints() -> void:
 	# Voile sur la carte : seul l'emplacement reste lisible
 	var vue := Rect2(camera.position - get_viewport_rect().size / camera.zoom, get_viewport_rect().size * 2.0 / camera.zoom)
+	if iso:
+		vue = Rect2(Vector2.ZERO, Vector2(game.map.w, game.map.h) * TILE)
 	draw_rect(vue, Color(UiTokens.ENCRE, 0.28))
 	var def: Dictionary = build_choice["def"]
 	var pulse := 0.6 + 0.4 * sin(Time.get_ticks_msec() / 260.0)
@@ -5257,6 +5320,9 @@ func _terrains_du_motif(def: Dictionary, tuiles: Array) -> Array:
 
 ## Étiquette posée sur la carte, de taille constante à l'écran quel que soit le zoom.
 func _etiquette_monde(centre: Vector2, texte: String, fond: Color, encre: Color) -> void:
+	if iso and SpritesBD.collecte != null:
+		SpritesBD.collecte.append({"texte": texte, "pos": centre, "taille": 13, "encre": encre, "fond": fond})
+		return
 	var z := 1.0 / camera.zoom.x
 	var f := UiTokens.police_corps(700)
 	var taille := 13

@@ -186,9 +186,9 @@ func _excluded(id: String, chosen: Array[String], exclusions: Array) -> bool:
 
 
 # --- Draft par tours ---------------------------------------------------------
-# Chaque tour révèle `cartes_par_tour` cartes (au moins une par joueur). Les joueurs en prennent une
-# chacun, à tour de rôle ; s'il ne reste qu'une carte pour le dernier joueur, elle lui revient d'office.
-# Les cartes non prises sont défaussées. Le premier à choisir avance d'un joueur à chaque tour.
+# Chaque tour révèle une carte de plus qu'il n'y a de joueurs. Les joueurs en prennent une chacun, à tour de rôle :
+# le dernier a donc encore le choix entre deux cartes. Celle qui reste est défaussée. Le premier à choisir avance
+# d'un joueur à chaque tour.
 
 func _setup_draft() -> void:
 	var gen: Dictionary = data["workers"]["generation_draft"]
@@ -209,7 +209,7 @@ func _setup_draft() -> void:
 
 ## Nombre de cartes révélées à chaque tour.
 func draft_round_size() -> int:
-	return maxi(int(data["workers"]["generation_draft"].get("cartes_par_tour", 4)), players.size())
+	return players.size() + 1
 
 
 func draft_round() -> int:
@@ -243,10 +243,6 @@ func pick_draft(card: GameState.Card) -> void:
 	draft_pool.erase(card)
 	drafted[current_drafter()].append(card)
 	draft_turn += 1
-	# Dernier joueur du tour face à une seule carte : elle lui revient d'office.
-	if draft_turn % n != 0 and draft_pool.size() == 1:
-		drafted[current_drafter()].append(draft_pool.pop_back())
-		draft_turn += 1
 	if draft_turn >= draft_order.size():
 		draft_pool.clear()
 		_finish_draft()

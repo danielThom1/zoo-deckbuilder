@@ -130,8 +130,28 @@ static func dessiner_largeur(ci: CanvasItem, nom: String, pied_monde: Vector2, l
 	_dessiner_k(ci, t, nom, pied_monde, largeur / t.get_width(), miroir, teinte)
 
 
+## Vue isométrique (Vue25D) : les objets debout sont notés ici au lieu d'être dessinés sur le sol.
+static var collecte = null
+static var collecte_objet: Variant = null
+
+
+static func _noter(t: Texture2D, pd: Vector2, pos: Vector2, k: float, miroir: bool, teinte: Color, region := Rect2()) -> void:
+	collecte.append({"tex": t, "pied": pd, "pos": pos, "k": k, "miroir": miroir, "teinte": teinte, "region": region, "objet": collecte_objet})
+
+
+## Image posée sur le sol par son bord bas, sans ombre (camp, décorations).
+static func image_debout(ci: CanvasItem, t: Texture2D, r: Rect2) -> void:
+	if collecte != null:
+		_noter(t, Vector2(t.get_width() / 2.0, t.get_height()), Vector2(r.get_center().x, r.end.y), r.size.x / t.get_width(), false, Color.WHITE)
+		return
+	ci.draw_texture_rect(t, r, false)
+
+
 static func _dessiner_k(ci: CanvasItem, t: Texture2D, nom: String, pied_monde: Vector2, k: float, miroir: bool, teinte: Color) -> void:
 	var pd := pied(nom)
+	if collecte != null:
+		_noter(t, pd, pied_monde, k, miroir, teinte)
+		return
 	var taille := Vector2(t.get_width(), t.get_height()) * k
 	# ombre portée au sol
 	ci.draw_set_transform(pied_monde + Vector2(taille.x * 0.08, 0), 0.0, Vector2(1.0, 0.28))
@@ -175,6 +195,9 @@ static func perso_a_rangee(tex: Texture2D, rangee: int) -> bool:
 static func dessiner_perso(ci: CanvasItem, tex: Texture2D, rangee: int, image: int, pied_monde: Vector2, hauteur: float, miroir := false) -> void:
 	var k := hauteur / PERSO_CORPS
 	var source := Rect2(Vector2(image % 3, rangee) * PERSO_CELLULE, PERSO_CELLULE)
+	if collecte != null:
+		_noter(tex, PERSO_PIED, pied_monde, k, miroir, Color.WHITE, source)
+		return
 	ci.draw_set_transform(pied_monde, 0.0, Vector2(1.0, 0.28))
 	ci.draw_circle(Vector2.ZERO, hauteur * 0.26, Color(0.078, 0.125, 0.169, 0.2))
 	if miroir:

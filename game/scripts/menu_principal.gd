@@ -34,6 +34,7 @@ const TERRAIN := {
 
 const PX := 8  # pixels par case dans l'image de fond
 
+static var iso_demande := false  # essai de la vue isométrique, lancé depuis le menu
 var graine := 0
 var adversaires := 3
 var difficile := false  # IA difficile : stratégies apprises par l'IA évolutive
@@ -190,6 +191,13 @@ func _construire() -> void:
 		dev.position.y = 12
 		dev.offset_right = -16
 		add_child(dev)
+		var b_iso := Button.new()
+		b_iso.text = "Essai : vue isométrique"
+		b_iso.tooltip_text = "Une partie normale, vue en isométrique. F2 change de vue à tout moment."
+		b_iso.pressed.connect(func():
+			iso_demande = true
+			lancer.emit(false, graine, adversaires, difficile))
+		dev.add_child(b_iso)
 		var b_regarder := Button.new()
 		b_regarder.text = "Dév. : regarder des IA jouer"
 		b_regarder.pressed.connect(func(): lancer.emit(true, graine, 4, difficile))
