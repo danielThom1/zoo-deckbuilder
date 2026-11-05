@@ -34,13 +34,13 @@ var res_noms := {"bois": "bois", "pierre": "pierre", "or": "or"}
 var building_colors := {
 	"route": UiTokens.CHEMIN, "pont": Color("9A6A3E"), "maison": Color("D2553A"), "entrepot": Color("8C6A48"),
 	"mine": Color("5A4636"), "cloture": UiTokens.ENCEINTE, "entree": Color("E9D5A8"), "enclos": UiTokens.CLOTURE_ENCLOS,
-	"boutique": Color("E06A5A"), "formation": Color("3A6AE0"), "cuisine": Color("D8A010"), "entretien": Color("7A8A88"),
+	"boutique": Color("E06A5A"), "formation": Color("3A6AE0"), "cuisine": Color("D8A010"), "entretien": Color("7A8A88"), "intendance": Color("3E8F4E"),
 	"snack": Color("E8782A"), "kiosque": Color("8A4AD0"), "comptoir": Color("D8A010"), "agence": Color("4A7AC8"), "cabinet": Color("6A3AB0"), "camp_n2": Color("A0743C"), "camp_n3": Color("B8864A"),
 	"grand_arbre": Color("2E7A2C"), "rocher_obs": Color("8E8A80"), "bassin_profond": Color("2B86D2"), "abri_chaud": Color("C0703A"),
 }
 var building_short := {
 	"maison": "Maison", "entrepot": "Entrepôt", "comptoir": "Marché", "agence": "Intérim", "cabinet": "Recrutement", "mine": "Mine", "entree": "Entrée", "boutique": "Boutique", "formation": "Formation",
-	"cuisine": "Cuisine", "entretien": "Entretien", "snack": "Snack", "kiosque": "Kiosque",
+	"cuisine": "Cuisine", "entretien": "Entretien", "intendance": "Intendance", "snack": "Snack", "kiosque": "Kiosque",
 	"camp_n2": "Camp niv. 2", "camp_n3": "Camp niv. 3",
 	"grand_arbre": "Grand arbre", "rocher_obs": "Rocher", "bassin_profond": "Bassin profond", "abri_chaud": "Abri chauffé",
 }
@@ -477,6 +477,12 @@ func _start(watch: bool) -> void:
 	if args.has("autoplay"):
 		_auto_play()
 	# --contrat : ajoute un contrat de palier 1 et passe en mode installation (captures de l'aide au placement)
+	if args.has("deco"):
+		var dtypes: Array = game.data["buildings"]["reputation_autres"]["embellissement"]["types"]
+		for k in int(args["deco"]):
+			var dt := game._case_decoration()
+			if dt.x >= 0:
+				game.decorations.append({"t": dt, "id": dtypes[k % dtypes.size()]})
 	if args.has("contrat"):
 		var cid: String = args["contrat"]
 		var cdef: Dictionary = game.data["animals"]["animaux"].filter(func(d): return d["id"] == cid if cid != "" else (d["palier"] == "T1" and d["id"] != "zebre"))[0]
@@ -679,6 +685,8 @@ func _draw() -> void:
 		for p in w.path:
 			pts.append((Vector2(p) + Vector2(0.5, 0.5)) * TILE)
 		draw_polyline(pts, Color(1, 1, 1, 0.55), 1.5)
+
+	_dessiner_decorations()
 
 	# Ordres en file (Maj + clic droit) des ouvriers sélectionnés : numérotés, reliés en pointillés
 	for w: GameState.Worker in selected:
@@ -1214,6 +1222,67 @@ func _draw_pin(tip: Vector2, icon: String, color: Color, s := 1.0) -> void:
 	if tex:
 		var sz := 7.0 * s
 		draw_texture_rect(tex, Rect2(c - Vector2(sz, sz) / 2, Vector2(sz, sz)), false)
+
+
+## Décorations de l'Intendance : le sprite « deco_<id> » s'il existe, sinon un petit dessin de repli.
+func _dessiner_decorations() -> void:
+	var liste: Array = game.decorations.duplicate()
+	liste.sort_custom(func(a, b): return a["t"].y < b["t"].y)
+	for d in liste:
+		var t: Vector2i = d["t"]
+		if game.site_at(t) != null:
+			continue
+		var pied := (Vector2(t) + Vector2(0.5, 0.85)) * TILE
+		var nom := "deco_%s" % d["id"]
+		if SpritesBD.existe(nom):
+			var tex := SpritesBD.texture(nom)
+			var larg := TILE * 1.15
+			var haut := larg * tex.get_height() / float(tex.get_width())
+			draw_texture_rect(tex, Rect2(pied - Vector2(larg / 2.0, haut), Vector2(larg, haut)), false)
+		else:
+			_decoration_repli(str(d["id"]), pied)
+
+
+func _decoration_repli(id: String, p: Vector2) -> void:
+	var encre := UiTokens.ENCRE
+	var s := TILE / 32.0
+	match id:
+		"banc":
+			draw_rect(Rect2(p + Vector2(-11, -9) * s, Vector2(22, 5) * s), Color("A0703E"))
+			draw_rect(Rect2(p + Vector2(-11, -9) * s, Vector2(22, 5) * s), encre, false, 1.0)
+			for x in [-9.0, 7.0]:
+				draw_rect(Rect2(p + Vector2(x, -4) * s, Vector2(2, 5) * s), encre)
+		"lampadaire":
+			draw_line(p, p + Vector2(0, -22) * s, encre, 2.0 * s)
+			draw_circle(p + Vector2(0, -24) * s, 4.0 * s, UiTokens.SELECTION)
+			draw_arc(p + Vector2(0, -24) * s, 4.0 * s, 0, TAU, 12, encre, 1.0)
+		"fontaine":
+			draw_circle(p + Vector2(0, -5) * s, 11.0 * s, Color("BDB8AA"))
+			draw_circle(p + Vector2(0, -5) * s, 8.0 * s, Color("6EC3EA"))
+			draw_arc(p + Vector2(0, -5) * s, 11.0 * s, 0, TAU, 20, encre, 1.0)
+			draw_line(p + Vector2(0, -5) * s, p + Vector2(0, -14) * s, Color.WHITE, 2.0 * s)
+		"statue":
+			draw_rect(Rect2(p + Vector2(-7, -6) * s, Vector2(14, 6) * s), Color("BDB8AA"))
+			draw_circle(p + Vector2(0, -19) * s, 4.0 * s, Color("9AA3A8"))
+			draw_rect(Rect2(p + Vector2(-4, -16) * s, Vector2(8, 10) * s), Color("9AA3A8"))
+			draw_rect(Rect2(p + Vector2(-7, -6) * s, Vector2(14, 6) * s), encre, false, 1.0)
+		"topiaire":
+			draw_rect(Rect2(p + Vector2(-2, -6) * s, Vector2(4, 6) * s), Color("7A5230"))
+			draw_circle(p + Vector2(0, -13) * s, 8.0 * s, Color("3E8F4E"))
+			draw_arc(p + Vector2(0, -13) * s, 8.0 * s, 0, TAU, 16, encre, 1.0)
+		"tonnelle":
+			draw_arc(p + Vector2(0, -6) * s, 12.0 * s, PI, TAU, 14, Color("A0703E"), 3.0 * s)
+			for k in 5:
+				draw_circle(p + Vector2(-10 + k * 5, -12 - 6 * sin(k * PI / 4.0)) * s, 2.5 * s, Color("D85A8A"))
+		_:
+			# massif, parterre : fleurs sur une bordure
+			draw_circle(p + Vector2(0, -6) * s, 11.0 * s, Color("5E9145"))
+			draw_arc(p + Vector2(0, -6) * s, 11.0 * s, 0, TAU, 18, encre, 1.0)
+			var cols := [Color("E04A8A"), UiTokens.SELECTION, Color("F07F2A"), Color.WHITE] if id == "massif" else [Color("6B4FC8"), Color.WHITE, Color("E04A8A"), UiTokens.SELECTION]
+			for k in 8:
+				var a := TAU * k / 8.0
+				draw_circle(p + Vector2(0, -6) * s + Vector2(cos(a), sin(a)) * 7.0 * s, 2.0 * s, cols[k % 4])
+			draw_circle(p + Vector2(0, -6) * s, 2.0 * s, cols[0])
 
 
 func _dashed_rect(r: Rect2, color: Color) -> void:
@@ -2614,7 +2683,7 @@ func _build_ui() -> void:
 	var group := ButtonGroup.new()
 	var pages := {
 		"Bâtiments": ["route", "pont", "maison", "entrepot", "comptoir", "agence", "cabinet", "mine", "formation", "camp_n2", "camp_n3"],
-		"Zoo": ["cloture", "entree", "enclos", "grand_arbre", "rocher_obs", "bassin_profond", "abri_chaud", "boutique", "cuisine", "entretien", "snack", "kiosque"],
+		"Zoo": ["cloture", "entree", "enclos", "grand_arbre", "rocher_obs", "bassin_profond", "abri_chaud", "boutique", "cuisine", "entretien", "intendance", "snack", "kiosque"],
 		"Terrain": [],
 	}
 	for tab_name in pages:
@@ -3035,7 +3104,7 @@ const TACHES_NOMS := {"extraire_bois": "couper du bois", "extraire_pierre": "ext
 	"construire_bois": "construire en bois", "construire_pierre": "construire en pierre", "construire_enclos": "poser les clôtures d'enclos",
 	"construire_route": "tracer les routes", "amenager": "aménager le terrain", "lobbying": "faire du lobbying en ville",
 	"guichet": "tenir le guichet", "nourrir": "nourrir les animaux", "nettoyer": "nettoyer le parc", "soigner": "soigner les animaux",
-	"animer": "animer le kiosque"}
+	"animer": "animer le kiosque", "embellir": "embellir le parc"}
 
 
 ## Le nom d'un ouvrier, survolé, montre sa carte complète.
@@ -3306,7 +3375,7 @@ func _task_text(w: GameState.Worker) -> String:
 		if w.task["kind"] == "formation":
 			return "Forme les collaborateurs du centre" if w.card.metier["id"] == "formateur" else "Se forme au centre de formation"
 		return {"trade": "Tient le comptoir du camp", "shop": "Tient la boutique", "ticket": "Tient le guichet", "snack": "Tient le snack",
-			"kiosque": "Anime le kiosque", "care": "Soigne : " + str(w.task["obj"].def["nom"] if w.task["obj"] else "")}[w.task["kind"]]
+			"kiosque": "Anime le kiosque", "intendance": "Embellit le parc (%d / %d décorations)" % [game.decorations.size(), game.decorations_max()], "care": "Soigne : " + str(w.task["obj"].def["nom"] if w.task["obj"] else "")}[w.task["kind"]]
 	if w.task["type"] == "feed":
 		if w.task["phase"] == "deliver":
 			return "Livre %.0f ration(s) : %s" % [w.task["rations"], w.task["animal"].def["nom"]]
@@ -3525,6 +3594,10 @@ func _fiche_zoo(fiche: Array) -> void:
 		fiche.append(["barre", "Propreté", clampf(game.proprete / 100.0, 0.0, 1.0), "%d %%" % roundi(game.proprete),
 			UiTokens.ORANGE if game.cleanliness_mult() < 1.0 else UiTokens.QUALITE])
 		fiche.append(["ligne", "ressource_nourriture", Color("8A6A30"), "Rations à livrer", "%d" % ceili(game.rations_needed())])
+		if game.has_building("intendance") or not game.decorations.is_empty():
+			var E: Dictionary = game.data["buildings"]["reputation_autres"]["embellissement"]
+			fiche.append(["ligne", "terrain_planter_foret", Color("3E8F4E"), "Beauté du parc", "%d / %d" % [game.decorations.size(), game.decorations_max()]])
+			fiche.append(["ligne", "ressource_reputation", UiTokens.RESSOURCES["reputation"]["couleur"], "Réputation par nuit", "+%.1f" % (game.decorations.size() * float(E["reputation_nuit"]))])
 		if game.affinity_bonus() > 0.0:
 			fiche.append(["ligne", "ressource_reputation", UiTokens.RESSOURCES["reputation"]["couleur"], "Affinités de continent", "+%d %%" % roundi(game.affinity_bonus() * 100)])
 		if z["inside"] >= z["capacity"] and z["queue"] > 0:
@@ -4018,6 +4091,8 @@ func _update_hud() -> void:
 				status += " : sélectionnez un collaborateur puis « Remplacer (Agence) » pour l'échanger contre une carte du deck"
 			elif site.def_id() == "entrepot":
 				status += " : clic droit pour y déposer la charge"
+			elif site.def_id() == "intendance":
+				status += " : clic droit pour embellir le parc (un Intendant va 2,5 fois plus vite)"
 		else:
 			status = "Chantier %s : %d / %d — clic droit pour y travailler" % [site.def["nom"], int(site.work), int(site.travail())]
 	elif m.in_bounds(hover.x, hover.y) and game.phase == "day":

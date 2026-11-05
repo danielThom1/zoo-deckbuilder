@@ -13,7 +13,7 @@ const MANIFESTE := "res://assets/bd/sprites_bd.json"
 const BATIMENTS := {
 	"camp": "camp3", "maison": "maison", "entrepot": "entrepot", "mine": "mine", "entree": "entree",
 	"boutique": "souvenirs", "formation": "formation", "comptoir": "marche", "agence": "agence", "cabinet": "cabinet",
-	"cuisine": "cuisine", "entretien": "atelier", "snack": "snack", "kiosque": "scene", "mairie": "mairie",
+	"cuisine": "cuisine", "entretien": "atelier", "intendance": "atelier", "snack": "snack", "kiosque": "scene", "mairie": "mairie",
 	# aménagements d'enclos
 	"grand_arbre": "arbre1", "rocher_obs": "rocher_obs", "bassin_profond": "bassin", "abri_chaud": "abri",
 }
@@ -28,7 +28,7 @@ const METIERS := {
 	"porteur": "porteur", "guichetier": "guichetier", "apprenti": "ouvrier_marche_04", "charpentier": "charpentier",
 	"paysagiste": "paysagiste", "cantonnier": "cantonnier", "soigneur": "soigneur", "drh": "cadre_valise", "lobbyiste": "lobbyiste",
 	"marchand": "marchand", "vendeur": "vendeur", "formateur": "formateur", "contremaitre": "contremaitre", "architecte": "architecte",
-	"animalier": "soigneur_2", "agent_entretien": "ouvrier_seau", "animateur": "guide_fanion",
+	"animalier": "soigneur_2", "agent_entretien": "ouvrier_seau", "animateur": "guide_fanion", "intendant": "guide",
 }
 ## Métier → personnage féminin, pour les ouvrières.
 const METIERS_F := {

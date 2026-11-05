@@ -83,6 +83,7 @@ const DESCRIPTIONS := {
 	"entree": "Porte du zoo : un collaborateur y tient le guichet. Touche R pour la tourner.", "enclos": "Ferme les enclos des animaux. Se construit aussi sur l'eau.",
 	"boutique": "Tenue par un seul collaborateur : souvenirs (×2,5 avec un Vendeur) et un peu de réputation.",
 	"cuisine": "Prépare et livre les rations des animaux.", "entretien": "Un collaborateur y nettoie le parc.",
+	"intendance": "Un collaborateur y embellit le parc : chaque décoration se voit sur la carte et rapporte de la réputation chaque nuit (Intendant : 2,5 fois plus vite).",
 	"snack": "Tenu par un collaborateur : les visiteurs restent 50 % plus longtemps et dépensent 1 d'argent de plus.", "kiosque": "Tenu par un collaborateur : attractivité et réputation (Animateur ×2).",
 	"camp_n2": "Une carte de plus en main.", "camp_n3": "Encore une carte de plus en main.",
 }

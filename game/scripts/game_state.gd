@@ -185,6 +185,8 @@ var journal_contrats: Array = []  # contrats achetés : {"id", "day"} (étude)
 var labels_owned := {}
 ## Réputation gagnée par source (détail de l'écran de fin) : frequentation, spectacles, prestige, labels, legendaires.
 var rep_sources := {}
+var decorations: Array = []  # décorations du parc : {"t": Vector2i, "id": String}
+var embellissement := 0.0  # travail en cours sur la prochaine décoration
 var hippo_used_tonight := false  # Hippopotame : échange d'ouvrier déjà fait cette nuit
 var recruited_tonight := false  # Cabinet de recrutement utilisé cette nuit  # labels achetés (id -> vrai) : de la réputation contre de l'or, avec un Marchand
 var road_visitors := PackedFloat32Array()  # distance parcourue sur le chemin Accès -> Entrée
@@ -777,7 +779,7 @@ func order(targets: Array, target: Vector2i, enqueue := false) -> void:
 			w.task = {"type": "clean", "site": site, "t": 0.0}
 			_set_path(w, target)
 			continue
-		if site and site.done and site.def_id() in ["snack", "kiosque"]:
+		if site and site.done and site.def_id() in ["snack", "kiosque", "intendance"]:
 			_station(w, site.def_id(), site, target)
 			continue
 		if site and site.done and site.def_id() == "boutique":
@@ -1154,6 +1156,8 @@ func _update_worker(w: Worker, dt: float) -> void:
 		"station":
 			if w.tile() != w.task["tile"]:
 				_set_path(w, w.task["tile"])
+			elif w.task["kind"] == "intendance":
+				_embellir(w, dt)
 			elif w.task["kind"] in ["shop", "ticket"]:
 				staffed_time[w.task["obj"]] = staffed_time.get(w.task["obj"], 0.0) + dt
 				if w.task["kind"] == "shop" and w.card.metier["id"] == "vendeur":
@@ -3040,6 +3044,60 @@ func _update_clean(w: Worker, dt: float) -> void:
 	_work_traits(w, dt)
 
 
+## Intendance : le poste avance la prochaine décoration ; une fois finie, elle paraît sur une case libre du parc.
+func _embellir(w: Worker, dt: float) -> void:
+	if not sites.has(w.task["obj"]) or decorations.size() >= decorations_max():
+		return
+	var E: Dictionary = data["buildings"]["reputation_autres"]["embellissement"]
+	var travail := float(E["travail"])
+	w.card.last_work_tile = w.tile()
+	_work_traits(w, dt)
+	embellissement = minf(travail, embellissement + efficiency_at(w, "embellir") * dt)
+	if embellissement < travail or not can_afford(E["cout"]):
+		return
+	var t := _case_decoration()
+	if t.x < 0:
+		return
+	_pay(E["cout"])
+	embellissement = 0.0
+	decorations.append({"t": t, "id": _prochaine_decoration(E["types"])})
+	version += 1
+
+
+## Un parc ne se remplit pas sans fin : une décoration au plus pour tant de cases.
+func decorations_max() -> int:
+	var E: Dictionary = data["buildings"]["reputation_autres"]["embellissement"]
+	return floori(zoo_status()["interior"].size() / float(E["cases_par_decoration"]))
+
+
+func _prochaine_decoration(types: Array) -> String:
+	var dernier: String = decorations[-1]["id"] if not decorations.is_empty() else ""
+	var choix: Array = types.filter(func(i): return i != dernier)
+	return choix[rng.randi_range(0, choix.size() - 1)]
+
+
+## Case libre du parc, au hasard : ni bâtiment, ni clôture, ni route, ni motif d'animal, et pas collée à une autre décoration.
+func _case_decoration() -> Vector2i:
+	var interior: Dictionary = zoo_status()["interior"]
+	var prises := {}
+	for a in animals:
+		for p in a.pattern_tiles:
+			prises[p] = true
+		if not a.park:
+			for p in a.tiles:
+				prises[p] = true
+	for d in decorations:
+		for dy in range(-1, 2):
+			for dx in range(-1, 2):
+				prises[d["t"] + Vector2i(dx, dy)] = true
+	var libres: Array = []
+	for t in interior:
+		if prises.has(t) or site_at(t) != null or is_fence(t) or not map.passable(t.x, t.y) or map.road[map.idx(t.x, t.y)]:
+			continue
+		libres.append(t)
+	return libres[rng.randi_range(0, libres.size() - 1)] if not libres.is_empty() else Vector2i(-1, -1)
+
+
 ## Nettoyage : tant que l'agent est dans l'enceinte (à l'arrêt ou en marchant), la propreté remonte.
 func _sweep(w: Worker, dt: float) -> void:
 	if not zoo_status()["interior"].has(w.tile()):
@@ -3599,13 +3657,18 @@ func _close_zoo_day() -> Dictionary:
 	rep_points += show + shop_rep
 	add_rep_source("spectacles", show)
 	add_rep_source("boutique", shop_rep)
+	# Beauté du parc : ce qu'on a construit par-dessus une décoration l'a fait disparaître
+	decorations = decorations.filter(func(d): return site_at(d["t"]) == null and not is_fence(d["t"]))
+	var beaute := decorations.size() * float(R["embellissement"]["reputation_nuit"]) if z["open"] else 0.0
+	rep_points += beaute
+	add_rep_source("beaute", beaute)
 	record_visiteurs = maxi(record_visiteurs, int(visit["admitted"]))
 	var reason: String = z["reason"]
 	if z["open"] and visitor_path().is_empty():
 		reason = "Aucune route ne relie l'Accès à l'Entrée du zoo"
 	var out := {"open": z["open"], "reason": reason, "visitors": visit["admitted"], "lost": visit["lost"],
 		"tickets": roundi(visit["tickets"]), "souvenirs": roundi(visit["souvenirs"]), "avg_present": avg, "rep_gain": gain,
-		"affinity": affinity, "rep_spectacle": show}
+		"affinity": affinity, "rep_spectacle": show, "rep_beaute": beaute}
 	_reset_visit()
 	return out
 

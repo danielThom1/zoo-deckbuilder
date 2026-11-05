@@ -10,7 +10,7 @@ const HAUTEUR_PORTRAIT := {"main": 98, "draft": 86, "marche": 88}
 ## Icônes des métiers et traits qui n'ont pas d'icône dédiée dans le handoff.
 const ICONES_METIERS := {
 	"vendeur": "metier_vendeur_souvenirs", "guichetier": "batiment_entree_zoo", "animalier": "ressource_nourriture",
-	"agent_entretien": "ordre_amenager", "animateur": "ressource_reputation",
+	"agent_entretien": "ordre_amenager", "intendant": "terrain_planter_foret", "animateur": "ressource_reputation",
 }
 const ICONES_TRAITS := {
 	"polyvalent": "ui_ameliorer", "bon_eleve": "batiment_formation", "econome": "ressource_argent", "debrouillard": "ordre_construire",
@@ -21,7 +21,7 @@ const ICONES_BATIMENTS := {
 	"route": "batiment_route", "pont": "batiment_pont", "maison": "batiment_maison", "entrepot": "batiment_entrepot",
 	"mine": "batiment_mine_or", "comptoir": "metier_marchand", "agence": "ui_recruter", "cabinet": "categorie_cadre", "cloture": "batiment_enceinte", "entree": "batiment_entree_zoo", "enclos": "batiment_cloture",
 	"boutique": "batiment_boutique", "formation": "batiment_formation", "cuisine": "ressource_nourriture",
-	"entretien": "ordre_amenager", "snack": "ressource_billetterie", "kiosque": "ressource_reputation",
+	"entretien": "ordre_amenager", "intendance": "terrain_planter_foret", "snack": "ressource_billetterie", "kiosque": "ressource_reputation",
 	"camp_n2": "ui_ameliorer", "camp_n3": "ui_ameliorer", "planter": "terrain_planter_foret", "creuser": "terrain_bassin",
 	"grand_arbre": "terrain_planter_foret", "rocher_obs": "biome_montagne", "bassin_profond": "terrain_bassin", "abri_chaud": "batiment_maison",
 }

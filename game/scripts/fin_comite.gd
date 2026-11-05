@@ -6,7 +6,7 @@ const TRAITS := [[], [8.0, 5.0], [2.0, 4.0], [10.0, 4.0, 2.0, 4.0]]  # motifs de
 const COULEURS_COURBES := [UiTokens.SARCELLE, UiTokens.ORANGE, Color("2F6FD0"), UiTokens.ENCRE_DOUX]
 const SOURCES := [["frequentation", "Fréquentation", UiTokens.SARCELLE], ["spectacles", "Spectacles", Color("6B4FC8")], ["boutique", "Boutique", Color("E04A8A")],
 	["objectifs", "Objectifs", UiTokens.SELECTION], ["labels", "Labels", UiTokens.OR_TEXTE], ["prestige", "Prestige", UiTokens.ORANGE],
-	["legendaires", "Légendaires", UiTokens.ENCRE], ["animaux", "Animaux", UiTokens.SARCELLE_FONCE]]
+	["legendaires", "Légendaires", UiTokens.ENCRE], ["beaute", "Beauté du parc", Color("3E8F4E")]]
 
 
 ## Courbes de réputation : motif de trait et étiquette au bout de chaque ligne, pas seulement une couleur.

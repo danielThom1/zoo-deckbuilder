@@ -31,6 +31,7 @@ const DEFAULT_STRATEGY := {
 	"fast_expand": false,  # améliore le camp d'abord (+1 carte en main), le zoo ensuite
 	"route_mine": false,  # relie la mine au réseau de routes (les mineurs y vont deux fois plus vite)
 	"explore": 0.0,  # part de choix au hasard pour les améliorations et les cartes d'action (étude)
+	"intendance": true,  # Intendance du parc une fois le zoo ouvert et l'argent assuré
 	"spectacle": false,  # Kiosque et boutique tôt, Animateur et Vendeur recherchés : la réputation par les spectacles
 	"adaptatif": true,  # l'équipe oriente le plan (mine, Marché, Kiosque…) et les besoins du moment orientent les embauches
 	"agrandir": true,  # agrandit le parc quand il sature ou pour accueillir une espèce qui n'y tient pas
@@ -153,6 +154,8 @@ func _card_bonus(c: GameState.Card) -> float:
 			return 0.3 if not has.call("agent_entretien") else -0.5
 		"animateur":
 			return (1.5 if strat["spectacle"] else 0.3) if not has.call("animateur") else -1.0  # spectacles au Kiosque
+		"intendant":
+			return 0.4 if strat["intendance"] and not has.call("intendant") else -1.0
 		"formateur":
 			return (1.0 if strat["formation"] else 0.6) if not has.call("formateur") else -1.0
 		"journaliste":
@@ -2000,6 +2003,11 @@ func _wants() -> Array:
 		var kspot := _park_spot(g.building_def("kiosque"))
 		if kspot.x >= 0:
 			out.append(["batiment", g.building_def("kiosque"), kspot])
+	# Intendance du parc : la beauté rapporte chaque nuit, mais après les animaux et les salaires.
+	if strat["intendance"] and not g.has_building("intendance") and g.zoo_status()["open"] and day >= 4 and g.money > _floor_achats() + 25.0:
+		var ispot := _park_spot(g.building_def("intendance"))
+		if ispot.x >= 0:
+			out.append(["batiment", g.building_def("intendance"), ispot])
 	# 3 quater. Snack : quand l'argent suit, ou pour un objectif des actionnaires.
 	var services := not _objectif_ouvert("services").is_empty()
 	if _opt("agence") and not g.has_building("snack") and g.zoo_status()["open"] and g.money > _floor_achats() + (15.0 if services else 45.0):
@@ -2591,6 +2599,9 @@ func _staff_posts() -> void:
 		elif s.done and s.def_id() == "kiosque" and open:
 			if _free_hands() > (0 if strat["spectacle"] else bras):
 				_ensure_post(s, "kiosque")
+		elif s.done and s.def_id() == "intendance" and open:
+			if g.decorations.size() < g.decorations_max() and (_free_hands() > bras or g.workers.any(func(w): return w.card.metier["id"] == "intendant")):
+				_ensure_post(s, "intendance")
 		elif s.done and s.def_id() == "cuisine" and g.food_due():
 			# Un nourrisseur pour 4 animaux (l'Animalier, puis le Soigneur, puis le moins utile ailleurs)
 			var arrived := g.animals.filter(func(a): return a.arrived).size()
@@ -2667,6 +2678,8 @@ func _ensure_post(site: GameState.Site, kind: String, wanted := 1) -> void:
 		var v := g.efficiency(w.card, "defaut")
 		if w.card.metier["id"] == "formateur":
 			v += 3.0  # seul à un poste, il ne forme personne
+		if kind == "intendance" and w.card.metier["id"] == "intendant":
+			v -= 5.0
 		if w.unpaid:
 			v -= 2.0
 		if w.card.traits.has("col_blanc"):

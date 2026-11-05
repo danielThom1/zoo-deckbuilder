@@ -671,6 +671,41 @@ func _init() -> void:
 	c_snack.rect = Rect2i(c_in, Vector2i(2, 2))
 	c_aw.task = {"type": "station", "kind": "snack", "obj": c_snack, "tile": c_in}
 	check(is_equal_approx(c_g.snack_mult(), 1.5), "Snack tenu : visites 50 % plus longues")
+	# Intendance : le poste fait paraître des décorations, qui coûtent des matériaux et rapportent de la réputation
+	var c_int := GameState.Site.new()
+	c_int.def = c_g.building_def("intendance")
+	c_int.rect = Rect2i(c_in, Vector2i(2, 2))
+	c_int.done = true
+	c_g.sites.append(c_int)
+	var c_ii: GameState.Card = b_mk.call("intendant", [])
+	check(c_g.efficiency(c_ii, "embellir") > c_g.efficiency(c_anim, "embellir"), "l'Intendant embellit plus vite qu'un autre cadre")
+	c_g.deploy(c_ii)
+	var c_iw := c_g.worker_of(c_ii)
+	c_iw.pos = Vector2(c_in) + Vector2(0.5, 0.5)
+	c_iw.path.clear()
+	c_iw.task = {"type": "station", "kind": "intendance", "obj": c_int, "tile": c_in}
+	c_g.stock["bois"] = 5.0
+	c_g.stock["pierre"] = 5.0
+	c_g.decorations.clear()
+	c_g.time = 0.0
+	for _i in roundi(90.0 / GameState.TICK):
+		c_g.tick(GameState.TICK)
+	check(not c_g.decorations.is_empty(), "Intendance : des décorations apparaissent (%d)" % c_g.decorations.size())
+	check(c_g.stock["bois"] < 5.0 and c_g.stock["pierre"] < 5.0, "Intendance : chaque décoration coûte des matériaux")
+	var c_case: Vector2i = c_g.decorations[0]["t"]
+	check(c_g.site_at(c_case) == null and not c_g.is_fence(c_case) and c_g.zoo_status()["interior"].has(c_case), "décoration sur une case libre du parc")
+	c_g.decorations = [c_g.decorations[0]]
+	var c_max := c_g.decorations_max()
+	check(c_max == floori(c_g.zoo_status()["interior"].size() / 10.0), "une décoration au plus pour 10 cases (%d)" % c_max)
+	for _i in c_max + 5:
+		c_g.decorations.append({"t": Vector2i(0, 0), "id": "banc"})
+	var c_nb := c_g.decorations.size()
+	for _i in roundi(60.0 / GameState.TICK):
+		c_g.tick(GameState.TICK)
+	check(c_g.decorations.size() == c_nb, "parc au maximum : plus de nouvelle décoration")
+	c_g.decorations.clear()
+	c_g.recall(c_iw)
+	c_g.sites.erase(c_int)
 	data["events"]["proba_evenement"] = c_proba
 
 	print("Lot D : évolution des cartes, cartes d'action, terrain :")

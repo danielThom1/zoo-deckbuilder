@@ -65,7 +65,8 @@ static func ecrire(m: Match) -> void:
 			"animals": p.animals.map(func(a): return {"def": a.def, "tiles": Array(a.tiles), "pattern": Array(a.pattern_tiles), "arrived": a.arrived, "fed": a.fed, "food": a.food,
 				"key": a.key, "park": a.park, "sick": a.sick, "heal": a.heal, "sick_nights": a.sick_nights, "starved": a.starved}),
 			"objectifs_faits": p.objectifs_faits, "record_visiteurs": p.record_visiteurs, "presse_jours": p.presse_jours, "vus": p.vus,
-			"rep": p.rep_points, "labels": p.labels_owned, "sources": p.rep_sources, "proprete": p.proprete, "rng": p.rng.state,
+			"rep": p.rep_points, "labels": p.labels_owned, "sources": p.rep_sources, "proprete": p.proprete, "rng": p.rng.state, "embellissement": p.embellissement,
+			"decorations": p.decorations.map(func(d): return [d["t"].x, d["t"].y, d["id"]]),
 			"tiles": p.map.tiles, "road": p.map.road, "bridge": p.map.bridge, "res_left": p.map.res_left})
 	var ias := []
 	for ai in m.ais:
@@ -130,6 +131,8 @@ static func charger(data: Dictionary) -> Match:
 		p.labels_owned = j["labels"]
 		p.rep_sources = j["sources"]
 		p.proprete = j["proprete"]
+		p.embellissement = float(j.get("embellissement", 0.0))
+		p.decorations = j.get("decorations", []).map(func(d): return {"t": Vector2i(int(d[0]), int(d[1])), "id": str(d[2])})
 		p.rng.state = j["rng"]
 		p.map.tiles = j["tiles"]
 		p.map.road = j["road"]

@@ -1293,6 +1293,8 @@ func _rendre_journal() -> void:
 	lignes.append(["Réputation (fréquentation)", "▲ +%.1f" % inc["rep_gain"], 1])
 	if float(inc.get("rep_spectacle", 0.0)) > 0.05:
 		lignes.append(["Réputation (spectacles, boutique)", "▲ +%.1f" % inc["rep_spectacle"], 1])
+	if float(inc.get("rep_beaute", 0.0)) > 0.05:
+		lignes.append(["Réputation (beauté du parc)", "▲ +%.1f" % inc["rep_beaute"], 1])
 	if r.has("prestige"):
 		lignes.append(["Prestige politique (influence)", "▲ +%.1f" % r["prestige"], 1])
 	for nm in r.get("legendes", []):
