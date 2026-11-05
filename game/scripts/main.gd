@@ -152,7 +152,7 @@ var biome_colors := {
 var biome_noms := {"Savane": "Savane", "Foret": "Forêt", "Jungle": "Jungle", "Aquatique": "Aquatique", "Montagne": "Montagne", "Desert": "Désert"}
 var terrain_req_noms := {"Prairie": "Prairie", "Foret": "Forêt", "Eau": "Eau", "Roche": "Roche", "Sable": "Sable", "PrairieOuSable": "Prairie ou sable"}
 var market_root: Control  # aperçu du marché du soir, consultable en journée
-var market_box: VBoxContainer
+var suivis: Array = []  # éléments du marché suivis par le joueur (interface seulement)
 var draft_root: Control
 var draft_title: Label
 var draft_order_lbl: RichTextLabel
@@ -200,7 +200,7 @@ var unit_task: Label
 var unit_bar: ProgressBar
 var unit_orders: Array[Button] = []
 # Nuit et fin de partie (captures 05 et 06)
-var end_root: ColorRect
+var end_root: FinComite
 var end_reopen: Button
 var end_built := false
 var night_peek := false  # la nuit, « Voir mon zoo » masque l'écran du marché
@@ -507,8 +507,9 @@ func _start(watch: bool) -> void:
 	if args.has("outil"):
 		ouvrir_outil(str(args["outil"]))
 	if args.has("marche"):
-		market_root.visible = true
-		_rebuild_market_preview()
+		market_root.ouvrir.call_deferred()
+		if str(args["marche"]) in MarcheSoir.ONGLETS:
+			market_root.choisir.call_deferred(str(args["marche"]))
 	_focus_zoo()
 	# --jours=N (spectateur) : avance la partie de N jours avant d'afficher (captures).
 	if spectator and args.has("jours"):
@@ -1887,7 +1888,7 @@ func _process(delta: float) -> void:
 	_sons_de_la_partie()
 	# Les bulles d'Hubert sont sur un calque au-dessus de l'interface : elles s'effacent devant les fenêtres.
 	if hubert:
-		hubert.get_parent().visible = mt.phase != "night" and not ((picker_root != null and picker_root.visible) \
+		hubert.get_parent().visible = mt.phase != "night" and not market_root.visible and not ((picker_root != null and picker_root.visible) \
 			or ui.get_children().any(func(c): return c is Reportage or c is Reglages or c is Aide))
 	if mt.phase != last_phase:
 		if mt.phase == "day" and last_phase != "" and not spectator:
@@ -1949,9 +1950,12 @@ func _process(delta: float) -> void:
 		_update_trade()
 		_update_publicity()
 		var ev: Dictionary = mt.current_event
-		event_label.visible = mt.phase == "day" and not ev.is_empty() and not (hubert and hubert.grande_visible())
-		if not ev.is_empty():
-			event_label.text = "  %s : %s  " % [ev["nom"], ev["texte"]]
+		_nettoyer_suivis()
+		event_label.visible = mt.phase == "day" and (not ev.is_empty() or not suivis.is_empty()) and not (hubert and hubert.grande_visible())
+		var flash := "  %s : %s" % [ev["nom"], ev["texte"]] if not ev.is_empty() else " "
+		if not suivis.is_empty():
+			flash += "   ★ Suivi : " + ", ".join(suivis.map(_nom_suivi))
+		event_label.text = flash
 		_hubert_alertes()
 	_hubert_annonces()
 	_screenshot_check()
@@ -2761,9 +2765,8 @@ func _build_ui() -> void:
 	_build_end_ui()
 
 	# Aperçu du marché du soir (lecture seule, en journée)
-	var market := _overlay()
-	market_root = market[0]
-	market_box = market[1]
+	market_root = MarcheSoir.new(self)
+	ui.add_child(market_root)
 
 	# Écran de draft
 	var draft := _overlay()
@@ -2953,47 +2956,8 @@ func _build_button(parent: Control, kind: String, def: Dictionary) -> void:
 
 ## Marché du soir vu en journée : les cartes qui seront proposées la nuit, pour décider de l'effort de lobbying.
 func _rebuild_market_preview() -> void:
-	if market_root == null or not market_root.visible:
-		return
-	if game.phase != "day":
-		market_root.visible = false
-		return
-	for c in market_box.get_children():
-		c.queue_free()
-	var title := Label.new()
-	title.text = "MARCHÉ DE CE SOIR"
-	title.theme_type_variation = "TitreEcran"
-	title.add_theme_font_size_override("font_size", 26)
-	market_box.add_child(title)
-	var info := RichTextLabel.new()
-	info.bbcode_enabled = true
-	info.fit_content = true
-	info.custom_minimum_size = Vector2(1060, 0)
-	var rank := mt.night_order.find(game.index)
-	info.text = "Cette nuit, on achète dans l'ordre d'influence (valeurs cachées) : 1 collaborateur et jusqu'à 2 contrats chacun, et le premier choisit le bonus de demain pour tous.\nVotre influence : [b]%.1f[/b]%s. Envoyez des collaborateurs en lobbying (case Accès) pour passer devant." % [
-		game.influence, " · la nuit dernière, vous étiez [b]%de[/b] sur %d" % [rank + 1, mt.players.size()] if rank >= 0 else ""]
-	market_box.add_child(info)
-	var workers := HBoxContainer.new()
-	workers.add_theme_constant_override("separation", 10)
-	for card in mt.market_workers:
-		workers.add_child(_card_widget(card, "Embauche : %d" % game.hire_cost(card), true, func(): pass))
-	market_box.add_child(workers)
-	var contracts := HBoxContainer.new()
-	contracts.add_theme_constant_override("separation", 10)
-	for def in mt.market_contracts:
-		contracts.add_child(_contract_widget(def, "Prix ce soir : %s" % game.cost_text(game.contract_cost(def)), "Achat possible cette nuit", func(): pass))
-	market_box.add_child(contracts)
-	var actions := HBoxContainer.new()
-	actions.add_theme_constant_override("separation", 10)
-	for card in mt.market_actions:
-		actions.add_child(_action_widget(card, "Prix ce soir : %d" % game.action_price(card), true, func(): pass))
-	market_box.add_child(actions)
-	var close := Button.new()
-	close.text = "Fermer"
-	close.theme_type_variation = "BoutonPrincipal"
-	close.focus_mode = Control.FOCUS_NONE
-	close.pressed.connect(func(): market_root.visible = false)
-	market_box.add_child(close)
+	if market_root:
+		market_root.rafraichir()
 
 
 func _overlay() -> Array:
@@ -4227,6 +4191,19 @@ func _build_night_ui() -> void:
 	pv.add_child(peek_list)
 
 
+func _nom_suivi(o: Variant) -> String:
+	if o is Dictionary:
+		return str(o["nom"])
+	return str(o.action["nom"]) if o.is_action() else str(o.nom)
+
+
+## Ce qui a quitté le marché (acheté par quelqu'un, retiré au renouvellement) n'est plus suivi.
+func _nettoyer_suivis() -> void:
+	if mt.phase != "day" or suivis.is_empty():
+		return
+	suivis = suivis.filter(func(o): return game.market_contracts.has(o) or mt.market_workers.has(o) or mt.market_actions.has(o))
+
+
 ## Temps de lecture entre deux pas d'IA la nuit (la décision d'un président reste affichée plus longtemps).
 func night_pause() -> float:
 	return 0.3 if speed >= 8.0 else (3.0 if mt.night_stage == "bonus" else 1.1)
@@ -4911,11 +4888,7 @@ func _rep_on_night(i: int, offset: int) -> int:
 # --- Écran de fin de partie (capture 06) ------------------------------------------
 
 func _build_end_ui() -> void:
-	end_root = ColorRect.new()
-	end_root.color = Color(UiTokens.PAPIER_2, 0.92)
-	end_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	end_root.mouse_filter = Control.MOUSE_FILTER_STOP
-	end_root.visible = false
+	end_root = FinComite.new(self)
 	ui.add_child(end_root)
 	end_reopen = Composants.bouton("Résultats de la partie", "BoutonPrincipal")
 	end_reopen.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
@@ -4939,232 +4912,7 @@ func _build_end_ui() -> void:
 
 
 func _rebuild_end() -> void:
-	_clear(end_root)
-	var n := mt.players.size()
-	var w: int = mt.winner
-	var won := not spectator and w == game.index
-	var reached := mt.players[w].reputation() >= mt.objective()
-	# Bandeau
-	var band_c := CenterContainer.new()
-	band_c.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	band_c.offset_top = 38
-	band_c.offset_bottom = 116
-	end_root.add_child(band_c)
-	var band := PanelContainer.new()
-	var bs := UiTokens.panel(UiTokens.ENTETE, UiTokens.OR, 4, 2, 12)
-	bs.content_margin_left = 70
-	bs.content_margin_right = 70
-	band.add_theme_stylebox_override("panel", bs)
-	band_c.add_child(band)
-	var bl := Composants.label("CONCESSION REMPORTÉE" if won else ("FILIALE LIQUIDÉE" if not spectator else "FIN DE PARTIE"), "TitreEcran")
-	bl.add_theme_font_size_override("font_size", 48)
-	bl.add_theme_color_override("font_color", UiTokens.OR_CLAIR)
-	band.add_child(bl)
-	var sub := RichTextLabel.new()
-	sub.bbcode_enabled = true
-	sub.fit_content = true
-	sub.scroll_active = false
-	sub.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	sub.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	sub.offset_top = 124
-	sub.offset_bottom = 152
-	sub.add_theme_font_size_override("normal_font_size", 17)
-	sub.text = "[center]Rapport annuel aux actionnaires · %s %s [color=#8A6A00]%d[/color] de réputation au soir du jour %d[/center]" % [
-		mt.names[w], "atteint" if reached else "termine en tête avec", mt.players[w].reputation(), mt.day]
-	end_root.add_child(sub)
-	# Podium : 2e, 1er, 3e, 4e
-	var ranking := range(n)
-	ranking.sort_custom(func(a, b): return mt.players[a].reputation() > mt.players[b].reputation())
-	var slots := [1, 0, 2, 3]
-	var heights := [300.0, 240.0, 190.0, 140.0]
-	var me_index := game.index if not spectator else -1
-	var podium := Control.new()
-	podium.position = Vector2(110, 190)
-	podium.size = Vector2(700, 470)
-	podium.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	end_root.add_child(podium)
-	for slot in mini(n, 4):
-		var rank: int = slots[slot]
-		if rank >= n:
-			continue
-		var i: int = ranking[rank]
-		var col: Color = UiTokens.JOUEURS[i % UiTokens.JOUEURS.size()]
-		var x := slot * 172.0
-		var top: float = 470.0 - heights[rank]
-		var disc := PanelContainer.new()
-		var ds := StyleBoxFlat.new()
-		ds.bg_color = col
-		ds.set_corner_radius_all(48)
-		ds.border_color = UiTokens.SELECTION if rank == 0 else UiTokens.ENCRE
-		ds.set_border_width_all(4)
-		ds.shadow_color = Color(0, 0, 0, 0.4)
-		ds.shadow_size = 8
-		disc.add_theme_stylebox_override("panel", ds)
-		var dl := Composants.label(str(rank + 1), "TitreEcran")
-		dl.add_theme_font_size_override("font_size", 38)
-		dl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		dl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		disc.add_child(dl)
-		var logo_p := Composants.logo_groupe(mt.names[i])
-		if logo_p:
-			# Le logo du groupe, le rang en petit
-			Composants.placer(podium, Composants.image_logo(logo_p, Vector2(180, 104)), Vector2(x - 15, top - 172), Vector2(180, 104))
-			dl.add_theme_font_size_override("font_size", 18)
-			Composants.placer(podium, disc, Vector2(x + 57, top - 100), Vector2(36, 36))
-		else:
-			Composants.placer(podium, disc, Vector2(x + 27, top - 164), Vector2(96, 96))
-		var nm := Composants.label(mt.names[i])
-		nm.add_theme_font_override("font", UiTokens.police_corps(800))
-		nm.add_theme_font_size_override("font_size", 18)
-		nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		Composants.placer(podium, nm, Vector2(x, top - 60), Vector2(150, 24))
-		var pl: GameState = mt.players[i]
-		var st := Composants.label("%d animaux · %d visiteurs" % [pl.animals.filter(func(a): return a.arrived).size(), _visitors_total(i)], "TexteSecondaire")
-		st.add_theme_font_size_override("font_size", 12)
-		st.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		Composants.placer(podium, st, Vector2(x - 10, top - 34), Vector2(170, 20))
-		var box := Panel.new()
-		var xs := StyleBoxFlat.new()
-		xs.bg_color = UiTokens.PANNEAU_MILIEU
-		xs.border_color = UiTokens.SELECTION if i == game.index and not spectator else Color(UiTokens.TEXTE_SECONDAIRE, 0.4)
-		xs.set_border_width_all(2)
-		xs.corner_radius_top_left = 4
-		xs.corner_radius_top_right = 4
-		box.add_theme_stylebox_override("panel", xs)
-		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		Composants.placer(podium, box, Vector2(x, top), Vector2(150, heights[rank]))
-		var val := Composants.label(str(pl.reputation()), "Compteur")
-		val.add_theme_font_size_override("font_size", 30)
-		val.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		Composants.placer(box, val, Vector2(0, 12), Vector2(150, 36))
-		var vl := Composants.label("réputation", "TexteSecondaire")
-		vl.add_theme_font_size_override("font_size", 12)
-		vl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		Composants.placer(box, vl, Vector2(0, 48), Vector2(150, 18))
-		var sort_ := Composants.label("Concession remportée" if rank == 0 else "Filiale liquidée", "TexteSecondaire")
-		sort_.add_theme_font_size_override("font_size", 12)
-		sort_.add_theme_color_override("font_color", UiTokens.POSITIF if rank == 0 else UiTokens.NEGATIF)
-		sort_.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		Composants.placer(box, sort_, Vector2(0, 120), Vector2(150, 18))
-		# Voir le zoo de ce joueur sur la carte finale
-		var see := Composants.bouton("Voir son zoo" if i != me_index else "Voir mon zoo", "BoutonSecondaire")
-		see.add_theme_font_size_override("font_size", 13)
-		see.pressed.connect(_watch_board.bind(i))
-		Composants.placer(box, see, Vector2(10, 66), Vector2(130, 26))
-		# Revoir toute la partie d'un rival
-		if mt.is_ai(i) and _replay_disponible():
-			var rv := Composants.bouton("Revoir sa partie", "BoutonSecondaire")
-			rv.add_theme_font_size_override("font_size", 13)
-			rv.pressed.connect(_voir_replay.bind(i))
-			Composants.placer(box, rv, Vector2(10, 94), Vector2(130, 26))
-	# Panneau « Votre partie » : chiffres clés, courbes de réputation, biomes
-	var me := game.index
-	var host := Control.new()
-	host.position = Vector2(858, 190)
-	host.size = Vector2(620, 470)
-	host.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	end_root.add_child(host)
-	var holder := VBoxContainer.new()
-	holder.custom_minimum_size = Vector2(620, 0)
-	host.add_child(holder)
-	var p := _titled_panel(holder, "VOTRE PARTIE" if not spectator else mt.names[me].to_upper())
-	var body: VBoxContainer = p[1]
-	var tiles := HBoxContainer.new()
-	tiles.add_theme_constant_override("separation", 8)
-	body.add_child(tiles)
-	var species := {}
-	var biomes := {}
-	for a in game.animals:
-		if a.arrived:
-			species[a.def["id"]] = true
-			biomes[a.def["biome"]] = true
-	for t in [[str(species.size()), "espèces", UiTokens.POSITIF], ["%d" % biomes.size(), "biomes sur %d" % biome_noms.size(), UiTokens.SELECTION],
-			[str(_visitors_total(me)), "visiteurs cumulés", Color("C8A8F0")], [str(game.all_employees().size()), "collaborateurs dans le deck", Color("8CC4FF")]]:
-		var tile := PanelContainer.new()
-		tile.add_theme_stylebox_override("panel", UiTokens.chip(Color(UiTokens.ENCRE, 0.06), 8, 8))
-		tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var tv := VBoxContainer.new()
-		tv.add_theme_constant_override("separation", -2)
-		tile.add_child(tv)
-		var big := Composants.label(t[0], "Compteur")
-		big.add_theme_font_size_override("font_size", 24)
-		big.add_theme_color_override("font_color", t[2])
-		tv.add_child(big)
-		var cap := Composants.label(t[1], "TexteSecondaire")
-		cap.add_theme_font_size_override("font_size", 12)
-		tv.add_child(cap)
-		tiles.add_child(tile)
-	# D'où vient la réputation : une barre par source
-	body.add_child(Composants.label("Votre réputation, par source", "TexteSecondaire"))
-	var total_rep := maxf(1.0, game.rep_points)
-	for src in [["frequentation", "Fréquentation (visiteurs)", "ressource_visiteurs", Color("8A6AD0")],
-			["spectacles", "Spectacles du Kiosque", "batiment_kiosque", Color("D0A040")],
-			["boutique", "Boutique", "batiment_boutique", Color("E04A8A")],
-			["objectifs", "Objectifs des actionnaires", "ressource_reputation", UiTokens.SELECTION],
-			["labels", "Labels (or)", "ressource_or", UiTokens.RESSOURCES["or"]["couleur"]],
-			["prestige", "Prestige politique", "ressource_influence", UiTokens.RESSOURCES["influence"]["couleur"]],
-			["legendaires", "Collaborateurs légendaires", "ui_ameliorer", UiTokens.OR]]:
-		var pts := float(game.rep_sources.get(src[0], 0.0))
-		if pts < 0.05:
-			continue
-		_fiche_barre(body, "%s · %d" % [src[1], roundi(pts)], pts / total_rep, "%d %%" % roundi(100.0 * pts / total_rep), src[3])
-	body.add_child(Composants.label("Réputation jour après jour", "TexteSecondaire"))
-	var chart := Control.new()
-	chart.custom_minimum_size = Vector2(590, 200)
-	chart.draw.connect(_draw_rep_chart.bind(chart))
-	body.add_child(chart)
-	var legend := HBoxContainer.new()
-	legend.add_theme_constant_override("separation", 14)
-	body.add_child(legend)
-	for i in n:
-		var item := HBoxContainer.new()
-		item.add_theme_constant_override("separation", 4)
-		var mk := Control.new()
-		mk.custom_minimum_size = Vector2(22, 14)
-		var shape := i
-		var col: Color = UiTokens.JOUEURS[i % UiTokens.JOUEURS.size()]
-		mk.draw.connect(func():
-			mk.draw_line(Vector2(0, 7), Vector2(22, 7), col, 2.0)
-			_draw_marker(mk, Vector2(11, 7), shape, col, 4.0))
-		item.add_child(mk)
-		var il := Composants.label(mt.names[i])
-		il.add_theme_font_size_override("font_size", 13)
-		item.add_child(il)
-		legend.add_child(item)
-	body.add_child(Composants.label("Biomes ouverts", "TexteSecondaire"))
-	var chips := HFlowContainer.new()
-	chips.add_theme_constant_override("h_separation", 6)
-	body.add_child(chips)
-	for b in biome_noms:
-		var on := biomes.has(b)
-		var chip := PanelContainer.new()
-		chip.add_theme_stylebox_override("panel", UiTokens.chip(Color(1, 1, 1, 0.07 if on else 0.02), 14, 4))
-		var ch := HBoxContainer.new()
-		ch.add_theme_constant_override("separation", 6)
-		chip.add_child(ch)
-		var dot := Composants.pastille(biome_colors[b] if on else Color(biome_colors[b], 0.35), UiTokens.BIOMES[b.to_lower()]["icone"], 20)
-		ch.add_child(dot)
-		var cl := Composants.label(biome_noms[b])
-		cl.add_theme_font_size_override("font_size", 13)
-		cl.add_theme_color_override("font_color", UiTokens.TEXTE if on else Color(UiTokens.TEXTE, 0.4))
-		ch.add_child(cl)
-		chips.add_child(chip)
-	# Boutons
-	var buttons := HBoxContainer.new()
-	buttons.add_theme_constant_override("separation", 14)
-	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
-	buttons.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	buttons.offset_top = -124
-	buttons.offset_bottom = -64
-	end_root.add_child(buttons)
-	for spec in [["Nouvelle partie" if replay else "Rejouer", "BoutonPrincipal", func(): _restart("spectateur" if spectator and replay == null else "jouer")],
-			["Revoir la carte finale", "BoutonSecondaire", func(): end_dismissed = true],
-			["Menu principal", "BoutonSecondaire", func(): _restart("menu")]]:
-		var b := Composants.bouton(spec[0], spec[1])
-		b.custom_minimum_size = Vector2(220, 56)
-		b.add_theme_font_size_override("font_size", 18)
-		b.pressed.connect(spec[2])
-		buttons.add_child(b)
+	end_root.rafraichir()
 
 
 func _visitors_total(i: int) -> int:
@@ -5172,46 +4920,6 @@ func _visitors_total(i: int) -> int:
 	for row in mt.history:
 		total += int(row[i].get("visitors", 0))
 	return total
-
-
-## Courbes de réputation : une ligne par joueur, avec un marqueur de forme différente (jamais la couleur seule).
-func _draw_rep_chart(c: Control) -> void:
-	var left := 34.0
-	var top := 8.0
-	var w := c.size.x - left - 10.0
-	var h := c.size.y - top - 6.0
-	var goal := float(mt.objective())
-	var max_rep := goal
-	for row in mt.history:
-		for e in row:
-			max_rep = maxf(max_rep, float(e["rep"]))
-	for v in [0.0, goal / 2.0, goal]:
-		var y: float = top + h * (1.0 - v / max_rep)
-		c.draw_line(Vector2(left, y), Vector2(left + w, y), Color(1, 1, 1, 0.1 if v > 0.0 else 0.25), 1.0)
-		c.draw_string(font, Vector2(0, y + 4), str(roundi(v)), HORIZONTAL_ALIGNMENT_RIGHT, left - 6, 11, UiTokens.TEXTE_SECONDAIRE)
-	var days := mt.history.size()
-	if days == 0:
-		return
-	for i in mt.players.size():
-		var col: Color = UiTokens.JOUEURS[i % UiTokens.JOUEURS.size()]
-		var pts := PackedVector2Array([Vector2(left, top + h)])
-		for k in days:
-			pts.append(Vector2(left + w * (k + 1) / days, top + h * (1.0 - float(mt.history[k][i]["rep"]) / max_rep)))
-		c.draw_polyline(pts, col, 3.0 if i == game.index else 2.0, true)
-		for k in range(1, pts.size()):
-			_draw_marker(c, pts[k], i, col, 3.5)
-
-
-func _draw_marker(ci: CanvasItem, p: Vector2, shape: int, col: Color, s: float) -> void:
-	match shape % 4:
-		0:
-			ci.draw_circle(p, s, col)
-		1:
-			ci.draw_rect(Rect2(p - Vector2(s, s), Vector2(s, s) * 2.0), col)
-		2:
-			ci.draw_colored_polygon(PackedVector2Array([p + Vector2(0, -s * 1.3), p + Vector2(s * 1.2, s * 0.9), p + Vector2(-s * 1.2, s * 0.9)]), col)
-		_:
-			ci.draw_colored_polygon(PackedVector2Array([p + Vector2(0, -s * 1.4), p + Vector2(s * 1.2, 0), p + Vector2(0, s * 1.4), p + Vector2(-s * 1.2, 0)]), col)
 
 
 func _restart(mode: String) -> void:
@@ -5327,138 +5035,6 @@ func _draw_tile_motif(ci: CanvasItem, r: Rect2, terrain: String) -> void:
 	ci.draw_rect(r, Color(0, 0, 0, 0.45), false, 1.0)
 
 
-## Contrat d'animal (capture 05, l 204) : bandeau du biome et palier, motif d'enclos, nom, chiffres clés, bouton.
-func _contract_widget(def: Dictionary, button_text: String, err: String, cb: Callable) -> Control:
-	var biome: String = def["biome"]
-	var bcol: Color = biome_colors[biome]
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(190, 0)
-	panel.add_theme_stylebox_override("panel", UiTokens.panel(UiTokens.PANNEAU_MILIEU, UiTokens.OR, 10, 2, 0))
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 0)
-	panel.add_child(v)
-	# Bandeau : icône et nom du biome, palier en losanges
-	var head := PanelContainer.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = bcol.darkened(0.2)
-	sb.corner_radius_top_left = 8
-	sb.corner_radius_top_right = 8
-	sb.content_margin_left = 8
-	sb.content_margin_right = 8
-	sb.content_margin_top = 5
-	sb.content_margin_bottom = 5
-	head.add_theme_stylebox_override("panel", sb)
-	v.add_child(head)
-	var top := HBoxContainer.new()
-	top.add_theme_constant_override("separation", 6)
-	head.add_child(top)
-	var bkey := biome.to_lower()
-	if UiTokens.BIOMES.has(bkey):
-		top.add_child(Composants.icone_rect(UiTokens.BIOMES[bkey]["icone"], Vector2(18, 18)))
-	var bn := Composants.label(biome_noms[biome].to_upper() + ("  · PRÉDATEUR" if def.get("special", "") == "predateur" else ""))
-	bn.add_theme_font_override("font", UiTokens.police_corps(800))
-	bn.add_theme_font_size_override("font_size", 12)
-	bn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	top.add_child(bn)
-	var tier := int(str(def["palier"]).substr(1))
-	var tl := Composants.label("◆".repeat(tier) + "◇".repeat(maxi(0, 3 - tier)))
-	tl.add_theme_font_size_override("font_size", 12)
-	tl.tooltip_text = str(game.data["animals"]["paliers"][def["palier"]]["nom"])
-	top.add_child(tl)
-	# « Illustration » : le motif d'enclos à reproduire, sur fond du biome
-	var art := PanelContainer.new()
-	var asb := StyleBoxFlat.new()
-	asb.bg_color = bcol.darkened(0.55)
-	asb.content_margin_top = 8
-	asb.content_margin_bottom = 8
-	art.add_theme_stylebox_override("panel", asb)
-	art.custom_minimum_size.y = 84
-	v.add_child(art)
-	var arow := HBoxContainer.new()
-	arow.alignment = BoxContainer.ALIGNMENT_CENTER
-	arow.add_theme_constant_override("separation", 6)
-	art.add_child(arow)
-	var illus := _animal_picture(def["id"], Vector2(86, 70))
-	if illus:
-		arow.add_child(illus)
-	var cc := CenterContainer.new()
-	arow.add_child(cc)
-	cc.add_child(_pattern_view(def, 13.0 if illus else 18.0))
-	# Corps
-	var body := MarginContainer.new()
-	body.add_theme_constant_override("margin_left", 10)
-	body.add_theme_constant_override("margin_right", 10)
-	body.add_theme_constant_override("margin_top", 6)
-	body.add_theme_constant_override("margin_bottom", 10)
-	v.add_child(body)
-	var inner := VBoxContainer.new()
-	inner.add_theme_constant_override("separation", 4)
-	body.add_child(inner)
-	var name_row := HBoxContainer.new()
-	inner.add_child(name_row)
-	var n := Composants.label(def["nom"])
-	n.add_theme_font_override("font", UiTokens.police_titre())
-	n.add_theme_font_size_override("font_size", 19)
-	n.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	n.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	n.clip_text = true
-	name_row.add_child(n)
-	var cases := Composants.label("%d cases" % int(def["taille"]), "TexteSecondaire")
-	cases.add_theme_font_size_override("font_size", 12)
-	cases.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	name_row.add_child(cases)
-	var origin := Composants.label("%s · %s" % [game.continent_name(def.get("continent", "")), game.type_name(def.get("type", ""))], "TexteSecondaire")
-	origin.add_theme_font_size_override("font_size", 12)
-	inner.add_child(origin)
-	var gain_affinite := game.affinity_gain(def)
-	var stats := HBoxContainer.new()
-	stats.add_theme_constant_override("separation", 4)
-	inner.add_child(stats)
-	for st in [["+%d" % int(def["reputation"]), "attractivité", Color("C8A8F0")], [str(game.food_cost(def)), "nourriture/j", UiTokens.POSITIF],
-			["+%d %%" % roundi(gain_affinite * 100.0) if gain_affinite > 0.0 else "—", "affinité", UiTokens.SELECTION if gain_affinite > 0.0 else UiTokens.TEXTE_SECONDAIRE]]:
-		var col := VBoxContainer.new()
-		col.add_theme_constant_override("separation", -3)
-		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var big := Composants.label(st[0], "Compteur")
-		big.add_theme_font_size_override("font_size", 17)
-		big.add_theme_color_override("font_color", st[2])
-		big.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		col.add_child(big)
-		var cap := Composants.label(st[1], "TexteSecondaire")
-		cap.add_theme_font_size_override("font_size", 11)
-		cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		col.add_child(cap)
-		stats.add_child(col)
-	var gold_missing := game.contract_gold_missing(def)
-	if gold_missing > 0:
-		var gm := Composants.label("Or manquant (%d) acheté : %d argent au total" % [gold_missing, int(game.contract_payment(def)["argent"])])
-		gm.add_theme_font_size_override("font_size", 11)
-		gm.add_theme_color_override("font_color", UiTokens.SELECTION)
-		gm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		gm.custom_minimum_size.x = 180
-		inner.add_child(gm)
-	if def.has("effet_texte"):
-		var eff := Composants.label(str(def["effet_texte"]))
-		eff.add_theme_font_size_override("font_size", 12)
-		eff.add_theme_color_override("font_color", UiTokens.SARCELLE)
-		eff.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		eff.custom_minimum_size.x = 180
-		inner.add_child(eff)
-	var btn := Composants.bouton(button_text, "BoutonPrincipal")
-	btn.disabled = err != ""
-	btn.tooltip_text = err
-	btn.custom_minimum_size = Vector2(0, 34)
-	btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	if cb.is_valid():
-		btn.pressed.connect(cb)
-	inner.add_child(btn)
-	panel.tooltip_text = "%s (%s, palier %s)\n%s · %s\nEnclos : %s\nAttractivité %d · nourriture %d / jour\nCoût : %s%s" % [
-		def["nom"], biome_noms[biome], def["palier"], game.continent_name(def.get("continent", "")), game.type_name(def.get("type", "")),
-		_requirements_text(def), int(def["reputation"]), game.food_cost(def), game.cost_text(game.contract_cost(def)),
-		"\nAffinité : +%d %% de réputation avec une espèce de plus de ce continent" % roundi(gain_affinite * 100.0) if gain_affinite > 0.0 else ""]
-	return panel
-
-
 func _rebuild_contracts() -> void:
 	for c in contracts_box.get_children():
 		c.queue_free()
@@ -5553,8 +5129,10 @@ func _build_outils() -> void:
 		var id: String = d[0]
 		if id == "marche":
 			b.pressed.connect(func():
-				market_root.visible = not market_root.visible
-				_rebuild_market_preview())
+				if market_root.visible:
+					market_root.visible = false
+				else:
+					market_root.ouvrir())
 		else:
 			b.pressed.connect(func(): ouvrir_outil("" if outil == id else id))
 		outils_col.add_child(b)

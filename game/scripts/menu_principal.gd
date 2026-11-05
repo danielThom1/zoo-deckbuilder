@@ -1,7 +1,7 @@
 class_name MenuPrincipal
 extends Control
-## Menu principal « Émeraude » : la vraie carte de la graine choisie en fond (floutée, qui dérive lentement),
-## titre gravé, boutons d'action à gauche, réglages de la partie à droite avec aperçu de la carte.
+## Menu principal « Le Comité » : une couverture de rapport annuel sur le paysage illustré, un sommaire pour les entrées,
+## et le panneau « Nouvelle filiale » (adversaires, difficulté, carte) à droite.
 ## Ne dépend que de GameData, MapGenerator, GameMap et des polices de UiTokens.
 
 signal lancer(spectateur: bool, graine: int, adversaires: int, difficile: bool)
@@ -47,11 +47,11 @@ var champ_graine: LineEdit
 var lbl_carte: Label
 var lbl_joueurs: Label
 var sous_titre_jouer: Label
-var sous_titre_regarder: Label
-var jetons_ia: Array = []
-var nuages: Control
+var note_jouer: Label
+var rivaux_box: HBoxContainer
+var boutons_adv: Array = []
+var boutons_dif: Array = []
 var bouton_jouer: Button
-var temps := 0.0
 var attente_graine := -1.0
 var donnees: Dictionary
 
@@ -70,72 +70,117 @@ func _ready() -> void:
 
 func _construire() -> void:
 	theme = _theme()
-	# Fond : la carte, en plus grand que l'écran pour pouvoir dériver
+	var uit := UiTokens.build_theme()
+	theme = uit
+	# Fond : le paysage illustré, plein écran
 	fond = TextureRect.new()
 	fond.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	fond.stretch_mode = TextureRect.STRETCH_SCALE
-	fond.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-	fond.size = Vector2(1900, 1069)
+	fond.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	fond.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	fond.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	fond.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var sh := Shader.new()
-	sh.code = """shader_type canvas_item;
-uniform float flou = 0.0;
-uniform float sombre = 1.0;
-uniform float sature = 1.12;
-void fragment() {
-	vec4 c = texture(TEXTURE, UV);
-	vec3 g = vec3(dot(c.rgb, vec3(0.299, 0.587, 0.114)));
-	COLOR = vec4(mix(g, c.rgb, sature) * sombre, 1.0);
-}"""
-	var mat := ShaderMaterial.new()
-	mat.shader = sh
-	fond.material = mat
+	if ResourceLoader.exists(FOND_ILLUSTRE):
+		fond.texture = load(FOND_ILLUSTRE)
 	add_child(fond)
-
-	# Ombres de nuages qui passent sur la carte
-	nuages = Control.new()
-	nuages.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	nuages.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	nuages.draw.connect(_dessiner_nuages)
-	add_child(nuages)
-
-	# Voiles : dégradé émeraude à gauche (lisibilité), vignettage haut et bas
-	add_child(_degrade(Vector2(0, 0), Vector2(1, 0), [
-		[0.0, Color(PANNEAU_BAS, 0.97)], [0.30, Color(PANNEAU_BAS, 0.90)], [0.50, Color(PANNEAU_BAS, 0.45)], [0.72, Color(PANNEAU_BAS, 0.0)]]))
-	add_child(_degrade(Vector2(0, 0), Vector2(0, 1), [
-		[0.0, Color(PANNEAU_BAS, 0.55)], [0.18, Color(PANNEAU_BAS, 0.0)], [0.78, Color(PANNEAU_BAS, 0.0)], [1.0, Color(PANNEAU_BAS, 0.75)]]))
-
-	# --- Colonne de gauche
+	# Couverture : bande blanche de 520 px, pleine hauteur
+	var couverture := PanelContainer.new()
+	couverture.name = "Colonne"
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = UiTokens.PAPIER
+	sb.border_color = UiTokens.ENCRE
+	sb.border_width_left = 2
+	sb.border_width_right = 2
+	sb.content_margin_left = 36
+	sb.content_margin_right = 36
+	sb.content_margin_top = 30
+	sb.content_margin_bottom = 26
+	couverture.add_theme_stylebox_override("panel", sb)
+	couverture.anchor_bottom = 1.0
+	couverture.offset_left = 60
+	couverture.offset_right = 578
+	add_child(couverture)
 	var col := VBoxContainer.new()
-	col.name = "Colonne"
-	col.position = Vector2(96, 16)
-	col.custom_minimum_size = Vector2(440, 0)
 	col.add_theme_constant_override("separation", 0)
-	add_child(col)
-
-	col.add_child(Composants.image_logo(load("res://assets/bd/logos/zoolife.png"), Vector2(410, 274)))
-	col.add_child(_espace(10))
-	var accroche := _label("Bâtissez le zoo le plus rentable de la vallée,\navec le personnel que vous méritez.", police_texte, 18, TEXTE_2)
+	couverture.add_child(col)
+	var haut := HBoxContainer.new()
+	var ra := _label_mono("RAPPORT ANNUEL", 12)
+	ra.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	haut.add_child(ra)
+	haut.add_child(_label_mono("EXERCICE %d" % Time.get_date_dict_from_system()["year"], 12))
+	col.add_child(haut)
+	var logo := Composants.image_logo(load("res://assets/bd/logos/zoolife.png"), Vector2(360, 240))
+	logo.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	col.add_child(logo)
+	var accroche := Composants.label("Bâtissez le zoo le plus rentable de la vallée,\navec le personnel que vous méritez.")
+	accroche.add_theme_font_override("font", UiTokens.police_italique())
+	accroche.add_theme_font_size_override("font_size", 15)
+	accroche.add_theme_constant_override("line_spacing", -3)
+	accroche.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(accroche)
-	col.add_child(_espace(12))
-	var filet := Control.new()
-	filet.custom_minimum_size = Vector2(380, 14)
-	filet.draw.connect(_dessiner_filet.bind(filet))
+	col.add_child(_espace(16))
+	var filet := ColorRect.new()
+	filet.color = UiTokens.ENCRE
+	filet.custom_minimum_size.y = 3
 	col.add_child(filet)
-	col.add_child(_espace(26))
-
-	var boutons := VBoxContainer.new()
-	boutons.add_theme_constant_override("separation", 8)
-	col.add_child(boutons)
-	var b_jouer := _bouton_menu("Jouer contre l'IA", "", "jouer", true)
-	sous_titre_jouer = b_jouer.get_meta("sous_titre")
-	b_jouer.pressed.connect(func(): lancer.emit(false, graine, adversaires, difficile))
-	boutons.add_child(b_jouer)
+	col.add_child(_espace(6))
+	var sm := Composants.label("SOMMAIRE")
+	sm.add_theme_font_override("font", UiTokens.police_titre())
+	sm.add_theme_font_size_override("font_size", 12)
+	sm.add_theme_color_override("font_color", UiTokens.TEXTE_2)
+	col.add_child(sm)
+	col.add_child(_espace(4))
+	var compteur := [0]  # une lambda capture les entiers par valeur
+	var ligne := func(titre: String, note: String, action: Callable, actif := false) -> Button:
+		compteur[0] += 1
+		var b := _ligne_sommaire(compteur[0], titre, note, actif)
+		b.pressed.connect(action)
+		col.add_child(b)
+		return b
+	sous_titre_jouer = null
+	bouton_jouer = ligne.call("Jouer contre l'IA", "vous + %d IA" % adversaires, func(): lancer.emit(false, graine, adversaires, difficile), true)
+	note_jouer = bouton_jouer.get_meta("note")
 	var sauvee := Sauvegarde.resume()
 	if not sauvee.is_empty():
-		var b_suite := _bouton_menu("Continuer", "Partie sauvegardée : début du jour %d, %d joueurs" % [sauvee["jour"], sauvee["joueurs"]], "jouer", false)
-		b_suite.pressed.connect(func(): continuer.emit())
-		boutons.add_child(b_suite)
+		ligne.call("Continuer", "Jour %d · %d joueurs" % [sauvee["jour"], sauvee["joueurs"]], func(): continuer.emit())
+	ligne.call("Multijoueur", "2 à 4 joueurs", func(): multijoueur.emit())
+	ligne.call("Tutoriel", "avec Hubert", func(): tutoriel.emit())
+	ligne.call("Règles et glossaire", "", func(): add_child(Aide.new(donnees)))
+	ligne.call("Réglages", "", func(): add_child(Reglages.new()))
+	ligne.call("Quitter", "retour au bureau", func(): get_tree().quit())
+	var esp := Control.new()
+	esp.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	col.add_child(esp)
+	# Slogan du jour
+	var slogans: Array = donnees["hubert"]["slogans"]
+	var slogan := Composants.label(str(slogans[randi() % slogans.size()]))
+	slogan.add_theme_font_override("font", UiTokens.police_italique())
+	slogan.add_theme_font_size_override("font_size", 13)
+	slogan.add_theme_color_override("font_color", UiTokens.TEXTE_2)
+	slogan.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	slogan.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(slogan)
+	col.add_child(_espace(8))
+	var bas := HBoxContainer.new()
+	var doc := _label_mono("Document réservé aux collaborateurs", 11)
+	doc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	doc.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	bas.add_child(doc)
+	var tampon := PanelContainer.new()
+	var st := StyleBoxFlat.new()
+	st.bg_color = Color(0, 0, 0, 0)
+	st.border_color = Color("B3361F")
+	st.set_border_width_all(2)
+	st.content_margin_left = 8
+	st.content_margin_right = 8
+	tampon.add_theme_stylebox_override("panel", st)
+	var lt := Composants.label("CONFIDENTIEL")
+	lt.add_theme_font_override("font", UiTokens.police_titre())
+	lt.add_theme_font_size_override("font_size", 14)
+	lt.add_theme_color_override("font_color", Color("B3361F"))
+	tampon.add_child(lt)
+	tampon.rotation = deg_to_rad(-6)
+	bas.add_child(tampon)
+	col.add_child(bas)
 	# Réservé au développement : ces entrées n'existent pas dans le jeu exporté.
 	if OS.has_feature("editor"):
 		var dev := HBoxContainer.new()
@@ -161,289 +206,203 @@ void fragment() {
 			b_zero.text = "Dév. : IA à 0 n° %d" % n_zero
 			b_zero.pressed.connect(func(): replay_etude.emit(chemin))
 			dev.add_child(b_zero)
-	var b_multi := _bouton_menu("Multijoueur", "Par Internet, de 2 à 4 joueurs : héberger ou rejoindre", "jouer", false)
-	b_multi.pressed.connect(func(): multijoueur.emit())
-	boutons.add_child(b_multi)
-	var b_tuto := _bouton_menu("Tutoriel", "Une première partie guidée par votre nouvel employeur", "oeil", false)
-	b_tuto.pressed.connect(func(): tutoriel.emit())
-	boutons.add_child(b_tuto)
-	var b_aide := _bouton_menu("Règles et glossaire", "Comment jouer, et tout ce qui existe dans le jeu", "oeil", false)
-	b_aide.pressed.connect(func(): add_child(Aide.new(donnees)))
-	boutons.add_child(b_aide)
-	var b_reglages := _bouton_menu("Réglages", "Résolution, plein écran, volume", "oeil", false)
-	b_reglages.pressed.connect(func(): add_child(Reglages.new()))
-	boutons.add_child(b_reglages)
-	var b_quitter := _bouton_menu("Quitter", "Retour au bureau", "sortie", false)
-	b_quitter.pressed.connect(func(): get_tree().quit())
-	boutons.add_child(b_quitter)
-	bouton_jouer = b_jouer
-	# Affiche d'entreprise : un slogan différent à chaque ouverture
-	var slogans: Array = donnees["hubert"]["slogans"]
-	var affiche := Label.new()
-	affiche.text = slogans[randi() % slogans.size()]
-	affiche.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	affiche.custom_minimum_size = Vector2(420, 0)
-	affiche.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	affiche.add_theme_font_override("font", UiTokens.police_corps(700))
-	affiche.add_theme_font_size_override("font_size", 15)
-	affiche.add_theme_color_override("font_color", UiTokens.ENCRE)
-	var affiche_style := StyleBoxFlat.new()
-	affiche_style.bg_color = UiTokens.BOUTON_HAUT
-	affiche_style.border_color = UiTokens.ENCRE
-	affiche_style.set_border_width_all(3)
-	affiche_style.content_margin_left = 12
-	affiche_style.content_margin_right = 12
-	affiche_style.content_margin_top = 6
-	affiche_style.content_margin_bottom = 6
-	affiche.add_theme_stylebox_override("normal", affiche_style)
-	col.add_child(_espace(14))
-	col.add_child(affiche)
-
-	var pied := _label("Prototype jouable · Godot 4.7 · Entrée pour jouer", police_texte, 13, Color(TEXTE_2, 0.7))
-	pied.name = "Pied"
-	pied.position = Vector2(96, 900 - 52)
-	add_child(pied)
-
-	# --- Carte de réglages (en bas à droite)
 	add_child(_carte_reglages())
+	_maj_joueurs()
 
 
+func _label_mono(t: String, taille: int) -> Label:
+	var l := Composants.label(t)
+	l.add_theme_font_override("font", UiTokens.police_mono(500))
+	l.add_theme_font_size_override("font_size", taille)
+	l.add_theme_color_override("font_color", UiTokens.TEXTE_2)
+	return l
+
+
+## Ligne de sommaire : numéro, titre, points de conduite, note à droite. L'entrée active est jaune.
+func _ligne_sommaire(n: int, titre: String, note: String, actif: bool) -> Button:
+	var b := Button.new()
+	b.focus_mode = Control.FOCUS_NONE
+	b.custom_minimum_size.y = 48
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = UiTokens.SELECTION if actif else Color(0, 0, 0, 0)
+	normal.set_corner_radius_all(8)
+	normal.anti_aliasing = true
+	if actif:
+		normal.border_color = UiTokens.ENCRE
+		normal.set_border_width_all(2)
+	var survol: StyleBoxFlat = normal.duplicate()
+	survol.bg_color = UiTokens.BOUTON_HAUT if actif else UiTokens.JAUNE_CLAIR
+	b.add_theme_stylebox_override("normal", normal)
+	b.add_theme_stylebox_override("hover", survol)
+	b.add_theme_stylebox_override("pressed", survol)
+	var h := HBoxContainer.new()
+	h.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	h.offset_left = 14
+	h.offset_right = -14
+	h.add_theme_constant_override("separation", 12)
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(h)
+	var num := _label_mono("%02d" % n, 14)
+	num.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	h.add_child(num)
+	var t := Composants.label(titre.to_upper())
+	t.add_theme_font_override("font", UiTokens.police_titre())
+	t.add_theme_font_size_override("font_size", 22)
+	t.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	h.add_child(t)
+	var points := Control.new()
+	points.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	points.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	points.draw.connect(func():
+		var y := points.size.y * 0.58
+		var x := 0.0
+		while x < points.size.x:
+			points.draw_circle(Vector2(x, y), 0.8, UiTokens.ENCRE_DOUX)
+			x += 4.0)
+	h.add_child(points)
+	var nl := Composants.label(note)
+	nl.add_theme_font_override("font", UiTokens.police_corps(600))
+	nl.add_theme_font_size_override("font_size", 13)
+	nl.add_theme_color_override("font_color", UiTokens.TEXTE_2)
+	nl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	h.add_child(nl)
+	b.set_meta("note", nl)
+	return b
+
+
+## Panneau « Nouvelle filiale » : adversaires, difficulté, carte, signature.
 func _carte_reglages() -> Control:
-	var carte := PanelContainer.new()
-	carte.name = "Reglages"
-	carte.add_theme_stylebox_override("panel", _boite(Color(PANNEAU, 0.95), OR, 2, 12, 0, true))
-	carte.custom_minimum_size = Vector2(440, 0)
-	carte.position = Vector2(1600 - 64 - 440, 0)  # y calé après mise en page
-	carte.resized.connect(func(): carte.position.y = 900 - 64 - carte.size.y)
+	var p := PanelContainer.new()
+	p.name = "Reglages"
+	var sb := UiTokens.panneau(UiTokens.PAPIER, 12, 2, 2, true)
+	p.add_theme_stylebox_override("panel", sb)
+	p.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+	p.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	p.grow_vertical = Control.GROW_DIRECTION_BOTH
+	p.offset_right = -70
+	p.offset_left = -510
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 0)
-	carte.add_child(v)
-
+	p.add_child(v)
 	var tete := PanelContainer.new()
-	var st := _boite(ENTETE, OR, 0, 0, 0, false)
-	st.border_width_bottom = 1
-	st.corner_radius_top_left = 10
-	st.corner_radius_top_right = 10
-	st.content_margin_left = 16
-	st.content_margin_right = 16
-	st.content_margin_top = 10
-	st.content_margin_bottom = 10
-	tete.add_theme_stylebox_override("panel", st)
-	v.add_child(tete)
+	tete.add_theme_stylebox_override("panel", UiTokens.entete(UiTokens.SARCELLE, 10))
 	var th := HBoxContainer.new()
 	tete.add_child(th)
-	var t := _label("NOUVELLE PARTIE", _police_espacee(police_titre, 2), 21, TEXTE)
-	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	th.add_child(t)
-	lbl_joueurs = _label("", police_texte, 14, Color.WHITE)
-	th.add_child(lbl_joueurs)
-
-	var m := MarginContainer.new()
-	for c in ["left", "right", "top", "bottom"]:
-		m.add_theme_constant_override("margin_" + c, 16)
-	v.add_child(m)
-	var corps := VBoxContainer.new()
-	corps.add_theme_constant_override("separation", 10)
-	m.add_child(corps)
-
+	var tt := Composants.label("NOUVELLE FILIALE", "EnteteComite")
+	tt.add_theme_font_size_override("font_size", 20)
+	tt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	th.add_child(tt)
+	var duree := Composants.label("~14 jours")
+	duree.add_theme_font_override("font", UiTokens.police_mono(500))
+	duree.add_theme_font_size_override("font_size", 12)
+	duree.add_theme_color_override("font_color", UiTokens.PAPIER)
+	duree.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	th.add_child(duree)
+	v.add_child(tete)
+	var marge := MarginContainer.new()
+	for c in [["left", 18], ["right", 18], ["top", 14], ["bottom", 18]]:
+		marge.add_theme_constant_override("margin_" + c[0], c[1])
+	v.add_child(marge)
+	var c := VBoxContainer.new()
+	c.add_theme_constant_override("separation", 8)
+	marge.add_child(c)
 	# Adversaires
-	corps.add_child(_label("Adversaires IA", police_texte, 14, TEXTE_2))
+	c.add_child(_titre_section("ADVERSAIRES"))
+	boutons_adv = []
 	var seg := HBoxContainer.new()
-	seg.add_theme_constant_override("separation", 8)
-	corps.add_child(seg)
-	var groupe := ButtonGroup.new()
-	for n in [1, 2, 3]:
-		var b := Button.new()
-		b.text = str(n)
-		b.toggle_mode = true
-		b.button_group = groupe
-		b.button_pressed = n == adversaires
-		b.custom_minimum_size = Vector2(0, 40)
-		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		b.add_theme_font_override("font", police_gras)
-		b.add_theme_font_size_override("font_size", 17)
-		b.toggled.connect(func(on: bool):
-			if on:
-				adversaires = n
-				_maj_joueurs())
+	seg.add_theme_constant_override("separation", -2)
+	for k in [1, 2, 3]:
+		var b := _segment(str(k))
+		b.pressed.connect(func():
+			adversaires = k
+			_maj_joueurs())
 		seg.add_child(b)
-
-	# Difficulté : IA normales, ou IA difficiles (stratégies apprises par l'IA évolutive)
-	corps.add_child(_label("Difficulté", police_texte, 14, TEXTE_2))
-	var segd := HBoxContainer.new()
-	segd.add_theme_constant_override("separation", 8)
-	corps.add_child(segd)
-	var groupe_d := ButtonGroup.new()
-	for opt in [["Normale", false, "IA aux stratégies écrites à la main"], ["Difficile", true, "IA entraînées par évolution : elles ont appris en jouant des centaines de parties"]]:
-		var bd := Button.new()
-		bd.text = opt[0]
-		bd.tooltip_text = opt[2]
-		bd.toggle_mode = true
-		bd.button_group = groupe_d
-		bd.button_pressed = opt[1] == difficile
-		bd.custom_minimum_size = Vector2(0, 40)
-		bd.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		bd.add_theme_font_override("font", police_gras)
-		bd.add_theme_font_size_override("font_size", 17)
-		var val: bool = opt[1]
-		bd.toggled.connect(func(on: bool):
-			if on:
-				difficile = val
-				_maj_joueurs())
-		segd.add_child(bd)
-
-	var jetons := HBoxContainer.new()
-	jetons.add_theme_constant_override("separation", 8)
-	corps.add_child(jetons)
-	for i in 4:
-		var j := _jeton_joueur("Vous" if i == 0 else "IA %d" % i, JOUEURS[i])
-		jetons.add_child(j)
-		if i > 0:
-			jetons_ia.append(j)
-
-	corps.add_child(_espace(4))
-	corps.add_child(_label("Carte", police_texte, 14, TEXTE_2))
-	var ligne := HBoxContainer.new()
-	ligne.add_theme_constant_override("separation", 14)
-	corps.add_child(ligne)
-
+		boutons_adv.append(b)
+	c.add_child(seg)
+	rivaux_box = HBoxContainer.new()
+	rivaux_box.add_theme_constant_override("separation", 6)
+	c.add_child(rivaux_box)
+	# Difficulté
+	c.add_child(_espace(4))
+	c.add_child(_titre_section("DIFFICULTÉ"))
+	var sd := HBoxContainer.new()
+	sd.add_theme_constant_override("separation", -2)
+	boutons_dif = []
+	for k in 2:
+		var b := _segment(["Cadre", "Direction"][k])
+		b.tooltip_text = ["IA aux stratégies écrites", "IA aux stratégies apprises par l'étude"][k]
+		b.pressed.connect(func():
+			difficile = k == 1
+			_maj_joueurs())
+		sd.add_child(b)
+		boutons_dif.append(b)
+	c.add_child(sd)
+	# Carte
+	c.add_child(_espace(4))
+	c.add_child(_titre_section("CARTE"))
+	var hc := HBoxContainer.new()
+	hc.add_theme_constant_override("separation", 12)
 	var cadre := PanelContainer.new()
-	cadre.add_theme_stylebox_override("panel", _boite(PANNEAU_BAS, OR, 2, 6, 3, false))
-	ligne.add_child(cadre)
+	var sc := StyleBoxFlat.new()
+	sc.border_color = UiTokens.ENCRE
+	sc.set_border_width_all(2)
+	sc.set_corner_radius_all(8)
+	sc.set_content_margin_all(2)
+	cadre.add_theme_stylebox_override("panel", sc)
 	apercu = TextureRect.new()
-	apercu.custom_minimum_size = Vector2(128, 128)
 	apercu.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	apercu.stretch_mode = TextureRect.STRETCH_SCALE
 	apercu.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	apercu.custom_minimum_size = Vector2(120, 90)
 	cadre.add_child(apercu)
-
-	var droite := VBoxContainer.new()
-	droite.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	droite.add_theme_constant_override("separation", 8)
-	ligne.add_child(droite)
-	var rg := HBoxContainer.new()
-	rg.add_theme_constant_override("separation", 8)
-	droite.add_child(rg)
-	var lg := _label("Graine", police_texte, 14, TEXTE)
-	lg.custom_minimum_size = Vector2(52, 0)
-	rg.add_child(lg)
+	hc.add_child(cadre)
+	var cv := VBoxContainer.new()
+	cv.add_theme_constant_override("separation", 6)
+	cv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	champ_graine = LineEdit.new()
-	champ_graine.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	champ_graine.custom_minimum_size = Vector2(0, 36)
-	champ_graine.add_theme_font_override("font", police_gras)
+	champ_graine.custom_minimum_size.y = 40
+	champ_graine.add_theme_font_override("font", UiTokens.police_mono(600))
 	champ_graine.add_theme_font_size_override("font_size", 16)
 	champ_graine.virtual_keyboard_type = LineEdit.KEYBOARD_TYPE_NUMBER
 	champ_graine.tooltip_text = "Même graine = même carte pour tous les joueurs."
 	champ_graine.text_changed.connect(func(_t): attente_graine = 0.45)
 	champ_graine.text_submitted.connect(func(_t): _valider_graine())
-	rg.add_child(champ_graine)
-
-	var de := Button.new()
-	de.text = "Nouvelle carte"
-	de.custom_minimum_size = Vector2(0, 38)
-	de.add_theme_font_override("font", police_gras)
-	de.add_theme_font_size_override("font_size", 15)
-	de.icon = _icone_de()
-	de.pressed.connect(func(): _changer_carte(randi() % 1000000))
-	droite.add_child(de)
-	lbl_carte = _label("", police_texte, 13, TEXTE_2)
-	lbl_carte.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	lbl_carte.custom_minimum_size = Vector2(240, 0)
-	droite.add_child(lbl_carte)
-
-	_maj_joueurs()
-	return carte
-
-
-func _bouton_menu(titre: String, sous_titre: String, icone: String, principal: bool) -> Button:
-	var b := Button.new()
-	b.custom_minimum_size = Vector2(420, 62)
-	b.focus_mode = Control.FOCUS_ALL
-	var fond_n := Color(PANNEAU_BAS, 0.78)
-	if principal:
-		b.add_theme_stylebox_override("normal", _boite(BOUTON_BAS, OR_SOMBRE, 2, 35, 0, true))
-		b.add_theme_stylebox_override("hover", _boite(BOUTON_HAUT, OR_CLAIR, 2, 35, 0, true))
-		b.add_theme_stylebox_override("pressed", _boite(BOUTON_BAS, OR_SOMBRE, 2, 35, 0, true))
-		b.add_theme_stylebox_override("focus", _anneau(35))
-	else:
-		b.add_theme_stylebox_override("normal", _boite(fond_n, Color(OR, 0.75), 2, 35, 0, false))
-		b.add_theme_stylebox_override("hover", _boite(Color("FFF4D6"), OR, 2, 35, 0, false))
-		b.add_theme_stylebox_override("pressed", _boite(PANNEAU_BAS, OR_CLAIR, 2, 35, 0, false))
-		b.add_theme_stylebox_override("focus", _anneau(35))
-	var h := HBoxContainer.new()
-	h.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	h.offset_left = 14
-	h.offset_right = -20
-	h.add_theme_constant_override("separation", 16)
-	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	b.add_child(h)
-	var ic := Control.new()
-	ic.custom_minimum_size = Vector2(46, 46)
-	ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	ic.draw.connect(_dessiner_icone.bind(ic, icone, principal))
-	h.add_child(ic)
-	var txt := VBoxContainer.new()
-	txt.alignment = BoxContainer.ALIGNMENT_CENTER
-	txt.add_theme_constant_override("separation", 0)
-	txt.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	h.add_child(txt)
-	var coul_t := BOUTON_TEXTE if principal else TEXTE
-	var coul_s := Color(BOUTON_TEXTE, 0.72) if principal else TEXTE_2
-	var lt := _label(titre, _police_espacee(police_titre, 1), 23, coul_t)
-	lt.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	txt.add_child(lt)
-	var ls := _label(sous_titre, police_texte if not principal else police_gras, 14, coul_s)
-	ls.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	txt.add_child(ls)
-	b.set_meta("sous_titre", ls)
-	# Survol : léger glissement vers la droite
-	b.pivot_offset = Vector2(0, 35)
-	b.mouse_entered.connect(func(): _survol(b, true))
-	b.mouse_exited.connect(func(): _survol(b, false))
-	b.focus_entered.connect(func(): _survol(b, true))
-	b.focus_exited.connect(func(): _survol(b, false))
-	return b
-
-
-func _survol(b: Button, actif: bool) -> void:
-	var tw := create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tw.tween_property(b, "scale", Vector2.ONE * (1.025 if actif else 1.0), 0.14)
-
-
-func _jeton_joueur(nom: String, coul: Color) -> Control:
-	var p := PanelContainer.new()
-	p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	p.add_theme_stylebox_override("panel", _boite(Color(1, 1, 1, 0.07), Color(coul, 0.6), 1, 8, 6, false))
-	var h := HBoxContainer.new()
-	h.alignment = BoxContainer.ALIGNMENT_CENTER
-	h.add_theme_constant_override("separation", 6)
-	p.add_child(h)
-	var pastille := Control.new()
-	pastille.custom_minimum_size = Vector2(16, 16)
-	pastille.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	pastille.draw.connect(func():
-		pastille.draw_circle(Vector2(8, 8), 8, Color(1, 1, 1, 0.9))
-		pastille.draw_circle(Vector2(8, 8), 6.5, coul))
-	h.add_child(pastille)
-	h.add_child(_label(nom, police_gras, 14, TEXTE))
+	cv.add_child(champ_graine)
+	var autre := Composants.bouton("↻ Autre carte", "BoutonSecondaire")
+	autre.custom_minimum_size.y = 34
+	autre.pressed.connect(func(): _changer_carte(randi() % 1000000))
+	cv.add_child(autre)
+	hc.add_child(cv)
+	c.add_child(hc)
+	lbl_carte = Composants.label("")
+	lbl_carte.add_theme_font_override("font", UiTokens.police_corps(600))
+	lbl_carte.add_theme_font_size_override("font_size", 12)
+	lbl_carte.add_theme_color_override("font_color", UiTokens.TEXTE_2)
+	c.add_child(lbl_carte)
+	c.add_child(_espace(6))
+	var signer := Composants.bouton("SIGNER LA PRISE DE POSTE ›", "BoutonPrincipal")
+	signer.add_theme_font_override("font", UiTokens.police_titre())
+	signer.add_theme_font_size_override("font_size", 20)
+	signer.custom_minimum_size.y = 54
+	signer.pressed.connect(func(): lancer.emit(false, graine, adversaires, difficile))
+	c.add_child(signer)
 	return p
 
 
-# ---------------------------------------------------------------- logique
+func _titre_section(t: String) -> Label:
+	var l := Composants.label(t)
+	l.add_theme_font_override("font", UiTokens.police_titre())
+	l.add_theme_font_size_override("font_size", 13)
+	l.add_theme_color_override("font_color", UiTokens.TEXTE_2)
+	return l
 
-func _process(delta: float) -> void:
-	temps += delta
-	# Dérive lente de la carte (aller-retour) et léger zoom
-	var d := Vector2(sin(temps * 0.035) * 120.0, cos(temps * 0.027) * 80.0)
-	var z := 1.0 + 0.04 * sin(temps * 0.05)
-	fond.size = Vector2(1900, 1069) * z
-	fond.position = Vector2(800, 450) - fond.size / 2.0 + d * 0.6 + Vector2(60, 0)
-	nuages.queue_redraw()
-	if attente_graine > 0.0:
-		attente_graine -= delta
-		if attente_graine <= 0.0:
-			_valider_graine()
+
+func _segment(t: String) -> Button:
+	var b := Composants.bouton(t, "Onglet")
+	b.toggle_mode = true
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	b.custom_minimum_size.y = 40
+	return b
 
 
 func _unhandled_input(e: InputEvent) -> void:
@@ -452,6 +411,13 @@ func _unhandled_input(e: InputEvent) -> void:
 	elif e.is_action_pressed("ui_accept") and not champ_graine.has_focus() and get_viewport().gui_get_focus_owner() == null:
 		bouton_jouer.pressed.emit()
 		accept_event()
+
+
+func _process(delta: float) -> void:
+	if attente_graine > 0.0:
+		attente_graine -= delta
+		if attente_graine <= 0.0:
+			_valider_graine()
 
 
 func _valider_graine() -> void:
@@ -471,11 +437,6 @@ func _changer_carte(g: int) -> void:
 	var img := _peindre(carte)
 	var tex := ImageTexture.create_from_image(img)
 	apercu.texture = tex
-	var img_flou := img.duplicate()
-	img_flou.generate_mipmaps()
-	# Fond : paysage illustré (style BD) ; la carte de la graine reste visible dans l'aperçu
-	if fond.texture == null:
-		fond.texture = load(FOND_ILLUSTRE) if ResourceLoader.exists(FOND_ILLUSTRE) else ImageTexture.create_from_image(img_flou)
 	# Résumé de la carte
 	var compte := {}
 	for y in carte.h:
@@ -483,35 +444,37 @@ func _changer_carte(g: int) -> void:
 			var tt := carte.get_t(x, y)
 			compte[tt] = compte.get(tt, 0) + 1
 	var n := float(carte.w * carte.h)
-	lbl_carte.text = "Forêt %d\u00a0%% · eau %d\u00a0%% · roche %d\u00a0%%\n%d\u00a0gisement%s d'or · %d\u00a0×\u00a0%d cases" % [
-		roundi(100.0 * compte.get(GameMap.FORET, 0) / n), roundi(100.0 * compte.get(GameMap.EAU, 0) / n),
-		roundi(100.0 * compte.get(GameMap.ROCHE, 0) / n), carte.golds.size(), "s" if carte.golds.size() > 1 else "", carte.w, carte.h]
+	lbl_carte.text = "Forêt %d\u00a0%% · eau %d\u00a0%% · roche %d\u00a0%%" % [
+		roundi(100.0 * compte.get(GameMap.FORET, 0) / n), roundi(100.0 * compte.get(GameMap.EAU, 0) / n), roundi(100.0 * compte.get(GameMap.ROCHE, 0) / n)]
 
 
 func _maj_joueurs() -> void:
-	for i in jetons_ia.size():
-		var actif := i < adversaires
-		jetons_ia[i].modulate = Color(1, 1, 1, 1.0 if actif else 0.3)
-	lbl_joueurs.text = "%d joueurs" % (adversaires + 1)
-	if sous_titre_jouer:
-		sous_titre_jouer.text = "Vous et %d IA%s · draft puis partie complète" % [adversaires, " difficiles" if difficile else ""]
-	if sous_titre_regarder:
-		sous_titre_regarder.text = "4 IA %s, en accéléré ×8" % ("difficiles (stratégies apprises)" if difficile else "aux stratégies différentes")
+	for k in boutons_adv.size():
+		boutons_adv[k].button_pressed = k + 1 == adversaires
+	for k in boutons_dif.size():
+		boutons_dif[k].button_pressed = (k == 1) == difficile
+	if note_jouer:
+		note_jouer.text = "vous + %d IA" % adversaires
+	if rivaux_box == null:
+		return
+	for c in rivaux_box.get_children():
+		rivaux_box.remove_child(c)
+		c.queue_free()
+	var noms := ["PanZoo", "Safari Capital", "BioLand"]
+	var pris: Array[String] = []
+	for k in adversaires:
+		rivaux_box.add_child(Composants.image_logo(Composants.logo_groupe(noms[k], true), Vector2(34, 34)))
+		pris.append(noms[k])
+	var l := Composants.label(", ".join(pris))
+	l.add_theme_font_override("font", UiTokens.police_corps(600))
+	l.add_theme_font_size_override("font_size", 13)
+	l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	rivaux_box.add_child(l)
 
 
 func _apparition() -> void:
-	var col: Control = get_node("Colonne")
-	var reg: Control = get_node("Reglages")
-	var pied: Control = get_node("Pied")
 	modulate.a = 0.0
-	var tw := create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tw.tween_property(self, "modulate:a", 1.0, 0.5)
-	col.position.x -= 40
-	tw.tween_property(col, "position:x", col.position.x + 40, 0.7)
-	reg.modulate.a = 0.0
-	tw.tween_property(reg, "modulate:a", 1.0, 0.6).set_delay(0.25)
-	pied.modulate.a = 0.0
-	tw.tween_property(pied, "modulate:a", 1.0, 0.6).set_delay(0.5)
+	create_tween().tween_property(self, "modulate:a", 1.0, 0.4)
 
 
 # ---------------------------------------------------------------- peinture de la carte
@@ -567,91 +530,6 @@ func _peindre(m: GameMap) -> Image:
 
 
 # ---------------------------------------------------------------- dessins
-
-func _dessiner_medaillon(c: Control) -> void:
-	var ctr := c.size / 2.0
-	c.draw_circle(ctr + Vector2(0, 5), 56, Color(0, 0, 0, 0.35))
-	c.draw_circle(ctr, 56, OR_SOMBRE)
-	c.draw_circle(ctr, 54, OR)
-	c.draw_circle(ctr, 49, OR_SOMBRE)
-	c.draw_circle(ctr, 47, ENTETE)
-	c.draw_circle(ctr + Vector2(-8, -10), 34, Color(1, 1, 1, 0.04))
-	c.draw_arc(ctr, 42, 0, TAU, 64, Color(OR, 0.35), 1.0, true)
-	# Patte
-	var p := OR
-	c.draw_set_transform(ctr + Vector2(0, 10), 0.0, Vector2(1.18, 1.0))
-	c.draw_circle(Vector2.ZERO, 13, p)
-	c.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	for d in [Vector2(-19, -9), Vector2(-7, -21), Vector2(7, -21), Vector2(19, -9)]:
-		c.draw_set_transform(ctr + d, 0.0, Vector2(0.85, 1.1))
-		c.draw_circle(Vector2.ZERO, 6.5, p)
-	c.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-
-
-func _dessiner_filet(c: Control) -> void:
-	var y := c.size.y / 2.0
-	var w := c.size.x
-	c.draw_line(Vector2(0, y), Vector2(w * 0.5 - 14, y), Color(OR, 0.75), 1.5, true)
-	c.draw_line(Vector2(w * 0.5 + 14, y), Vector2(w, y), Color(OR, 0.75), 1.5, true)
-	var cx := w * 0.5
-	c.draw_colored_polygon(PackedVector2Array([Vector2(cx, y - 6), Vector2(cx + 7, y), Vector2(cx, y + 6), Vector2(cx - 7, y)]), OR)
-	c.draw_circle(Vector2(0, y), 2.5, OR)
-	c.draw_circle(Vector2(w, y), 2.5, OR)
-
-
-func _dessiner_icone(c: Control, nom: String, principal: bool) -> void:
-	var ctr := c.size / 2.0
-	var r := c.size.x / 2.0
-	var fond_c := Color(BOUTON_TEXTE, 0.12) if principal else Color(OR, 0.14)
-	var coul_trait := BOUTON_TEXTE if principal else OR_CLAIR
-	c.draw_circle(ctr, r, fond_c)
-	c.draw_arc(ctr, r - 1, 0, TAU, 48, Color(coul_trait, 0.5), 1.5, true)
-	match nom:
-		"jouer":
-			c.draw_colored_polygon(PackedVector2Array([ctr + Vector2(-6, -10), ctr + Vector2(11, 0), ctr + Vector2(-6, 10)]), coul_trait)
-		"oeil":
-			var pts := PackedVector2Array()
-			for i in 17:
-				var a := PI * i / 16.0
-				pts.append(ctr + Vector2(-cos(a) * 13, -sin(a) * 8))
-			for i in 17:
-				var a := PI * i / 16.0
-				pts.append(ctr + Vector2(cos(a) * 13, sin(a) * 8))
-			pts.append(pts[0])
-			c.draw_polyline(pts, coul_trait, 2.0, true)
-			c.draw_circle(ctr, 4.5, coul_trait)
-		"sortie":
-			c.draw_polyline(PackedVector2Array([ctr + Vector2(2, -11), ctr + Vector2(-9, -11), ctr + Vector2(-9, 11), ctr + Vector2(2, 11)]), coul_trait, 2.0, true)
-			c.draw_line(ctr + Vector2(-2, 0), ctr + Vector2(12, 0), coul_trait, 2.0, true)
-			c.draw_polyline(PackedVector2Array([ctr + Vector2(7, -5), ctr + Vector2(12, 0), ctr + Vector2(7, 5)]), coul_trait, 2.0, true)
-
-
-func _dessiner_nuages() -> void:
-	for i in 5:
-		var vit := 9.0 + i * 3.0
-		var x := fmod(temps * vit + i * 420.0, 2200.0) - 300.0
-		var y := 140.0 + fmod(i * 233.0, 640.0)
-		var rr := 110.0 + (i % 3) * 50.0
-		for k in 3:
-			nuages.draw_set_transform(Vector2(x + k * rr * 0.6, y + (k % 2) * 18.0), 0.0, Vector2(1.6, 0.8))
-			nuages.draw_circle(Vector2.ZERO, rr * (0.8 + 0.15 * k), Color(0.02, 0.08, 0.1, 0.055))
-	nuages.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-
-
-func _icone_de() -> ImageTexture:
-	var img := Image.create_empty(20, 20, false, Image.FORMAT_RGBA8)
-	for y in 20:
-		for x in 20:
-			var dx: float = max(abs(x - 9.5) - 6.0, 0.0)
-			var dy: float = max(abs(y - 9.5) - 6.0, 0.0)
-			if Vector2(dx, dy).length() < 3.0:
-				img.set_pixel(x, y, OR_CLAIR)
-	for p in [Vector2i(6, 6), Vector2i(13, 13), Vector2i(10, 10), Vector2i(13, 6), Vector2i(6, 13)]:
-		img.fill_rect(Rect2i(p - Vector2i(1, 1), Vector2i(3, 3)), PANNEAU_BAS)
-	return ImageTexture.create_from_image(img)
-
-
-# ---------------------------------------------------------------- utilitaires
 
 func _label(t: String, f: Font, taille: int, coul: Color, ombre := false) -> Label:
 	var l := Label.new()
