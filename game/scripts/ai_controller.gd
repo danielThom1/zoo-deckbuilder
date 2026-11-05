@@ -999,9 +999,11 @@ func _meilleure_embauche() -> GameState.Card:
 	var best_card: GameState.Card = null
 	var best_v := 1.8
 	for c in g.market_workers:
-		if g.hire_error(c) != "" or g.money - g.hire_cost(c) < float(strat["reserve"]) + _floor_achats():
+		# Sans animal ni aménageur, un Terrassier ou un Paysagiste débloque la partie : il passe avant tout le reste.
+		var deblocage := _sans_animal() and not _has_landscaper() and g.can_landscape(c)
+		if g.hire_error(c) != "" or (not deblocage and g.money - g.hire_cost(c) < float(strat["reserve"]) + _floor_achats()):
 			continue
-		var v := card_value(c) - g.hire_cost(c) * 0.05
+		var v := card_value(c) - g.hire_cost(c) * 0.05 + (5.0 if deblocage else 0.0)
 		if v > best_v:
 			best_v = v
 			best_card = c
@@ -1660,6 +1662,14 @@ func _maybe_extend() -> void:
 			if not ext.is_empty():
 				_start_extension(ext["rect"], "pour accueillir : " + str(def["nom"]))
 				return
+	# Aucun contrat possible dans ce parc : on l'agrandit vers un terrain qui convient à un animal du marché.
+	if _sans_animal():
+		for def in g.market_contracts:
+			if _plan_enclosure(def).is_empty() and g.money >= _money_cost(def) * 0.5:
+				var ext_marche := _extension_for(def)
+				if not ext_marche.is_empty():
+					_start_extension(ext_marche["rect"], "pour accueillir un premier animal")
+					return
 	var parc := _objectif_ouvert("parc")
 	var pour_objectif: bool = not parc.is_empty() and _park_area().grow(-1).get_area() < int(parc["n"]) and g.money > _cash_floor() + 20.0
 	if g.zoo_status()["open"] and (_owned_attr() >= _attr_limit() * 0.85 or pour_objectif):

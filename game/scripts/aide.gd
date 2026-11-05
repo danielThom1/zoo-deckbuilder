@@ -78,7 +78,7 @@ const DESCRIPTIONS := {
 	"route": "Relie l'Accès à l'entrée pour les visiteurs ; les collaborateurs y vont deux fois plus vite.", "pont": "Une route sur l'eau.",
 	"maison": "Loge un collaborateur de plus.", "entrepot": "Dépôt de ressources : réduit les trajets des récolteurs.",
 	"comptoir": "Vente à 70 % sans Marchand ; avec un Marchand, vente à 125 % et achats 30 % moins chers.",
-	"agence": "Une fois par jour, remplace un collaborateur sur le terrain par une carte de la pioche ou de la défausse.",
+	"agence": "Une fois par jour : envoyez-y un collaborateur (clic droit), puis cliquez sur lui pour le remplacer par une carte de la pioche ou de la défausse.",
 	"mine": "Sur un gisement : permet d'extraire de l'or.", "cloture": "Mur de l'enceinte du zoo. Se construit aussi sur l'eau.",
 	"entree": "Porte du zoo : un collaborateur y tient le guichet. Touche R pour la tourner.", "enclos": "Ferme les enclos des animaux. Se construit aussi sur l'eau.",
 	"boutique": "Tenue par un seul collaborateur : souvenirs (×2,5 avec un Vendeur) et un peu de réputation.",

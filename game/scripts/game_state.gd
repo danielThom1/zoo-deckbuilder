@@ -185,6 +185,7 @@ var journal_contrats: Array = []  # contrats achetés : {"id", "day"} (étude)
 var labels_owned := {}
 ## Réputation gagnée par source (détail de l'écran de fin) : frequentation, spectacles, prestige, labels, legendaires.
 var rep_sources := {}
+var _attente_objectifs := 0.0
 var decorations: Array = []  # décorations du parc : {"t": Vector2i, "id": String}
 var embellissement := 0.0  # travail en cours sur la prochaine décoration
 var hippo_used_tonight := false  # Hippopotame : échange d'ouvrier déjà fait cette nuit
@@ -776,6 +777,9 @@ func order(targets: Array, target: Vector2i, enqueue := false) -> void:
 			w.task = {"type": "clean", "site": site, "t": 0.0}
 			_set_path(w, target)
 			continue
+		if site and site.done and site.def_id() == "agence":
+			_station(w, "agence", site, target)
+			continue
 		if site and site.done and site.def_id() in ["snack", "kiosque", "intendance"]:
 			_station(w, site.def_id(), site, target)
 			continue
@@ -890,8 +894,8 @@ func verifier_objectifs() -> void:
 			objectifs_faits[o["id"]] = day
 			rep_points += pts
 			add_rep_source("objectifs", pts)
+			version += 1
 			annonce("objectif", {"objectif": o["texte"], "effet": "+%d de réputation" % int(pts)}, "Objectif des actionnaires rempli : %s (+%d)." % [o["texte"], int(pts)])
-	version += 1
 
 
 # --- Journaliste ---------------------------------------------------------------
@@ -1086,6 +1090,10 @@ func _tick_player(dt: float) -> void:
 	_aura_cache_valid = false
 	_update_mentors(dt)
 	_animals_eat(dt)
+	_attente_objectifs += dt
+	if _attente_objectifs >= 2.0:
+		_attente_objectifs = 0.0
+		verifier_objectifs()
 	_update_visitors(dt)
 
 
@@ -2031,7 +2039,7 @@ func swap_worker(w: Worker, take: Card) -> bool:
 	journal_cartes.append({"id": "agence", "day": day})
 	money -= swap_cost(take)
 	day_stats["salaires"] += salary(take)
-	var target := _task_target(w)
+	var target := _task_target(w) if w.task.get("kind") != "agence" else Vector2i(-1, -1)
 	var old := w.card
 	old.deployed = false
 	hand.erase(old)
@@ -2385,7 +2393,7 @@ func _planned_enclosure(t: Vector2i) -> Dictionary:
 		var p: Vector2i = stack.pop_back()
 		for d in dirs:
 			var q := p + d
-			if not map.in_bounds(q.x, q.y) or seen.size() >= 120:
+			if not map.in_bounds(q.x, q.y) or seen.size() >= int(data["buildings"]["zoo"]["enclos_max_cases"]):
 				return {}
 			if seen.has(q):
 				continue
@@ -2510,8 +2518,8 @@ func _fenced_enclosure(t: Vector2i) -> Dictionary:
 				if site_at(q).def_id() == "entree":
 					gate = true
 				continue
-			if seen.size() >= 120:
-				return {"closed": false, "reason": open_msg}
+			if seen.size() >= int(data["buildings"]["zoo"]["enclos_max_cases"]):
+				return {"closed": false, "reason": "Zone trop grande pour un enclos (%d cases au plus) : ajoutez des clôtures" % int(data["buildings"]["zoo"]["enclos_max_cases"])}
 			seen[q] = true
 			stack.append(q)
 	if not fenced or gate:

@@ -134,7 +134,7 @@
     "duree_visite_s": 180,
     "duree_visite_ecart_s": 90,
     "_note_visite": "Durée de visite tirée au hasard entre duree_visite_s ± duree_visite_ecart_s (1,5 à 4,5 min). À la fermeture, tout le monde sort.",
-    "cases_par_visiteur": 3,
+    "enclos_max_cases": 40, "_note_enclos_max": "Au-delà, une zone fermée n'est pas un enclos : il faut des clôtures autour de l'animal.", "cases_par_visiteur": 3,
     "_note_capacite": "Visiteurs simultanés maximum = cases intérieures de l'enceinte / cases_par_visiteur. Parc plein : la file attend au guichet.",
     "groupes": { "1": 0.20, "2": 0.35, "3": 0.20, "4": 0.17, "5": 0.08 },
     "courbe_arrivees": [[0.0, 0.4], [0.3, 1.0], [0.7, 1.0], [0.9, 0.3], [1.0, 0.3]],

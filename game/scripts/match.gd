@@ -454,6 +454,7 @@ func confirm_bonus() -> void:
 
 func record_purchase(player: int, obj: Variant) -> void:
 	night_taken.append({"etape": night_stage, "joueur": player, "objet": obj})
+	players[player].verifier_objectifs()
 
 
 ## Fait avancer la nuit d'un pas quand c'est à une IA d'agir : achats de l'IA dont c'est le tour, ou bonus déjà choisi

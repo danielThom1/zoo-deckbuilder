@@ -214,6 +214,7 @@ func _process(delta: float) -> void:
 			x = (vue.x - cadre.size.x - b["tete"] - 16.0) / 2.0
 			y = vue.y - maxf(haut, b["tete"]) - 135.0 if grande_en_bas else haut
 		else:
-			x = 284.0
-			y = (main_box.get_global_rect().position.y if main_box.is_visible_in_tree() else vue.y) - maxf(haut, b["tete"]) - 12.0
+			# En bas à gauche, au-dessus du dock et de la ligne d'état : elle ne cache plus le centre de la carte
+			x = 14.0
+			y = vue.y - UiTokens.H_DOCK - 50.0 - maxf(haut, b["tete"])
 		b["racine"].position = Vector2(x, y)

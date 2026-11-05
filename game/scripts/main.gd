@@ -195,6 +195,7 @@ var pile_panel: PanelContainer
 var hand_scroll: ScrollContainer
 var unit_panel: PanelContainer
 var fiche_onglet := "fiche"
+var lagence_annonce := {}
 var aide_badges_vue := false
 var repere_monde := {}
 var selection_nav: HBoxContainer
@@ -491,6 +492,19 @@ func _start(watch: bool) -> void:
 			sc.rect = game.map.camp
 			sc.done = true
 			game.sites.append(sc)
+	if args.has("survol"):  # --survol=1 : la carte survolée se dégage (captures)
+		_capture_survol.call_deferred(int(args["survol"]))
+	if args.has("diagonale"):  # --diagonale : clôtures qui ne se touchent que par un coin (captures)
+		var dc := game.map.camp.get_center() + Vector2i(-9, -9)
+		game.stock["bois"] = 99.0
+		game.stock["pierre"] = 99.0
+		for dk in 8:
+			for de in [["cloture", Vector2i(dk, dk)], ["enclos", Vector2i(dk + 8, 7 - dk)]]:
+				var ds: GameState.Site = game.place("batiment", game.building_def(de[0]), dc + de[1])
+				if ds:
+					ds.work = ds.travail()
+					game._complete(ds)
+		camera.position = (Vector2(dc) + Vector2(8, 4)) * TILE
 	if args.has("deco"):
 		var dtypes: Array = game.data["buildings"]["reputation_autres"]["embellissement"]["types"]
 		for k in int(args["deco"]):
@@ -750,6 +764,11 @@ func _draw() -> void:
 				f = ["face" if d.y > 0.0 else "dos", f[1], w.pos]  # de profil seulement : il garde son côté
 		f[2] = w.pos
 		facing[w] = f
+		if _attend_a_lagence(w) and not game.swapped_today:
+			if not lagence_annonce.has(w):
+				lagence_annonce[w] = true
+				game.say("%s est à l'agence : cliquez sur lui pour choisir son remplaçant." % w.card.nom)
+			_etiquette_monde(p + Vector2(0, -TILE * 1.5), "Cliquez : choisir un remplaçant", UiTokens.SELECTION, UiTokens.ENCRE)
 		var ring := Color(player_col, 0.9) if not selected.has(w) else UiTokens.SELECTION
 		var pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 190.0) if selected.has(w) else 0.0
 		draw_arc(p + Vector2(0, 6.4), 5.2 + pulse * 1.5, 0, TAU, 24, ring, 1.6 if selected.has(w) else 1.0, true)
@@ -1501,9 +1520,11 @@ func _draw_fence(s: GameState.Site, color: Color) -> void:
 	var links := _wall_links()
 	var dirs: Array[Vector2i] = []
 	var reaches: Array[float] = []
-	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+	for d: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
 		var o := game.site_at(p + d)
 		if o == null or not o.done:
+			continue
+		if _lignes_paralleles(p, d, s.def_id()):
 			continue
 		var reach := 0.0
 		if o.def_id() == s.def_id() or (wall and o.def_id() == "entree"):
@@ -1517,6 +1538,7 @@ func _draw_fence(s: GameState.Site, color: Color) -> void:
 	var straight := dirs.size() == 2 and dirs[0] + dirs[1] == Vector2i.ZERO
 	var style := "enceinte" if wall else str(_styles_enclos().get(p, "enclos"))
 	if style != "" and SpritesBD.existe("cl_%s_face" % style):
+		_draw_diagonales(p, c, style, wall)
 		_draw_cloture(s, c, dirs, reaches, straight, style)
 		return
 	if wall:
@@ -1556,6 +1578,43 @@ func _draw_cloture(s: GameState.Site, c: Vector2, dirs: Array[Vector2i], reaches
 	var pas := 6 if style == "enceinte" else int(CASES_PAR_TRONCON)
 	var rang: int = p.x if not dirs.is_empty() and dirs[0].x != 0 else p.y
 	if not straight or posmod(rang, pas) == 0:
+		_poteaux.append([base, style])
+
+
+func _cloture_finie(t: Vector2i) -> bool:
+	var o := game.site_at(t)
+	return o != null and o.done and o.def_id() in ["cloture", "enclos"]
+
+
+## Deux clôtures côte à côte sur toute leur longueur (deux enclos voisins) : ce sont deux lignes, pas une échelle.
+func _lignes_paralleles(p: Vector2i, d: Vector2i, id: String) -> bool:
+	var q := p + d
+	var cote := Vector2i(d.y, d.x)
+	for t in [p + cote, p - cote, q + cote, q - cote]:
+		var o := game.site_at(t)
+		if o == null or not o.done or o.def_id() != id:
+			return false
+	return true
+
+
+## Deux clôtures qui ne se touchent que par un coin ferment bien la zone : on le montre avec un tronçon de biais,
+## l'image de face inclinée, en gardant ses montants verticaux.
+func _draw_diagonales(p: Vector2i, c: Vector2, style: String, wall: bool) -> void:
+	var face := SpritesBD.texture("cl_%s_face" % style)
+	var k := CASES_PAR_TRONCON * float(TILE) / face.get_width()
+	var h := face.get_height() * k
+	var base := c + Vector2(0, TILE * 0.3)
+	for d: Vector2i in [Vector2i(1, 1), Vector2i(1, -1)]:
+		var q := p + d
+		if not _cloture_finie(q) or _cloture_finie(p + Vector2i(d.x, 0)) or _cloture_finie(p + Vector2i(0, d.y)):
+			continue
+		if wall != (game.site_at(q).def_id() == "cloture"):
+			continue
+		var b := base + Vector2(d) * TILE
+		var pts := PackedVector2Array([base, b, b - Vector2(0, h), base - Vector2(0, h)])
+		var uvs := PackedVector2Array([Vector2(0, 1), Vector2(0.5, 1), Vector2(0.5, 0), Vector2(0, 0)])
+		draw_polygon(pts, PackedColorArray([Color.WHITE, Color.WHITE, Color.WHITE, Color.WHITE]), uvs, face)
+		_poteaux.append([b, style])
 		_poteaux.append([base, style])
 
 
@@ -1918,6 +1977,18 @@ func _try_place(t: Vector2i, first_click: bool) -> void:
 			game.say("Hubert de la Marge n'a pas validé cet emplacement. Suivez la zone jaune.")
 		return
 	if kind == "animal":
+		if not first_click:
+			return
+		# Un clic sur un emplacement proposé le choisit ; un clic sur celui déjà choisi le construit.
+		for k in propositions.size():
+			if propositions[k]["rect"].has_point(t):
+				if k == proposition_i:
+					_build_proposal()
+				else:
+					proposition_i = k
+					enclosure_proposal = propositions[k]
+					_update_proposal_box(def, game.zoo_status()["interior"])
+				return
 		var in_park: bool = game.enclosure_at(t).get("park", false)
 		var aerr := _cmd_texte("install_animal", [def, t])
 		if aerr == "" and in_park:
@@ -1937,6 +2008,11 @@ func _try_place(t: Vector2i, first_click: bool) -> void:
 	if (s or reseau) and not _is_paint_build() and not Input.is_key_pressed(KEY_SHIFT):
 		_set_build({})
 		selected_site = s
+
+
+## Arrivé à l'Agence d'intérim, il attend qu'on choisisse son remplaçant.
+func _attend_a_lagence(w: GameState.Worker) -> bool:
+	return w.task.get("kind") == "agence" and w.path.is_empty() and w.tile() == w.task["tile"] and not spectator
 
 
 ## Ouvrier sous le clic : le plus proche, ou, s'ils se superposent, le suivant de la pile à chaque nouveau clic.
@@ -1996,6 +2072,11 @@ func _finish_selection() -> void:
 		var best := _ouvrier_clique(wp, avant)
 		if best and not selected.has(best):
 			selected.append(best)
+		if best and _attend_a_lagence(best):
+			if game.swapped_today:
+				game.say("L'agence a déjà fait un échange aujourd'hui. Revenez demain.")
+			else:
+				_open_swap_picker(best)
 		elif not best and selected.is_empty():
 			var t := Vector2i(floori(wp.x), floori(wp.y))
 			selected_site = game.site_at(t)
@@ -2960,6 +3041,7 @@ func _build_ui() -> void:
 	hand_scroll.offset_bottom = 0
 	hand_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	hand_scroll.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hand_scroll.clip_contents = false  # une carte qui glisse au survol peut dépasser un instant
 	ui.add_child(hand_scroll)
 	hand_box = HBoxContainer.new()
 	hand_box.add_theme_constant_override("separation", 10)
@@ -3325,8 +3407,33 @@ func _ajuster_main() -> void:
 	if n < 2:
 		return
 	var large := get_viewport_rect().size.x / ui_echelle() - MAIN_GAUCHE - MAIN_DROITE
-	var ecart := minf(MAIN_ESPACE, (large - n * Composants.BADGE.x) / (n - 1))
-	hand_box.add_theme_constant_override("separation", int(floor(ecart)))
+	var ecart := int(floor(minf(MAIN_ESPACE, (large - n * Composants.BADGE.x) / (n - 1))))
+	hand_box.add_theme_constant_override("separation", ecart)
+	if ecart >= 0:
+		return
+	for k in n:
+		var carte: Control = hand_box.get_child(k).get_child(0)
+		carte.mouse_entered.connect(_eventail.bind(k, -ecart))
+		carte.mouse_exited.connect(func():
+			if is_instance_valid(carte) and not carte.get_global_rect().has_point(carte.get_global_mouse_position()):
+				_eventail(-1, -ecart))
+
+
+func _capture_survol(k: int) -> void:
+	await get_tree().process_frame
+	var ecart: int = hand_box.get_theme_constant("separation")
+	if ecart < 0 and k < hand_box.get_child_count():
+		_eventail(k, -ecart)
+		hand_box.get_child(k).get_child(0).position.y = 0.0
+
+
+## Cartes chevauchées : celles qui suivent la carte survolée glissent, elle est entière et ses boutons se cliquent.
+func _eventail(survolee: int, decalage: int) -> void:
+	for k in hand_box.get_child_count():
+		var carte: Control = hand_box.get_child(k).get_child(0)
+		var cible := float(decalage) if survolee >= 0 and k > survolee else 0.0
+		if not is_equal_approx(carte.position.x, cible):
+			carte.create_tween().tween_property(carte, "position:x", cible, 0.09)
 
 
 func ui_echelle() -> float:
@@ -3336,6 +3443,7 @@ func ui_echelle() -> float:
 func _rebuild_hand() -> void:
 	_aide_badges()
 	for c in hand_box.get_children():
+		hand_box.remove_child(c)  # sinon les anciennes cartes comptent encore dans _ajuster_main
 		c.queue_free()
 	if game.phase == "draft":
 		return
@@ -3491,6 +3599,8 @@ func _task_text(w: GameState.Worker) -> String:
 	if w.task["type"] == "station":
 		if not w.path.is_empty():
 			return "Va à son poste"
+		if w.task["kind"] == "agence":
+			return "Attend à l'agence : cliquez sur lui pour choisir son remplaçant"
 		return {"trade": "Tient le comptoir du camp", "shop": "Tient la boutique", "ticket": "Tient le guichet", "snack": "Tient le snack",
 			"kiosque": "Anime le kiosque", "intendance": "Embellit le parc (%d / %d décorations)" % [game.decorations.size(), game.decorations_max()], "care": "Soigne : " + str(w.task["obj"].def["nom"] if w.task["obj"] else "")}[w.task["kind"]]
 	if w.task["type"] == "feed":
@@ -4269,7 +4379,7 @@ func _update_hud() -> void:
 			elif site.def_id() == "comptoir":
 				status += " : clic droit avec un Marchand (vente à 125 %, achat 30 % moins cher)"
 			elif site.def_id() == "agence":
-				status += " : sélectionnez un collaborateur puis « Remplacer (Agence) » pour l'échanger contre une carte du deck"
+				status += " : clic droit pour y envoyer un collaborateur, puis cliquez sur lui pour choisir son remplaçant"
 			elif site.def_id() == "entrepot":
 				status += " : clic droit pour y déposer la charge"
 			elif site.def_id() == "intendance":
@@ -4829,6 +4939,8 @@ func _compute_animal_hints(def: Dictionary, propose: bool) -> void:
 			continue
 		for q in enc["tiles"]:
 			seen[q] = true
+		if enc.get("park", false):
+			continue  # parc sans clôture : ce sont les emplacements proposés qui comptent
 		var err := game.animal_error(def, enc)
 		if err == "" or err.begins_with("Motif absent (au mieux"):
 			var ps := game.pattern_status(def, game.free_enclosure_tiles(enc))
@@ -5029,6 +5141,10 @@ func _update_proposal_box(def: Dictionary, interior: Dictionary) -> void:
 func _build_proposal() -> void:
 	if enclosure_proposal.is_empty():
 		return
+	var cout_enclos := game.enclosure_cost(enclosure_proposal)
+	if not game.can_afford(cout_enclos):
+		game.say("Il faut %s pour cet enclos." % game.cost_text(cout_enclos))
+		return
 	var def: Dictionary = build_choice["def"] if build_choice.get("kind") == "animal" else {}
 	var err := _cmd_texte("construire_proposition", [enclosure_proposal, def])
 	if err != "":
@@ -5072,6 +5188,14 @@ func _draw_animal_hints() -> void:
 		draw_circle(c, 5.0, Color(col, pulse))
 		_etiquette_monde(c + Vector2(0, -float(TILE) * 1.6), "✓ Motif présent : cliquez pour installer" if h["ok"] else "%d case%s à aménager" % [h["missing"], "s" if h["missing"] > 1 else ""],
 			UiTokens.SARCELLE if h["ok"] else UiTokens.ENCRE, Color.WHITE)
+	# Les autres emplacements proposés : en pointillés, cliquables
+	for k in propositions.size():
+		if k != proposition_i:
+			var ra: Rect2i = propositions[k]["rect"]
+			var autre := Rect2(Vector2(ra.position) * TILE, Vector2(ra.size) * TILE)
+			draw_rect(autre, Color(1, 1, 1, 0.14))
+			Composants.tirets_rect(self, autre, Color.WHITE, 2.0 / camera.zoom.x)
+			_etiquette_monde(autre.get_center(), "Emplacement %d" % (k + 1), Color.WHITE, UiTokens.ENCRE)
 	if not enclosure_proposal.is_empty():
 		var r: Rect2i = enclosure_proposal["rect"]
 		var box := Rect2(Vector2(r.position) * TILE, Vector2(r.size) * TILE)
@@ -5083,7 +5207,7 @@ func _draw_animal_hints() -> void:
 		draw_rect(box, UiTokens.ENCRE, false, 5.0 / camera.zoom.x)
 		Composants.tirets_rect(self, box, Color.WHITE, 2.5 / camera.zoom.x)
 		if int(enclosure_proposal["missing"]) == 0:
-			_etiquette_monde(box.get_center() + Vector2(0, box.size.y / 2.0 + 14.0 / camera.zoom.x), "✓ Motif trouvé · emplacement proposé %d sur %d" % [proposition_i + 1, maxi(propositions.size(), 1)], UiTokens.SARCELLE, Color.WHITE)
+			_etiquette_monde(box.get_center() + Vector2(0, box.size.y / 2.0 + 14.0 / camera.zoom.x), "✓ Motif trouvé · cliquez ici pour construire · %d sur %d" % [proposition_i + 1, maxi(propositions.size(), 1)], UiTokens.SARCELLE, Color.WHITE)
 		else:
 			_etiquette_monde(box.get_center() + Vector2(0, box.size.y / 2.0 + 14.0 / camera.zoom.x), "%d case%s à aménager · emplacement %d sur %d" % [enclosure_proposal["missing"], "s" if int(enclosure_proposal["missing"]) > 1 else "", proposition_i + 1, maxi(propositions.size(), 1)], UiTokens.ENCRE, Color.WHITE)
 		if not pose_info.is_empty() and int(pose_info["new"]) > 0:
