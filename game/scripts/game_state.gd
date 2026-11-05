@@ -3090,6 +3090,13 @@ func _case_decoration() -> Vector2i:
 		for dy in range(-1, 2):
 			for dx in range(-1, 2):
 				prises[d["t"] + Vector2i(dx, dy)] = true
+	# Le passage de l'entrée reste dégagé
+	for s in sites:
+		if s.def_id() == "entree":
+			var large: Rect2i = s.rect.grow(2)
+			for y in range(large.position.y, large.end.y):
+				for x in range(large.position.x, large.end.x):
+					prises[Vector2i(x, y)] = true
 	var libres: Array = []
 	for t in interior:
 		if prises.has(t) or site_at(t) != null or is_fence(t) or not map.passable(t.x, t.y) or map.road[map.idx(t.x, t.y)]:

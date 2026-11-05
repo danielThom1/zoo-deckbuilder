@@ -6250,5 +6250,113 @@
    132,
    200
   ]
+ },
+ "deco_banc": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/deco_banc.png",
+  "pied": [
+   90,
+   99
+  ],
+  "taille": [
+   180,
+   99
+  ]
+ },
+ "deco_fontaine": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/deco_fontaine.png",
+  "pied": [
+   90,
+   174
+  ],
+  "taille": [
+   180,
+   174
+  ]
+ },
+ "deco_lampadaire": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/deco_lampadaire.png",
+  "pied": [
+   90,
+   758
+  ],
+  "taille": [
+   180,
+   758
+  ]
+ },
+ "deco_massif": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/deco_massif.png",
+  "pied": [
+   90,
+   113
+  ],
+  "taille": [
+   180,
+   113
+  ]
+ },
+ "deco_parterre": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/deco_parterre.png",
+  "pied": [
+   90,
+   135
+  ],
+  "taille": [
+   180,
+   135
+  ]
+ },
+ "deco_statue": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/deco_statue.png",
+  "pied": [
+   90,
+   291
+  ],
+  "taille": [
+   180,
+   291
+  ]
+ },
+ "deco_tonnelle": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/deco_tonnelle.png",
+  "pied": [
+   90,
+   190
+  ],
+  "taille": [
+   180,
+   190
+  ]
+ },
+ "deco_topiaire": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/deco_topiaire.png",
+  "pied": [
+   90,
+   315
+  ],
+  "taille": [
+   180,
+   315
+  ]
+ },
+ "intendance": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/intendance.png",
+  "pied": [
+   230,
+   319
+  ],
+  "taille": [
+   460,
+   319
+  ]
  }
 }

@@ -10,6 +10,7 @@ import numpy as np
 from PIL import Image
 
 LARGEUR = 460  # les bâtiments sont réduits à cette largeur (assez pour le zoom maximal)
+LARGEUR_DECO = 180  # une décoration occupe une seule case
 
 
 def sans_fond(rgb):
@@ -58,8 +59,9 @@ def main():
         nom = os.path.splitext(os.path.basename(chemin))[0].lower()
         im = sans_fond(np.array(Image.open(chemin).convert('RGB')))
         im = im.crop(im.getchannel('A').point(lambda a: 255 if a > 127 else 0).getbbox())
-        k = LARGEUR / im.width
-        im = im.convert('RGBa').resize((LARGEUR, round(im.height * k)), Image.LANCZOS).convert('RGBA')
+        large = LARGEUR_DECO if nom.startswith('deco_') else LARGEUR
+        k = large / im.width
+        im = im.convert('RGBa').resize((large, round(im.height * k)), Image.LANCZOS).convert('RGBA')
         im.save(os.path.join(sortie, nom + '.png'), optimize=True)
         manifeste[nom] = {"categorie": "batiments", "fichier": "res://assets/bd/sprites/batiments/%s.png" % nom,
                           "pied": [im.width // 2, im.height], "taille": [im.width, im.height]}

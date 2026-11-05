@@ -1160,7 +1160,7 @@ const GESTES := {"hache": SpritesBD.PERSO_COUPER, "pioche": SpritesBD.PERSO_MINE
 ## --vitrine : les bâtiments côte à côte à leur taille de jeu, au-dessus du camp (contrôle de nouvelles images).
 func _draw_vitrine() -> void:
 	var o := Vector2(game.map.camp.position) * TILE + Vector2(-TILE * 9.0, -TILE * 9.0)
-	var ids := ["cabinet", "agence", "cuisine", "formation", "maison", "snack"]
+	var ids := ["cabinet", "agence", "cuisine", "formation", "maison", "snack", "intendance"]
 	for i in ids.size():
 		_draw_building(Rect2(o + Vector2(i * TILE * 3.2, 0), Vector2(TILE * 2.0, TILE * 2.0)), ids[i], Color.WHITE)
 	_draw_gate(Rect2(o + Vector2(0, TILE * 3.5), Vector2(TILE * 2.0, TILE)))
@@ -1222,6 +1222,10 @@ func _draw_pin(tip: Vector2, icon: String, color: Color, s := 1.0) -> void:
 		draw_texture_rect(tex, Rect2(c - Vector2(sz, sz) / 2, Vector2(sz, sz)), false)
 
 
+const DECO_HAUTEUR := {"lampadaire": 1.5, "statue": 1.3, "tonnelle": 1.4, "topiaire": 1.2}
+const DECO_LARGEUR := {"banc": 1.0, "fontaine": 1.15, "massif": 1.15, "parterre": 1.05}
+
+
 ## Décorations de l'Intendance : le sprite « deco_<id> » s'il existe, sinon un petit dessin de repli.
 func _dessiner_decorations() -> void:
 	var liste: Array = game.decorations.duplicate()
@@ -1234,8 +1238,11 @@ func _dessiner_decorations() -> void:
 		var nom := "deco_%s" % d["id"]
 		if SpritesBD.existe(nom):
 			var tex := SpritesBD.texture(nom)
-			var larg := TILE * 1.15
-			var haut := larg * tex.get_height() / float(tex.get_width())
+			var ratio := tex.get_height() / float(tex.get_width())
+			var haut: float = TILE * float(DECO_HAUTEUR.get(d["id"], 0.0))
+			var larg := haut / ratio if haut > 0.0 else TILE * float(DECO_LARGEUR.get(d["id"], 1.0))
+			if haut <= 0.0:
+				haut = larg * ratio
 			draw_texture_rect(tex, Rect2(pied - Vector2(larg / 2.0, haut), Vector2(larg, haut)), false)
 		else:
 			_decoration_repli(str(d["id"]), pied)

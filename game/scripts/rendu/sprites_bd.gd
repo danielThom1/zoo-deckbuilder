@@ -13,7 +13,7 @@ const MANIFESTE := "res://assets/bd/sprites_bd.json"
 const BATIMENTS := {
 	"camp": "camp3", "maison": "maison", "entrepot": "entrepot", "mine": "mine", "entree": "entree",
 	"boutique": "souvenirs", "formation": "formation", "comptoir": "marche", "agence": "agence", "cabinet": "cabinet",
-	"cuisine": "cuisine", "entretien": "atelier", "intendance": "atelier", "snack": "snack", "kiosque": "scene", "mairie": "mairie",
+	"cuisine": "cuisine", "entretien": "atelier", "intendance": "intendance", "snack": "snack", "kiosque": "scene", "mairie": "mairie",
 	# aménagements d'enclos
 	"grand_arbre": "arbre1", "rocher_obs": "rocher_obs", "bassin_profond": "bassin", "abri_chaud": "abri",
 }
