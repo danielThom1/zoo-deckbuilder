@@ -1251,8 +1251,8 @@ func _draw_turned(r: Rect2, turned: bool, draw_fn: Callable) -> void:
 ## Entrée du zoo : deux piliers et un portique.
 ## Marche : jambe avant, jambes croisées, autre jambe, jambes croisées.
 const MARCHE_CYCLE := [0, 1, 2, 1]
-const MARCHE_CASES_PAR_IMAGE := 0.5  # un pas couvre une case, comme l'écart des pieds sur le dessin : les pieds ne glissent pas
-const MARCHE_IMAGES_MAX := 3.0  # images par seconde au plus, même en jeu accéléré
+const MARCHE_CASES_PAR_IMAGE := 0.25  # deux images par case parcourue (essai validé à la main)
+const MARCHE_IMAGES_MAX := 6.0  # images par seconde au plus, même en jeu accéléré
 
 
 ## Outil de la tâche -> rangée de la feuille d'animation du personnage.

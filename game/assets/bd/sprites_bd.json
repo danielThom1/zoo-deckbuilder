@@ -6574,5 +6574,77 @@
    25,
    88
   ]
+ },
+ "iso_cuisine": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_cuisine.png",
+  "pied": [
+   230,
+   442
+  ],
+  "taille": [
+   460,
+   442
+  ]
+ },
+ "iso_cuisine_d": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_cuisine_d.png",
+  "pied": [
+   230,
+   440
+  ],
+  "taille": [
+   460,
+   440
+  ]
+ },
+ "iso_intendance": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_intendance.png",
+  "pied": [
+   230,
+   415
+  ],
+  "taille": [
+   460,
+   415
+  ]
+ },
+ "iso_intendance_d": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_intendance_d.png",
+  "pied": [
+   230,
+   366
+  ],
+  "taille": [
+   460,
+   366
+  ]
+ },
+ "iso_snack": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_snack.png",
+  "pied": [
+   230,
+   412
+  ],
+  "taille": [
+   460,
+   412
+  ]
+ },
+ "iso_snack_d": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_snack_d.png",
+  "pied": [
+   230,
+   415
+  ],
+  "taille": [
+   460,
+   415
+  ]
  }
 }
