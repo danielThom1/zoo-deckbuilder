@@ -183,7 +183,6 @@ var unit_portrait_for: Variant = null
 var pile_label: Label
 var pile_root: ColorRect  # vue de la pioche et de la défausse (clic sur la pioche)
 var pile_box: VBoxContainer
-var loan_btn: Button
 var medallion: Control
 var end_day_btn: Button
 var build_pages := {}
@@ -1947,7 +1946,6 @@ func _process(delta: float) -> void:
 			entry[0].disabled = game.phase != "day" or not game.can_afford(entry[2].get("cout", {}))
 		_update_trade()
 		_update_publicity()
-		_update_loan()
 		var ev: Dictionary = mt.current_event
 		event_label.visible = mt.phase == "day" and not ev.is_empty() and not (hubert and hubert.grande_visible())
 		if not ev.is_empty():
@@ -2083,7 +2081,7 @@ func _cmd(nom: String, args := []) -> Variant:
 
 
 const SONS_ORDRES := {"deploy": "carte", "play_action": "carte", "play_cadre": "carte", "place": "pose", "buy_contract": "achat", "hire": "achat", "buy_action": "achat",
-	"buy_label": "achat", "launch_campaign": "achat", "sell_amount": "piece", "buy_material": "piece", "publish_article": "presse", "accuse_worker": "presse"}
+	"buy_label": "achat", "launch_campaign": "achat", "sell_amount": "piece", "buy_material": "piece", "ceder_carte": "piece", "publish_article": "presse", "accuse_worker": "presse"}
 var _son_phase := ""
 var _son_chantiers := -1
 var _son_animaux := -1
@@ -2706,15 +2704,6 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 			pile_panel.accept_event()
 			if ev.pressed:
 				_open_pile())
-	loan_btn = Composants.bouton("", "BoutonPrincipal")
-	loan_btn.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	loan_btn.offset_left = 14
-	loan_btn.offset_right = 264
-	loan_btn.offset_top = -246
-	loan_btn.offset_bottom = -210
-	loan_btn.visible = false
-	loan_btn.pressed.connect(func(): _cmd("take_loan"))
-	ui.add_child(loan_btn)
 	rotate_btn = Composants.bouton("⟲ Tourner (R)", "BoutonPrincipal")
 	rotate_btn.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 	rotate_btn.offset_left = -90
@@ -3189,7 +3178,9 @@ func _rebuild_hand() -> void:
 				btns.append(["Jouer", "BoutonOrdre", spectator or game.phase != "day", _on_play_cadre.bind(card),
 					"%s : %s
 Le cadre ne travaille pas aujourd'hui (pas de salaire) et part à la défausse." % [A["nom"], A["texte"]]])
-			widget = Composants.carte_ouvrier(d, "non_abordable" if short else "normale", "main", btns)
+			var ceder := ["+%d" % game.ceder_gain(), "BoutonSecondaire", spectator or game.phase != "day", _cmd.bind("ceder_carte", [card]),
+				"Céder sa journée : +%d d'argent.\nCe collaborateur ne travaille pas aujourd'hui et part à la défausse." % game.ceder_gain()]
+			widget = Composants.carte_ouvrier(d, "non_abordable" if short else "normale", "main", btns, [], Callable(), ceder)
 		elif w and w.offmap:
 			widget = Composants.carte_ouvrier(d, "hors_carte", "main", [["Rappeler", "BoutonSecondaire", spectator, _on_recall.bind(w)]],
 				["LOBBYING", Color("6A3AB0")], _on_focus.bind(w))
@@ -4530,8 +4521,8 @@ func _rebuild_night() -> void:
 	_summary_row(night_summary, "ressource_billetterie", UiTokens.RESSOURCES["argent"]["couleur"], "Billetterie", "+%d" % inc["tickets"], UiTokens.POSITIF)
 	_summary_row(night_summary, "batiment_boutique", Color("E04A8A"), "Souvenirs", "+%d" % inc["souvenirs"], UiTokens.POSITIF)
 	_summary_row(night_summary, "ressource_argent", UiTokens.PAUSE, "Salaires", "−%d" % sal, UiTokens.NEGATIF)
-	if float(s.get("emprunt", 0.0)) > 0.0:
-		_summary_row(night_summary, "ressource_argent", UiTokens.NEGATIF, "Emprunt remboursé", "−%d" % roundi(float(s["emprunt"])), UiTokens.NEGATIF)
+	if float(s.get("cedees", 0.0)) > 0.0:
+		_summary_row(night_summary, "ressource_argent", UiTokens.POSITIF, "Journées cédées", "+%d" % roundi(float(s["cedees"])), UiTokens.POSITIF)
 	_summary_row(night_summary, "ressource_nourriture", UiTokens.RESSOURCES["logement"]["couleur"], "Nourriture des animaux", "−%d" % food, UiTokens.NEGATIF)
 	for res in ["bois", "pierre", "or"]:
 		if float(s[res]) >= 1.0:
@@ -5440,17 +5431,6 @@ func _open_swap_picker(w: GameState.Worker) -> void:
 			_close_picker()])
 	_open_picker("AGENCE D'INTÉRIM", "Remplacer %s (%s) : le remplaçant arrive à sa place, garde sa charge et reprend sa tâche ; %s part à la défausse. Coût : %d de frais + salaire du remplaçant. Une fois par jour." % [
 		w.card.nom, game.job_name(w.card), w.card.nom, int(game.data["buildings"]["agence"]["frais"])], rows)
-
-## Emprunt : proposé quand aucun ouvrier de la main ne peut être payé ; rappel du remboursement une fois pris.
-func _update_loan() -> void:
-	var L: Dictionary = game.data["workers"]["regles"]["emprunt"]
-	loan_btn.visible = not spectator and game.phase == "day" and (game.loan_today or game.loan_error() == "")
-	loan_btn.disabled = game.loan_today
-	loan_btn.text = ("Emprunt : −%d ce soir" % int(L["remboursement"])) if game.loan_today \
-		else "Emprunter %d (−%d ce soir)" % [int(L["montant"]), int(L["remboursement"])]
-	loan_btn.tooltip_text = "Aucun salaire payable : empruntez %d d'argent, %d seront retirés automatiquement ce soir (le solde peut devenir négatif). Une fois par jour." % [
-		int(L["montant"]), int(L["remboursement"])]
-
 
 ## Pioche et défausse : ce que la main de demain peut contenir (l'ordre de la pioche reste caché).
 func _open_pile() -> void:

@@ -13,6 +13,7 @@ const PARTIES_PAR_GENOME := 6
 const PARTIES_PAR_GENOME_LONGUE := 12  # à partir de 2000 parties : moins de chance dans la sélection
 const ETUDE_LONGUE := 2000
 const VIVANT := "etude_vivante"
+const PARTIES_DE_PRUDENCE := 12.0
 const PARTIES_PAR_PROCESSUS := 40  # puis le processus est remplacé (mémoire qui monte au fil des parties)
 const ECHECS_MAX := 3  # générations en erreur d'affilée avant de passer à la finale
 const ATTENTE_MAX_MS := 600000  # sans nouveau résultat pendant 10 min, les processus bloqués sont arrêtés
@@ -108,6 +109,7 @@ func _init() -> void:
 	for b in data["events"]["bonus_nuit"]:
 		noms[str(b["id"])] = "%s (%s)" % [b["nom"], b["texte"]]
 	noms["article"] = "Article de presse (Journaliste)"
+	noms["carte_cedee"] = "Journée de carte cédée (+4)"
 	noms["accusation"] = "Accusation (Journaliste)"
 	noms["agence"] = "Échange à l'Agence d'intérim"
 	noms["cabinet"] = "Remplacement au Cabinet de recrutement"
@@ -144,10 +146,11 @@ func _init() -> void:
 	var order: Array = []
 	var scores: Array = []
 	var pop_notee: Array = pop  # la population à laquelle correspondent order et scores
+	var cumuls: Array = []  # résultats des stratégies conservées (les premières de la population)
 	var echecs := 0
 	for gen in n_gen:
 		# Une erreur de script fait revenir _evaluate sans résultat : on rejoue la même population, l'étude ne s'arrête pas.
-		var notes := _evaluate(pop, jobs, gen)
+		var notes := _evaluate(pop, jobs, gen, cumuls)
 		if notes.size() != pop.size():
 			echecs += 1
 			print("Attention : génération %d perdue à cause d'une erreur (%d d'affilée)." % [gen + 1, echecs])
@@ -164,8 +167,8 @@ func _init() -> void:
 		history.append({"gen": gen, "best": best, "mean_wins": _mean(scores.map(func(s): return s["wins"]))})
 		var ecoule := (Time.get_ticks_msec() - t0) / 1000.0
 		var reste := ecoule / maxf(1.0, parties_jouees) * (total_parties - parties_jouees)
-		print("Génération %d / %d : meilleure %d %% de victoires, jour %.1f, rép. %.0f · %d parties en %d min, reste ~%d min" % [
-			gen + 1, n_gen, roundi(100.0 * best["wins"]), best["win_day"], best["rep"], parties_jouees, int(ecoule / 60.0), int(reste / 60.0)])
+		print("Génération %d / %d : meilleure %d %% de victoires sur %d parties, jour %.1f, rép. %.0f · %d parties en %d min, reste ~%d min" % [
+			gen + 1, n_gen, roundi(100.0 * best["wins"]), int(best["games"]), best["win_day"], best["rep"], parties_jouees, int(ecoule / 60.0), int(reste / 60.0)])
 		_write_report(pop, order, scores, history, [])
 		_meilleures(pop, order)
 		if budget_ms > 0 and Time.get_ticks_msec() - t0 >= budget_ms * 0.88:
@@ -177,6 +180,9 @@ func _init() -> void:
 			break
 		if gen < n_gen - 1:
 			pop = _next_generation(pop, order)
+			cumuls = []
+			for k in 4:
+				cumuls.append(scores[order[k]])
 	var classement := _finale(pop_notee, order, finale, jobs)
 	_write_report(pop_notee, order, scores, history, classement)
 	_arreter_processus()
@@ -392,7 +398,7 @@ func _travailler() -> void:
 
 ## Chaque génome joue PARTIES_PAR_GENOME parties contre des adversaires tirés dans la population. Score : victoires (×3),
 ## vitesse de victoire, réputation finale.
-func _evaluate(pop: Array, jobs: int, gen: int) -> Array:
+func _evaluate(pop: Array, jobs: int, gen: int, cumuls: Array) -> Array:
 	var slots: Array = []
 	for k in parties_par_genome:
 		var idx := range(pop.size())
@@ -404,8 +410,11 @@ func _evaluate(pop: Array, jobs: int, gen: int) -> Array:
 		matches.append({"seed": rng.randi_range(1, 1 << 30), "ids": four, "genomes": four.map(func(i): return pop[i])})
 	var results := _jouer(matches, jobs)
 	var sc: Array = []
+	# Une stratégie conservée garde ses résultats : une série chanceuse ne suffit plus à rester en tête.
 	for i in pop.size():
-		sc.append({"games": 0, "wins": 0.0, "rep": 0.0, "win_days": [], "fitness": 0.0, "win_day": 99.0})
+		var acquis: Dictionary = cumuls[i] if i < cumuls.size() else {}
+		sc.append({"games": int(acquis.get("games", 0)), "wins_t": float(acquis.get("wins_t", 0.0)), "rep_t": float(acquis.get("rep_t", 0.0)),
+			"win_days": acquis.get("win_days", []).duplicate(), "wins": 0.0, "rep": 0.0, "fitness": 0.0, "win_day": 99.0})
 	var objectif := float(data["buildings"]["partie"]["objectif_reputation"])
 	for k in results:
 		var r: Dictionary = results[k]
@@ -414,18 +423,20 @@ func _evaluate(pop: Array, jobs: int, gen: int) -> Array:
 		for p in 4:
 			var s: Dictionary = sc[four[p]]
 			s["games"] += 1
-			s["rep"] += float(r["joueurs"][p]["rep"])
+			s["rep_t"] += float(r["joueurs"][p]["rep"])
 			if int(r["winner"]) == p and float(r["joueurs"][p]["rep"]) >= objectif:
-				s["wins"] += 1.0
+				s["wins_t"] += 1.0
 				s["win_days"].append(int(r["day"]))
 	var jmax := float(data["buildings"]["partie"]["jour_max"])
 	for s in sc:
 		var n := maxf(1.0, s["games"])
-		s["rep"] /= n
-		s["wins"] /= n
+		s["rep"] = s["rep_t"] / n
+		s["wins"] = s["wins_t"] / n
 		if not s["win_days"].is_empty():
 			s["win_day"] = _mean(s["win_days"])
-		s["fitness"] = s["wins"] * 3.0 + (jmax - s["win_day"]) / jmax * s["wins"] * 2.0 + s["rep"] / 100.0
+		# Peu de parties : le taux est tiré vers la moyenne (25 %), pour ne pas croire à un coup de chance.
+		var prudent: float = (s["wins_t"] + 0.25 * PARTIES_DE_PRUDENCE) / (n + PARTIES_DE_PRUDENCE)
+		s["fitness"] = prudent * 3.0 + (jmax - s["win_day"]) / jmax * prudent * 2.0 + s["rep"] / 100.0
 	return sc
 
 
@@ -714,13 +725,13 @@ func _write_report(pop: Array, order: Array, scores: Array, history: Array, clas
 		L.append("")
 	L.append("## Stratégies apprises")
 	L.append("")
-	L.append("| Génération | Victoires de la meilleure | Jour moyen | Réputation | Moyenne de la population |")
-	L.append("|---|---|---|---|---|")
+	L.append("| Génération | Victoires de la meilleure | Ses parties | Jour moyen | Réputation | Moyenne de la population |")
+	L.append("|---|---|---|---|---|---|")
 	var pas := maxi(1, history.size() / 15)
 	for k in range(0, history.size(), pas):
 		var h: Dictionary = history[k]
 		var b: Dictionary = h["best"]
-		L.append("| %d | %d %% | %s | %.0f | %d %% |" % [h["gen"] + 1, roundi(100.0 * b["wins"]), "—" if b["win_day"] >= 99.0 else "%.1f" % b["win_day"], b["rep"], roundi(100.0 * h["mean_wins"])])
+		L.append("| %d | %d %% | %d | %s | %.0f | %d %% |" % [h["gen"] + 1, roundi(100.0 * b["wins"]), int(b["games"]), "—" if b["win_day"] >= 99.0 else "%.1f" % b["win_day"], b["rep"], roundi(100.0 * h["mean_wins"])])
 	L.append("")
 	var top := mini(8, order.size())
 	for k in mini(4, top):

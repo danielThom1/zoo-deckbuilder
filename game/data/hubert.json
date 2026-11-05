@@ -10,7 +10,7 @@
     "licenciement_cout": "contrarie",
     "embauche": "moqueur",
     "pas_argent": "contrarie",
-    "emprunt": "moqueur",
+    "carte_cedee": "moqueur",
     "contrat_achete": "content",
     "ouverture": "content",
     "guichet": "furieux",
@@ -98,10 +98,9 @@
       "Caisse vide : {nom} reste au lit. Vendez quelque chose. N'importe quoi.",
       "On ne mobilise pas {nom} avec des promesses. J'ai essayé."
     ],
-    "emprunt": [
-      "La banque vous fait confiance. Elle ne vous connaît pas encore.",
-      "ZooLife™ vous avance de l'argent à un taux très familial.",
-      "Emprunt accordé. Ce soir, vous rendez plus que vous n'avez reçu : c'est le principe, et il est magnifique."
+    "carte_cedee": [
+      "J'ai loué {nom} à un concurrent pour la journée. Quatre pièces. C'est au-dessus de sa valeur de marché.",
+      "{nom} ne travaille pas aujourd'hui, mais rapporte quand même. C'est le collaborateur idéal."
     ],
     "soir_bon": [
       "Résultats en hausse. Attendez-vous à ce que l'objectif de demain le soit aussi."

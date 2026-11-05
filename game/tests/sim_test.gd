@@ -953,14 +953,15 @@ func _init() -> void:
 			fq._complete(st)
 	check(fq.animals.size() == f_n0 + 1 and fq.pending_installs.is_empty() and fq.animals[-1].def == f_one,
 		"clôtures terminées : l'animal réservé s'installe")
-	# Emprunt quand aucun salaire n'est payable
+	# Céder la journée d'une carte contre de l'argent
 	var gl := _fresh_day(data, 4242)
 	for c in gl.hand:
 		c.traits.erase("econome")
 	gl.money = 0.0
-	check(gl.take_loan() and is_equal_approx(gl.money, 10.0) and not gl.take_loan(), "emprunt de 10, une fois par jour")
-	gl.end_day()
-	check(is_equal_approx(gl.money, -2.0), "le soir, 12 sont retirés : solde négatif (%.0f)" % gl.money)
+	var gl_carte: GameState.Card = gl.hand[0]
+	var gl_main := gl.hand.size()
+	check(gl.ceder_carte(gl_carte) and is_equal_approx(gl.money, 4.0) and gl.hand.size() == gl_main - 1 and gl.discard.has(gl_carte), "carte cédée : +4 d'argent, elle part à la défausse")
+	check(not gl.ceder_carte(gl_carte), "une carte déjà cédée ne se cède plus")
 	data["events"]["proba_evenement"] = f_proba
 
 	print("IA :")

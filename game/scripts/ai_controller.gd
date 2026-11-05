@@ -44,6 +44,9 @@ const ZOO_SIZES := {"petit": Vector2i(12, 10), "moyen": Vector2i(16, 13), "grand
 
 const DIRS4: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 const THINK_EVERY := 2.0
+const REPARTIR_TOUTES_LES := 30.0
+const TRAVAIL_PAR_MATERIAU := 5.0  # ordre de grandeur : clôture 4 pour 1 pierre, entrée 90 pour 12 matériaux
+const ATTENTE_CHANTIER_MAX := 40.0
 const AGRANDIR_MAX := 4  # agrandissements au plus dans une partie
 const PARC_MAX := Vector2i(46, 38)
 const PROFONDEURS := [6, 9, 12]  # cases gagnées d'un côté à chaque agrandissement
@@ -66,6 +69,11 @@ var lobby_today := 0
 var _plan_cache := {}  # id d'espèce -> plan d'enclos, valable tant que l'état du joueur ne change pas
 var _plan_cache_key := ""
 var _anneaux := {}
+var roles := {}  # carte -> "chantier" ou "recolte", voir _repartir
+var prochaine_repartition := 0.0
+var repartition_jour := -1
+var repartition_nb := -1
+var attente_chantier := 0.0  # secondes pendant lesquelles un chantier posé attend quelqu'un
 var _murs_version := -1
 var _murs_rect := Rect2i()
 var _murs_valeur := 0.0
@@ -225,14 +233,22 @@ func on_day_start() -> void:
 	_play_cadres()
 	var hand := g.hand.filter(func(c): return not c.is_action())
 	hand.sort_custom(func(a, b): return card_value(a) > card_value(b))
-	g.take_loan()  # seulement si aucun salaire n'est payable (voir loan_error)
-	for c in hand:
+	# Salaire hors de portée : la journée de la carte la moins utile paie celui de la meilleure.
+	var attente := hand.duplicate()
+	var k := 0
+	while k < attente.size():
+		var c: GameState.Card = attente[k]
 		if g.money >= g.salary(c):
 			g.deploy(c)
+			attente.remove_at(k)
+		elif attente.size() - 1 > k and g.money + g.ceder_gain() >= g.salary(c):
+			g.ceder_carte(attente.pop_back())
+		else:
+			k += 1
 	# Le meilleur ouvrier restant part gratuitement (rendement réduit) plutôt que de rester en main. Un ouvrier
 	# manuel de préférence : sans argent, un cadre gratuit (lobbying, col blanc) ne ferait avancer aucun chantier.
 	var free_pick: GameState.Card = null
-	for c in hand:
+	for c in attente:
 		if not c.deployed and (free_pick == null or _manual_value(c) > _manual_value(free_pick)):
 			free_pick = c
 	if free_pick:
@@ -484,6 +500,7 @@ func update(dt: float) -> void:
 	if think_clock > 0.0:
 		return
 	think_clock = THINK_EVERY
+	_repartir()
 	_buy_materials()
 	_place_wants()
 	_try_install()
@@ -1393,12 +1410,40 @@ func _land(t: Vector2i) -> bool:
 func _ring(r: Rect2i) -> Array[Vector2i]:
 	if _anneaux.has(r):
 		return _anneaux[r]
+	# Dans l'ordre du tour, case après case : posés dans cet ordre, les murs se construisent de proche en proche.
 	var out: Array[Vector2i] = []
-	for y in range(r.position.y, r.end.y):
-		for x in range(r.position.x, r.end.x):
-			if x == r.position.x or y == r.position.y or x == r.end.x - 1 or y == r.end.y - 1:
-				out.append(Vector2i(x, y))
+	var x0 := r.position.x
+	var y0 := r.position.y
+	var x1 := r.end.x - 1
+	var y1 := r.end.y - 1
+	for x in range(x0, x1 + 1):
+		out.append(Vector2i(x, y0))
+	for y in range(y0 + 1, y1 + 1):
+		out.append(Vector2i(x1, y))
+	if y1 > y0:
+		for x in range(x1 - 1, x0 - 1, -1):
+			out.append(Vector2i(x, y1))
+	if x1 > x0:
+		for y in range(y1 - 1, y0, -1):
+			out.append(Vector2i(x0, y))
 	_anneaux[r] = out
+	return out
+
+
+## Le tour de l'enceinte, en partant de la case la plus proche du camp : les ouvriers avancent d'un seul côté.
+func _ring_depuis_camp(r: Rect2i) -> Array[Vector2i]:
+	var tour := _ring(r)
+	var c: Vector2i = g.map.camp.get_center()
+	var depart := 0
+	var meilleur := 1 << 40
+	for i in tour.size():
+		var d: int = (tour[i] - c).length_squared()
+		if d < meilleur:
+			meilleur = d
+			depart = i
+	var out: Array[Vector2i] = []
+	out.append_array(tour.slice(depart))
+	out.append_array(tour.slice(0, depart))
 	return out
 
 
@@ -1869,7 +1914,9 @@ func _wants() -> Array:
 	if zoo_rect.size == Vector2i.ZERO:
 		return out
 	# 1 ter. Route jusqu'à l'entrée : indispensable, les visiteurs n'arrivent que par la route.
-	if day >= 2 and entrance.x >= 0 and _walls_progress() >= 0.3 and g.visitor_path().is_empty():
+	# Elle se fait de toute façon : dès le début, elle double la vitesse des allers-retours vers le parc.
+	var route_tot: bool = not strat.get("sans_route_tot", false)
+	if (route_tot or (day >= 2 and _walls_progress() >= 0.3)) and entrance.x >= 0 and g.visitor_path().is_empty():
 		var n := 0
 		for t in _road_plan():
 			if n >= 12:
@@ -1906,14 +1953,14 @@ func _wants() -> Array:
 	# 2. Enceinte et entrée.
 	if entrance.x >= 0 and g.site_at(entrance) == null:
 		out.append(["batiment", g.building_def("entree"), entrance])
-	for t in _ring(zoo_rect):
+	for t in _ring_depuis_camp(zoo_rect):
 		if t == entrance or t == entrance + Vector2i(1, 0) or g.site_at(t) != null or g.is_mountain(t):
 			continue
 		out.append(["batiment", g.building_def("cloture"), t])
 	# 2 bis. Parc évolutif : une fois le petit parc lancé, on construit l'enceinte du grand parc,
 	# puis on démolit les anciens murs intérieurs.
 	if target_rect.size != Vector2i.ZERO and not expanded and _walls_progress() >= 1.0 and (day >= 6 or g.animals.size() >= 2 or agrandissements > 0):
-		var big_ring := _ring(target_rect)
+		var big_ring := _ring_depuis_camp(target_rect)
 		var pending := false
 		for t in big_ring:
 			if t == entrance or t == entrance + Vector2i(1, 0) or g.is_wall(t) or g.is_mountain(t):
@@ -2294,10 +2341,132 @@ func _assign(w: GameState.Worker) -> void:
 			g.order([w], school[0].rect.position)
 			return
 	var site := _best_site_for(w)
-	if site:
+	if site and _va_construire(w, site):
 		g.order([w], site.rect.position)
 		return
 	_gather(w)
+	if site and w.task.is_empty():  # plus rien à récolter
+		g.order([w], site.rect.position)
+
+
+# --- Répartition : qui récolte, qui construit -----------------------------------------------
+
+## Ouvriers disponibles pour récolter ou construire (ni à un poste, ni dehors).
+func _bras_libres() -> Array:
+	return g.workers.filter(func(w): return not w.offmap and not w.task.get("type") in ["station", "feed", "clean", "lobby"] \
+		and not w.card.metier["id"] in ["lobbyiste", "journaliste", "marchand"] and not w.card.traits.has("col_blanc"))
+
+
+## Ressources par seconde d'un ouvrier, allers-retours au dépôt compris.
+func _debit_recolte(w: GameState.Worker, res: String) -> float:
+	var par_seconde := float(g.data["buildings"]["extraction"][res]) * g.efficiency(w.card, "extraire_" + res) / 60.0
+	if w.unpaid:
+		par_seconde *= 0.25
+	if par_seconde <= 0.0:
+		return 0.001
+	var cases: Array = resource_tiles.get(res, [])
+	var distance := 10.0
+	if not cases.is_empty():
+		distance = INF
+		for d in g.depots():
+			distance = minf(distance, Vector2(d.get_center()).distance_to(Vector2(cases[0])))
+	var charge := float(g.carry_capacity(w.card))
+	return charge / (charge / par_seconde + 2.0 * distance / maxf(0.1, g.speed(w.card)))
+
+
+## Le vrai calcul : le chantier demande du travail et des matériaux. On partage les ouvriers en deux groupes pour finir le
+## plus tôt possible : temps = le plus long de (travail / bâtisseurs) et (matériaux manquants / récolteurs). Chacun va là
+## où il est le plus utile : le Maçon à la truelle, le Bûcheron à la hache. Ainsi les récolteurs ne font plus d'allers-retours.
+func _repartir() -> void:
+	if strat.get("sans_roles", false):
+		return
+	var attend := g.sites.any(func(s): return not s.done and _builders(s) == 0)
+	attente_chantier = attente_chantier + THINK_EVERY if attend else 0.0
+	if g.time < prochaine_repartition and repartition_jour == g.day and repartition_nb == g.workers.size():
+		return
+	prochaine_repartition = g.time + REPARTIR_TOUTES_LES
+	repartition_jour = g.day
+	repartition_nb = g.workers.size()
+	var libres := _bras_libres()
+	if libres.is_empty():
+		return
+	var needs := _needs()
+	var manque_b := maxf(0.0, float(needs["bois"]) - g.stock["bois"])
+	var manque_p := maxf(0.0, float(needs["pierre"]) - g.stock["pierre"])
+	var manque := manque_b + manque_p
+	# Travail : chantiers posés, plus ce que coûteront en main-d'œuvre les matériaux des chantiers à venir.
+	var par_type := {}
+	var travail := 0.0
+	var amenager := 0.0
+	for s in g.sites:
+		if s.done:
+			continue
+		var reste := maxf(0.0, s.travail() - s.work)
+		if s.kind == "amenagement":
+			amenager += reste
+			continue
+		par_type[s.type_travail()] = float(par_type.get(s.type_travail(), 0.0)) + reste
+		travail += reste
+	var futur := (float(needs["bois"]) + float(needs["pierre"])) * TRAVAIL_PAR_MATERIAU
+	par_type["construire_pierre"] = float(par_type.get("construire_pierre", 0.0)) + futur
+	travail += futur
+	if manque + travail <= 0.0:
+		for w in libres:
+			roles[w.card.id] = "recolte"
+		return
+	var fiches := []
+	for w in libres:
+		var temps := 0.0
+		for ty in par_type:
+			temps += float(par_type[ty]) / maxf(0.05, g.efficiency(w.card, ty))
+		var cons := travail / maxf(0.001, temps) if travail > 0.0 else 0.0
+		if w.unpaid:
+			cons *= 0.25
+		var unite := 0.0  # secondes pour un matériau, dans la proportion de ce qui manque
+		if manque > 0.0:
+			unite = manque_b / manque / _debit_recolte(w, "bois") + manque_p / manque / _debit_recolte(w, "pierre")
+		var rec := 1.0 / unite if unite > 0.0 else 1.0
+		fiches.append({"w": w, "cons": cons, "rec": rec, "avantage": cons / rec, "force": amenager > 0.0 and g.can_landscape(w.card)})
+	fiches.sort_custom(func(a, b): return a["force"] and not b["force"] or (a["force"] == b["force"] and a["avantage"] > b["avantage"]))
+	var forces := fiches.filter(func(f): return f["force"]).size()
+	var meilleur_k := forces
+	var meilleur_t := INF
+	for k in range(forces, fiches.size() + 1):
+		var somme_c := 0.0
+		var somme_r := 0.0
+		for i in fiches.size():
+			if i < k:
+				somme_c += float(fiches[i]["cons"])
+			else:
+				somme_r += float(fiches[i]["rec"])
+		var t_chantier: float = travail / somme_c if somme_c > 0.0 else (INF if travail > 0.0 else 0.0)
+		var t_recolte: float = manque / somme_r if somme_r > 0.0 else (INF if manque > 0.0 else 0.0)
+		var duree := maxf(t_chantier, t_recolte)
+		if duree < meilleur_t - 0.001:
+			meilleur_t = duree
+			meilleur_k = k
+	for i in fiches.size():
+		roles[fiches[i]["w"].card.id] = "chantier" if i < meilleur_k else "recolte"
+
+
+## Le déplacement vaut-il le coup ? Un récolteur reste à sa récolte ; un bâtisseur ne traverse pas la carte pour dix secondes de travail.
+func _va_construire(w: GameState.Worker, site: GameState.Site) -> bool:
+	if strat.get("sans_roles", false):
+		return true
+	if roles.get(w.card.id, "chantier") == "recolte" and attente_chantier < ATTENTE_CHANTIER_MAX * 2.0:
+		return false
+	var trajet := w.pos.distance_to(Vector2(site.rect.get_center())) / maxf(0.1, g.speed(w.card))
+	if trajet <= 6.0 or attente_chantier >= ATTENTE_CHANTIER_MAX:
+		return true
+	var pose := 0.0
+	for s in g.sites:
+		if not s.done and s.kind == site.kind:
+			pose += maxf(0.0, s.travail() - s.work)
+	var batisseurs := 0
+	for o in g.workers:
+		if roles.get(o.card.id, "") == "chantier":
+			batisseurs += 1
+	return pose / maxi(1, batisseurs) >= trajet * 1.5
 
 
 ## L'argent en trop achète le bois et la pierre qui manquent aux prochains chantiers.
@@ -2600,6 +2769,6 @@ func _reassign_idle_extractors() -> void:
 	for w in g.workers:
 		if w.task.get("type") == "extract" and w.carry < 0.5 and w.task.get("res") != "or":
 			var site := _best_site_for(w)
-			if site:
+			if site and _va_construire(w, site):
 				g.order([w], site.rect.position)
 				return

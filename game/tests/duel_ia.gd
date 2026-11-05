@@ -18,6 +18,9 @@ const VARIANTES := {
 	"sans_roster": {"nom": "sans_roster", "sans_roster": true},
 	"sans_epargne": {"nom": "sans_epargne", "sans_epargne": true},
 	"sans_besoin": {"nom": "sans_besoin", "sans_besoin": true},
+	"sans_roles": {"nom": "sans_roles", "sans_roles": true},
+	"sans_route_tot": {"nom": "sans_route_tot", "sans_route_tot": true},
+	"sans_les_deux": {"nom": "sans_les_deux", "sans_roles": true, "sans_route_tot": true},
 }
 
 

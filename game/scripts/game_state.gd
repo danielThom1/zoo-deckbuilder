@@ -170,7 +170,6 @@ var accusation_du_jour := false
 var _batiments := {}
 var _batiments_version := -1
 var _batiments_nb := -1
-var loan_today := false  # emprunt du jour, remboursé automatiquement le soir
 var pending_installs: Array = []  # animaux réservés dans un enclos en chantier : [{"def", "tile"}]
 var _zoo_cache_version := -1
 var _zoo_cache := {}
@@ -1738,12 +1737,6 @@ func _end_day_player() -> void:
 	var income := _close_zoo_day()  # les recettes ont été encaissées pendant la journée
 	var fallen_ill := _roll_diseases()
 	version += 1  # invalide le cache de l'enceinte (nouveaux animaux)
-	# Emprunt du jour : remboursé automatiquement, quitte à passer en négatif.
-	if loan_today:
-		var back := float(data["workers"]["regles"]["emprunt"]["remboursement"])
-		money -= back
-		day_stats["emprunt"] = back
-		say("Emprunt remboursé : %d (solde %d)." % [int(back), floori(money)])
 	for w in workers:
 		_unload(w)  # la charge portée est encaissée le soir
 		var card := w.card
@@ -1792,7 +1785,6 @@ func _start_day_player() -> void:
 	presse_jours = maxi(0, presse_jours - 1)
 	article_du_jour = false
 	accusation_du_jour = false
-	loan_today = false
 	# Améliorations de niveau non choisies pendant la nuit : la première proposée est appliquée.
 	while not level_choices.is_empty():
 		var lc: Dictionary = level_choices[0]
@@ -1984,27 +1976,30 @@ func has_species(id: String) -> bool:
 		or pending_installs.any(func(r): return r["def"]["id"] == id)
 
 
-## Emprunt : possible une fois par jour quand aucun ouvrier de la main ne peut être payé.
-func loan_error() -> String:
+## Céder la journée d'un collaborateur : il ne travaille pas aujourd'hui, part à la défausse, et rapporte un peu d'argent.
+## C'est le recours quand il ne reste plus de quoi payer les salaires.
+func ceder_error(card: Card) -> String:
 	if phase != "day":
 		return "Uniquement en journée"
-	if loan_today:
-		return "Déjà un emprunt aujourd'hui"
-	var waiting := hand.filter(func(c): return not c.is_action() and not c.deployed)
-	if waiting.is_empty():
-		return "Aucun collaborateur à mobiliser"
-	if prime_left > 0 or waiting.any(func(c): return money >= salary(c)):
-		return "Vous pouvez encore payer un collaborateur"
+	if card.deployed or card.is_action() or not hand.has(card):
+		return "Seulement un collaborateur de la main, pas encore mobilisé"
 	return ""
 
 
-func take_loan() -> bool:
-	if loan_error() != "":
+func ceder_gain() -> int:
+	return int(data["workers"]["regles"]["carte_cedee"])
+
+
+func ceder_carte(card: Card) -> bool:
+	if ceder_error(card) != "":
 		return false
-	var L: Dictionary = data["workers"]["regles"]["emprunt"]
-	money += float(L["montant"])
-	loan_today = true
-	say("Emprunt de %d : %d seront retirés ce soir." % [int(L["montant"]), int(L["remboursement"])])
+	var gain := ceder_gain()
+	hand.erase(card)
+	discard.append(card)
+	money += gain
+	day_stats["cedees"] = float(day_stats.get("cedees", 0.0)) + gain
+	journal_cartes.append({"id": "carte_cedee", "day": day})
+	annonce("carte_cedee", {"nom": card.nom}, "%s cède sa journée : +%d d'argent." % [card.nom, gain])
 	version += 1
 	return true
 
