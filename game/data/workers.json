@@ -47,7 +47,7 @@
     { "id": "bucheron",    "nom": "Bûcheron", "nom_f": "Bûcheronne",          "categorie": "peu_qualifie", "cout": 0,  "salaire": 1, "vitesse": 1.0, "efficacite": { "defaut": 0.9, "extraire_bois": 1.8 } },
     { "id": "macon",       "nom": "Maçon", "nom_f": "Maçonne",             "categorie": "peu_qualifie", "cout": 0,  "salaire": 1, "vitesse": 1.0, "efficacite": { "defaut": 0.9, "construire_pierre": 1.5 } },
     { "id": "mineur",      "nom": "Mineur", "nom_f": "Mineuse",            "categorie": "peu_qualifie", "cout": 0,  "salaire": 1, "vitesse": 0.9, "efficacite": { "defaut": 0.9, "extraire_pierre": 1.5, "extraire_or": 1.5 } },
-    { "id": "terrassier",  "nom": "Terrassier", "nom_f": "Terrassière",        "categorie": "peu_qualifie", "cout": 0,  "salaire": 1, "vitesse": 1.0, "efficacite": { "defaut": 0.9, "amenager": 1.5 } },
+    { "id": "terrassier",  "nom": "Terrassier", "nom_f": "Terrassière",        "categorie": "peu_qualifie", "cout": 0,  "salaire": 2, "vitesse": 1.0, "efficacite": { "defaut": 0.9, "amenager": 1.5 } },
     { "id": "porteur",     "nom": "Porteur", "nom_f": "Porteuse",           "categorie": "peu_qualifie", "cout": 0,  "salaire": 1, "vitesse": 1.4, "efficacite": { "defaut": 0.9 }, "capacite_portage": 2 },
     { "id": "guichetier",  "nom": "Guichetier", "nom_f": "Guichetière",        "categorie": "peu_qualifie", "cout": 0,  "salaire": 1, "vitesse": 1.0, "efficacite": { "defaut": 1.0, "guichet": 1.8 }, "capacite": "Au guichet de l'Entrée : fait entrer les visiteurs 1,8 fois plus vite." },
     { "id": "animalier",   "nom": "Animalier", "nom_f": "Animalière",         "categorie": "peu_qualifie", "cout": 0,  "salaire": 1, "vitesse": 1.0, "efficacite": { "defaut": 1.05, "nourrir": 2.0 }, "capacite": "À la Cuisine des animaux : prépare les rations deux fois plus vite. Bon travailleur partout ailleurs (×1,05)." },
@@ -55,7 +55,7 @@
     { "id": "apprenti",    "nom": "Apprenti", "nom_f": "Apprentie",          "categorie": "peu_qualifie", "cout": 0,  "salaire": 1, "vitesse": 1.0, "efficacite": { "defaut": 0.8 }, "xp_mult": 1.7, "capacite": "Gagne de l'expérience 1,7 fois plus vite." },
 
     { "id": "charpentier", "nom": "Charpentier", "nom_f": "Charpentière",       "categorie": "qualifie", "cout": 8,  "salaire": 2, "vitesse": 1.0, "efficacite": { "defaut": 1.0, "construire_bois": 2.0, "construire_enclos": 1.5 } },
-    { "id": "paysagiste",  "nom": "Paysagiste",        "categorie": "qualifie", "cout": 9,  "salaire": 2, "vitesse": 1.0, "efficacite": { "defaut": 1.0, "amenager": 2.5 } },
+    { "id": "paysagiste",  "nom": "Paysagiste",        "categorie": "qualifie", "cout": 9,  "salaire": 3, "vitesse": 1.0, "efficacite": { "defaut": 1.0, "amenager": 2.5 } },
     { "id": "cantonnier",  "nom": "Cantonnier", "nom_f": "Cantonnière",        "categorie": "qualifie", "cout": 7,  "salaire": 2, "vitesse": 1.1, "efficacite": { "defaut": 1.1, "construire_route": 3.0 } },
     { "id": "soigneur",    "nom": "Soigneur", "nom_f": "Soigneuse",          "categorie": "qualifie", "cout": 10, "salaire": 2, "vitesse": 1.0, "efficacite": { "defaut": 0.9, "construire_enclos": 1.6, "soigner": 1.0 }, "capacite": "Posté dans un enclos (clic droit) : soigne les animaux malades et donne +2 d'attractivité à l'animal soigné ce jour-là." },
 

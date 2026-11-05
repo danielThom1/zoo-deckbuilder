@@ -220,6 +220,9 @@ var end_dismissed := false
 var end_views: HBoxContainer  # carte finale : un bouton par joueur pour voir son zoo
 ## Relance demandée par l'écran de fin (« jouer », « spectateur », « menu ») : survit au rechargement de la scène.
 static var relance := ""
+static var replay_demande: Replay = null  # replay à lancer après le rechargement de la scène
+var replay: Replay = null  # partie rejouée (vue spectateur)
+var replay_verifie := false
 static var relance_difficile := false  # « Rejouer » garde la difficulté choisie
 
 
@@ -246,13 +249,28 @@ func _ready() -> void:
 		if mode == "menu":
 			_show_menu()
 		else:
-			_start(mode == "spectateur")
+			if mode == "replay":
+				replay = replay_demande
+			_start(mode == "spectateur" or mode == "replay")
 		return
 	# icônes SVG du monde lissées quand on dézoome
 	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	# Test du multijoueur : un joueur automatique héberge ou rejoint (tests/mp_auto.gd)
 	if args.has("mp-hote") or args.has("mp-rejoindre"):
 		add_child(load("res://tests/mp_auto.gd").new(self))
+		return
+	# Les IA entre elles et le replay d'une étude sont réservés au développement.
+	if not OS.has_feature("editor"):
+		args.erase("spectateur")
+		args.erase("replay")
+	# --replay : rejoue la partie la plus courte de la dernière étude
+	if args.has("replay"):
+		replay = Replay.lire_etude()
+		if replay == null:
+			push_warning("Pas de replay : lancez d'abord une étude.")
+			_show_menu()
+		else:
+			_start(true)
 		return
 	# Arguments de test : on démarre directement. Sinon, menu de lancement.
 	if args.has("spectateur") or args.has("autodraft") or args.has("autoplay") or args.has("joueurs") or args.has("tutoriel"):
@@ -271,6 +289,11 @@ func _show_menu() -> void:
 	if args.has("reglages"):
 		menu.add_child(Reglages.new())
 	menu.multijoueur.connect(func(): _ouvrir_salon(layer))
+	menu.replay_etude.connect(func():
+		replay = Replay.lire_etude()
+		if replay:
+			layer.queue_free()
+			_start(true))
 	if args.has("salon"):
 		_ouvrir_salon(layer)
 	menu.tutoriel.connect(func():
@@ -386,7 +409,14 @@ func _start(watch: bool) -> void:
 			var humain: bool = (i == 0 and not spectator) if reseau == null else (i == local or autres_humains.has(i))
 			strategies.append(null if humain else hard[(i - (0 if spectator else 1)) % hard.size()])
 	var charge: Match = Sauvegarde.charger(GameData.load_all()) if args.has("charger") else null
-	mt = charge if charge else Match.new(GameData.load_all(), map_seed, nb, -1 if spectator else local, strategies, autres_humains)
+	if replay:
+		mt = replay.creer_partie(GameData.load_all())
+		_avertir_replay()
+	else:
+		mt = charge if charge else Match.new(GameData.load_all(), map_seed, nb, -1 if spectator else local, strategies, autres_humains)
+	mt.replay_possible = charge == null and reseau == null and not args.has("tutoriel") and not args.has("autoplay") and not args.has("autodraft")
+	if args.has("demo-fin"):
+		mt.replay_possible = true
 	mt.autosave = not spectator and not args.has("shot") and not args.has("tutoriel") and reseau == null
 	if args.has("tutoriel"):
 		Tutoriel.preparer(mt)
@@ -401,7 +431,7 @@ func _start(watch: bool) -> void:
 				var groupe: String = H["rivaux"][r % H["rivaux"].size()]
 				r += 1
 				mt.names[k] = "%s (%s)" % [groupe, partie_reseau["humains"][k]["pseudo"]] if reseau and k < partie_reseau["humains"].size() else groupe
-	game = mt.players[local]
+	game = mt.players[replay.voir if replay else local]
 	RenderingServer.set_default_clear_color(UiTokens.FOND_ECRAN)
 	_build_terrain()
 	camera = Camera2D.new()
@@ -416,6 +446,8 @@ func _start(watch: bool) -> void:
 		+ Vector2(0, vh / 2.0 - visible_center_y) / camera.zoom
 	_build_ui()
 	_set_speed(8.0 if spectator else 1.0)
+	if replay and args.has("replay-vite"):
+		speed = float(args["replay-vite"])
 	if reseau:
 		reseau.attacher(self, mt)
 	if not spectator and not args.has("tutoriel"):
@@ -433,9 +465,15 @@ func _start(watch: bool) -> void:
 	if charge:
 		Sauvegarde.reprendre(mt)
 		_set_speed(0.0)
-	if args.has("autodraft") or spectator:
+	if (args.has("autodraft") or spectator) and replay == null:
 		while mt.phase == "draft":
 			mt.pick_draft(mt.ai_choice())
+	# --demo-fin : capture de l'écran de fin. Le joueur laisse passer ses tours, les IA finissent la partie ; --demo-replay : puis son replay.
+	if args.has("demo-fin") and replay == null:
+		_demo_fin()
+		if args.has("demo-replay"):
+			_voir_replay(1)
+			return
 	if args.has("autoplay"):
 		_auto_play()
 	# --contrat : ajoute un contrat de palier 1 et passe en mode installation (captures de l'aide au placement)
@@ -1860,20 +1898,24 @@ func _process(delta: float) -> void:
 			selected.clear()
 		last_phase = mt.phase
 	_pan_keys(delta)
-	if reseau == null and mt.phase == "draft" and mt.is_ai(mt.current_drafter()):
+	if reseau == null and replay == null and mt.phase == "draft" and mt.is_ai(mt.current_drafter()):
 		ai_timer += delta
 		if ai_timer > 0.35:
 			ai_timer = 0.0
+			mt.noter("draft_ia")
 			mt.pick_draft(mt.ai_choice())
 	# La nuit, les IA jouent l'une après l'autre (on voit ce qu'elles prennent) ; en spectateur, la nuit passe seule.
-	if reseau == null and mt.phase == "night" and not mt.game_over:
+	if reseau == null and replay == null and mt.phase == "night" and not mt.game_over:
 		night_clock += delta
 		var pause := 0.3 if speed >= 8.0 else (2.0 if mt.night_stage == "bonus" else 1.1)
 		if night_clock > pause:
 			night_clock = 0.0
+			mt.noter("pas_ia")
 			if not mt.step_night() and spectator and mt.night_stage == "equipe":
 				mt.start_next_day()
-	if reseau:
+	if replay:
+		_avancer_replay(delta)
+	elif reseau:
 		_maj_multijoueur()
 	else:
 		acc += minf(delta, 0.1) * speed
@@ -1956,6 +1998,76 @@ func _note_de_direction(total: int) -> void:
 	support.add_child(tampon)
 
 
+## Rejoue la partie à la vitesse choisie : les ordres de chaque pas en journée, un coup à la fois au draft et la nuit.
+func _avancer_replay(delta: float) -> void:
+	if mt.game_over:
+		if not replay_verifie:
+			replay_verifie = true
+			if args.has("shot"):
+				print("REPLAY conforme : ", replay.conforme(mt))
+			if not replay.conforme(mt):
+				push_warning("Le replay ne redonne pas exactement la partie enregistrée.")
+				game.say("Ce replay s'écarte de la partie d'origine : les règles ont peut-être changé depuis.")
+		return
+	if speed <= 0.0:
+		return
+	if mt.phase != "day":
+		night_clock += delta
+		if night_clock > (0.08 if speed >= 8.0 else (0.3 if speed >= 2.0 else 0.8)):
+			night_clock = 0.0
+			replay.coup_suivant(mt)
+		return
+	acc += minf(delta, 0.1) * speed
+	while acc >= replay.dt and mt.phase == "day" and not mt.game_over:
+		replay.ordres_du_pas(mt)
+		if mt.phase != "day" or mt.game_over:
+			break
+		mt.tick(replay.dt)
+		acc -= replay.dt
+
+
+## Une partie d'étude n'est fidèle qu'avec les règles de l'étude.
+func _avertir_replay() -> void:
+	if replay.version != "" and replay.version != Reseau.version_jeu():
+		push_warning("Les règles ont changé depuis cette étude : la partie rejouée ne sera pas tout à fait la même.")
+
+
+## Fin de partie : revoir toute la partie d'un rival, depuis le premier jour.
+func _voir_replay(i: int) -> void:
+	replay_demande = replay if replay else Replay.depuis_partie(mt, i)
+	replay_demande.voir = i
+	_restart("replay")
+
+
+func _replay_disponible() -> bool:
+	return replay != null or (mt.replay_possible and reseau == null and not spectator)
+
+
+## Capture : le joueur humain passe tous ses tours, jusqu'à la fin de la partie.
+func _demo_fin() -> void:
+	while not mt.game_over:
+		match mt.phase:
+			"draft":
+				if mt.is_ai(mt.current_drafter()):
+					mt.noter("draft_ia")
+					mt.pick_draft(mt.ai_choice())
+				else:
+					_cmd("pick_draft", [mt.draft_pool[0]])
+			"day":
+				mt.tick(GameState.TICK)
+			"night":
+				if mt.market_stage() and mt.current_buyer() == game.index:
+					_cmd("pass_turn")
+				elif mt.night_stage == "bonus" and mt.influence_leader() == game.index:
+					_cmd("confirm_bonus")
+				elif mt.night_stage == "equipe":
+					mt.noter("jour_suivant")
+					mt.start_next_day()
+				else:
+					mt.noter("pas_ia")
+					mt.step_night()
+
+
 ## Tous les ordres du joueur passent ici : exécutés aussitôt en solo, envoyés à l'hôte en multijoueur (null : le résultat
 ## arrivera avec la trame suivante).
 func _cmd(nom: String, args := []) -> Variant:
@@ -1964,6 +2076,7 @@ func _cmd(nom: String, args := []) -> Variant:
 	if reseau:
 		reseau.envoyer(nom, Commandes.coder(args))
 		return null
+	mt.noter(nom, game.index, Commandes.coder(args))
 	if nom in Commandes.SUR_PARTIE:
 		return mt.callv(nom, args)
 	return game.callv(nom, args)
@@ -2069,7 +2182,7 @@ func _screenshot_check() -> void:
 	if not args.has("shot"):
 		return
 	frame_count += 1
-	if frame_count == 20:
+	if frame_count == int(args.get("shot-image", "20")):
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png(args["shot"])
 		get_tree().quit()
@@ -2234,12 +2347,22 @@ func _build_ui() -> void:
 		race_labels.append([pill, pl])
 	if spectator:
 		hb = pastille_haut.call(4)
+		if replay:
+			var marque := Composants.label("REPLAY")
+			marque.add_theme_font_override("font", UiTokens.police_corps(800))
+			marque.add_theme_color_override("font_color", UiTokens.ORANGE)
+			hb.add_child(marque)
+		var num_ia := 0
 		for i in mt.players.size():
 			var vb := Button.new()
-			vb.text = "IA %d" % (i + 1)
+			if mt.is_ai(i):
+				num_ia += 1
+				vb.text = "IA %d" % num_ia
+			else:
+				vb.text = "Vous"
 			vb.tooltip_text = mt.names[i]
 			vb.toggle_mode = true
-			vb.button_pressed = i == 0
+			vb.button_pressed = i == game.index
 			vb.focus_mode = Control.FOCUS_NONE
 			vb.pressed.connect(_view_player.bind(i))
 			view_buttons.append(vb)
@@ -2254,7 +2377,7 @@ func _build_ui() -> void:
 		b.text = "II" if s == 0.0 else "×%d" % int(s)
 		b.toggle_mode = true
 		b.focus_mode = Control.FOCUS_NONE
-		b.custom_minimum_size = Vector2(40, 34)
+		b.custom_minimum_size = Vector2(34 if spectator else 40, 34)
 		b.theme_type_variation = "Onglet"
 		b.pressed.connect(_set_speed.bind(s))
 		speed_buttons[s] = b
@@ -2270,7 +2393,8 @@ func _build_ui() -> void:
 	market_btn.pressed.connect(func():
 		market_root.visible = not market_root.visible
 		_rebuild_market_preview())
-	bar.add_child(market_btn)
+	if not spectator:  # la barre doit laisser la place au bouton Menu
+		bar.add_child(market_btn)
 	var help := Button.new()
 	help.text = "?"
 	help.focus_mode = Control.FOCUS_NONE
@@ -2279,7 +2403,8 @@ func _build_ui() -> void:
 	help.tooltip_text = "Clic gauche : sélectionner (glisser pour plusieurs)\nClic droit : déplacer, extraire, construire, tenir un poste, lobbying (case Accès) · Maj + clic droit : enchaîner un ordre après la tâche en cours
 Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter un bâtiment · double-clic : tout un tracé de clôture, mur ou route · Suppr : démolir\nMenu de gauche : placer un bâtiment (glisser pour routes et clôtures, R pour tourner l'entrée), Échap pour arrêter\nMolette : zoom · ZQSD : vue · Espace : pause"
 	help.pressed.connect(func(): ui.add_child(Aide.new(game.data)))
-	bar.add_child(help)
+	if not spectator:
+		bar.add_child(help)
 	var reg_btn := Button.new()
 	reg_btn.icon = UiTokens.icone("ui_reglages")
 	reg_btn.expand_icon = true
@@ -2291,7 +2416,8 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 	reg_btn.add_theme_color_override("icon_pressed_color", UiTokens.ENCRE)
 	reg_btn.tooltip_text = "Réglages : résolution, plein écran, volume"
 	reg_btn.pressed.connect(func(): ui.add_child(Reglages.new()))
-	bar.add_child(reg_btn)
+	if not spectator:
+		bar.add_child(reg_btn)
 	var quit_btn := Button.new()
 	menu_btn = quit_btn
 	quit_btn.text = "Menu"
@@ -2648,6 +2774,7 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 		if reseau:
 			reseau.basculer_pret()
 		elif tutoriel == null or tutoriel.fin_de_journee_permise():
+			mt.noter("fin_jour")
 			game.end_day())
 	end_day_btn.visible = not spectator
 	ui.add_child(end_day_btn)
@@ -4774,6 +4901,7 @@ func _on_night_next() -> void:
 	elif reseau:
 		reseau.basculer_pret()
 	else:
+		mt.noter("jour_suivant")
 		game.start_next_day()
 		selected.clear()
 
@@ -5621,12 +5749,18 @@ func _rebuild_end() -> void:
 		sort_.add_theme_font_size_override("font_size", 12)
 		sort_.add_theme_color_override("font_color", UiTokens.POSITIF if rank == 0 else UiTokens.NEGATIF)
 		sort_.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		Composants.placer(box, sort_, Vector2(0, 108), Vector2(150, 18))
+		Composants.placer(box, sort_, Vector2(0, 120), Vector2(150, 18))
 		# Voir le zoo de ce joueur sur la carte finale
 		var see := Composants.bouton("Voir son zoo" if i != me_index else "Voir mon zoo", "BoutonSecondaire")
 		see.add_theme_font_size_override("font_size", 13)
 		see.pressed.connect(_watch_board.bind(i))
-		Composants.placer(box, see, Vector2(10, 74), Vector2(130, 32))
+		Composants.placer(box, see, Vector2(10, 66), Vector2(130, 26))
+		# Revoir toute la partie d'un rival
+		if mt.is_ai(i) and _replay_disponible():
+			var rv := Composants.bouton("Revoir sa partie", "BoutonSecondaire")
+			rv.add_theme_font_size_override("font_size", 13)
+			rv.pressed.connect(_voir_replay.bind(i))
+			Composants.placer(box, rv, Vector2(10, 94), Vector2(130, 26))
 	# Panneau « Votre partie » : chiffres clés, courbes de réputation, biomes
 	var me := game.index
 	var host := Control.new()
@@ -5727,7 +5861,7 @@ func _rebuild_end() -> void:
 	buttons.offset_top = -124
 	buttons.offset_bottom = -64
 	end_root.add_child(buttons)
-	for spec in [["Rejouer", "BoutonPrincipal", func(): _restart("spectateur" if spectator else "jouer")],
+	for spec in [["Nouvelle partie" if replay else "Rejouer", "BoutonPrincipal", func(): _restart("spectateur" if spectator and replay == null else "jouer")],
 			["Revoir la carte finale", "BoutonSecondaire", func(): end_dismissed = true],
 			["Menu principal", "BoutonSecondaire", func(): _restart("menu")]]:
 		var b := Composants.bouton(spec[0], spec[1])

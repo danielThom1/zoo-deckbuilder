@@ -65,8 +65,12 @@ var resource_tiles := {}  # "bois" / "pierre" -> cases triées par distance au c
 var lobby_today := 0
 var _plan_cache := {}  # id d'espèce -> plan d'enclos, valable tant que l'état du joueur ne change pas
 var _plan_cache_key := ""
+var _anneaux := {}
+var _murs_version := -1
+var _murs_rect := Rect2i()
+var _murs_valeur := 0.0
+var _cache_cle: Array = []
 var _search_cache := {}  # recherches coûteuses (route d'accès, emplacements), même principe que _plan_cache
-var _search_cache_key := ""
 var agrandissements := 0  # commencés
 var agrandis := 0  # terminés
 var agrandi_jour := -1  # jour où l'agrandissement en cours a commencé
@@ -435,7 +439,7 @@ func _placeable_contracts() -> int:
 ## Argent minimum à garder : salaires d'une main complète + nourriture des animaux.
 ## Argent à garder pour le lendemain : les salaires de la main suivante (les plus élevés de l'équipe, par prudence)
 ## et la nourriture des animaux. Sans cela, l'IA ne peut plus déployer personne et sa partie s'arrête.
-var _wage_key := ""
+var _wage_key := -1
 var _wage_cache := 0.0
 
 
@@ -448,8 +452,7 @@ func _cash_floor() -> float:
 
 
 func _wage_floor() -> float:
-	var key := "salaires|%d" % g.version
-	if _wage_key == key:
+	if _wage_key == g.version:
 		return _wage_cache
 	var wages: Array = g.all_employees().map(func(c): return float(g.salary(c)))
 	wages.sort()
@@ -457,7 +460,7 @@ func _wage_floor() -> float:
 	var total := 0.0
 	for k in mini(g.hand_size(), wages.size()):
 		total += wages[k]
-	_wage_key = key
+	_wage_key = g.version
 	_wage_cache = total
 	return total
 
@@ -1028,9 +1031,17 @@ func _cible_relachee(convient: Callable) -> bool:
 
 ## Part des murs de l'enceinte déjà terminés (0 à 1).
 func _walls_progress() -> float:
+	if _murs_version == g.version and _murs_rect == zoo_rect:
+		return _murs_valeur
 	var ring := _ring(zoo_rect)
-	var done := ring.filter(func(t): return g.is_wall(t) or g.is_mountain(t)).size()
-	return float(done) / ring.size()
+	var done := 0
+	for t in ring:
+		if g.is_wall(t) or g.is_mountain(t):
+			done += 1
+	_murs_version = g.version
+	_murs_rect = zoo_rect
+	_murs_valeur = float(done) / ring.size()
+	return _murs_valeur
 
 
 func _pick_bonus() -> void:
@@ -1284,26 +1295,55 @@ func _pattern_fit_maps() -> Array:
 	# Dès le jour 1 : le terrain qui convient aux animaux communs visibles au marché.
 	if especes.is_empty() and _opt("zoo_j1"):
 		especes = g.market_contracts.filter(func(d): return d["palier"] == "T1").slice(0, 3)
+	# Carte identique pour toutes les IA en début de partie : le calcul, le plus long de la partie, est partagé.
+	var empreinte_carte: int = hash(m.tiles)
 	for def in especes:
-		var best := PackedInt32Array()
-		best.resize(m.w * m.h)
-		best.fill(99)
-		for v in g.pattern_variants(def):
-			for y in m.h:
-				for x in m.w:
-					var n := 0
-					for c in v:
-						var px: int = x + c[0]
-						var py: int = y + c[1]
-						if not m.in_bounds(px, py):
-							n = 99
-							break
-						var steps := _conversion_steps(GameMap.TERRAINS[m.get_t(px, py)], c[2])
-						n += steps if steps >= 0 else 5
-					var i := y * m.w + x
-					best[i] = mini(best[i], n)
-		out.append({"def": def, "best": best})
+		var cle := "%d|%s" % [empreinte_carte, str(def["id"])]
+		if not mt.cartes_motifs.has(cle):
+			mt.cartes_motifs[cle] = _carte_motif(def)
+		out.append({"def": def, "best": mt.cartes_motifs[cle]})
 	return out
+
+
+## Pour chaque case : le nombre d'aménagements qu'il faudrait pour y poser ce motif (99 : il sort de la carte).
+func _carte_motif(def: Dictionary) -> PackedInt32Array:
+	var m := g.map
+	var w := m.w
+	var h := m.h
+	var tuiles := m.tiles
+	# Coût d'une cellule du motif selon le terrain actuel, calculé une fois pour chaque terrain voulu.
+	var couts := {}
+	var best := PackedInt32Array()
+	best.resize(w * h)
+	best.fill(99)
+	for v in g.pattern_variants(def):
+		var dx := PackedInt32Array()
+		var dy := PackedInt32Array()
+		var cout_cellule: Array[PackedInt32Array] = []
+		var largeur := 0
+		var hauteur := 0
+		for c in v:
+			dx.append(int(c[0]))
+			dy.append(int(c[1]))
+			largeur = maxi(largeur, int(c[0]))
+			hauteur = maxi(hauteur, int(c[1]))
+			if not couts.has(c[2]):
+				var t := PackedInt32Array()
+				for k in GameMap.TERRAINS.size():
+					var steps := _conversion_steps(GameMap.TERRAINS[k], c[2])
+					t.append(steps if steps >= 0 else 5)
+				couts[c[2]] = t
+			cout_cellule.append(couts[c[2]])
+		var nb := dx.size()
+		for y in h - hauteur:
+			for x in w - largeur:
+				var n := 0
+				for k in nb:
+					n += cout_cellule[k][tuiles[(y + dy[k]) * w + x + dx[k]]]
+				var i := y * w + x
+				if n < best[i]:
+					best[i] = n
+	return best
 
 
 func _zoo_score(r: Rect2i, camp_c: Vector2, fit: Array) -> float:
@@ -1349,12 +1389,16 @@ func _land(t: Vector2i) -> bool:
 	return ter != GameMap.EAU and ter != GameMap.MONTAGNE and ter != GameMap.MINE_OR
 
 
+## Le résultat est gardé pour chaque rectangle : à lire sans le modifier.
 func _ring(r: Rect2i) -> Array[Vector2i]:
+	if _anneaux.has(r):
+		return _anneaux[r]
 	var out: Array[Vector2i] = []
 	for y in range(r.position.y, r.end.y):
 		for x in range(r.position.x, r.end.x):
 			if x == r.position.x or y == r.position.y or x == r.end.x - 1 or y == r.end.y - 1:
 				out.append(Vector2i(x, y))
+	_anneaux[r] = out
 	return out
 
 
@@ -1369,15 +1413,17 @@ func _rect_tiles(r: Rect2i) -> Array[Vector2i]:
 func _index_resources() -> void:
 	var m := g.map
 	var reach := MapGenerator.reachable(m)
-	var c := Vector2(m.camp.get_center())
+	var c: Vector2i = m.camp.get_center()
 	for res in ["bois", "pierre"]:
 		var ter := GameMap.FORET if res == "bois" else GameMap.ROCHE
 		var tiles: Array[Vector2i] = []
+		var i := 0
 		for y in m.h:
 			for x in m.w:
-				if m.get_t(x, y) == ter and reach[m.idx(x, y)]:
+				if m.tiles[i] == ter and reach[i]:
 					tiles.append(Vector2i(x, y))
-		tiles.sort_custom(func(a, b): return c.distance_squared_to(Vector2(a)) < c.distance_squared_to(Vector2(b)))
+				i += 1
+		tiles.sort_custom(func(a: Vector2i, b: Vector2i): return (a - c).length_squared() < (b - c).length_squared())
 		resource_tiles[res] = tiles.slice(0, 120)
 
 
@@ -2084,10 +2130,10 @@ func _spot_near_camp(def: Dictionary) -> Vector2i:
 ## Mémorise le résultat d'une recherche tant que la carte, les chantiers et le plan du zoo n'ont pas changé :
 ## _wants() est rappelé à chaque réflexion et pour chaque ouvrier inactif (via _needs).
 func _cached(name: String, compute: Callable) -> Variant:
-	var key := "%d|%s|%s|%s|%s|%d|%d" % [g.version, g.phase, str(zoo_rect), str(target_rect), str(entrance),
-		reserved.size(), fence_tiles.size()]
-	if key != _search_cache_key:
-		_search_cache_key = key
+	# Comparaison directe : cette fonction est appelée sans arrêt, fabriquer une clé en texte coûtait cher.
+	if _cache_cle.is_empty() or _cache_cle[0] != g.version or _cache_cle[1] != g.phase or _cache_cle[2] != zoo_rect or _cache_cle[3] != target_rect \
+		or _cache_cle[4] != entrance or _cache_cle[5] != reserved.size() or _cache_cle[6] != fence_tiles.size():
+		_cache_cle = [g.version, g.phase, zoo_rect, target_rect, entrance, reserved.size(), fence_tiles.size()]
 		_search_cache.clear()
 	if not _search_cache.has(name):
 		_search_cache[name] = compute.call()

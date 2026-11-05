@@ -167,6 +167,9 @@ var presse_jours := 0  # jours de mauvaise presse restants (article d'un Journal
 var vus := {}  # indice du rival -> cases dévoilées par le Journaliste
 var article_du_jour := false
 var accusation_du_jour := false
+var _batiments := {}
+var _batiments_version := -1
+var _batiments_nb := -1
 var loan_today := false  # emprunt du jour, remboursé automatiquement le soir
 var pending_installs: Array = []  # animaux réservés dans un enclos en chantier : [{"def", "tile"}]
 var _zoo_cache_version := -1
@@ -1356,7 +1359,15 @@ func site_at(t: Vector2i) -> Site:
 
 
 func has_building(id: String) -> bool:
-	return sites.any(func(s): return s.kind == "batiment" and s.def_id() == id)
+	# Appelé des centaines de milliers de fois par partie : la liste n'est refaite que si les chantiers ont changé.
+	if _batiments_version != version or _batiments_nb != sites.size():
+		_batiments_version = version
+		_batiments_nb = sites.size()
+		_batiments.clear()
+		for s in sites:
+			if s.kind == "batiment":
+				_batiments[s.def_id()] = true
+	return _batiments.has(id)
 
 
 ## Renvoie "" si le placement est possible, sinon la raison du refus.
@@ -3286,8 +3297,11 @@ func is_mountain(t: Vector2i) -> bool:
 
 
 func is_wall(t: Vector2i) -> bool:
-	var s := site_at(t)
-	return s != null and s.done and s.def_id() in ["cloture", "entree"]
+	var s: Site = occupancy.get(t)
+	if s == null or not s.done:
+		return false
+	var id: String = s.def["id"]
+	return id == "cloture" or id == "entree"
 
 
 ## Intérieur de l'enceinte : la zone fermée (par les segments d'enceinte et l'entrée) qui touche l'entrée.
@@ -3338,7 +3352,7 @@ func _closed_region(start: Vector2i, limit: int) -> Dictionary:
 			var q := p + d
 			if not map.in_bounds(q.x, q.y):
 				return {}
-			if seen.has(q) or is_wall(q) or is_mountain(q):
+			if seen.has(q) or map.tiles[q.y * map.w + q.x] == GameMap.MONTAGNE or is_wall(q):
 				continue
 			seen[q] = true
 			if seen.size() > limit:

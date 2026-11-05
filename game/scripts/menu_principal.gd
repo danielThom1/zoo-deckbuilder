@@ -8,6 +8,7 @@ signal lancer(spectateur: bool, graine: int, adversaires: int, difficile: bool)
 signal continuer
 signal tutoriel
 signal multijoueur
+signal replay_etude
 
 # Couleurs (thème Émeraude, cf. docs/handoff_emeraude/tokens.json)
 # Style « BD néo ligne claire » (docs/handoff_bd) : papier blanc, encre marine, accent jaune, bandeau sarcelle
@@ -135,10 +136,24 @@ void fragment() {
 		var b_suite := _bouton_menu("Continuer", "Partie sauvegardée : début du jour %d, %d joueurs" % [sauvee["jour"], sauvee["joueurs"]], "jouer", false)
 		b_suite.pressed.connect(func(): continuer.emit())
 		boutons.add_child(b_suite)
-	var b_regarder := _bouton_menu("Regarder des IA jouer", "4 IA aux stratégies différentes, en accéléré ×8", "oeil", false)
-	sous_titre_regarder = b_regarder.get_meta("sous_titre")
-	b_regarder.pressed.connect(func(): lancer.emit(true, graine, 4, difficile))
-	boutons.add_child(b_regarder)
+	# Réservé au développement : ces entrées n'existent pas dans le jeu exporté.
+	if OS.has_feature("editor"):
+		var dev := HBoxContainer.new()
+		dev.add_theme_constant_override("separation", 6)
+		dev.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+		dev.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+		dev.position.y = 12
+		dev.offset_right = -16
+		add_child(dev)
+		var b_regarder := Button.new()
+		b_regarder.text = "Dév. : regarder des IA jouer"
+		b_regarder.pressed.connect(func(): lancer.emit(true, graine, 4, difficile))
+		dev.add_child(b_regarder)
+		if FileAccess.file_exists(Replay.chemin_etude()):
+			var b_record := Button.new()
+			b_record.text = "Dév. : partie la plus courte"
+			b_record.pressed.connect(func(): replay_etude.emit())
+			dev.add_child(b_record)
 	var b_multi := _bouton_menu("Multijoueur", "Par Internet, de 2 à 4 joueurs : héberger ou rejoindre", "jouer", false)
 	b_multi.pressed.connect(func(): multijoueur.emit())
 	boutons.add_child(b_multi)

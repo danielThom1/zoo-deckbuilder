@@ -103,8 +103,8 @@ Ordre de résolution (avant le lot N, pour mémoire) :
 ## 6. Ouvriers
 
 ### 6.1 Catégories
-- **Peu qualifiés** (métiers de base) : Manœuvre, Bûcheron, Maçon, Mineur, Terrassier, Porteur, Apprenti. Les plus fréquents au draft. Salaire 1.
-- **Qualifiés** : Charpentier, Paysagiste, Cantonnier, Soigneur. Environ 2 par joueur au draft, puis au marché.
+- **Peu qualifiés** (métiers de base) : Manœuvre, Bûcheron, Maçon, Mineur, Terrassier, Porteur, Apprenti. Les plus fréquents au draft. Salaire 1 (Terrassier : 2).
+- **Qualifiés** : Charpentier, Paysagiste, Cantonnier, Soigneur. Environ 2 par joueur au draft, puis au marché. Salaire 2 (Paysagiste : 3).
 - **Cadres** : DRH, Lobbyiste, Marchand, Vendeur, Formateur, Contremaître, Architecte. Rares au draft (≈ 1 par joueur), plus chers, avec des capacités uniques.
 - Le Carrier a été fusionné dans le Mineur (pierre et or).
 

@@ -16,6 +16,8 @@ var h: int
 var tiles := PackedInt32Array()
 var road := PackedByteArray()
 var bridge := PackedByteArray()  # 1 : pont (case d'eau franchissable, avec route) ; 2 : ponton sous une clôture d'enclos
+var franchissable := PackedByteArray()
+var vitesse_terrain := PackedFloat64Array()
 var res_left := PackedFloat32Array()  # ressource restante (forêts et roches s'épuisent)
 var defs: Dictionary
 var road_mult := 2.0
@@ -34,6 +36,12 @@ func _init(width: int, height: int, terrain_defs: Dictionary, road_multiplier: f
 	h = height
 	defs = terrain_defs
 	road_mult = road_multiplier
+	# Lus des millions de fois par partie : par numéro de terrain, sans passer par les dictionnaires.
+	franchissable.resize(TERRAINS.size())
+	vitesse_terrain.resize(TERRAINS.size())
+	for k in TERRAINS.size():
+		franchissable[k] = 1 if defs[TERRAINS[k]]["franchissable"] else 0
+		vitesse_terrain[k] = float(defs[TERRAINS[k]]["vitesse"])
 	tiles.resize(w * h)
 	tiles.fill(PRAIRIE)
 	road.resize(w * h)
@@ -77,12 +85,16 @@ func def_of(x: int, y: int) -> Dictionary:
 
 
 func passable(x: int, y: int) -> bool:
-	return in_bounds(x, y) and (bridge[idx(x, y)] != 0 or bool(def_of(x, y)["franchissable"]))
+	if x < 0 or y < 0 or x >= w or y >= h:
+		return false
+	var i := y * w + x
+	return bridge[i] != 0 or franchissable[tiles[i]] != 0
 
 
 func move_speed(x: int, y: int) -> float:
-	var base := 1.0 if bridge[idx(x, y)] else float(def_of(x, y)["vitesse"])
-	return base * (road_mult if road[idx(x, y)] else 1.0)
+	var i := y * w + x
+	var base := 1.0 if bridge[i] else float(vitesse_terrain[tiles[i]])
+	return base * (road_mult if road[i] else 1.0)
 
 
 func extractible(x: int, y: int) -> String:

@@ -43,7 +43,7 @@
   "amenagements": [
     { "id": "defricher",   "nom": "Défricher",          "de": "Foret",   "vers": "Prairie", "travail": 20, "cout": {},              "bonus": { "bois": 3 } },
     { "id": "planter",     "nom": "Planter une forêt",  "de": "Prairie", "vers": "Foret",   "travail": 40, "cout": { "argent": 2 } },
-    { "id": "creuser",     "nom": "Creuser un bassin",  "de": ["Prairie", "Sable"], "vers": "Eau", "travail": 50, "cout": { "pierre": 2 } },
+    { "id": "creuser",     "nom": "Creuser un bassin",  "de": ["Prairie", "Sable"], "vers": "Eau", "travail": 35, "cout": { "pierre": 2 } },
     { "id": "combler",     "nom": "Combler",            "de": "Eau",     "vers": "Prairie", "travail": 50, "cout": { "pierre": 3 } },
     { "id": "rocailler",   "nom": "Poser des rochers",  "de": ["Prairie", "Sable"], "vers": "Roche", "travail": 35, "cout": { "pierre": 4 } },
     { "id": "ensabler",    "nom": "Ensabler",           "de": "Prairie", "vers": "Sable",   "travail": 25, "cout": { "pierre": 1 } },

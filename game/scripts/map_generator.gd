@@ -117,19 +117,31 @@ static func _start_zone(map: GameMap, carte: Dictionary) -> void:
 
 
 static func reachable(map: GameMap) -> PackedByteArray:
+	var w := map.w
+	var h := map.h
 	var reach := PackedByteArray()
-	reach.resize(map.w * map.h)
-	var start := map.camp.position
-	var queue: Array[Vector2i] = [start]
-	reach[map.idx(start.x, start.y)] = 1
-	var dirs: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
-	while not queue.is_empty():
-		var p: Vector2i = queue.pop_back()
-		for d in dirs:
-			var q := p + d
-			if map.passable(q.x, q.y) and not reach[map.idx(q.x, q.y)]:
-				reach[map.idx(q.x, q.y)] = 1
-				queue.append(q)
+	reach.resize(w * h)
+	# Une case à franchir d'un coup d'œil : pont, ou terrain franchissable.
+	var libre := PackedByteArray()
+	libre.resize(w * h)
+	for i in w * h:
+		libre[i] = 1 if map.bridge[i] != 0 or map.franchissable[map.tiles[i]] != 0 else 0
+	var start := map.camp.position.y * w + map.camp.position.x
+	var pile := PackedInt32Array()
+	pile.resize(w * h)
+	var haut := 1
+	pile[0] = start
+	reach[start] = 1
+	while haut > 0:
+		haut -= 1
+		var i := pile[haut]
+		var x := i % w
+		var voisins: Array[int] = [i + 1 if x < w - 1 else -1, i - 1 if x > 0 else -1, i + w if i + w < w * h else -1, i - w]
+		for q in voisins:
+			if q >= 0 and libre[q] != 0 and reach[q] == 0:
+				reach[q] = 1
+				pile[haut] = q
+				haut += 1
 	return reach
 
 

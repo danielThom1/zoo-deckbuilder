@@ -12,6 +12,8 @@ const POPULATION := 16
 const PARTIES_PAR_GENOME := 6
 const PARTIES_PAR_GENOME_LONGUE := 12  # à partir de 2000 parties : moins de chance dans la sélection
 const ETUDE_LONGUE := 2000
+const VIVANT := "etude_vivante"
+const PARTIES_PAR_PROCESSUS := 40  # puis le processus est remplacé (mémoire qui monte au fil des parties)
 const ECHECS_MAX := 3  # générations en erreur d'affilée avant de passer à la finale
 const ATTENTE_MAX_MS := 600000  # sans nouveau résultat pendant 10 min, les processus bloqués sont arrêtés
 const PART_FINALE := 0.1  # part des parties gardée pour la phase finale
@@ -63,6 +65,9 @@ var record := {}
 var parties_par_genome := PARTIES_PAR_GENOME
 var objectifs_tires := {}  # objectif -> parties où il a été tiré
 var processus_bloques := 0
+var processus: Array[int] = []
+var serie := 0  # numéro de la série de parties en cours
+var dernier_signe := -100000
 
 
 func _init() -> void:
@@ -75,18 +80,10 @@ func _init() -> void:
 	dir = ProjectSettings.globalize_path("user://evolution")
 	if args.has("dir"):
 		dir = str(args["dir"])
-	elif not args.has("lot"):
-		dir = dir.path_join(str(OS.get_process_id()))
-
-	# Processus de travail : joue les parties de son lot (fichier matches.json) et écrit un résultat par partie.
-	if args.has("lot"):
-		var spec: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(dir.path_join("matches.json")))
-		var lots := int(args["lots"])
-		for k in range(int(args["lot"]), spec["matches"].size(), lots):
-			var mm: Dictionary = spec["matches"][k]
-			_save(k, _play(mm["seed"], mm["genomes"]))
+		_travailler()
 		quit(0)
 		return
+	dir = dir.path_join(str(OS.get_process_id()))
 
 	ids["poids_metiers"] = data["workers"]["metiers"].map(func(m): return m["id"])
 	ids["poids_traits"] = (data["workers"]["traits_positifs"] + data["workers"]["traits_negatifs"]).map(func(t): return t["id"])
@@ -139,6 +136,7 @@ func _init() -> void:
 	var finale := maxi(4, total_parties - n_gen * par_generation)
 	total_parties = n_gen * par_generation + finale
 	DirAccess.make_dir_recursive_absolute(dir)
+	_signe_de_vie()
 	t0 = Time.get_ticks_msec()
 	print("Étude : %d parties (%d générations de %d parties, puis %d parties de finale), %d processus." % [total_parties, n_gen, par_generation, finale, jobs])
 	var pop: Array = _initial_population(POPULATION)
@@ -181,6 +179,7 @@ func _init() -> void:
 			pop = _next_generation(pop, order)
 	var classement := _finale(pop_notee, order, finale, jobs)
 	_write_report(pop_notee, order, scores, history, classement)
+	_arreter_processus()
 	for f in DirAccess.get_files_at(dir):
 		DirAccess.remove_absolute(dir.path_join(f))
 	DirAccess.remove_absolute(dir)
@@ -290,41 +289,105 @@ func _describe(g: Dictionary) -> String:
 
 # --- Parties -----------------------------------------------------------------------------------------
 
-## Joue des parties en parallèle ; renvoie les résultats par indice de partie.
+## Joue des parties en parallèle ; renvoie les résultats par indice de partie. Les parties attendent dans une file
+## (un fichier « .todo » par partie) : chaque processus prend la suivante dès qu'il est libre, aucun ne reste à ne rien faire.
 func _jouer(matches: Array, jobs: int) -> Dictionary:
 	for f in DirAccess.get_files_at(dir):
-		DirAccess.remove_absolute(dir.path_join(f))
-	var fm := FileAccess.open(dir.path_join("matches.json"), FileAccess.WRITE)
+		if f != VIVANT:
+			DirAccess.remove_absolute(dir.path_join(f))
+	serie += 1
+	var fm := FileAccess.open(dir.path_join("serie_%d.tmp" % serie), FileAccess.WRITE)
 	fm.store_string(JSON.stringify({"matches": matches}))
 	fm.close()
-	var pids: Array[int] = []
-	for lot in mini(jobs, matches.size()):
-		pids.append(OS.create_process(OS.get_executable_path(), ["--headless", "--path", ProjectSettings.globalize_path("res://"),
-			"--script", "res://tests/evolution.gd", "--", "--lot=%d" % lot, "--lots=%d" % mini(jobs, matches.size()), "--dir=" + dir]))
+	DirAccess.rename_absolute(dir.path_join("serie_%d.tmp" % serie), dir.path_join("serie_%d.json" % serie))
+	for k in matches.size():
+		FileAccess.open(dir.path_join("%d_%d.todo" % [serie, k]), FileAccess.WRITE).close()
 	var results := {}
 	var dernier_resultat := Time.get_ticks_msec()
 	while results.size() < matches.size():
-		var fini := pids.all(func(p): return not OS.is_process_running(p))
+		_signe_de_vie()
+		var en_attente := 0
 		for f in DirAccess.get_files_at(dir):
-			if f.ends_with(".res") and not results.has(f.get_basename().to_int()):
-				# Lecture parfois refusée sous Windows (antivirus, fichier tout juste renommé) : on réessaie au tour suivant.
-				var lu = JSON.parse_string(FileAccess.get_file_as_string(dir.path_join(f)))
-				if lu is Dictionary:
-					results[f.get_basename().to_int()] = lu
-					dernier_resultat = Time.get_ticks_msec()
-		if fini:
-			break
-		# Une erreur de script bloque un processus sans le fermer : on l'arrête, l'étude continue avec les parties jouées.
+			if f.ends_with(".todo"):
+				en_attente += 1
+			elif f.ends_with(".res"):
+				var k: int = f.get_basename().get_slice("_", 1).to_int()
+				if not results.has(k):
+					# Lecture parfois refusée sous Windows (antivirus, fichier tout juste renommé) : on réessaie au tour suivant.
+					var lu = JSON.parse_string(FileAccess.get_file_as_string(dir.path_join(f)))
+					if lu is Dictionary:
+						results[k] = lu
+						dernier_resultat = Time.get_ticks_msec()
+		_garnir_processus(mini(jobs, en_attente + _occupes()))
+		# Une erreur de script peut bloquer un processus sans le fermer : on l'arrête, l'étude continue avec les parties jouées.
 		if Time.get_ticks_msec() - dernier_resultat > ATTENTE_MAX_MS:
-			for p in pids:
-				if OS.is_process_running(p):
-					OS.kill(p)
-					processus_bloques += 1
+			processus_bloques += processus.filter(func(p): return OS.is_process_running(p)).size()
+			_arreter_processus()
 			print("Attention : processus bloqué(s) arrêté(s), %d partie(s) perdue(s)." % (matches.size() - results.size()))
 			break
-		OS.delay_msec(300)
+		OS.delay_msec(200)
 	parties_jouees += results.size()
 	return results
+
+
+## Parties prises et pas encore rendues.
+func _occupes() -> int:
+	var n := 0
+	for f in DirAccess.get_files_at(dir):
+		if f.contains(".todo."):
+			n += 1
+	return n
+
+
+## Garde le nombre de processus voulu : un processus se ferme de lui-même au bout de PARTIES_PAR_PROCESSUS parties.
+func _garnir_processus(voulus: int) -> void:
+	processus = processus.filter(func(p): return OS.is_process_running(p))
+	while processus.size() < voulus:
+		processus.append(OS.create_process(OS.get_executable_path(), ["--headless", "--path", ProjectSettings.globalize_path("res://"),
+			"--script", "res://tests/evolution.gd", "--", "--dir=" + dir]))
+
+
+func _arreter_processus() -> void:
+	for p in processus:
+		if OS.is_process_running(p):
+			OS.kill(p)
+	processus.clear()
+
+
+## Fichier réécrit sans cesse : si l'étude est fermée d'un coup, ses processus le voient et s'arrêtent.
+func _signe_de_vie() -> void:
+	if Time.get_ticks_msec() - dernier_signe < 2000:
+		return
+	dernier_signe = Time.get_ticks_msec()
+	FileAccess.open(dir.path_join(VIVANT), FileAccess.WRITE).close()
+
+
+## Processus de travail : prend les parties dans la file jusqu'à sa limite, ou jusqu'à la fin de l'étude.
+func _travailler() -> void:
+	var numero := -1
+	var spec: Dictionary = {}
+	var joues := 0
+	while joues < PARTIES_PAR_PROCESSUS:
+		var pris := ""
+		var fichiers: PackedStringArray = DirAccess.get_files_at(dir)
+		for f in fichiers:
+			if f.ends_with(".todo") and DirAccess.rename_absolute(dir.path_join(f), dir.path_join("%s.%d" % [f, OS.get_process_id()])) == OK:
+				pris = f
+				break
+		if pris == "":
+			if not fichiers.has(VIVANT) or Time.get_unix_time_from_system() - FileAccess.get_modified_time(dir.path_join(VIVANT)) > 60:
+				return
+			OS.delay_msec(100)
+			continue
+		var no: int = pris.get_slice("_", 0).to_int()
+		var k: int = pris.get_basename().get_slice("_", 1).to_int()
+		if no != numero:
+			numero = no
+			spec = JSON.parse_string(FileAccess.get_file_as_string(dir.path_join("serie_%d.json" % no)))
+		var mm: Dictionary = spec["matches"][k]
+		_save("%d_%d" % [no, k], _play(mm["seed"], mm["genomes"]))
+		DirAccess.remove_absolute(dir.path_join("%s.%d" % [pris, OS.get_process_id()]))
+		joues += 1
 
 
 ## Chaque génome joue PARTIES_PAR_GENOME parties contre des adversaires tirés dans la population. Score : victoires (×3),
@@ -346,7 +409,7 @@ func _evaluate(pop: Array, jobs: int, gen: int) -> Array:
 	var objectif := float(data["buildings"]["partie"]["objectif_reputation"])
 	for k in results:
 		var r: Dictionary = results[k]
-		_cumuler(r)
+		_cumuler(r, matches[k]["genomes"])
 		var four: Array = matches[k]["ids"]
 		for p in 4:
 			var s: Dictionary = sc[four[p]]
@@ -403,7 +466,7 @@ func _finale(pop: Array, order: Array, n: int, jobs: int) -> Array:
 	var objectif := float(data["buildings"]["partie"]["objectif_reputation"])
 	for k in results:
 		var r: Dictionary = results[k]
-		_cumuler(r)
+		_cumuler(r, matches[k]["genomes"])
 		var four: Array = matches[k]["ids"]
 		for p in 4:
 			var e: Dictionary = cl[candidats[four[p]]["nom"]]
@@ -457,12 +520,12 @@ func _play(seed: int, genomes: Array) -> Dictionary:
 	return out
 
 
-func _save(k: int, result: Dictionary) -> void:
-	var tmp := dir.path_join("%d.tmp" % k)
+func _save(nom: String, result: Dictionary) -> void:
+	var tmp := dir.path_join(nom + ".tmp")
 	var f := FileAccess.open(tmp, FileAccess.WRITE)
 	f.store_string(JSON.stringify(result))
 	f.close()
-	DirAccess.rename_absolute(tmp, dir.path_join("%d.res" % k))
+	DirAccess.rename_absolute(tmp, dir.path_join(nom + ".res"))
 
 
 func _mean(a: Array) -> float:
@@ -487,7 +550,7 @@ func _note(cat: String, cle: String, gagne: bool, rep: float) -> void:
 	e["rep"] += rep
 
 
-func _cumuler(r: Dictionary) -> void:
+func _cumuler(r: Dictionary, genomes: Array) -> void:
 	jours_fin.append(int(r["day"]))
 	var objectif := float(data["buildings"]["partie"]["objectif_reputation"])
 	for i in 4:
@@ -499,6 +562,7 @@ func _cumuler(r: Dictionary) -> void:
 		base["rep"] += rep
 		if gagne and (record.is_empty() or int(r["day"]) < int(record["day"])):
 			record = {"day": int(r["day"]), "seed": int(r["seed"]), "rep": rep}
+			Replay.ecrire_etude(int(r["seed"]), genomes, i, int(r["day"]), rep)
 		for cat in ["traits", "metiers", "ameliorations", "batiments"]:
 			for k in j[cat]:
 				_note(cat, k, gagne, rep)

@@ -43,6 +43,11 @@ const NO_BONUS := {"id": "aucun", "nom": "Aucun bonus", "texte": "Aucun bonus de
 var bonus_choice := {}  # bonus choisi par le premier en influence : actif le lendemain pour tous les joueurs
 var rival_en_tete := -1  # dernier concurrent annoncé en tête par Hubert
 var offres := {}  # espèce -> nuits passées au marché (étude)
+var cartes_motifs := {}  # calculs de l'IA partagés entre les joueurs : voir AIController._pattern_fit_maps
+var journal: Array = []  # replay : [pas, joueur (-1 : décision), nom, arguments codés], voir Replay
+var pas := 0  # pas de temps joués depuis le début
+var params_replay := {}
+var replay_possible := true  # faux après une reprise de sauvegarde, au tutoriel et dans les captures
 var autosave := false  # partie d'un joueur humain : sauvegarde automatique chaque matin
 var history: Array = []  # statistiques par jour et par joueur (simulations)
 
@@ -51,6 +56,7 @@ var history: Array = []  # statistiques par jour et par joueur (simulations)
 func _init(game_data: Dictionary, map_seed: int, nb_players := 4, human := 0, strategies: Array = [], autres_humains: Array = []) -> void:
 	data = game_data
 	seed_value = map_seed
+	params_replay = {"graine": map_seed, "nb": nb_players, "humain": human, "strategies": strategies.duplicate(true), "autres": autres_humains.duplicate()}
 	rng.seed = map_seed ^ 0x5bd1e995
 	day_length = float(data["buildings"]["partie"]["duree_jour_s"])
 	for t in data["workers"]["traits_positifs"]:
@@ -69,8 +75,13 @@ func _init(game_data: Dictionary, map_seed: int, nb_players := 4, human := 0, st
 			var strat: Dictionary = strategies[i] if i < strategies.size() and strategies[i] != null else {}
 			ais.append(AIController.new(self, players[i], strat))
 			ia_count += 1
-			names.append("IA %d" % ia_count if strat.is_empty() else "IA %d (%s)" % [ia_count, strat.get("nom", "?")])
+			names.append("IA %d" % ia_count if str(strat.get("nom", "")) == "" else "IA %d (%s)" % [ia_count, strat["nom"]])
 	_setup_draft()
+
+
+## Note un ordre ou une décision pour le replay, avant de l'exécuter.
+func noter(nom: String, joueur := -1, args: Array = []) -> void:
+	journal.append([pas, joueur, nom, args])
 
 
 func is_ai(i: int) -> bool:
@@ -308,6 +319,7 @@ func _finish_draft() -> void:
 func tick(dt: float) -> void:
 	if phase != "day":
 		return
+	pas += 1
 	time += dt
 	for i in players.size():
 		players[i]._tick_player(dt)
