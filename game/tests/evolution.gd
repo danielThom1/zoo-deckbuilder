@@ -7,12 +7,18 @@ extends SceneTree
 ##   godot --headless --path game --script res://tests/evolution.gd -- --total=1000
 ## --total : nombre de parties de l'étude (ou lancer_etude.bat à la racine). --jobs=N : processus en parallèle.
 ## Écrit rapport_etude.md à la racine, mis à jour à chaque génération, et game/data/ia_evolution.json (meilleures stratégies).
+## Après la finale : game/data/ia_niveaux.json, trois niveaux d'IA (facile, moyen, difficile) mesurés en finale.
+## Reprise : etude_reprise.json (racine) garde la population et les statistiques à chaque génération.
+##   -- --reprendre --total=2000 : 2000 parties de plus ; -- --reprendre --jusqua=12000 : jusqu'à 12000 au total.
 
 const POPULATION := 16
 const PARTIES_PAR_GENOME := 6
 const PARTIES_PAR_GENOME_LONGUE := 12  # à partir de 2000 parties : moins de chance dans la sélection
 const ETUDE_LONGUE := 2000
 const VIVANT := "etude_vivante"
+const REPRISE := "etude_reprise.json"  # à la racine du dépôt
+const NIVEAUX := "res://data/ia_niveaux.json"
+const STRATEGIES_PAR_NIVEAU := 4
 const PARTIES_DE_PRUDENCE := 12.0
 const PARTIES_PAR_PROCESSUS := 40  # puis le processus est remplacé (mémoire qui monte au fil des parties)
 const ECHECS_MAX := 3  # générations en erreur d'affilée avant de passer à la finale
@@ -73,6 +79,11 @@ var derniere_a_zero := -1
 var processus: Array[int] = []
 var serie := 0  # numéro de la série de parties en cours
 var dernier_signe := -100000
+var parties_avant := 0  # parties des sessions précédentes (reprise)
+var minutes_avant := 0
+var gen_avant := 0
+var genomes_finale := {}  # nom -> génome des candidats de la finale
+var niveaux := {}  # niveau -> {"strategies", "victoires", "rep"}
 
 
 func _init() -> void:
@@ -128,7 +139,24 @@ func _init() -> void:
 	rng.seed = int(args.get("seed", str(Time.get_ticks_usec())))
 	total_parties = maxi(8, int(args.get("total", "200")))
 	var jobs := int(args.get("jobs", str(maxi(1, OS.get_processor_count() / 2))))
-	if total_parties >= ETUDE_LONGUE:
+	# --reprendre : on repart de la population et des statistiques de la dernière génération enregistrée
+	var chemin_reprise := ProjectSettings.globalize_path("res://").path_join("../" + REPRISE)
+	var etat: Dictionary = {}
+	if args.has("reprendre"):
+		var lu = JSON.parse_string(FileAccess.get_file_as_string(chemin_reprise)) if FileAccess.file_exists(chemin_reprise) else null
+		if not lu is Dictionary:
+			print("Rien à reprendre : %s est absent ou illisible." % chemin_reprise)
+			quit(1)
+			return
+		etat = lu
+		parties_avant = int(etat["parties"])
+		gen_avant = int(etat["generations"])
+		minutes_avant = int(etat.get("minutes", 0))
+		if args.has("jusqua"):
+			total_parties = maxi(8, int(args["jusqua"]) - parties_avant)
+		_charger_statistiques(etat["stats"])
+		print("Reprise de l'étude du %s : %d parties déjà jouées, %d générations." % [str(etat.get("date", "?")), parties_avant, gen_avant])
+	if total_parties + parties_avant >= ETUDE_LONGUE:
 		parties_par_genome = PARTIES_PAR_GENOME_LONGUE
 	# --fin=08:00 : l'étude s'arrête d'elle-même à temps pour jouer sa finale et écrire son rapport.
 	var budget_ms := 0
@@ -142,17 +170,25 @@ func _init() -> void:
 	var finale := maxi(4, total_parties - n_gen * par_generation)
 	total_parties = n_gen * par_generation + finale
 	DirAccess.make_dir_recursive_absolute(dir)
-	for chemin in Replay.chemins_zero():
-		DirAccess.remove_absolute(chemin)  # celles de l'étude précédente : d'autres règles
+	if etat.is_empty():
+		for chemin in Replay.chemins_zero():
+			DirAccess.remove_absolute(chemin)  # celles de l'étude précédente : d'autres règles
 	_signe_de_vie()
 	t0 = Time.get_ticks_msec()
 	print("Étude : %d parties (%d générations de %d parties, puis %d parties de finale), %d processus." % [total_parties, n_gen, par_generation, finale, jobs])
 	var pop: Array = _initial_population(POPULATION)
 	var history: Array = []
+	var cumuls: Array = []  # résultats des stratégies conservées (les premières de la population)
+	if not etat.is_empty():
+		pop = etat["pop"].map(func(g): return _completer(g))
+		history = etat["history"]
+		cumuls = etat["cumuls"]
 	var order: Array = []
 	var scores: Array = []
 	var pop_notee: Array = pop  # la population à laquelle correspondent order et scores
-	var cumuls: Array = []  # résultats des stratégies conservées (les premières de la population)
+	var suite_pop: Array = pop  # ce que la reprise rejouera : la génération suivante
+	var suite_cumuls: Array = cumuls
+	var gens_faites := 0
 	var echecs := 0
 	for gen in n_gen:
 		# Une erreur de script fait revenir _evaluate sans résultat : on rejoue la même population, l'étude ne s'arrête pas.
@@ -170,13 +206,19 @@ func _init() -> void:
 		order = range(pop.size())
 		order.sort_custom(func(a, b): return scores[a]["fitness"] > scores[b]["fitness"])
 		var best: Dictionary = scores[order[0]]
-		history.append({"gen": gen, "best": best, "mean_wins": _mean(scores.map(func(s): return s["wins"]))})
+		history.append({"gen": gen_avant + gen, "best": best, "mean_wins": _mean(scores.map(func(s): return s["wins"]))})
 		var ecoule := (Time.get_ticks_msec() - t0) / 1000.0
 		var reste := ecoule / maxf(1.0, parties_jouees) * (total_parties - parties_jouees)
 		print("Génération %d / %d : meilleure %d %% de victoires sur %d parties, jour %.1f, rép. %.0f · %d parties en %d min, reste ~%d min" % [
-			gen + 1, n_gen, roundi(100.0 * best["wins"]), int(best["games"]), best["win_day"], best["rep"], parties_jouees, int(ecoule / 60.0), int(reste / 60.0)])
+			gen_avant + gen + 1, gen_avant + n_gen, roundi(100.0 * best["wins"]), int(best["games"]), best["win_day"], best["rep"], parties_jouees, int(ecoule / 60.0), int(reste / 60.0)])
 		_write_report(pop, order, scores, history, [])
 		_meilleures(pop, order)
+		suite_pop = _next_generation(pop, order)
+		suite_cumuls = []
+		for k in 4:
+			suite_cumuls.append(scores[order[k]])
+		gens_faites = gen + 1
+		_sauver_reprise(chemin_reprise, suite_pop, suite_cumuls, history, gens_faites)
 		if budget_ms > 0 and Time.get_ticks_msec() - t0 >= budget_ms * 0.88:
 			# Le temps tourne : la finale garde ce qu'il reste, à la vitesse mesurée jusqu'ici.
 			var par_ms := float(parties_jouees) / maxf(1.0, Time.get_ticks_msec() - t0)
@@ -184,18 +226,19 @@ func _init() -> void:
 			total_parties = parties_jouees + finale
 			print("Heure de fin proche : finale de %d parties." % finale)
 			break
-		if gen < n_gen - 1:
-			pop = _next_generation(pop, order)
-			cumuls = []
-			for k in 4:
-				cumuls.append(scores[order[k]])
+		pop = suite_pop
+		cumuls = suite_cumuls
 	var classement := _finale(pop_notee, order, finale, jobs)
+	_ecrire_niveaux(classement)
 	_write_report(pop_notee, order, scores, history, classement)
+	# La finale compte aussi dans les statistiques : la reprise les garde
+	_sauver_reprise(chemin_reprise, suite_pop, suite_cumuls, history, gens_faites)
 	_arreter_processus()
 	for f in DirAccess.get_files_at(dir):
 		DirAccess.remove_absolute(dir.path_join(f))
 	DirAccess.remove_absolute(dir)
 	print("Étude terminée en %d min. Rapport : %s" % [int((Time.get_ticks_msec() - t0) / 60000), ProjectSettings.globalize_path("res://").path_join("../rapport_etude.md")])
+	print("Niveaux d'IA : %s. Pour continuer : -- --reprendre --total=N (%d parties au total jusqu'ici)." % [ProjectSettings.globalize_path(NIVEAUX), parties_avant + parties_jouees])
 	quit(0)
 
 
@@ -478,8 +521,10 @@ func _finale(pop: Array, order: Array, n: int, jobs: int) -> Array:
 		matches.append({"seed": rng.randi_range(1, 1 << 30), "ids": four, "genomes": four.map(func(i): return candidats[i])})
 	var results := _jouer(matches, jobs)
 	var cl := {}
+	genomes_finale = {}
 	for c in candidats:
 		cl[c["nom"]] = {"nom": c["nom"], "n": 0, "wins": 0, "rep": 0.0, "days": []}
+		genomes_finale[c["nom"]] = c
 	var objectif := float(data["buildings"]["partie"]["objectif_reputation"])
 	for k in results:
 		var r: Dictionary = results[k]
@@ -553,6 +598,89 @@ func _mean(a: Array) -> float:
 	for x in a:
 		t += float(x)
 	return t / a.size()
+
+
+# --- Reprise et niveaux ------------------------------------------------------------------------------
+
+## Un génome d'une étude précédente : les réglages et préférences apparus depuis prennent leur valeur neutre.
+func _completer(g: Dictionary) -> Dictionary:
+	var neuf := _random_genome()
+	for k in neuf:
+		if not g.has(k):
+			g[k] = neuf[k]
+	for f in POIDS:
+		for i in ids[f]:
+			if not g[f].has(i):
+				g[f][i] = 0.0
+	return g
+
+
+func _sauver_reprise(chemin: String, pop: Array, cumuls: Array, history: Array, gens: int) -> void:
+	var etat := {"version": 1, "date": Time.get_datetime_string_from_system().replace("T", " "),
+		"parties": parties_avant + parties_jouees, "generations": gen_avant + gens,
+		"minutes": minutes_avant + int((Time.get_ticks_msec() - t0) / 60000), "pop": pop, "cumuls": cumuls, "history": history,
+		"stats": {"stats": stats, "base": base, "cartes": cartes, "offres": offres, "achats": achats, "jours_achat": jours_achat,
+			"sources": sources, "jours_fin": jours_fin, "record": record, "objectifs_tires": objectifs_tires,
+			"parties_a_zero": parties_a_zero, "ia_a_zero": ia_a_zero, "ia_sans_animal": ia_sans_animal, "processus_bloques": processus_bloques}}
+	var tmp := chemin + ".tmp"
+	var f := FileAccess.open(tmp, FileAccess.WRITE)
+	f.store_string(JSON.stringify(etat))
+	f.close()
+	DirAccess.rename_absolute(tmp, chemin)  # jamais de fichier à moitié écrit si l'étude s'arrête pendant l'écriture
+
+
+func _charger_statistiques(s: Dictionary) -> void:
+	stats = s["stats"]
+	base = s["base"]
+	cartes = s["cartes"]
+	offres = s["offres"]
+	achats = s["achats"]
+	jours_achat = s["jours_achat"]
+	sources = s["sources"]
+	jours_fin = s["jours_fin"]
+	record = s["record"]
+	objectifs_tires = s["objectifs_tires"]
+	parties_a_zero = int(s["parties_a_zero"])
+	ia_a_zero = int(s["ia_a_zero"])
+	ia_sans_animal = int(s["ia_sans_animal"])
+	processus_bloques = int(s["processus_bloques"])
+
+
+## Trois niveaux d'IA d'après le classement de la finale (stratégies écrites et apprises, mesurées l'une contre l'autre) :
+## difficile, les meilleures ; moyen, celles du milieu ; facile, les plus faibles qui marquent quand même des points
+## (une IA qui reste à 0 n'est pas un adversaire facile, juste un adversaire absent).
+func _ecrire_niveaux(classement: Array) -> void:
+	var cl: Array = classement.filter(func(e): return int(e["n"]) > 0 and genomes_finale.has(e["nom"]))
+	if cl.size() < STRATEGIES_PAR_NIVEAU * 3:
+		return
+	var objectif := float(data["buildings"]["partie"]["objectif_reputation"])
+	var n := cl.size()
+	var milieu := clampi(n / 2 - STRATEGIES_PAR_NIVEAU / 2, STRATEGIES_PAR_NIVEAU, n - STRATEGIES_PAR_NIVEAU * 2)
+	var faibles: Array = cl.slice(milieu + STRATEGIES_PAR_NIVEAU).filter(func(e): return float(e["rep"]) / int(e["n"]) >= objectif * 0.35)
+	if faibles.size() < STRATEGIES_PAR_NIVEAU:
+		faibles = cl.slice(milieu + STRATEGIES_PAR_NIVEAU)
+	# Parmi les faibles, celles du bas du classement
+	faibles = faibles.slice(maxi(0, faibles.size() - STRATEGIES_PAR_NIVEAU))
+	var choix := {"difficile": cl.slice(0, STRATEGIES_PAR_NIVEAU), "moyen": cl.slice(milieu, milieu + STRATEGIES_PAR_NIVEAU), "facile": faibles}
+	niveaux = {}
+	for niv in choix:
+		var parts: Array = choix[niv]
+		var n_tot := 0
+		var w_tot := 0
+		var r_tot := 0.0
+		var strategies: Array = []
+		for e in parts:
+			n_tot += int(e["n"])
+			w_tot += int(e["wins"])
+			r_tot += float(e["rep"])
+			var g: Dictionary = genomes_finale[e["nom"]].duplicate(true)
+			g["explore"] = 0.0
+			strategies.append(g)
+		niveaux[niv] = {"victoires": float(w_tot) / maxi(1, n_tot), "rep": r_tot / maxi(1, n_tot), "noms": parts.map(func(e): return e["nom"]), "strategies": strategies}
+	var fj := FileAccess.open(NIVEAUX, FileAccess.WRITE)
+	fj.store_string(JSON.stringify({"_note": "Niveaux d'IA choisis par tests/evolution.gd d'après sa finale (victoires mesurées dans des parties à 4 entre IA).",
+		"date": Time.get_datetime_string_from_system().replace("T", " "), "parties": parties_avant + parties_jouees, "niveaux": niveaux}, "  "))
+	fj.close()
 
 
 # --- Statistiques ------------------------------------------------------------------------------------
@@ -715,6 +843,9 @@ func _write_report(pop: Array, order: Array, scores: Array, history: Array, clas
 	var fin: bool = not classement.is_empty()
 	L.append("%d parties sur %d jouées%s, %d min de calcul. Fin de partie en moyenne au jour %.1f." % [parties_jouees, total_parties, "" if fin else " (étude en cours)",
 		int((Time.get_ticks_msec() - t0) / 60000), _mean(jours_fin)])
+	if parties_avant > 0:
+		L.append("Étude reprise : %d parties et %d min des sessions précédentes, soit %d parties en tout ; les tableaux comptent toutes les sessions." % [
+			parties_avant, minutes_avant, parties_avant + parties_jouees])
 	if not record.is_empty():
 		L.append("Record : victoire au jour %d (%.0f de réputation, graine %d)." % [record["day"], record["rep"], record["seed"]])
 	L.append("IA bloquées : %d joueurs sur %d finissent à 0 de réputation, %d sans aucun animal." % [ia_a_zero, int(base["n"]), ia_sans_animal])
@@ -743,6 +874,15 @@ func _write_report(pop: Array, order: Array, scores: Array, history: Array, clas
 		L.append("|---|---|---|---|---|")
 		for e in classement:
 			L.append("| %s | %d | %d %% | %s | %.0f |" % [e["nom"], e["n"], roundi(100.0 * e["wins"] / maxi(1, e["n"])), "—" if e["days"].is_empty() else "%.1f" % _mean(e["days"]), e["rep"] / maxi(1, e["n"])])
+		L.append("")
+	if not niveaux.is_empty():
+		L.append("## Niveaux d'IA enregistrés (game/data/ia_niveaux.json)")
+		L.append("")
+		L.append("| Niveau | Victoires en finale | Réputation moyenne | Stratégies |")
+		L.append("|---|---|---|---|")
+		for niv in ["facile", "moyen", "difficile"]:
+			var e: Dictionary = niveaux[niv]
+			L.append("| %s | %d %% | %.0f | %s |" % [niv.capitalize(), roundi(100.0 * float(e["victoires"])), float(e["rep"]), ", ".join(e["noms"])])
 		L.append("")
 	L.append("## Stratégies apprises")
 	L.append("")

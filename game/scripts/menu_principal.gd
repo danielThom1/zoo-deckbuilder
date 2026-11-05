@@ -4,7 +4,7 @@ extends Control
 ## et le panneau « Nouvelle filiale » (adversaires, difficulté, carte) à droite.
 ## Ne dépend que de GameData, MapGenerator, GameMap et des polices de UiTokens.
 
-signal lancer(spectateur: bool, graine: int, adversaires: int, difficile: bool)
+signal lancer(spectateur: bool, graine: int, adversaires: int, niveau: String)
 signal continuer
 signal tutoriel
 signal multijoueur
@@ -38,7 +38,8 @@ static var iso_demande := false  # essai de la vue isométrique, lancé depuis l
 static var vue3d_demandee := false  # essai de la vue 3D, lancé depuis le menu
 var graine := 0
 var adversaires := 3
-var difficile := false  # IA difficile : stratégies apprises par l'IA évolutive
+var niveau := "moyen"  # niveau des IA : facile, moyen, difficile (stratégies choisies par l'étude)
+const NIVEAUX := ["facile", "moyen", "difficile"]
 var police_titre: Font
 var police_texte: Font
 var police_gras: Font
@@ -139,7 +140,7 @@ func _construire() -> void:
 		col.add_child(b)
 		return b
 	sous_titre_jouer = null
-	bouton_jouer = ligne.call("Jouer contre l'IA", "vous + %d IA" % adversaires, func(): lancer.emit(false, graine, adversaires, difficile), true)
+	bouton_jouer = ligne.call("Jouer contre l'IA", "vous + %d IA" % adversaires, func(): lancer.emit(false, graine, adversaires, niveau), true)
 	note_jouer = bouton_jouer.get_meta("note")
 	var sauvee := Sauvegarde.resume()
 	if not sauvee.is_empty():
@@ -197,18 +198,18 @@ func _construire() -> void:
 		b_iso.tooltip_text = "Une partie normale, vue en isométrique. F2 change de vue à tout moment."
 		b_iso.pressed.connect(func():
 			iso_demande = true
-			lancer.emit(false, graine, adversaires, difficile))
+			lancer.emit(false, graine, adversaires, niveau))
 		dev.add_child(b_iso)
 		var b_3d := Button.new()
 		b_3d.text = "Essai : vue 3D"
 		b_3d.tooltip_text = "Une partie normale, avec une caméra en perspective. F3 et F2 changent de vue à tout moment."
 		b_3d.pressed.connect(func():
 			vue3d_demandee = true
-			lancer.emit(false, graine, adversaires, difficile))
+			lancer.emit(false, graine, adversaires, niveau))
 		dev.add_child(b_3d)
 		var b_regarder := Button.new()
 		b_regarder.text = "Dév. : regarder des IA jouer"
-		b_regarder.pressed.connect(func(): lancer.emit(true, graine, 4, difficile))
+		b_regarder.pressed.connect(func(): lancer.emit(true, graine, 4, niveau))
 		dev.add_child(b_regarder)
 		if FileAccess.file_exists(Replay.chemin_etude()):
 			var b_record := Button.new()
@@ -344,11 +345,13 @@ func _carte_reglages() -> Control:
 	var sd := HBoxContainer.new()
 	sd.add_theme_constant_override("separation", -2)
 	boutons_dif = []
-	for k in 2:
-		var b := _segment(["Cadre", "Direction"][k])
-		b.tooltip_text = ["IA aux stratégies écrites", "IA aux stratégies apprises par l'étude"][k]
+	for k in 3:
+		var b := _segment(["Facile", "Moyen", "Difficile"][k])
+		b.tooltip_text = ["Des rivaux qui tâtonnent : les stratégies les plus faibles de l'étude",
+			"Des rivaux sérieux : les stratégies du milieu du classement de l'étude",
+			"Des rivaux redoutables : les meilleures stratégies apprises par l'étude"][k]
 		b.pressed.connect(func():
-			difficile = k == 1
+			niveau = NIVEAUX[k]
 			_maj_joueurs())
 		sd.add_child(b)
 		boutons_dif.append(b)
@@ -400,7 +403,7 @@ func _carte_reglages() -> Control:
 	signer.add_theme_font_override("font", UiTokens.police_titre())
 	signer.add_theme_font_size_override("font_size", 20)
 	signer.custom_minimum_size.y = 54
-	signer.pressed.connect(func(): lancer.emit(false, graine, adversaires, difficile))
+	signer.pressed.connect(func(): lancer.emit(false, graine, adversaires, niveau))
 	c.add_child(signer)
 	return p
 
@@ -468,7 +471,7 @@ func _maj_joueurs() -> void:
 	for k in boutons_adv.size():
 		boutons_adv[k].button_pressed = k + 1 == adversaires
 	for k in boutons_dif.size():
-		boutons_dif[k].button_pressed = (k == 1) == difficile
+		boutons_dif[k].button_pressed = NIVEAUX[k] == niveau
 	if note_jouer:
 		note_jouer.text = "vous + %d IA" % adversaires
 	if rivaux_box == null:

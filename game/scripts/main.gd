@@ -224,7 +224,7 @@ static var relance := ""
 static var replay_demande: Replay = null  # replay à lancer après le rechargement de la scène
 var replay: Replay = null  # partie rejouée (vue spectateur)
 var replay_verifie := false
-static var relance_difficile := false  # « Rejouer » garde la difficulté choisie
+static var relance_niveau := ""  # « Rejouer » garde le niveau des IA choisi
 
 
 func _ready() -> void:
@@ -245,8 +245,8 @@ func _ready() -> void:
 		relance = ""
 		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 		args.erase("seed")
-		if relance_difficile and mode != "menu":
-			args["difficile"] = ""
+		if relance_niveau != "" and mode != "menu":
+			args["niveau"] = relance_niveau
 		if mode == "menu":
 			_show_menu()
 		else:
@@ -305,13 +305,32 @@ func _show_menu() -> void:
 		args["charger"] = ""
 		layer.queue_free()
 		_start(false))
-	menu.lancer.connect(func(watch: bool, graine: int, adversaires: int, difficile: bool):
+	menu.lancer.connect(func(watch: bool, graine: int, adversaires: int, niveau: String):
 		args["seed"] = str(graine)
-		if difficile:
-			args["difficile"] = ""
+		args["niveau"] = niveau
 		args["joueurs"] = str(4 if watch else adversaires + 1)
 		layer.queue_free()
 		_start(watch))
+
+
+## Stratégies des IA d'un niveau : celles que l'étude a mesurées (data/ia_niveaux.json), sinon un repli.
+## Repli : difficile, les stratégies apprises figées (ia_difficile.json) ; moyen, les stratégies écrites ;
+## facile, la stratégie de base avec des choix au hasard.
+static func strategies_du_niveau(niveau: String) -> Array:
+	if niveau == "":
+		return []
+	var chemin := "res://data/ia_niveaux.json"
+	if FileAccess.file_exists(chemin):
+		var lu = JSON.parse_string(FileAccess.get_file_as_string(chemin))
+		if lu is Dictionary and lu.get("niveaux", {}).has(niveau) and not lu["niveaux"][niveau]["strategies"].is_empty():
+			return lu["niveaux"][niveau]["strategies"]
+	match niveau:
+		"difficile":
+			if FileAccess.file_exists("res://data/ia_difficile.json"):
+				return JSON.parse_string(FileAccess.get_file_as_string("res://data/ia_difficile.json"))["strategies"]
+		"facile":
+			return [{"nom": "Facile", "explore": 0.35}]
+	return []
 
 
 ## Salon multijoueur par-dessus le menu ; la partie démarre quand l'hôte la lance (--salon : ouvert d'office, pour les captures).
@@ -402,13 +421,16 @@ func _start(watch: bool) -> void:
 		map_seed = Tutoriel.GRAINE
 		nb = 4
 	var strategies: Array = WATCH_STRATEGIES if spectator else []
-	# --difficile (ou choix du menu) : les IA jouent les stratégies apprises par l'IA évolutive
-	if args.has("difficile") and FileAccess.file_exists("res://data/ia_difficile.json"):
-		var hard: Array = JSON.parse_string(FileAccess.get_file_as_string("res://data/ia_difficile.json"))["strategies"]
+	# Niveau des IA (--niveau=facile|moyen|difficile, --difficile, ou choix du menu) : stratégies choisies par l'étude
+	if args.has("difficile"):
+		args["niveau"] = "difficile"
+	var niveau := str(args.get("niveau", "" if spectator else "moyen"))
+	var du_niveau := strategies_du_niveau(niveau)
+	if not du_niveau.is_empty():
 		strategies = []
 		for i in nb:
 			var humain: bool = (i == 0 and not spectator) if reseau == null else (i == local or autres_humains.has(i))
-			strategies.append(null if humain else hard[(i - (0 if spectator else 1)) % hard.size()])
+			strategies.append(null if humain else du_niveau[(i - (0 if spectator else 1)) % du_niveau.size()])
 	var charge: Match = Sauvegarde.charger(GameData.load_all()) if args.has("charger") else null
 	if replay:
 		mt = replay.creer_partie(GameData.load_all())
@@ -5924,7 +5946,7 @@ func _visitors_total(i: int) -> int:
 
 func _restart(mode: String) -> void:
 	relance = mode
-	relance_difficile = args.has("difficile")
+	relance_niveau = str(args.get("niveau", ""))
 	get_tree().reload_current_scene()
 
 

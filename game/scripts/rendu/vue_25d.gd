@@ -41,6 +41,35 @@ var textes: Array[Label3D] = []
 var decor3d := {}
 var mats := {}
 var cadres: Array = []
+var silhouettes := {}  # Sprite3D d'un personnage -> sa silhouette (MeshInstance3D, vue à travers ce qui le cache)
+var mats_silhouette := {}
+const SILHOUETTE := """
+shader_type spatial;
+// Ce qui est caché derrière un bâtiment ou un arbre : test de profondeur inversé, la silhouette n'apparaît que là.
+render_mode unshaded, depth_draw_never, depth_test_inverted, cull_disabled, blend_mix;
+uniform sampler2D tex : source_color, filter_linear_mipmap;
+instance uniform vec4 cadre;  // rectangle de l'image autour du pied, en cases (x, y, largeur, hauteur ; y vers le haut)
+instance uniform vec4 region;  // partie de la texture (u, v, largeur, hauteur)
+instance uniform vec4 teinte;
+instance uniform float miroir;
+void vertex() {
+	VERTEX = vec3(cadre.x + (VERTEX.x + 0.5) * cadre.z, cadre.y + (VERTEX.y + 0.5) * cadre.w, 0.0);
+	MODELVIEW_MATRIX = VIEW_MATRIX * mat4(INV_VIEW_MATRIX[0], INV_VIEW_MATRIX[1], INV_VIEW_MATRIX[2], MODEL_MATRIX[3]);
+	vec2 uv = UV;
+	if (miroir > 0.5) {
+		uv.x = 1.0 - uv.x;
+	}
+	UV = region.xy + uv * region.zw;
+}
+void fragment() {
+	if (texture(tex, UV).a < 0.5) {
+		discard;
+	}
+	ALBEDO = teinte.rgb;
+	ALPHA = teinte.a;
+}
+"""
+var shader_silhouette: Shader
 var sig_terrain := -1
 var sig_clotures := ""
 var attente := 0.0
@@ -322,6 +351,8 @@ func recevoir(notes: Array) -> void:
 	var nb_textes := 0
 	var cote_cam := _vers_camera()
 	var vers_cam := absf(sin(2.0 * deg_to_rad(lacet)))  # 0 dans l'axe d'un côté, 1 en diagonale
+	var batis: Array = []  # [emprise, pied de l'image] des bâtiments posés
+	var persos: Array = []  # [sprite, position sur la carte, collaborateur]
 	for e: Dictionary in notes:
 		if e.has("texte"):
 			_poser_texte(nb_textes, e)
@@ -355,6 +386,11 @@ func recevoir(notes: Array) -> void:
 				taille = biais["taille"]
 		_regler(s, tex, pied_note, pos.x, pos.y, taille, e["miroir"], e["region"])
 		s.modulate = e["teinte"]
+		if rect.size != Vector2.ZERO:
+			batis.append([rect, s.position])
+		if objet is GameState.Worker:
+			persos.append([s, objet.pos, objet])
+		_silhouette(s, objet if objet is GameState.Worker else null)
 		# Cadres cliquables : personnages et bâtiments
 		if objet is GameState.Worker or objet is GameState.Site:
 			var dim: Vector2 = (e["region"] as Rect2).size if e["region"].size != Vector2.ZERO else Vector2(tex.get_width(), tex.get_height())
@@ -368,11 +404,80 @@ func recevoir(notes: Array) -> void:
 			else:
 				r = r.grow(-r.size.x * 0.1)
 			cadres.append({"rect": r, "monde": cible, "rang": (1000.0 if objet is GameState.Worker else 0.0) + s.position.x * cote_cam.x + s.position.z * cote_cam.y})
+	_devant_les_batiments(batis, persos)
 	for k in range(n, sprites.size()):
 		sprites[k].visible = false
+		if silhouettes.has(sprites[k]):
+			silhouettes[sprites[k]].visible = false
 	for k in range(nb_textes, textes.size()):
 		textes[k].visible = false
 	cadres.sort_custom(func(a, b): return a["rang"] > b["rang"])
+
+
+## Un collaborateur dans l'emprise d'un bâtiment (au camp, à son poste) est dedans : en 2D il est dessiné par-dessus.
+## L'image du bâtiment se tient au bord de l'emprise tourné vers la caméra, il passerait donc derrière : on le rapproche
+## de la caméra le long du rayon de vue, ce qui ne change pas sa place à l'écran, jusqu'à passer devant.
+func _devant_les_batiments(batis: Array, persos: Array) -> void:
+	for pe in persos:
+		var s: Sprite3D = pe[0]
+		var case_: Vector2 = pe[1]
+		var vers := camera.global_basis.z
+		if perspective:
+			vers = (camera.global_position - s.position).normalized()
+		var recul := 0.0
+		for b in batis:
+			var r: Rect2 = b[0]
+			if r.grow(0.25).has_point(case_):
+				recul = maxf(recul, (b[1] - s.position).dot(vers) + 0.2)
+		if recul <= 0.0:
+			continue
+		if perspective:
+			# Plus près de la caméra, il paraîtrait plus grand : sa taille suit la distance
+			var d0 := camera.global_position.distance_to(s.position)
+			s.pixel_size *= maxf(0.1, (d0 - recul) / d0)
+		s.position += vers * recul
+		_silhouette(s, pe[2])  # elle suit le personnage avancé
+
+
+## Silhouette couleur du joueur, visible seulement là où le personnage est caché (arbre, bâtiment devant lui).
+## Un quadrilatère calculé ici plutôt qu'un Sprite3D : un Sprite3D avec un matériau à lui ne se dessine pas toujours.
+func _silhouette(s: Sprite3D, w: Variant) -> void:
+	var sil: MeshInstance3D = silhouettes.get(s)
+	if w == null:
+		if sil:
+			sil.visible = false
+		return
+	if sil == null:
+		sil = MeshInstance3D.new()
+		sil.mesh = QuadMesh.new()
+		sil.extra_cull_margin = 4.0
+		sil.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		racine.add_child(sil)
+		silhouettes[s] = sil
+	if shader_silhouette == null:
+		shader_silhouette = Shader.new()
+		shader_silhouette.code = SILHOUETTE
+	var tex := s.texture
+	var cle := tex.get_rid().get_id()
+	if not mats_silhouette.has(cle):
+		var mat := ShaderMaterial.new()
+		mat.shader = shader_silhouette
+		mat.set_shader_parameter("tex", tex)
+		# Les images (bâtiments, arbres) passent aussi parmi les objets transparents, du plus loin au plus près :
+		# la silhouette vient après toutes, sinon le bâtiment devant la recouvrirait.
+		mat.render_priority = 1
+		mats_silhouette[cle] = mat
+	var taille_tex := Vector2(tex.get_width(), tex.get_height())
+	var reg := s.region_rect if s.region_enabled else Rect2(Vector2.ZERO, taille_tex)
+	var px := s.pixel_size
+	var couleur: Color = UiTokens.SELECTION if m.selected.has(w) else UiTokens.JOUEURS[m.game.index % UiTokens.JOUEURS.size()]
+	sil.visible = true
+	sil.material_override = mats_silhouette[cle]
+	sil.position = s.position
+	sil.set_instance_shader_parameter("cadre", Vector4(s.offset.x * px, s.offset.y * px, reg.size.x * px, reg.size.y * px))
+	sil.set_instance_shader_parameter("region", Vector4(reg.position.x / taille_tex.x, reg.position.y / taille_tex.y, reg.size.x / taille_tex.x, reg.size.y / taille_tex.y))
+	sil.set_instance_shader_parameter("teinte", Vector4(couleur.r, couleur.g, couleur.b, 0.6))
+	sil.set_instance_shader_parameter("miroir", 1.0 if s.flip_h else 0.0)
 
 
 ## Bâtiment dessiné de biais, s'il existe et si la vue est en diagonale : iso_<id> (façade vers le bas à gauche), iso_<id>_d (vers le bas à droite).
