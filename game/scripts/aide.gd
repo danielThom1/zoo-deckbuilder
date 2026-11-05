@@ -95,26 +95,24 @@ var onglets: VBoxContainer
 var page := 0
 
 
+var groupe_onglets := ButtonGroup.new()
+
+
 func _init(game_data: Dictionary) -> void:
 	data = game_data
 
 
 func _ready() -> void:
-	color = Color(UiTokens.MARINE, 0.75)
+	color = Color(0, 0, 0, 0)
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	mouse_filter = Control.MOUSE_FILTER_STOP
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	theme = UiTokens.build_theme()
-	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", UiTokens.panel(UiTokens.PANNEAU_MILIEU, UiTokens.OR, 12, 2, 16))
-	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	panel.offset_left = 70
-	panel.offset_right = -70
-	panel.offset_top = 40
-	panel.offset_bottom = -40
-	add_child(panel)
+	var f := Composants.fenetre(Vector2(1440, 800), "Manuel du collaborateur", "Règles et glossaire", queue_free)
+	add_child(f["racine"])
 	var racine := HBoxContainer.new()
 	racine.add_theme_constant_override("separation", 16)
-	panel.add_child(racine)
+	racine.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	f["corps"].add_child(racine)
 	var gauche := ScrollContainer.new()
 	gauche.custom_minimum_size.x = 270
 	gauche.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -135,11 +133,6 @@ func _ready() -> void:
 	corps.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	corps.add_theme_constant_override("separation", 10)
 	scroll.add_child(corps)
-	var fermer := Composants.bouton("Fermer", "BoutonPrincipal")
-	fermer.custom_minimum_size = Vector2(180, 42)
-	fermer.size_flags_horizontal = Control.SIZE_SHRINK_END
-	fermer.pressed.connect(queue_free)
-	droite.add_child(fermer)
 	_titre_onglet("TUTORIEL")
 	for k in PAGES.size():
 		_onglet(PAGES[k][0], _montrer_page.bind(k))
@@ -149,17 +142,21 @@ func _ready() -> void:
 			["Cartes d'action", _glossaire_actions], ["Labels", _glossaire_labels], ["Événements", _glossaire_evenements], ["Bonus de nuit", _glossaire_bonus]]:
 		_onglet(g[0], g[1])
 	_montrer_page(page)
+	if not groupe_onglets.get_buttons().is_empty():
+		groupe_onglets.get_buttons()[page].button_pressed = true
 
 
 func _titre_onglet(txt: String) -> void:
-	var t := Composants.label(txt, "TitrePanneau")
-	onglets.add_child(t)
+	onglets.add_child(Composants.titre_section(txt, 13))
 
 
 func _onglet(txt: String, action: Callable) -> void:
-	var b := Composants.bouton(txt, "BoutonSecondaire")
+	var b := Composants.bouton(txt, "Onglet")
 	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	b.custom_minimum_size.y = 32
+	b.custom_minimum_size.y = 28
+	b.add_theme_font_size_override("font_size", 13)
+	b.toggle_mode = true
+	b.button_group = groupe_onglets
 	b.pressed.connect(action)
 	onglets.add_child(b)
 
@@ -169,7 +166,8 @@ func _feuille(titre: String) -> RichTextLabel:
 	for c in corps.get_children():
 		c.queue_free()
 	scroll.scroll_vertical = 0
-	var t := Composants.label(titre, "TitreEcran")
+	var t := Composants.label(titre)
+	t.add_theme_font_override("font", UiTokens.police_titre())
 	t.add_theme_font_size_override("font_size", 28)
 	corps.add_child(t)
 	var r := RichTextLabel.new()

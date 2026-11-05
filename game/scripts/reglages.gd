@@ -56,24 +56,9 @@ func _ready() -> void:
 	theme = UiTokens.build_theme()
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	var fond := ColorRect.new()
-	fond.color = Color(UiTokens.ENCRE, 0.6)
-	fond.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(fond)
-	var centre := CenterContainer.new()
-	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(centre)
-	var carte := PanelContainer.new()
-	carte.add_theme_stylebox_override("panel", UiTokens.panel(UiTokens.PAPIER, UiTokens.ENCRE, 14, 3, 22))
-	carte.custom_minimum_size = Vector2(520, 0)
-	centre.add_child(carte)
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 12)
-	carte.add_child(v)
-	var titre := Composants.label("RÉGLAGES", "TitreEcran")
-	titre.add_theme_font_size_override("font_size", 30)
-	titre.add_theme_color_override("font_color", UiTokens.SARCELLE)
-	v.add_child(titre)
+	var f := Composants.fenetre(Vector2(560, 0), "Préférences", "Réglages", queue_free)
+	add_child(f["racine"])
+	var v: VBoxContainer = f["corps"]
 
 	_curseur(v, "Musique", "musique")
 	_curseur(v, "Bruitages", "effets")
@@ -103,16 +88,18 @@ func _ready() -> void:
 	liste.disabled = plein.button_pressed
 	v.add_child(plein)
 
+	f["pied_boite"].visible = true
+	var esp := Control.new()
+	esp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	f["pied"].add_child(esp)
 	var fermer := Composants.bouton("Fermer", "BoutonPrincipal")
-	fermer.custom_minimum_size.y = 42
+	fermer.custom_minimum_size = Vector2(140, 40)
 	fermer.pressed.connect(queue_free)
-	v.add_child(fermer)
+	f["pied"].add_child(fermer)
 
 
 func _titre(t: String) -> Label:
-	var l := Composants.label(t, "TexteSecondaire")
-	l.add_theme_font_size_override("font_size", 15)
-	return l
+	return Composants.titre_section(t)
 
 
 func _curseur(parent: Control, nom: String, cle: String) -> void:
@@ -129,6 +116,7 @@ func _curseur(parent: Control, nom: String, cle: String) -> void:
 	s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	ligne.add_child(s)
 	var pct := Composants.label("%d %%" % roundi(s.value * 100.0))
+	pct.add_theme_font_override("font", UiTokens.police_mono(600))
 	pct.custom_minimum_size.x = 56
 	pct.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	ligne.add_child(pct)

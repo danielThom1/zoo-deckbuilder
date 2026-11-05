@@ -474,6 +474,14 @@ func _start(watch: bool) -> void:
 	if args.has("autoplay"):
 		_auto_play()
 	# --contrat : ajoute un contrat de palier 1 et passe en mode installation (captures de l'aide au placement)
+	if args.has("fiche-animal") and not game.animals.is_empty():
+		selected = []
+		selected_animal = game.animals[0]
+	if args.has("fiche-batiment"):
+		selected = []
+		for s_f in game.sites:
+			if s_f.done and s_f.def_id() == str(args["fiche-batiment"]):
+				selected_site = s_f
 	if args.has("deco"):
 		var dtypes: Array = game.data["buildings"]["reputation_autres"]["embellissement"]["types"]
 		for k in int(args["deco"]):
@@ -647,7 +655,10 @@ func _draw() -> void:
 	var sites_tries := game.sites.duplicate()
 	sites_tries.sort_custom(func(a, b): return a.rect.end.y < b.rect.end.y)
 	for s in sites_tries:
+		if not s.def_id() in ["cloture", "enclos"]:
+			_dessiner_poteaux()  # les poteaux déjà vus passent derrière ce bâtiment
 		_draw_site(s)
+	_dessiner_poteaux()
 	# Plan de l'IA regardée : enceinte prévue et enclos en projet
 	if spectator and mt.ais[game.index]:
 		var ai: AIController = mt.ais[game.index]
@@ -1491,10 +1502,95 @@ func _draw_fence(s: GameState.Site, color: Color) -> void:
 			reaches.append(reach)
 	# Pilier ou poteau d'angle seulement là où le tracé tourne, s'arrête ou se divise
 	var straight := dirs.size() == 2 and dirs[0] + dirs[1] == Vector2i.ZERO
+	var style := "enceinte" if wall else str(_styles_enclos().get(p, ""))
+	if style != "" and SpritesBD.existe("cl_%s_face" % style):
+		_draw_cloture(s, c, dirs, reaches, straight, style)
+		return
 	if wall:
 		_draw_wall(c, dirs, reaches, straight, color)
 	else:
 		_draw_palisade(c, dirs, reaches, straight, color)
+
+
+## Clôture en images : un tronçon va du centre d'une case au centre de la suivante, posé par la case de gauche ou du haut.
+## Les poteaux sont dessinés après tous les tronçons (_dessiner_poteaux) : ils couvrent les raccords.
+func _draw_cloture(s: GameState.Site, c: Vector2, dirs: Array[Vector2i], reaches: Array[float], straight: bool, style: String) -> void:
+	var p := s.rect.position
+	var base := c + Vector2(0, TILE * 0.3)
+	var face := SpritesBD.texture("cl_%s_face" % style)
+	var long_ := SpritesBD.texture("cl_%s_long" % style)
+	# Une image couvre deux cases : la case paire en montre la première moitié, la case impaire la seconde
+	var k := CASES_PAR_TRONCON * float(TILE) / face.get_width()
+	var h_face := face.get_height() * k
+	var l_long := long_.get_width() * k
+	for i in dirs.size():
+		var d := dirs[i]
+		var voisin := game.site_at(p + d)
+		var meme: bool = voisin != null and voisin.def_id() == s.def_id()
+		if meme and (d.x < 0 or d.y < 0):
+			continue  # la case d'à côté s'en charge
+		var part: float = 1.0 if meme else reaches[i]
+		var l := TILE * part
+		if d.x != 0:
+			var x0: float = base.x if d.x > 0 else base.x - l
+			var u: float = face.get_width() / CASES_PAR_TRONCON
+			draw_texture_rect_region(face, Rect2(x0, base.y - h_face, l, h_face), Rect2(u * posmod(p.x, int(CASES_PAR_TRONCON)), 0, u * part, face.get_height()))
+		else:
+			var y0: float = base.y if d.y > 0 else base.y - l
+			var v: float = long_.get_height() / CASES_PAR_TRONCON
+			draw_texture_rect_region(long_, Rect2(base.x - l_long / 2.0, y0 - h_face * 0.5, l_long, l), Rect2(0, v * posmod(p.y, int(CASES_PAR_TRONCON)), long_.get_width(), v * part))
+	# Un poteau aux angles et aux bouts ; toutes les deux cases sur une clôture d'enclos, de loin en loin sur le mur
+	var pas := 6 if style == "enceinte" else 2
+	if not straight or (p.x + p.y) % pas == 0:
+		_poteaux.append([base, style])
+
+
+func _dessiner_poteaux() -> void:
+	_poteaux.sort_custom(func(a, b): return a[0].y < b[0].y)
+	for e in _poteaux:
+		var tex := SpritesBD.texture("cl_%s_poteau" % e[1])
+		var face := SpritesBD.texture("cl_%s_face" % e[1])
+		var k := CASES_PAR_TRONCON * float(TILE) / face.get_width() * ECHELLE_POTEAU
+		var taille := Vector2(tex.get_width(), tex.get_height()) * k
+		draw_texture_rect(tex, Rect2(e[0] - Vector2(taille.x / 2.0, taille.y - 1.0), taille), false)
+	_poteaux.clear()
+
+
+const CASES_PAR_TRONCON := 2.0
+const ECHELLE_POTEAU := 0.75
+const STYLE_PAR_TYPE := {"herbivore": "enclos_herbivore", "predateur": "enclos_predateur", "aquatique": "enclos_aquatique", "aerien": "enclos_aerien"}
+var _poteaux: Array = []
+var _styles_version := -1
+var _styles := {}
+
+
+## Style de chaque clôture d'enclos, d'après l'animal qu'elle garde. Sans animal, le bois dessiné par _draw_palisade.
+func _styles_enclos() -> Dictionary:
+	if _styles_version == game.version:
+		return _styles
+	_styles_version = game.version
+	_styles = {}
+	var zones: Array = []
+	for a in game.animals:
+		if not a.park:
+			zones.append([a.tiles, a.def.get("type", "")])
+	for r in game.pending_installs:
+		var enc := game.enclosure_at(r["tile"])
+		if enc.get("closed", false) and not enc.get("park", false):
+			zones.append([enc["tiles"], r["def"].get("type", "")])
+	for z in zones:
+		var style: String = STYLE_PAR_TYPE.get(z[1], "")
+		if style == "":
+			continue
+		for t in z[0]:
+			for dy in range(-1, 2):
+				for dx in range(-1, 2):
+					var q: Vector2i = t + Vector2i(dx, dy)
+					if not _styles.has(q):
+						var o := game.site_at(q)
+						if o != null and o.def_id() == "enclos":
+							_styles[q] = style
+	return _styles
 
 
 ## Mur d'enceinte en perspective : face avant (assises et joints), chaperon clair, piliers aux angles.
@@ -2428,8 +2524,15 @@ func _build_ui() -> void:
 		if replay:
 			var marque := Composants.label("  REPLAY  ")
 			marque.add_theme_font_override("font", UiTokens.police_titre())
-			marque.add_theme_color_override("font_color", UiTokens.ORANGE)
+			marque.add_theme_font_size_override("font_size", 15)
+			marque.add_theme_color_override("font_color", UiTokens.ENCRE)
 			marque.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			marque.custom_minimum_size.y = UiTokens.H_BANDEAU
+			var fond_replay := StyleBoxFlat.new()
+			fond_replay.bg_color = UiTokens.ORANGE
+			marque.add_theme_stylebox_override("normal", fond_replay)
+			marque.tooltip_text = "Vous regardez une partie déjà jouée"
+			marque.mouse_filter = Control.MOUSE_FILTER_PASS
 			bar.add_child(marque)
 		var num_ia := 0
 		for i in mt.players.size():
@@ -3381,12 +3484,10 @@ func _update_info() -> void:
 	if not show_animal and info_extra_for != null:
 		info_extra_for = null
 		_clear(info_extra)
-	info_text.visible = show_animal
+	info_text.visible = false
 	info_subtitle.text = ""
 	var fiche: Array = []
-	if show_animal:
-		_animal_info(selected_animal)
-	elif selected.is_empty() and selected_sites.size() > 1:
+	if selected.is_empty() and selected_sites.size() > 1 and not show_animal:
 		zoo_title.text = "%d ÉLÉMENTS" % selected_sites.size()
 		var counts := {}
 		for x in selected_sites:
@@ -3413,7 +3514,8 @@ func _update_info() -> void:
 		btn_swap.visible = false
 		btn_cancel_site.visible = false
 		btn_demolish.visible = false
-		_rendre_fiche([])
+		_animal_info(selected_animal, fiche)
+		_rendre_fiche(fiche)
 		return
 	if selected.size() > 1:
 		zoo_title.text = "%d COLLABORATEURS" % selected.size()
@@ -3442,8 +3544,11 @@ func _update_info() -> void:
 	if selected.is_empty() and selected_site:
 		var st := selected_site
 		var builders := game.workers.filter(func(w): return w.task.get("site") == st).size()
-		fiche.append(["image", SpritesBD.BATIMENTS.get(st.def_id(), "chantier1" if not st.done else "")])
-		fiche.append(["titre", str(st.def["nom"]), "Terminé" if st.done else "Chantier en cours"])
+		var image_site: String = SpritesBD.BATIMENTS.get(st.def_id(), {"cloture": "cl_enceinte_face", "enclos": "cl_enclos_herbivore_face"}.get(st.def_id(), ""))
+		if not st.done and image_site == "":
+			image_site = "chantier1"
+		fiche.append(["identite", image_site, str(st.def["nom"]), "Taille %d × %d" % [st.rect.size.x, st.rect.size.y],
+			[["✓ Terminé", Color("D8F0EC")] if st.done else ["Chantier %d %%" % roundi(100.0 * st.work / st.travail()), UiTokens.JAUNE_CLAIR]], Color(UiTokens.ENTETE, 0.5)])
 		if st.done:
 			fiche.append(["carte", "EFFET", Composants.icone_batiment(st.def_id()), UiTokens.SARCELLE])
 			match st.def_id():
@@ -3454,7 +3559,7 @@ func _update_info() -> void:
 				"mine":
 					fiche.append(["texte", "Clic droit avec des collaborateurs pour extraire de l'or."])
 				_:
-					fiche.append(["texte", str(st.def.get("_note_effet", "Bâtiment en service."))])
+					fiche.append(["texte", str(st.def.get("_note_effet", Aide.DESCRIPTIONS.get(st.def_id(), "Bâtiment en service.")))])
 		else:
 			fiche.append(["carte", "AVANCEMENT", "ordre_construire", UiTokens.ORANGE])
 			fiche.append(["barre", "Travail", clampf(st.work / st.travail(), 0.0, 1.0), "%d / %d" % [int(st.work), int(st.travail())], UiTokens.SELECTION])
@@ -3717,6 +3822,20 @@ func _rendre_fiche(fiche: Array) -> void:
 				l2.add_theme_font_override("font", UiTokens.police_corps(700))
 				l2.add_theme_font_size_override("font_size", 14)
 				corps.add_child(l2)
+			"identite":
+				_fiche_identite(e[1], e[2], e[3], e[4], e[5])
+				corps = info_view
+			"motif":
+				var ligne_m := HBoxContainer.new()
+				ligne_m.add_theme_constant_override("separation", 8)
+				var titre_m := Composants.paragraphe("Motif à reproduire, tourné ou retourné", 13, UiTokens.TEXTE_2)
+				titre_m.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				ligne_m.add_child(titre_m)
+				var vue_m := FenetreComite.MotifLettre.new()
+				vue_m.regler(e[1], 16.0)
+				vue_m.tooltip_text = _pattern_words(e[1])
+				ligne_m.add_child(vue_m)
+				corps.add_child(ligne_m)
 			"titre":
 				var t := Composants.label(str(e[1]).to_upper(), "NomCarte")
 				t.add_theme_font_size_override("font_size", 22)
@@ -3961,6 +4080,53 @@ func _fiche_ouvrier(w: GameState.Worker) -> void:
 		xp.add_theme_font_override("font", UiTokens.police_mono(500))
 		xp.add_theme_font_size_override("font_size", 11)
 		v.add_child(xp)
+
+
+## Bloc d'identité d'une fiche de bâtiment ou d'animal : image, nom, précision, pastilles écrites.
+func _fiche_identite(image: String, nom: String, sous: String, pills: Array, fond: Color) -> void:
+	var bloc := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = fond
+	sb.set_corner_radius_all(8)
+	sb.set_content_margin_all(10)
+	bloc.add_theme_stylebox_override("panel", sb)
+	info_view.add_child(bloc)
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 10)
+	bloc.add_child(h)
+	if image != "" and SpritesBD.existe(image):
+		h.add_child(Composants.image_logo(SpritesBD.texture(image), Vector2(92, 80)))
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 2)
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	h.add_child(v)
+	var nm := Composants.label(nom.to_upper())
+	nm.add_theme_font_override("font", UiTokens.police_titre())
+	nm.add_theme_font_size_override("font_size", 24)
+	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	nm.add_theme_constant_override("line_spacing", -4)
+	v.add_child(nm)
+	v.add_child(Composants.paragraphe(sous, 13))
+	var hp := HFlowContainer.new()
+	hp.add_theme_constant_override("h_separation", 6)
+	hp.add_theme_constant_override("v_separation", 4)
+	v.add_child(hp)
+	for e in pills:
+		var pc := PanelContainer.new()
+		var sp := StyleBoxFlat.new()
+		sp.bg_color = e[1]
+		sp.border_color = UiTokens.ENCRE
+		sp.set_border_width_all(1)
+		sp.set_corner_radius_all(9)
+		sp.content_margin_left = 7
+		sp.content_margin_right = 7
+		pc.add_theme_stylebox_override("panel", sp)
+		var pl := Composants.label(e[0])
+		pl.add_theme_font_override("font", UiTokens.police_corps(700))
+		pl.add_theme_font_size_override("font_size", 11)
+		pc.add_child(pl)
+		hp.add_child(pc)
 
 
 ## Le métier en une phrase lisible sans survol, les traits avec leur effet, les améliorations.
@@ -4975,39 +5141,41 @@ func _animal_picture(id: String, taille: Vector2) -> Control:
 
 
 ## Fiche d'un animal installé : contrat, motif, nourriture, affinités.
-func _animal_info(a: GameState.Animal) -> void:
+func _animal_info(a: GameState.Animal, fiche: Array) -> void:
 	var d: Dictionary = a.def
 	zoo_title.text = "ANIMAL"
 	var mult := game.animal_attract_mult(a)
-	var lines: Array[String] = [
-		"[b]%s[/b] · palier %s" % [d["nom"], d["palier"]],
-		"[color=%s]%s[/color] · %s · %s" % [biome_colors[d["biome"]].to_html(false), biome_noms[d["biome"]], game.continent_name(d.get("continent", "")), game.type_name(d.get("type", ""))],
-		"",
-		"État : %s" % ("arrive cette nuit" if not a.arrived else ("[color=#1F7A4A]nourri[/color]" if a.fed else "[color=#B5452A]a faim : il ne compte plus dans l'attractivité[/color]")),
-		"Attractivité : [b]%d[/b]%s" % [int(d["reputation"]), " (×%.2f avec les bonus)" % mult if not is_equal_approx(mult, 1.0) else ""],
-		"Nourriture : %d rations / jour · réserve %.0f / %.0f" % [roundi(game.rations_per_day(d)), a.food, game.food_capacity(d)],
-		("En liberté dans le parc (%d cases)" if a.park else "Enclos : %d cases") % a.tiles.size() + " · il lui en faut %d" % int(d["taille"]),
-	]
+	var esp = SpritesBD.ANIMAUX.get(d["id"])
+	var tier := int(str(d["palier"]).substr(1))
+	var pills := [["◆".repeat(tier) + "◇".repeat(maxi(0, 3 - tier)) + " " + str(game.data["animals"]["paliers"][d["palier"]]["nom"]), UiTokens.PAPIER]]
+	if not a.arrived:
+		pills.append(["Arrive cette nuit", UiTokens.JAUNE_CLAIR])
+	elif a.sick:
+		pills.append(["■ Malade", UiTokens.ORANGE_CLAIR])
+	elif not a.fed:
+		pills.append(["■ A faim", UiTokens.ORANGE_CLAIR])
+	else:
+		pills.append(["● Nourri", Color("D8F0EC")])
+	fiche.append(["identite", str(esp[0]) if esp != null else "", str(d["nom"]), "%s · %s" % [game.continent_name(d.get("continent", "")), game.type_name(d.get("type", "")).to_lower()], pills,
+		Color(UiTokens.BIOMES.get(str(d["biome"]).to_lower(), {"couleur": UiTokens.SARCELLE})["couleur"]).lightened(0.75)])
+	if a.arrived and not a.fed:
+		fiche.append(["alerte", "Il a faim : il ne compte plus dans l'attractivité."])
+	if a.sick:
+		fiche.append(["alerte", "Malade : envoyez un Soigneur dans son enclos, sinon il guérit seul en %d nuits." % int(game.data["buildings"]["zoo"]["maladie"].get("guerison_nuits", 2))])
+	fiche.append(["carte", "AU QUOTIDIEN", "ressource_nourriture", UiTokens.SARCELLE])
+	fiche.append(["barre", "Réserve de rations", clampf(a.food / maxf(1.0, game.food_capacity(d)), 0.0, 1.0), "%.0f / %.0f" % [a.food, game.food_capacity(d)], UiTokens.QUALITE])
+	fiche.append(["ligne", "ressource_nourriture", Color("8A6A30"), "Rations par jour", str(roundi(game.rations_per_day(d)))])
+	fiche.append(["ligne", "ressource_reputation", UiTokens.RESSOURCES["reputation"]["couleur"], "Attractivité", "%d%s" % [int(d["reputation"]), " ×%.2f" % mult if not is_equal_approx(mult, 1.0) else ""]])
+	fiche.append(["carte", "ENCLOS", "batiment_cloture", UiTokens.ORANGE])
+	fiche.append(["ligne", "batiment_cloture", UiTokens.CLOTURE_ENCLOS, "En liberté dans le parc" if a.park else "Surface", "%d / %d cases" % [a.tiles.size(), int(d["taille"])]])
+	if d.has("decor"):
+		fiche.append(["ligne", "ordre_amenager", UiTokens.SARCELLE, "Aménagement", str(game.building_def(d["decor"])["nom"])])
+	fiche.append(["motif", d])
 	var same := game.animals.filter(func(o): return o != a and o.arrived and o.def.get("continent", "") == d.get("continent", "")).size()
 	if same > 0:
-		lines.append("[color=#8A6A00]Affinité : %d autre(s) animal(aux) d'%s dans le zoo[/color]" % [same, game.continent_name(d.get("continent", ""))])
-	if d.has("decor"):
-		lines.append("Aménagement requis : %s" % game.building_def(d["decor"])["nom"])
+		fiche.append(["texte", "Affinité : %d autre(s) animal(aux) de ce continent dans le zoo." % same])
 	if d.has("effet_texte"):
-		lines.append("[color=#13867F]Rare : %s[/color]" % d["effet_texte"])
-	info_text.text = "\n".join(lines)
-	if info_extra_for != a:
-		info_extra_for = a
-		_clear(info_extra)
-		var pic := _animal_picture(d["id"], Vector2(150, 112))
-		if pic:
-			var pc := CenterContainer.new()
-			pc.add_child(pic)
-			info_extra.add_child(pc)
-		info_extra.add_child(Composants.label("Motif d'enclos du contrat", "TexteSecondaire"))
-		var cc := CenterContainer.new()
-		cc.add_child(_pattern_view(d, 22.0))
-		info_extra.add_child(cc)
+		fiche.append(["bonus", "Animal rare", str(d["effet_texte"])])
 
 
 ## Prix du panneau Marché, recalculés selon la quantité choisie et les Marchands postés.

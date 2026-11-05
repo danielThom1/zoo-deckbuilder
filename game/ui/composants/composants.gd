@@ -538,6 +538,9 @@ static func badge_ouvrier(d: Dictionary, etat := "normale", boutons: Array = [],
 	if hors:
 		sb.border_color = UiTokens.ENCRE
 		sb.draw_center = true
+	if hors:
+		sb.set_border_width_all(0)
+		carte.draw.connect(func(): tirets_rect(carte, Rect2(Vector2(1, 1), carte.size - Vector2(2, 2)), UiTokens.ENCRE, 2.0, 10.0))
 	if etat == "selectionnee":
 		sb.expand_margin_left = 3
 		sb.expand_margin_right = 3
@@ -658,7 +661,8 @@ static func badge_action(card: GameState.Card, texte_bouton: String, desactive: 
 	carte.size = BADGE
 	carte.position.y = BADGE_REPOS
 	carte.mouse_filter = Control.MOUSE_FILTER_PASS
-	carte.add_theme_stylebox_override("panel", UiTokens.panneau(Color("FFFBEA"), 10, 2, 0, true))
+	carte.add_theme_stylebox_override("panel", UiTokens.panneau(Color("FFFBEA"), 10, 0, 0, true))
+	carte.draw.connect(func(): tirets_rect(carte, Rect2(Vector2(1, 1), carte.size - Vector2(2, 2)), UiTokens.ENCRE, 2.0, 10.0))
 	racine.add_child(carte)
 	var k := label("CARTE D'ACTION", "")
 	k.add_theme_font_override("font", UiTokens.police_titre())
@@ -771,4 +775,109 @@ static func pastille_niveau(niveau: int, d := 30) -> Control:
 	l.add_theme_stylebox_override("normal", sn)
 	l.custom_minimum_size = Vector2(d, d)
 	l.tooltip_text = "Niveau %d sur 6" % niveau
+	return l
+
+
+## Fenêtre « Comité » : voile d'encre, panneau clair centré, en-tête blanc (sur-titre mono, titre condensé, ✕), corps, pied blanc.
+## Renvoie {racine, corps, droite, pied, pied_boite} ; le pied reste caché tant qu'on ne l'affiche pas.
+static func fenetre(taille: Vector2, sur: String, titre: String, fermer := Callable()) -> Dictionary:
+	var voile := ColorRect.new()
+	voile.color = Color(UiTokens.ENCRE, 0.55)
+	voile.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	voile.mouse_filter = Control.MOUSE_FILTER_STOP
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", UiTokens.panneau(UiTokens.FOND_FENETRE, 12, 2, 2, true))
+	p.custom_minimum_size = taille
+	p.set_anchors_preset(Control.PRESET_CENTER)
+	p.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	p.grow_vertical = Control.GROW_DIRECTION_BOTH
+	voile.add_child(p)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 0)
+	p.add_child(v)
+	var tete := PanelContainer.new()
+	var st := StyleBoxFlat.new()
+	st.bg_color = UiTokens.PAPIER
+	st.corner_radius_top_left = 10
+	st.corner_radius_top_right = 10
+	st.border_color = UiTokens.ENCRE
+	st.border_width_bottom = 2
+	st.content_margin_left = 18
+	st.content_margin_right = 18
+	st.content_margin_top = 10
+	st.content_margin_bottom = 10
+	tete.add_theme_stylebox_override("panel", st)
+	v.add_child(tete)
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 16)
+	tete.add_child(h)
+	var tb := VBoxContainer.new()
+	tb.add_theme_constant_override("separation", 0)
+	tb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(tb)
+	if sur != "":
+		var ls := label(sur.to_upper())
+		ls.add_theme_font_override("font", UiTokens.police_mono(500))
+		ls.add_theme_font_size_override("font_size", 12)
+		ls.add_theme_color_override("font_color", UiTokens.TEXTE_2)
+		tb.add_child(ls)
+	var lt := label(titre)
+	lt.add_theme_font_override("font", UiTokens.police_titre())
+	lt.add_theme_font_size_override("font_size", 30)
+	tb.add_child(lt)
+	var droite := HBoxContainer.new()
+	droite.add_theme_constant_override("separation", 8)
+	droite.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	h.add_child(droite)
+	if fermer.is_valid():
+		var x := bouton("✕", "BoutonSecondaire")
+		x.custom_minimum_size = Vector2(40, 40)
+		x.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		x.pressed.connect(fermer)
+		h.add_child(x)
+	var marge := MarginContainer.new()
+	for c in [["left", 18], ["right", 18], ["top", 14], ["bottom", 14]]:
+		marge.add_theme_constant_override("margin_" + c[0], c[1])
+	marge.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(marge)
+	var corps := VBoxContainer.new()
+	corps.add_theme_constant_override("separation", 10)
+	marge.add_child(corps)
+	var pied_boite := PanelContainer.new()
+	var sp := StyleBoxFlat.new()
+	sp.bg_color = UiTokens.PAPIER
+	sp.corner_radius_bottom_left = 10
+	sp.corner_radius_bottom_right = 10
+	sp.border_color = UiTokens.ENCRE
+	sp.border_width_top = 2
+	sp.content_margin_left = 18
+	sp.content_margin_right = 18
+	sp.content_margin_top = 10
+	sp.content_margin_bottom = 10
+	pied_boite.add_theme_stylebox_override("panel", sp)
+	pied_boite.visible = false
+	v.add_child(pied_boite)
+	var pied := HBoxContainer.new()
+	pied.add_theme_constant_override("separation", 10)
+	pied_boite.add_child(pied)
+	return {"racine": voile, "corps": corps, "droite": droite, "pied": pied, "pied_boite": pied_boite}
+
+
+## Titre de section dans une fenêtre : condensé, secondaire.
+static func titre_section(t: String, taille := 14) -> Label:
+	var l := label(t.to_upper())
+	l.add_theme_font_override("font", UiTokens.police_titre())
+	l.add_theme_font_size_override("font_size", taille)
+	l.add_theme_color_override("font_color", UiTokens.TEXTE_2)
+	return l
+
+
+## Texte courant qui passe à la ligne, interligne serré.
+static func paragraphe(t: String, taille := 14, couleur := UiTokens.ENCRE) -> Label:
+	var l := label(t)
+	l.add_theme_font_override("font", UiTokens.police_corps(600))
+	l.add_theme_font_size_override("font_size", taille)
+	l.add_theme_color_override("font_color", couleur)
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.add_theme_constant_override("line_spacing", -3)
 	return l

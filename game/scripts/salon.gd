@@ -23,24 +23,18 @@ func _init(r: Reseau) -> void:
 
 func _ready() -> void:
 	theme = UiTokens.build_theme()
-	var fond := ColorRect.new()
-	fond.color = UiTokens.MARINE
+	var fond := TextureRect.new()
+	fond.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	fond.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	fond.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	fond.texture = load("res://assets/bd/menu_fond.jpg")
 	add_child(fond)
-	var centre := CenterContainer.new()
-	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(centre)
-	var carte := PanelContainer.new()
-	carte.add_theme_stylebox_override("panel", UiTokens.panel(UiTokens.PAPIER, UiTokens.ENCRE, 14, 3, 22))
-	carte.custom_minimum_size = Vector2(620, 0)
-	centre.add_child(carte)
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 12)
-	carte.add_child(v)
-	var titre := Composants.label("MULTIJOUEUR", "TitreEcran")
-	titre.add_theme_font_size_override("font_size", 34)
-	titre.add_theme_color_override("font_color", UiTokens.SARCELLE)
-	v.add_child(titre)
+	var quitter := func():
+		reseau.quitter()
+		retour.emit()
+	var f := Composants.fenetre(Vector2(640, 0), "Plusieurs filiales, une seule vallée", "Multijoueur", quitter)
+	add_child(f["racine"])
+	var v: VBoxContainer = f["corps"]
 	v.add_child(_texte("Votre nom"))
 	champ_pseudo = LineEdit.new()
 	champ_pseudo.text = "Directeur"
@@ -89,11 +83,11 @@ func _ready() -> void:
 	statut = _texte("", true)
 	statut.add_theme_color_override("font_color", UiTokens.NEGATIF)
 	v.add_child(statut)
-	var retour_b := Composants.bouton("Retour", "BoutonSecondaire")
-	retour_b.pressed.connect(func():
-		reseau.quitter()
-		retour.emit())
-	v.add_child(retour_b)
+	f["pied_boite"].visible = true
+	var retour_b := Composants.bouton("‹ Retour au menu", "BoutonSecondaire")
+	retour_b.custom_minimum_size.y = 40
+	retour_b.pressed.connect(quitter)
+	f["pied"].add_child(retour_b)
 	reseau.liste_changee.connect(_actualiser)
 	reseau.coupure.connect(func(t):
 		statut.text = t
@@ -103,11 +97,10 @@ func _ready() -> void:
 
 
 func _texte(t: String, long := false) -> Label:
-	var l := Composants.label(t, "TexteSecondaire")
-	l.add_theme_font_size_override("font_size", 14)
-	if long:
-		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		l.custom_minimum_size.x = 570
+	if not long:
+		return Composants.titre_section(t)
+	var l := Composants.paragraphe(t, 13, UiTokens.TEXTE_2)
+	l.custom_minimum_size.x = 590
 	return l
 
 
@@ -144,9 +137,13 @@ func _actualiser() -> void:
 	for c in liste.get_children():
 		c.queue_free()
 	for j in reseau.joueurs:
-		var l := Composants.label(("★ " if j["id"] == 1 else "• ") + str(j["pseudo"]))
-		l.add_theme_font_size_override("font_size", 17)
-		liste.add_child(l)
+		var ligne := PanelContainer.new()
+		ligne.add_theme_stylebox_override("panel", UiTokens.panneau(UiTokens.PAPIER, 8, 2, 8, false))
+		var l := Composants.label(str(j["pseudo"]) + ("  ·  hôte" if j["id"] == 1 else ""))
+		l.add_theme_font_override("font", UiTokens.police_corps(700))
+		l.add_theme_font_size_override("font_size", 15)
+		ligne.add_child(l)
+		liste.add_child(ligne)
 	if not reseau.est_hote:
 		statut.text = "Connecté. L'hôte lancera la partie."
 	bouton_lancer.disabled = reseau.joueurs.size() < 2

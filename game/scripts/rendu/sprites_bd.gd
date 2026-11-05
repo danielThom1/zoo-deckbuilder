@@ -18,7 +18,7 @@ const BATIMENTS := {
 	"grand_arbre": "arbre1", "rocher_obs": "rocher_obs", "bassin_profond": "bassin", "abri_chaud": "abri",
 }
 ## Camp selon son niveau (1 à 3).
-const CAMPS := ["camp2", "camp1", "camp3"]
+const CAMPS := ["camp1", "camp2", "camp3"]
 const CHANTIERS := ["chantier1", "chantier2"]
 const LARGEUR_BATIMENT := 1.15
 

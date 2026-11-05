@@ -711,36 +711,36 @@
   "categorie": "batiments",
   "fichier": "res://assets/bd/sprites/batiments/camp1.png",
   "pied": [
-   79,
-   122
+   230,
+   459
   ],
   "taille": [
-   159,
-   122
+   460,
+   459
   ]
  },
  "camp2": {
   "categorie": "batiments",
   "fichier": "res://assets/bd/sprites/batiments/camp2.png",
   "pied": [
-   78,
-   117
+   230,
+   444
   ],
   "taille": [
-   156,
-   117
+   460,
+   444
   ]
  },
  "camp3": {
   "categorie": "batiments",
   "fichier": "res://assets/bd/sprites/batiments/camp3.png",
   "pied": [
-   103,
-   146
+   230,
+   435
   ],
   "taille": [
-   206,
-   146
+   460,
+   435
   ]
  },
  "cantonnier": {
@@ -6357,6 +6357,186 @@
   "taille": [
    460,
    319
+  ]
+ },
+ "cl_enceinte_face": {
+  "categorie": "clotures",
+  "fichier": "res://assets/bd/sprites/clotures/cl_enceinte_face.png",
+  "pied": [
+   80,
+   46
+  ],
+  "taille": [
+   160,
+   46
+  ]
+ },
+ "cl_enceinte_long": {
+  "categorie": "clotures",
+  "fichier": "res://assets/bd/sprites/clotures/cl_enceinte_long.png",
+  "pied": [
+   11,
+   160
+  ],
+  "taille": [
+   22,
+   160
+  ]
+ },
+ "cl_enceinte_poteau": {
+  "categorie": "clotures",
+  "fichier": "res://assets/bd/sprites/clotures/cl_enceinte_poteau.png",
+  "pied": [
+   19,
+   91
+  ],
+  "taille": [
+   38,
+   91
+  ]
+ },
+ "cl_enclos_aerien_face": {
+  "categorie": "clotures",
+  "fichier": "res://assets/bd/sprites/clotures/cl_enclos_aerien_face.png",
+  "pied": [
+   80,
+   52
+  ],
+  "taille": [
+   160,
+   52
+  ]
+ },
+ "cl_enclos_aerien_long": {
+  "categorie": "clotures",
+  "fichier": "res://assets/bd/sprites/clotures/cl_enclos_aerien_long.png",
+  "pied": [
+   12,
+   160
+  ],
+  "taille": [
+   25,
+   160
+  ]
+ },
+ "cl_enclos_aerien_poteau": {
+  "categorie": "clotures",
+  "fichier": "res://assets/bd/sprites/clotures/cl_enclos_aerien_poteau.png",
+  "pied": [
+   15,
+   90
+  ],
+  "taille": [
+   30,
+   90
+  ]
+ },
+ "cl_enclos_aquatique_face": {
+  "categorie": "clotures",
+  "fichier": "res://assets/bd/sprites/clotures/cl_enclos_aquatique_face.png",
+  "pied": [
+   80,
+   53
+  ],
+  "taille": [
+   160,
+   53
+  ]
+ },
+ "cl_enclos_aquatique_long": {
+  "categorie": "clotures",
+  "fichier": "res://assets/bd/sprites/clotures/cl_enclos_aquatique_long.png",
+  "pied": [
+   10,
+   160
+  ],
+  "taille": [
+   21,
+   160
+  ]
+ },
+ "cl_enclos_aquatique_poteau": {
+  "categorie": "clotures",
+  "fichier": "res://assets/bd/sprites/clotures/cl_enclos_aquatique_poteau.png",
+  "pied": [
+   16,
+   89
+  ],
+  "taille": [
+   33,
+   89
+  ]
+ },
+ "cl_enclos_herbivore_face": {
+  "categorie": "clotures",
+  "fichier": "res://assets/bd/sprites/clotures/cl_enclos_herbivore_face.png",
+  "pied": [
+   80,
+   58
+  ],
+  "taille": [
+   160,
+   58
+  ]
+ },
+ "cl_enclos_herbivore_long": {
+  "categorie": "clotures",
+  "fichier": "res://assets/bd/sprites/clotures/cl_enclos_herbivore_long.png",
+  "pied": [
+   11,
+   160
+  ],
+  "taille": [
+   23,
+   160
+  ]
+ },
+ "cl_enclos_herbivore_poteau": {
+  "categorie": "clotures",
+  "fichier": "res://assets/bd/sprites/clotures/cl_enclos_herbivore_poteau.png",
+  "pied": [
+   14,
+   91
+  ],
+  "taille": [
+   28,
+   91
+  ]
+ },
+ "cl_enclos_predateur_face": {
+  "categorie": "clotures",
+  "fichier": "res://assets/bd/sprites/clotures/cl_enclos_predateur_face.png",
+  "pied": [
+   80,
+   52
+  ],
+  "taille": [
+   160,
+   52
+  ]
+ },
+ "cl_enclos_predateur_long": {
+  "categorie": "clotures",
+  "fichier": "res://assets/bd/sprites/clotures/cl_enclos_predateur_long.png",
+  "pied": [
+   11,
+   160
+  ],
+  "taille": [
+   22,
+   160
+  ]
+ },
+ "cl_enclos_predateur_poteau": {
+  "categorie": "clotures",
+  "fichier": "res://assets/bd/sprites/clotures/cl_enclos_predateur_poteau.png",
+  "pied": [
+   11,
+   91
+  ],
+  "taille": [
+   23,
+   91
   ]
  }
 }

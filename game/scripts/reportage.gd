@@ -29,19 +29,11 @@ func _ready() -> void:
 	theme = UiTokens.build_theme()
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	var fond := ColorRect.new()
-	fond.color = Color(UiTokens.ENCRE, 0.7)
-	fond.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(fond)
-	var centre := CenterContainer.new()
-	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(centre)
-	var pc := PanelContainer.new()
-	pc.add_theme_stylebox_override("panel", UiTokens.panel(UiTokens.PAPIER, UiTokens.ENCRE, 14, 3, 18))
-	centre.add_child(pc)
+	var f := Composants.fenetre(Vector2(1120, 0), "Journaliste", "Carnet de reportage", queue_free)
+	add_child(f["racine"])
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 18)
-	pc.add_child(h)
+	f["corps"].add_child(h)
 	carte = Control.new()
 	carte.custom_minimum_size = Vector2(TAILLE_CARTE, TAILLE_CARTE)
 	carte.draw.connect(_dessiner)
@@ -141,31 +133,35 @@ func _refaire_droite() -> void:
 	for c in droite.get_children():
 		droite.remove_child(c)
 		c.queue_free()
-	var titre := Composants.label("CARNET DE REPORTAGE", "TitreEcran")
-	titre.add_theme_font_size_override("font_size", 26)
-	titre.add_theme_color_override("font_color", UiTokens.SARCELLE)
-	droite.add_child(titre)
 	droite.add_child(_texte("%s, %s. Choisissez un parc, puis cliquez sur la carte pour diriger le reportage." % [w.card.nom, g.job_name(w.card)]))
+	droite.add_child(Composants.titre_section("Parc visité"))
 	var noms := HBoxContainer.new()
 	noms.add_theme_constant_override("separation", 6)
 	droite.add_child(noms)
 	for i in g.mt.players.size():
 		if i == g.index:
 			continue
-		var b := Composants.bouton(g.mt.names[i], "BoutonPrincipal" if rival == g.mt.players[i] else "BoutonSecondaire")
+		var b := Composants.bouton(str(g.mt.names[i]).replace(" Holdings", ""), "BoutonPrincipal" if rival == g.mt.players[i] else "BoutonSecondaire")
 		b.add_theme_font_size_override("font_size", 13)
+		b.custom_minimum_size.y = 36
 		b.pressed.connect(func(): main._cmd("report_start", [w, i]))
 		noms.add_child(b)
 	if rival != null:
 		droite.add_child(_texte("Réputation %d · %d collaborateurs · publicité ×%s" % [rival.reputation(), rival.all_employees().size(), ("%.2f" % rival.publicity_mult()).replace(".", ",")]))
 		droite.add_child(_texte("Animaux repérés : %s" % (", ".join(vus_animaux.map(func(a): return a.def["nom"])) if not vus_animaux.is_empty() else "aucun pour l'instant")))
-		var art := Composants.bouton("Publier un article · %d" % int(P["article"]), "BoutonPrincipal")
-		art.tooltip_text = "Visiteurs de ce rival ×%s pendant %d jours. Un article par jour." % [str(P["mult_article"]).replace(".", ","), int(P["jours_article"])]
-		art.disabled = g.article_error(w) != ""
-		art.pressed.connect(func(): main._cmd("publish_article", [w]))
+		droite.add_child(Composants.titre_section("Article"))
+		var infos_article := "Visiteurs de ce rival ×%s pendant %d jours. Un article par jour." % [str(P["mult_article"]).replace(".", ","), int(P["jours_article"])]
+		var err_art := g.article_error(w)
+		var art: Button
+		if err_art != "":
+			art = Composants.bouton_indisponible(err_art.left(44), err_art)
+		else:
+			art = Composants.bouton("Publier un article · %d" % int(P["article"]), "BoutonPrincipal")
+			art.pressed.connect(func(): main._cmd("publish_article", [w]))
+			art.tooltip_text = infos_article
+		art.custom_minimum_size.y = 40
 		droite.add_child(art)
-		if g.article_error(w) != "":
-			droite.add_child(_texte(g.article_error(w)))
+		droite.add_child(Composants.titre_section("Accusation"))
 		droite.add_child(_texte("En vue : accusez un collaborateur et sa direction le licenciera sans vérifier. Un légendaire emporte son bonus de réputation."))
 		var liste := VBoxContainer.new()
 		liste.add_theme_constant_override("separation", 4)
@@ -174,21 +170,17 @@ func _refaire_droite() -> void:
 			liste.add_child(_texte("Personne en vue."))
 		for o in visibles:
 			var err := g.accuse_error(w, o.card.id)
-			var b2 := Composants.bouton("Accuser %s (%s, N%d) · %d" % [o.card.nom, rival.job_name(o.card), o.card.niveau, int(P["accusation"])], "BoutonSecondaire")
+			var txt := "Accuser %s (%s, N%d) · %d" % [o.card.nom, rival.job_name(o.card), o.card.niveau, int(P["accusation"])]
+			var b2: Button = Composants.bouton_indisponible(txt, err) if err != "" else Composants.bouton(txt, "BoutonSecondaire")
 			b2.add_theme_font_size_override("font_size", 13)
-			b2.disabled = err != ""
-			b2.tooltip_text = err
+			b2.custom_minimum_size.y = 36
 			var id: int = o.card.id
-			b2.pressed.connect(func(): main._cmd("accuse_worker", [w, id]))
+			if err == "":
+				b2.pressed.connect(func(): main._cmd("accuse_worker", [w, id]))
 			liste.add_child(b2)
-	var fermer := Composants.bouton("Fermer", "BoutonSecondaire")
-	fermer.pressed.connect(queue_free)
-	droite.add_child(fermer)
 
 
 func _texte(t: String) -> Label:
-	var l := Composants.label(t, "TexteSecondaire")
-	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var l := Composants.paragraphe(t, 14, UiTokens.TEXTE_2)
 	l.custom_minimum_size.x = 380
-	l.add_theme_font_size_override("font_size", 14)
 	return l
