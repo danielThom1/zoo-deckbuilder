@@ -115,22 +115,8 @@ var rotate_btn: Button  # « Tourner (R) » pendant la pose d'un bâtiment non c
 var toast_box: VBoxContainer
 var status_label: Label
 var night_root: Control
-var night_title: Label
-var night_text: RichTextLabel
-var night_workers: Container
-var night_contracts: Container
-var night_fire_box: Control
-var night_bonus_box: VBoxContainer
-var night_actions: Container
+var conseil: Conseil
 var night_pages := {}  # étape de la nuit -> page du centre
-var night_objectifs: VBoxContainer
-var night_stage_title: Label
-var night_stage_note: Label
-var night_level_box: Control
-var night_level_rows: VBoxContainer
-var night_action_box: Control
-var night_action_flow: VBoxContainer
-var action_card: GameState.Card = null
 var event_label: Label
 var hover_card: Control  # carte affichée au survol d'un nom d'ouvrier
 var hover_src: Control
@@ -155,7 +141,6 @@ var pub_buttons := {}  # id de campagne -> bouton
 var picker_root: ColorRect
 var picker_box: VBoxContainer
 var picker_speed := -1.0  # vitesse à rétablir en refermant le choix (la journée est en pause pendant le choix)
-var night_fire: VBoxContainer
 var night_next: Button
 var contracts_box: VBoxContainer
 var enc_cache_tile := Vector2i(-99, -99)
@@ -214,15 +199,7 @@ var unit_traits: HFlowContainer
 var unit_task: Label
 var unit_bar: ProgressBar
 var unit_orders: Array[Button] = []
-var action_mode := "up"  # « up » : améliorations proposées ; « fire » : confirmation du licenciement
 # Nuit et fin de partie (captures 05 et 06)
-var night_steps: HBoxContainer
-var night_summary: VBoxContainer
-var night_influence: HBoxContainer
-var night_money_lbl: Label
-var night_contracts_note: Label
-var night_rep_rows: VBoxContainer
-var night_bonus_note: Label
 var end_root: ColorRect
 var end_reopen: Button
 var end_built := false
@@ -232,7 +209,6 @@ var peek_panel: PanelContainer  # la nuit, « Voir mon zoo » : motifs des contr
 var peek_list: VBoxContainer
 var peek_version := -1
 var peek_hint := {}  # contrat montré sur la carte : {"def", "tiles", "missing"}
-var night_chips := {}
 var day_hud: Array[Control] = []  # masqués la nuit et sur l'écran de fin
 var end_dismissed := false
 var end_views: HBoxContainer  # carte finale : un bouton par joueur pour voir son zoo
@@ -1911,7 +1887,7 @@ func _process(delta: float) -> void:
 	_sons_de_la_partie()
 	# Les bulles d'Hubert sont sur un calque au-dessus de l'interface : elles s'effacent devant les fenêtres.
 	if hubert:
-		hubert.get_parent().visible = not ((picker_root != null and picker_root.visible) \
+		hubert.get_parent().visible = mt.phase != "night" and not ((picker_root != null and picker_root.visible) \
 			or ui.get_children().any(func(c): return c is Reportage or c is Reglages or c is Aide))
 	if mt.phase != last_phase:
 		if mt.phase == "day" and last_phase != "" and not spectator:
@@ -1928,8 +1904,7 @@ func _process(delta: float) -> void:
 	# La nuit, les IA jouent l'une après l'autre (on voit ce qu'elles prennent) ; en spectateur, la nuit passe seule.
 	if reseau == null and replay == null and mt.phase == "night" and not mt.game_over:
 		night_clock += delta
-		var pause := 0.3 if speed >= 8.0 else (2.0 if mt.night_stage == "bonus" else 1.1)
-		if night_clock > pause:
+		if night_clock > night_pause():
 			night_clock = 0.0
 			mt.noter("pas_ia")
 			if not mt.step_night() and spectator and mt.night_stage == "equipe":
@@ -1980,47 +1955,6 @@ func _process(delta: float) -> void:
 		_hubert_alertes()
 	_hubert_annonces()
 	_screenshot_check()
-
-
-## Le bilan du soir signé par Hubert : sa réaction aux chiffres, son humeur, sa signature et le tampon.
-func _note_de_direction(total: int) -> void:
-	if hubert == null:
-		return
-	if not memo_lignes.has(mt.day):
-		memo_lignes[mt.day] = hubert.replique("soir_bon" if total >= 0 else "soir_mauvais")
-	var note := Composants.label("« %s »" % memo_lignes[mt.day])
-	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	note.add_theme_font_size_override("font_size", 14)
-	night_summary.add_child(note)
-	var humeur := _hubert_humeur()
-	var hl := Composants.label("Humeur de la direction : %s" % ("satisfaite" if humeur > 0 else ("exécrable" if humeur < 0 else "vigilante")), "TexteSecondaire")
-	hl.add_theme_font_size_override("font_size", 12)
-	night_summary.add_child(hl)
-	var cadre: Dictionary = mt.data["hubert"]["cadre"]
-	var signe := Composants.label("%s\n%s" % [cadre["nom"], cadre["titre"]], "TexteSecondaire")
-	signe.add_theme_font_size_override("font_size", 12)
-	signe.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	night_summary.add_child(signe)
-	var support := Control.new()
-	support.custom_minimum_size = Vector2(0, 34)
-	support.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	night_summary.add_child(support)
-	var tampon := Label.new()
-	tampon.text = "CONFIDENTIEL"
-	tampon.add_theme_font_override("font", UiTokens.police_corps(800))
-	tampon.add_theme_font_size_override("font_size", 14)
-	tampon.add_theme_color_override("font_color", UiTokens.ORANGE)
-	var ts := StyleBoxFlat.new()
-	ts.bg_color = Color(0, 0, 0, 0)
-	ts.border_color = UiTokens.ORANGE
-	ts.set_border_width_all(2)
-	ts.set_corner_radius_all(3)
-	ts.content_margin_left = 8
-	ts.content_margin_right = 8
-	tampon.add_theme_stylebox_override("normal", ts)
-	tampon.position = Vector2(60, 8)
-	tampon.rotation = -0.1
-	support.add_child(tampon)
 
 
 ## Rejoue la partie à la vitesse choisie : les ordres de chaque pas en journée, un coup à la fois au draft et la nuit.
@@ -2249,6 +2183,8 @@ func _auto_play() -> void:
 		for card in game.hand.duplicate():
 			game.deploy(card)
 	if args.has("endday"):
+		if args.has("president"):  # --president : le joueur humain préside le conseil (captures)
+			game.influence += 100.0
 		game.end_day()
 		if args.has("etape"):  # --etape=ouvriers : avance la nuit jusqu'à cette étape (captures)
 			mt.night_goto(args["etape"], game.index)
@@ -4254,52 +4190,12 @@ func _clear(node: Node) -> void:
 
 
 func _build_night_ui() -> void:
-	night_root = ColorRect.new()
-	night_root.color = Color("DCE4EE", 0.95)
-	night_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	night_root.mouse_filter = Control.MOUSE_FILTER_STOP
-	night_root.visible = false
-	ui.add_child(night_root)
-	# En-tête h 64 : lune, titre, étapes de la nuit, bouton du jour suivant
-	var head := PanelContainer.new()
-	var hs := UiTokens.panel(UiTokens.PANNEAU_HAUT, UiTokens.OR, 0, 0, 10)
-	hs.border_width_bottom = 1
-	hs.content_margin_left = 24
-	hs.content_margin_right = 24
-	head.add_theme_stylebox_override("panel", hs)
-	head.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	head.custom_minimum_size.y = 64
-	night_root.add_child(head)
-	var hb := HBoxContainer.new()
-	hb.add_theme_constant_override("separation", 14)
-	head.add_child(hb)
-	var moon := Composants.icone_rect("ui_nuit", Vector2(30, 30), UiTokens.OR)
-	moon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	hb.add_child(moon)
-	night_title = Composants.label("", "TitreEcran")
-	night_title.add_theme_font_size_override("font_size", 28)
-	night_title.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	hb.add_child(night_title)
-	night_steps = HBoxContainer.new()
-	night_steps.add_theme_constant_override("separation", 6)
-	night_steps.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	night_steps.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hb.add_child(night_steps)
-	# Argent et logement bien en vue : ce sont eux qui décident des achats de la nuit
-	for r in [["argent", "Argent disponible"], ["logement", "Logement"]]:
-		var res: Dictionary = UiTokens.RESSOURCES[r[0]]
-		var chip := Composants.jeton_ressource(res["icone"], res["couleur"], res["reflet"], r[1], res.get("sprite", ""))
-		chip["valeur"].add_theme_font_size_override("font_size", 24)
-		chip["racine"].size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		hb.add_child(chip["racine"])
-		night_chips[r[0]] = chip
-	var peek := Composants.bouton("Voir mon zoo", "BoutonSecondaire")
-	peek.custom_minimum_size = Vector2(150, 40)
-	peek.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	peek.tooltip_text = "Masque le marché pour regarder votre terrain (enclos, motifs) avant d'acheter"
-	peek.pressed.connect(func(): night_peek = true)
-	hb.add_child(peek)
-	night_return = Composants.bouton("Retour au marché de nuit", "BoutonPrincipal")
+	conseil = Conseil.new(self)
+	night_root = conseil
+	ui.add_child(conseil)
+	night_pages = conseil.pages
+	night_next = conseil.bouton_suivant
+	night_return = Composants.bouton("Retour au conseil", "BoutonPrincipal")
 	night_return.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 	night_return.offset_top = 64
 	night_return.offset_left = -140
@@ -4329,528 +4225,15 @@ func _build_night_ui() -> void:
 	peek_list = VBoxContainer.new()
 	peek_list.add_theme_constant_override("separation", 6)
 	pv.add_child(peek_list)
-	night_next = Composants.bouton("", "BoutonPrincipal")
-	night_next.custom_minimum_size = Vector2(230, 44)
-	night_next.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	night_next.add_theme_font_size_override("font_size", 17)
-	night_next.pressed.connect(_on_night_next)
-	hb.add_child(night_next)
-	# Trois colonnes (gauche l 330, centre, droite l 322), chacune défile si besoin
-	var cols := [[10.0, 292.0], [300.0, -300.0], [-292.0, -10.0]]
-	var boxes: Array[VBoxContainer] = []
-	for k in 3:
-		var sc := ScrollContainer.new()
-		sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-		sc.anchor_bottom = 1.0
-		sc.anchor_left = 0.0 if k < 2 else 1.0
-		sc.anchor_right = 0.0 if k == 0 else 1.0
-		sc.offset_left = cols[k][0]
-		sc.offset_right = cols[k][1]
-		sc.offset_top = 82
-		sc.offset_bottom = -16
-		night_root.add_child(sc)
-		var v := VBoxContainer.new()
-		v.add_theme_constant_override("separation", 14)
-		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		sc.add_child(v)
-		boxes.append(v)
-	# Gauche : bilan de la journée
-	var p := _titled_panel(boxes[0], "BILAN DE LA JOURNÉE" if spectator else "NOTE DE LA DIRECTION")
-	night_summary = p[1]
-	# Centre : ordre d'influence (tour en cours), puis la page de l'étape de la nuit en grand
-	var inf := PanelContainer.new()
-	var ist := UiTokens.chip(Color(UiTokens.PANNEAU_BAS, 0.92), 22, 6)
-	ist.border_color = Color(UiTokens.OR, 0.6)
-	ist.set_border_width_all(1)
-	ist.content_margin_left = 14
-	ist.content_margin_right = 14
-	inf.add_theme_stylebox_override("panel", ist)
-	boxes[1].add_child(inf)
-	night_influence = HBoxContainer.new()
-	night_influence.add_theme_constant_override("separation", 8)
-	inf.add_child(night_influence)
-	night_stage_title = Composants.label("", "TitreEcran")
-	night_stage_title.add_theme_font_size_override("font_size", 28)
-	boxes[1].add_child(night_stage_title)
-	night_stage_note = Composants.label("", "TexteSecondaire")
-	night_stage_note.add_theme_font_size_override("font_size", 15)
-	night_stage_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	boxes[1].add_child(night_stage_note)
-	for st in Match.NIGHT_STAGES:
-		var page := VBoxContainer.new()
-		page.add_theme_constant_override("separation", 12)
-		boxes[1].add_child(page)
-		night_pages[st] = page
-	var flow := func(parent: Control) -> HFlowContainer:
-		var f := HFlowContainer.new()
-		f.add_theme_constant_override("h_separation", 8)
-		f.add_theme_constant_override("v_separation", 12)
-		parent.add_child(f)
-		return f
-	night_contracts_note = _section_title(night_pages["contrats"], "")
-	night_contracts = flow.call(night_pages["contrats"])
-	night_money_lbl = _section_title(night_pages["ouvriers"], "")
-	night_workers = flow.call(night_pages["ouvriers"])
-	var actions_note := _section_title(night_pages["cartes"], "")
-	actions_note.text = "1 achat par nuit · elles rejoignent votre deck"
-	night_actions = flow.call(night_pages["cartes"])
-	night_bonus_note = _section_title(night_pages["bonus"], "")
-	night_bonus_box = VBoxContainer.new()
-	night_bonus_box.add_theme_constant_override("separation", 10)
-	night_pages["bonus"].add_child(night_bonus_box)
-	p = _titled_panel(night_pages["equipe"], "MONTÉES DE NIVEAU", "amélioration offerte")
-	night_level_box = p[0]
-	night_level_rows = p[1]
-	p = _titled_panel(night_pages["equipe"], "AMÉLIORER OU LICENCIER", "1 par nuit")
-	night_action_box = p[0]
-	night_action_flow = p[1]
-	p = _titled_panel(night_pages["equipe"], "LICENCIER", "DRH : gratuit ce soir")
-	night_fire_box = p[0]
-	night_fire = p[1]
-	# Droite : réputation, journal
-	p = _titled_panel(boxes[2], "RÉPUTATION")
-	night_rep_rows = p[1]
-	p = _titled_panel(boxes[2], "OBJECTIFS DES ACTIONNAIRES")
-	night_objectifs = p[1]
-	p = _titled_panel(boxes[2], "JOURNAL DE LA NUIT")
-	night_text = RichTextLabel.new()
-	night_text.bbcode_enabled = true
-	night_text.fit_content = true
-	night_text.scroll_active = false
-	night_text.custom_minimum_size = Vector2(240, 0)
-	night_text.add_theme_font_size_override("normal_font_size", 13)
-	night_text.add_theme_font_size_override("bold_font_size", 13)
-	p[1].add_child(night_text)
 
 
-func _step_pill(text: String, state: String) -> Control:
-	var pill := PanelContainer.new()
-	var bg := Color(UiTokens.ENTETE, 0.9) if state == "fait" else (UiTokens.SELECTION if state == "courant" else Color(0, 0, 0, 0))
-	var sb := UiTokens.chip(bg, 16, 5)
-	sb.content_margin_left = 12
-	sb.content_margin_right = 12
-	if state != "courant":
-		sb.border_color = Color(UiTokens.TEXTE_SECONDAIRE, 0.55)
-		sb.set_border_width_all(1)
-	pill.add_theme_stylebox_override("panel", sb)
-	var l := Composants.label(("✓ " if state == "fait" else "· ") + text)
-	l.add_theme_font_override("font", UiTokens.police_corps(800))
-	l.add_theme_font_size_override("font_size", 14)
-	l.add_theme_color_override("font_color", UiTokens.BOUTON_TEXTE if state == "courant" else (UiTokens.TEXTE if state == "fait" else UiTokens.TEXTE_SECONDAIRE))
-	pill.add_child(l)
-	return pill
-
-
-func _summary_row(parent: Control, icon: String, color: Color, text: String, value: String, value_color := UiTokens.TEXTE) -> void:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
-	var dot := Composants.pastille(color, icon, 24)
-	dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	row.add_child(dot)
-	var l := Composants.label(text)
-	l.add_theme_font_size_override("font_size", 14)
-	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(l)
-	var v := Composants.label(value, "Compteur")
-	v.add_theme_font_size_override("font_size", 15)
-	v.add_theme_color_override("font_color", value_color)
-	row.add_child(v)
-	parent.add_child(row)
-
-
-## Petit disque numéroté à la couleur d'un joueur (ordre d'influence, classement).
-func _rank_dot(n: int, color: Color, d := 22) -> Control:
-	var p := PanelContainer.new()
-	var sb := UiTokens.chip(color, d / 2, 0)
-	sb.content_margin_left = 0
-	sb.content_margin_right = 0
-	p.add_theme_stylebox_override("panel", sb)
-	p.custom_minimum_size = Vector2(d, d)
-	p.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var l := Composants.label(str(n), "Compteur")
-	l.add_theme_font_size_override("font_size", int(d * 0.6))
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	p.add_child(l)
-	return p
-
-
-func _bonus_icon(b: Dictionary) -> String:
-	var keys := " ".join(b.get("effets", {}).keys())
-	for pair in [["bois", "ressource_bois"], ["pierre", "ressource_pierre"], ["or", "ressource_or"], ["construire", "ordre_construire"],
-			["vitesse", "qualite_rapide"], ["attractivite", "ressource_reputation"], ["lobbying", "ressource_influence"],
-			["influence", "ressource_influence"], ["pioche", "ui_pioche"], ["visiteur", "ressource_visiteurs"]]:
-		if pair[0] in keys:
-			return pair[1]
-	return "ui_ameliorer"
+## Temps de lecture entre deux pas d'IA la nuit (la décision d'un président reste affichée plus longtemps).
+func night_pause() -> float:
+	return 0.3 if speed >= 8.0 else (3.0 if mt.night_stage == "bonus" else 1.1)
 
 
 func _rebuild_night() -> void:
-	if game.phase != "night" or game.night_report.is_empty():
-		return
-	var r := game.night_report
-	var s: Dictionary = r["stats"]
-	var inc: Dictionary = r["income"]
-	night_title.text = "NUIT %d" % r["day"]
-	var stage := mt.night_stage
-	var buyer := mt.current_buyer()
-	var my_turn := buyer == game.index and not spectator
-	var leader := mt.influence_leader()
-	if stage == "equipe":
-		night_next.text = "Passer au jour %d  ›" % (r["day"] + 1)
-		night_next.disabled = mt.game_over or spectator
-	elif mt.market_stage():
-		night_next.text = "Passer  ›" if my_turn else "%s choisit…" % mt.names[buyer]
-		night_next.disabled = not my_turn
-	else:
-		var mine := leader == game.index and not spectator
-		night_next.text = "Garder le 1er bonus  ›" if mine and mt.bonus_choice.is_empty() else "%s choisit…" % mt.names[leader]
-		night_next.disabled = not mine or not mt.bonus_choice.is_empty()
-
-	# Étapes : faites (✓), en cours (or), à venir
-	_clear(night_steps)
-	var step_names := {"contrats": "Contrats", "ouvriers": "Collaborateurs", "cartes": "Cartes", "bonus": "Bonus", "equipe": "Équipe"}
-	var cur := Match.NIGHT_STAGES.find(stage)
-	for k in Match.NIGHT_STAGES.size() + 1:
-		var label: String = step_names[Match.NIGHT_STAGES[k]] if k < Match.NIGHT_STAGES.size() else "Jour %d" % (r["day"] + 1)
-		if k > 0:
-			night_steps.add_child(Composants.label("—", "TexteSecondaire"))
-		night_steps.add_child(_step_pill(label, "fait" if k < cur else ("courant" if k == cur else "a_venir")))
-	for st in night_pages:
-		night_pages[st].visible = st == stage
-	var turn_text := "À vous de choisir." if my_turn else ("%s choisit…" % mt.names[buyer] if buyer >= 0 else "")
-	match stage:
-		"contrats":
-			night_stage_title.text = "CONTRATS D'ANIMAUX"
-			night_stage_note.text = "Chacun à son tour, dans l'ordre d'influence : un contrat par joueur. Un contrat pris n'est remplacé que demain. " + turn_text
-		"ouvriers":
-			night_stage_title.text = "COLLABORATEURS À EMBAUCHER"
-			night_stage_note.text = "Chacun à son tour : 1 embauche au plus, si votre logement le permet. " + turn_text
-		"cartes":
-			night_stage_title.text = "CARTES D'ACTION"
-			night_stage_note.text = "Chacun à son tour : 1 carte au plus. " + turn_text
-		"bonus":
-			night_stage_title.text = "BONUS DE DEMAIN"
-			night_stage_note.text = "Le premier en influence (%s) choisit un bonus : il s'appliquera demain à tous les zoos." % mt.names[leader]
-		"equipe":
-			night_stage_title.text = "VOTRE ÉQUIPE"
-			night_stage_note.text = "Chacun de son côté : montées de niveau, une amélioration ou un licenciement payant, et le licenciement offert par le DRH." \
-				+ ("\nBonus de demain : %s (%s)" % [mt.bonus_choice.get("nom", "?"), mt.bonus_choice.get("texte", "")] if not mt.bonus_choice.is_empty() else "")
-
-	_clear(night_objectifs)
-	for o in mt.objectifs:
-		var fait := game.objectifs_faits.has(o["id"])
-		var ol := Composants.label(("✓ " if fait else "") + "%s (%s)" % [o["texte"], "fait" if fait else "%d / %d" % [mini(game.objectif_valeur(o), int(o["n"])), int(o["n"])]],
-			"" if fait else "TexteSecondaire")
-		ol.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		ol.custom_minimum_size.x = 230
-		ol.add_theme_font_size_override("font_size", 13)
-		night_objectifs.add_child(ol)
-	# Bilan de la journée
-	_clear(night_summary)
-	var sal := roundi(float(s.get("salaires", 0.0)))
-	var food := roundi(float(s.get("nourriture", 0.0)))
-	_summary_row(night_summary, "ressource_visiteurs", UiTokens.RESSOURCES["reputation"]["couleur"], "Visiteurs", str(inc["visitors"]))
-	_summary_row(night_summary, "ressource_billetterie", UiTokens.RESSOURCES["argent"]["couleur"], "Billetterie", "+%d" % inc["tickets"], UiTokens.POSITIF)
-	_summary_row(night_summary, "batiment_boutique", Color("E04A8A"), "Souvenirs", "+%d" % inc["souvenirs"], UiTokens.POSITIF)
-	_summary_row(night_summary, "ressource_argent", UiTokens.PAUSE, "Salaires", "−%d" % sal, UiTokens.NEGATIF)
-	if float(s.get("cedees", 0.0)) > 0.0:
-		_summary_row(night_summary, "ressource_argent", UiTokens.POSITIF, "Journées cédées", "+%d" % roundi(float(s["cedees"])), UiTokens.POSITIF)
-	_summary_row(night_summary, "ressource_nourriture", UiTokens.RESSOURCES["logement"]["couleur"], "Nourriture des animaux", "−%d" % food, UiTokens.NEGATIF)
-	for res in ["bois", "pierre", "or"]:
-		if float(s[res]) >= 1.0:
-			_summary_row(night_summary, UiTokens.RESSOURCES[res]["icone"], UiTokens.RESSOURCES[res]["couleur"], "%s rapporté" % UiTokens.RESSOURCES[res]["nom"], "+%d" % floori(s[res]))
-	if float(s["influence"]) > 0.0:
-		_summary_row(night_summary, "ressource_influence", UiTokens.RESSOURCES["influence"]["couleur"], "Influence gagnée", "+%.1f" % s["influence"])
-	_summary_row(night_summary, "ressource_reputation", UiTokens.RESSOURCES["reputation"]["couleur"], "Réputation (fréquentation)", "+%.1f" % inc["rep_gain"], UiTokens.POSITIF)
-	if float(inc.get("rep_spectacle", 0.0)) > 0.05:
-		_summary_row(night_summary, "batiment_boutique", Color("8A4AD0"), "Réputation (spectacles, boutique)", "+%.1f" % inc["rep_spectacle"], UiTokens.POSITIF)
-	if r.has("prestige"):
-		_summary_row(night_summary, "ressource_influence", UiTokens.RESSOURCES["influence"]["couleur"], "Prestige politique (influence)", "+%.1f" % r["prestige"], UiTokens.POSITIF)
-	for nm in r.get("legendes", []):
-		_summary_row(night_summary, "ui_ameliorer", UiTokens.OR, "%s devient légendaire" % nm, "+%d" % int(game.data["buildings"]["reputation_autres"]["legendaire"]), UiTokens.POSITIF)
-	if not inc["open"]:
-		var closed := Composants.label("Zoo fermé : %s" % inc["reason"])
-		closed.add_theme_color_override("font_color", UiTokens.NEGATIF)
-		closed.add_theme_font_size_override("font_size", 12)
-		closed.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		closed.custom_minimum_size.x = 240
-		night_summary.add_child(closed)
-	night_summary.add_child(HSeparator.new())
-	var total := int(inc["tickets"]) + int(inc["souvenirs"]) - sal - food
-	var total_row := HBoxContainer.new()
-	var tl := Composants.label("Total de la journée")
-	tl.add_theme_font_override("font", UiTokens.police_corps(800))
-	tl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	total_row.add_child(tl)
-	var tv := Composants.label("%+d" % total, "Compteur")
-	tv.add_theme_font_size_override("font_size", 24)
-	tv.add_theme_color_override("font_color", UiTokens.POSITIF if total >= 0 else UiTokens.NEGATIF)
-	total_row.add_child(tv)
-	night_summary.add_child(total_row)
-	_note_de_direction(total)
-
-	# Ordre d'influence (valeurs des adversaires cachées)
-	_clear(night_influence)
-	var it := Composants.label("INFLUENCE", "TitrePanneau")
-	it.add_theme_font_size_override("font_size", 14)
-	it.add_theme_color_override("font_color", UiTokens.OR)
-	it.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	night_influence.add_child(it)
-	for k in mt.night_order.size():
-		var i: int = mt.night_order[k]
-		var pill := PanelContainer.new()
-		var mine := i == game.index
-		var ps := UiTokens.chip(UiTokens.SELECTION if mine else Color(UiTokens.ENCRE, 0.06), 16, 4)
-		if mt.market_stage() and k == mt.night_turn:
-			ps.border_color = UiTokens.SELECTION if not mine else Color.WHITE
-			ps.set_border_width_all(3)
-		pill.add_theme_stylebox_override("panel", ps)
-		var ph := HBoxContainer.new()
-		ph.add_theme_constant_override("separation", 6)
-		pill.add_child(ph)
-		ph.add_child(_rank_dot(k + 1, UiTokens.JOUEURS[i % UiTokens.JOUEURS.size()]))
-		var done_mark := "✓ " if mt.market_stage() and k < mt.night_turn else ""
-		var pn := Composants.label(done_mark + ("%s · %.1f" % [mt.names[i], game.influence] if mine else "%s  ?" % mt.names[i]))
-		pn.add_theme_font_override("font", UiTokens.police_corps(800))
-		pn.add_theme_font_size_override("font_size", 14)
-		pn.add_theme_color_override("font_color", UiTokens.BOUTON_TEXTE if mine else UiTokens.TEXTE)
-		ph.add_child(pn)
-		night_influence.add_child(pill)
-	var hidden := Composants.label("valeurs adverses cachées", "TexteSecondaire")
-	hidden.add_theme_font_size_override("font_size", 12)
-	hidden.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hidden.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	hidden.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	night_influence.add_child(hidden)
-
-	# Marché : ouvriers, contrats, cartes d'action
-	var full := game.employees() >= game.housing()
-	night_chips["argent"]["valeur"].text = str(floori(game.money))
-	night_chips["logement"]["valeur"].text = "%d/%d" % [game.employees(), game.housing()]
-	night_chips["logement"]["valeur"].add_theme_color_override("font_color", UiTokens.NEGATIF if full else UiTokens.TEXTE)
-	night_money_lbl.text = "Logement plein : construisez une Maison de collaborateurs" if full \
-		else "Argent disponible : %d" % floori(game.money)
-	night_money_lbl.add_theme_color_override("font_color", UiTokens.NEGATIF if full else UiTokens.TEXTE_SECONDAIRE)
-	_clear(night_workers)
-	for card in game.market_workers:
-		var err := "Mode spectateur" if spectator else game.hire_error(card)
-		var cost := game.hire_cost(card)
-		var hire_text := "Embaucher · %d" % cost
-		if err != "":
-			# La raison du refus est écrite sur le bouton, et détaillée au survol.
-			hire_text = ("Manque %d" % ceili(cost - game.money)) if game.money < cost and not full else _short_reason(err)
-		var recruit := []
-		if (game.has_building("cabinet") or game.rare_effects().any(func(e): return e.get("echange", false))) and not spectator:
-			recruit = ["⟳", game.hippo_error() != "" and game.recruit_error("peu_qualifie") != "" and game.recruit_error("cadre") != "" and game.recruit_error("qualifie") != "",
-				_open_recruit.bind(card)]
-		var w := _card_widget(card, hire_text, err != "", _cmd.bind("hire", [card]), recruit)
-		w.tooltip_text = (err + "\n" if err != "" else "") + w.tooltip_text
-		for b in w.find_children("*", "Button", true, false):
-			b.tooltip_text = err if err != "" else "Embaucher %s pour %d argent" % [card.nom, cost]
-		night_workers.add_child(w)
-	for t in _taken("ouvriers"):
-		night_workers.add_child(_taken_mark(_card_widget(t["objet"], "Pris · %s" % mt.names[t["joueur"]], true, Callable()), t["joueur"]))
-	_clear(night_contracts)
-	night_contracts_note.text = "%d contrats · 1 achat par joueur · dans l'ordre d'influence" % game.market_contracts.size()
-	for def in game.market_contracts:
-		var err := game.contract_error(def)
-		night_contracts.add_child(_contract_widget(def, "Acheter · %s" % game.cost_text(game.contract_cost(def)),
-			"Mode spectateur" if spectator else err, _cmd.bind("buy_contract", [def])))
-	for t in _taken("contrats"):
-		night_contracts.add_child(_taken_mark(_contract_widget(t["objet"], "Pris · %s" % mt.names[t["joueur"]], "Pris par %s" % mt.names[t["joueur"]],
-			Callable()), t["joueur"]))
-	_clear(night_actions)
-	for card in mt.market_actions:
-		var aerr := game.action_error(card)
-		var aw := _action_widget(card, "Acheter · %d" % game.action_price(card), spectator or aerr != "", _cmd.bind("buy_action", [card]))
-		if aerr != "":
-			aw.tooltip_text = aerr + "\n" + aw.tooltip_text
-		night_actions.add_child(aw)
-	for t in _taken("cartes"):
-		night_actions.add_child(_taken_mark(_action_widget(t["objet"], "Pris · %s" % mt.names[t["joueur"]], true, Callable()), t["joueur"]))
-
-	# Réputation : classement, écart d'hier, barre vers l'objectif
-	_clear(night_rep_rows)
-	var ranking := range(mt.players.size())
-	ranking.sort_custom(func(a, b): return mt.players[a].reputation() > mt.players[b].reputation())
-	for k in ranking.size():
-		var i: int = ranking[k]
-		var col: Color = UiTokens.JOUEURS[i % UiTokens.JOUEURS.size()]
-		var row := PanelContainer.new()
-		var rs := UiTokens.chip(Color(UiTokens.OR, 0.08) if i == game.index else Color(0, 0, 0, 0), 8, 6)
-		if i == game.index:
-			rs.border_color = UiTokens.SELECTION
-			rs.set_border_width_all(2)
-		row.add_theme_stylebox_override("panel", rs)
-		var rv := VBoxContainer.new()
-		rv.add_theme_constant_override("separation", 4)
-		row.add_child(rv)
-		var rh := HBoxContainer.new()
-		rh.add_theme_constant_override("separation", 8)
-		rv.add_child(rh)
-		var rk := Composants.label(str(k + 1), "Compteur")
-		rk.add_theme_font_size_override("font_size", 14)
-		rh.add_child(rk)
-		rh.add_child(_player_dot(col))
-		var embleme := Composants.logo_groupe(mt.names[i], true)
-		if embleme:
-			rh.add_child(Composants.image_logo(embleme, Vector2(26, 26)))
-		var nm := Composants.label(mt.names[i])
-		nm.add_theme_font_override("font", UiTokens.police_corps(800))
-		nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		rh.add_child(nm)
-		var rep := mt.players[i].reputation()
-		var val := Composants.label(str(rep), "Compteur")
-		val.add_theme_font_size_override("font_size", 18)
-		rh.add_child(val)
-		var delta := rep - _rep_on_night(i, -2)
-		var dl := Composants.label(("+%d" % delta) if delta >= 0 else str(delta))
-		dl.add_theme_font_size_override("font_size", 12)
-		dl.add_theme_color_override("font_color", UiTokens.POSITIF if delta >= 0 else UiTokens.NEGATIF)
-		dl.custom_minimum_size.x = 26
-		rh.add_child(dl)
-		var bar := ProgressBar.new()
-		bar.show_percentage = false
-		bar.custom_minimum_size = Vector2(0, 5)
-		bar.max_value = game.objective()
-		bar.value = rep
-		bar.add_theme_stylebox_override("background", UiTokens.chip(Color(UiTokens.ENCRE, 0.08), 3, 0))
-		bar.add_theme_stylebox_override("fill", UiTokens.chip(col, 3, 0))
-		rv.add_child(bar)
-		night_rep_rows.add_child(row)
-	var goal := Composants.label("Victoire au premier zoo à %d" % game.objective(), "TexteSecondaire")
-	goal.add_theme_font_size_override("font_size", 12)
-	night_rep_rows.add_child(goal)
-
-	# Bonus de nuit : seul le premier en influence choisit, pour tous les zoos
-	_clear(night_bonus_box)
-	if not mt.bonus_choice.is_empty():
-		night_bonus_note.text = "choisi par %s" % mt.names[leader]
-	elif leader == game.index:
-		night_bonus_note.text = "à vous de choisir"
-	else:
-		night_bonus_note.text = "%s choisit" % mt.names[leader]
-	for b in mt.bonus_offer:
-		var chosen: bool = mt.bonus_choice == b
-		var err := game.bonus_error(b)
-		var btn := Button.new()
-		btn.text = "%s\n%s" % [b["nom"], b["texte"]]
-		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		btn.icon = UiTokens.icone(_bonus_icon(b))
-		btn.expand_icon = false
-		btn.add_theme_constant_override("icon_max_width", 26)
-		btn.add_theme_constant_override("h_separation", 10)
-		btn.add_theme_font_size_override("font_size", 13)
-		btn.focus_mode = Control.FOCUS_NONE
-		btn.custom_minimum_size = Vector2(620, 64)
-		btn.add_theme_font_size_override("font_size", 16)
-		btn.tooltip_text = err
-		btn.disabled = spectator or err != ""
-		var normal := UiTokens.chip(Color(UiTokens.ENCRE, 0.05), 8, 8)
-		if chosen:
-			normal = UiTokens.chip(Color(UiTokens.OR, 0.14), 8, 8)
-			normal.border_color = UiTokens.SELECTION
-			normal.set_border_width_all(2)
-		var hover := UiTokens.chip(Color(UiTokens.ENCRE, 0.12), 8, 8)
-		hover.border_color = UiTokens.OR
-		hover.set_border_width_all(1)
-		btn.add_theme_stylebox_override("normal", normal)
-		btn.add_theme_stylebox_override("hover", hover)
-		btn.add_theme_stylebox_override("pressed", normal)
-		btn.add_theme_stylebox_override("disabled", normal)
-		btn.add_theme_color_override("font_disabled_color", UiTokens.SELECTION if chosen else Color(UiTokens.TEXTE, 0.55))
-		btn.pressed.connect(_cmd.bind("pick_bonus", [b]))
-		night_bonus_box.add_child(btn)
-	# Le premier en influence peut n'en choisir aucun
-	if mt.influence_leader() == game.index and not spectator:
-		var none := Composants.bouton("Aucun bonus : aucun ne m'intéresse", "BoutonSecondaire")
-		none.custom_minimum_size = Vector2(620, 40)
-		none.disabled = game.bonus_error(Match.NO_BONUS) != ""
-		none.pressed.connect(_cmd.bind("pick_bonus", [Match.NO_BONUS]))
-		night_bonus_box.add_child(none)
-
-	# Montées de niveau : une amélioration gratuite à choisir par niveau gagné
-	_clear(night_level_rows)
-	night_level_box.visible = not spectator and not game.level_choices.is_empty()
-	for lc in game.level_choices:
-		var card: GameState.Card = lc["card"]
-		var cat: Dictionary = UiTokens.CATEGORIES[card.metier["categorie"]]
-		var head := HBoxContainer.new()
-		head.add_theme_constant_override("separation", 8)
-		var dot := Composants.pastille(cat["couleur"], Composants.icone_metier(str(card.metier["id"])), 32)
-		dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		head.add_child(dot)
-		var who := VBoxContainer.new()
-		who.add_theme_constant_override("separation", -2)
-		who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var wn := Composants.label(card.nom)
-		wn.add_theme_font_override("font", UiTokens.police_corps(800))
-		_hover_card(wn, card)
-		who.add_child(wn)
-		var wj := Composants.label("%s · salaire %d" % [game.job_name(card), game.salary(card)], "TexteSecondaire")
-		wj.add_theme_font_size_override("font_size", 12)
-		who.add_child(wj)
-		head.add_child(who)
-		var lv := Composants.label("N%d → N%d" % [card.niveau - 1, card.niveau])
-		lv.add_theme_font_override("font", UiTokens.police_corps(800))
-		lv.add_theme_color_override("font_color", UiTokens.OR)
-		head.add_child(lv)
-		night_level_rows.add_child(head)
-		for opt in lc["options"]:
-			var ob := Composants.bouton("%s — %s" % [opt["nom"], opt.get("texte", _effect_text(opt["effet"]))], "BoutonSecondaire")
-			ob.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			ob.add_theme_font_size_override("font_size", 12)
-			ob.custom_minimum_size = Vector2(290, 0)
-			ob.pressed.connect(_cmd.bind("choose_level_upgrade", [card, opt]))
-			night_level_rows.add_child(ob)
-
-	# Améliorer ou licencier : ↑ ouvre les améliorations payantes, ✕ demande confirmation
-	var rules := game.night_action_rules()
-	var cost_up := int(rules["cout_amelioration"])
-	var cost_fire := int(rules["cout_licenciement"])
-	var act_err := game.night_action_error(mini(cost_up, cost_fire))
-	night_action_box.visible = not spectator
-	_clear(night_action_flow)
-	if act_err != "":
-		var l := Composants.label(act_err, "TexteSecondaire")
-		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		l.custom_minimum_size.x = 290
-		night_action_flow.add_child(l)
-	else:
-		for card in game.all_employees():
-			night_action_flow.add_child(_employee_row(card, cost_up, cost_fire))
-	night_fire_box.visible = not spectator and game.drh_available > 0
-	_clear(night_fire)
-	for card in game.all_employees():
-		var row := HBoxContainer.new()
-		var nl := Composants.label("%s · %s" % [card.nom, game.job_name(card)])
-		nl.add_theme_font_size_override("font_size", 13)
-		_hover_card(nl, card)
-		nl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(nl)
-		var fb := Composants.bouton("Licencier", "BoutonSecondaire")
-		fb.add_theme_font_size_override("font_size", 12)
-		fb.pressed.connect(_cmd.bind("fire", [card]))
-		row.add_child(fb)
-		night_fire.add_child(row)
-
-	# Journal : arrivées, achats des adversaires, alertes
-	var lines: Array[String] = []
-	for nm in r["arrivals"]:
-		lines.append("[color=#1F7A4A]Arrivée au zoo : %s[/color]" % nm)
-	for nm in r.get("malades", []):
-		lines.append("[color=#E8782A]■ Malade : %s (envoyez un Soigneur dans son enclos)[/color]" % nm)
-	if inc["visitors"] > 0:
-		lines.append("%d visiteurs (%d repartis faute de place), %.1f présents en moyenne%s" % [inc["visitors"], inc["lost"], inc["avg_present"],
-			" · affinités +%d %%" % roundi(inc.get("affinity", 0.0) * 100) if inc.get("affinity", 0.0) > 0.0 else ""])
-	lines.append("%d collaborateur(s) mobilisé(s) aujourd'hui" % r["deployed"])
-	for l in mt.log:
-		lines.append("[color=#8A6A00]%s[/color]" % l)
-	if game.employees() >= game.housing():
-		lines.append("[color=#B5452A]Logement plein (%d / %d) : construisez une maison de collaborateurs pour embaucher.[/color]" % [game.employees(), game.housing()])
-	night_text.text = "\n".join(lines)
+	conseil.rafraichir()
 
 
 ## « Voir mon zoo » la nuit : une ligne par contrat du marché (motif, taille, aménagement requis).
@@ -4954,28 +4337,6 @@ func _open_recruit(card: GameState.Card) -> void:
 			_close_picker())
 		picker_box.add_child(b)
 		picker_box.move_child(b, picker_box.get_child_count() - 2)
-
-
-## Achats de cette étape de la nuit (tous les joueurs), dans l'ordre.
-func _taken(stage: String) -> Array:
-	return mt.night_taken.filter(func(t): return t["etape"] == stage)
-
-
-## Carte déjà prise : grisée, sous une étiquette « Pris par … » à la couleur de l'acheteur.
-func _taken_mark(w: Control, player: int) -> Control:
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 4)
-	var tag := PanelContainer.new()
-	tag.add_theme_stylebox_override("panel", UiTokens.chip(UiTokens.JOUEURS[player % UiTokens.JOUEURS.size()], 10, 3))
-	var l := Composants.label("Pris par %s" % mt.names[player])
-	l.add_theme_font_override("font", UiTokens.police_corps(800))
-	l.add_theme_font_size_override("font_size", 13)
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	tag.add_child(l)
-	box.add_child(tag)
-	w.modulate = Color(1, 1, 1, 0.5)
-	box.add_child(w)
-	return box
 
 
 # --- Aide au placement d'un animal ---------------------------------------------
@@ -5545,84 +4906,6 @@ func _rep_on_night(i: int, offset: int) -> int:
 	if mt.history.size() < -offset:
 		return 0
 	return int(mt.history[mt.history.size() + offset][i]["rep"])
-
-
-func _employee_row(card: GameState.Card, cost_up: int, cost_fire: int) -> Control:
-	var cat: Dictionary = UiTokens.CATEGORIES[card.metier["categorie"]]
-	var box := PanelContainer.new()
-	var bs := UiTokens.chip(Color(UiTokens.ENCRE, 0.05) if card != action_card else Color(UiTokens.OR, 0.1), 8, 6)
-	box.add_theme_stylebox_override("panel", bs)
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 6)
-	box.add_child(v)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-	v.add_child(row)
-	var dot := Composants.pastille(cat["couleur"], Composants.icone_metier(str(card.metier["id"])), 30)
-	dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	row.add_child(dot)
-	var who := VBoxContainer.new()
-	who.add_theme_constant_override("separation", -2)
-	who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(who)
-	var nm := Composants.label(card.nom)
-	nm.add_theme_font_override("font", UiTokens.police_corps(800))
-	nm.add_theme_font_size_override("font_size", 13)
-	_hover_card(nm, card)
-	who.add_child(nm)
-	var traits: Array[String] = []
-	for t in game.trait_defs(card):
-		traits.append(t["nom"])
-	var jl := Composants.label("%s · N%d%s" % [game.job_name(card), card.niveau, (" · " + ", ".join(traits)) if not traits.is_empty() else ""], "TexteSecondaire")
-	jl.add_theme_font_size_override("font_size", 11)
-	jl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	jl.custom_minimum_size.x = 170
-	who.add_child(jl)
-	var up := Composants.bouton("", "BoutonOrdre")
-	up.icon = UiTokens.icone("ui_ameliorer")
-	up.expand_icon = true
-	up.add_theme_constant_override("icon_max_width", 18)
-	up.custom_minimum_size = Vector2(36, 36)
-	up.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	up.tooltip_text = "Améliorer (%d argent)" % cost_up
-	up.pressed.connect(func():
-		action_card = null if action_card == card and action_mode == "up" else card
-		action_mode = "up"
-		hand_version = -1)
-	row.add_child(up)
-	var fire := Composants.bouton("", "BoutonOrdre")
-	fire.icon = UiTokens.icone("ui_invalide")
-	fire.expand_icon = true
-	fire.add_theme_constant_override("icon_max_width", 16)
-	fire.custom_minimum_size = Vector2(36, 36)
-	fire.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	fire.add_theme_color_override("icon_normal_color", UiTokens.DEFAUT)
-	fire.tooltip_text = "Licencier (%d argent)" % cost_fire
-	fire.pressed.connect(func():
-		action_card = null if action_card == card and action_mode == "fire" else card
-		action_mode = "fire"
-		hand_version = -1)
-	row.add_child(fire)
-	if card == action_card:
-		if action_mode == "up":
-			for opt in game.upgrade_options(card):
-				var ub := Composants.bouton("%s (%d) — %s" % [opt["nom"], cost_up, opt.get("texte", _effect_text(opt["effet"]))], "BoutonSecondaire")
-				ub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-				ub.add_theme_font_size_override("font_size", 12)
-				ub.disabled = game.night_action_error(cost_up) != ""
-				ub.pressed.connect(func():
-					_cmd("apply_upgrade", [card, opt])
-					action_card = null)
-				v.add_child(ub)
-		else:
-			var fb := Composants.bouton("Confirmer le licenciement (%d)" % cost_fire, "BoutonPrincipal")
-			fb.add_theme_font_size_override("font_size", 12)
-			fb.disabled = game.night_action_error(cost_fire) != ""
-			fb.pressed.connect(func():
-				_cmd("fire_paid", [card])
-				action_card = null)
-			v.add_child(fb)
-	return box
 
 
 # --- Écran de fin de partie (capture 06) ------------------------------------------

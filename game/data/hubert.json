@@ -102,6 +102,18 @@
       "J'ai loué {nom} à un concurrent pour la journée. Quatre pièces. C'est au-dessus de sa valeur de marché.",
       "{nom} ne travaille pas aujourd'hui, mais rapporte quand même. C'est le collaborateur idéal."
     ],
+    "conseil_cartes": [
+      "Une prime, c'est un salaire qui a honte de lui.",
+      "Motiver le personnel coûte moins cher que le payer. C'est toute ma méthode."
+    ],
+    "conseil_bonus_vous": [
+      "Présider, c'est décider pour les autres. Mon activité préférée.",
+      "Choisissez bien. Vos rivaux en profiteront aussi, mais vous pourrez dire que c'était votre idée."
+    ],
+    "conseil_bonus_rival": [
+      "Vous n'êtes pas premier en influence. Retenez la sensation : c'est celle de nos actionnaires minoritaires.",
+      "Un autre a décidé pour vous. Bienvenue dans la vie de vos collaborateurs."
+    ],
     "soir_bon": [
       "Résultats en hausse. Attendez-vous à ce que l'objectif de demain le soit aussi."
     ],

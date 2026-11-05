@@ -705,3 +705,70 @@ static func entete_comite(titre: String, droite := "", couleur := UiTokens.SARCE
 	r.add_theme_color_override("font_color", UiTokens.PAPIER)
 	hb.add_child(r)
 	return {"racine": pc, "titre": t, "droite": r}
+
+
+## Contour en tirets (StyleBoxFlat ne sait pas les faire) : à poser en enfant d'un Button ou d'un PanelContainer.
+class CadreTirets extends Control:
+	var rayon := 8
+	var couleur := UiTokens.ENCRE
+
+	func _ready() -> void:
+		set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		resized.connect(queue_redraw)
+
+	func _draw() -> void:
+		Composants.tirets_rect(self, Rect2(Vector2(1, 1), size - Vector2(2, 2)), couleur, 2.0, float(rayon))
+
+
+## Dessine un rectangle en tirets, coins arrondis si rayon > 0.
+static func tirets_rect(ci: CanvasItem, r: Rect2, couleur: Color, epaisseur := 1.5, rayon := 0.0) -> void:
+	ci.draw_dashed_line(r.position + Vector2(rayon, 0), r.position + Vector2(r.size.x - rayon, 0), couleur, epaisseur, 6.0)
+	ci.draw_dashed_line(Vector2(r.end.x, r.position.y + rayon), r.end - Vector2(0, rayon), couleur, epaisseur, 6.0)
+	ci.draw_dashed_line(Vector2(r.position.x + rayon, r.end.y), Vector2(r.end.x - rayon, r.end.y), couleur, epaisseur, 6.0)
+	ci.draw_dashed_line(r.position + Vector2(0, rayon), Vector2(r.position.x, r.end.y - rayon), couleur, epaisseur, 6.0)
+	if rayon > 0.0:
+		ci.draw_arc(r.position + Vector2(rayon, rayon), rayon, PI, PI * 1.5, 8, couleur, epaisseur)
+		ci.draw_arc(Vector2(r.end.x - rayon, r.position.y + rayon), rayon, PI * 1.5, TAU, 8, couleur, epaisseur)
+		ci.draw_arc(r.end - Vector2(rayon, rayon), rayon, 0.0, PI * 0.5, 8, couleur, epaisseur)
+		ci.draw_arc(Vector2(r.position.x + rayon, r.end.y - rayon), rayon, PI * 0.5, PI, 8, couleur, epaisseur)
+
+
+## Bouton indisponible : pointillé et raison écrite, jamais la couleur seule (« Manque 2 or »).
+static func bouton_indisponible(texte: String, infobulle := "") -> Button:
+	var b := Button.new()
+	b.text = texte
+	b.disabled = true
+	b.focus_mode = Control.FOCUS_NONE
+	b.tooltip_text = infobulle
+	b.add_theme_font_override("font", UiTokens.police_corps(700))
+	b.add_theme_font_size_override("font_size", 13)
+	b.clip_text = true
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = UiTokens.PAPIER
+	sb.set_corner_radius_all(8)
+	sb.content_margin_left = 6
+	sb.content_margin_right = 6
+	b.add_theme_stylebox_override("disabled", sb)
+	b.add_theme_color_override("font_disabled_color", UiTokens.TEXTE_2)
+	b.add_child(CadreTirets.new())
+	return b
+
+
+## Niveau dans un disque jaune cerné, chiffre en mono.
+static func pastille_niveau(niveau: int, d := 30) -> Control:
+	var l := label(str(niveau), "")
+	l.add_theme_font_override("font", UiTokens.police_mono(600))
+	l.add_theme_font_size_override("font_size", int(d * 0.45))
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	var sn := StyleBoxFlat.new()
+	sn.bg_color = UiTokens.SELECTION
+	sn.border_color = UiTokens.ENCRE
+	sn.set_border_width_all(2)
+	sn.set_corner_radius_all(d)
+	sn.anti_aliasing = true
+	l.add_theme_stylebox_override("normal", sn)
+	l.custom_minimum_size = Vector2(d, d)
+	l.tooltip_text = "Niveau %d sur 6" % niveau
+	return l
