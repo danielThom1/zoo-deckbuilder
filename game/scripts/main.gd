@@ -195,7 +195,8 @@ var pile_panel: PanelContainer
 var hand_scroll: ScrollContainer
 var unit_panel: PanelContainer
 var fiche_onglet := "fiche"
-var iso: Vue25D = null  # essai de la vue isométrique (F2)
+var iso: Vue25D = null  # essai de la vue isométrique (F2) ou 3D (F3)
+var positions_vues := {}  # Worker -> [départ, arrivée, instant du départ, position affichée]
 var lagence_annonce := {}
 var aide_badges_vue := false
 var repere_monde := {}
@@ -563,7 +564,11 @@ func _start(watch: bool) -> void:
 		for i in 120:
 			mt.tick(0.5)
 		_refresh_terrain(true)
-	if args.has("iso") or MenuPrincipal.iso_demande:
+	if args.has("voie3") or MenuPrincipal.vue3d_demandee:
+		MenuPrincipal.vue3d_demandee = false
+		basculer_3d.call_deferred()
+		camera.position = (Vector2(game.map.camp.get_center()) + Vector2(0, -7)) * TILE
+	elif args.has("iso") or MenuPrincipal.iso_demande:
 		MenuPrincipal.iso_demande = false
 		basculer_iso.call_deferred()
 		camera.position = (Vector2(game.map.camp.get_center()) + Vector2(0, -7)) * TILE  # le camp est dans un coin du losange
@@ -681,7 +686,21 @@ func basculer_iso() -> void:
 	else:
 		iso = Vue25D.new(self)
 		add_child(iso)
-		game.say("Essai de la vue isométrique. F2 pour revenir à la vue habituelle.")
+		game.say("Essai isométrique. Molette enfoncée + glisser : tourner la vue. F2 : vue habituelle. F3 : vue 3D.")
+	queue_redraw()
+
+
+## F3 : essai de la voie 3, une vraie caméra en perspective ; F3 de nouveau : retour à l'isométrique.
+func basculer_3d() -> void:
+	if mt == null:
+		return
+	if iso == null:
+		iso = Vue25D.new(self)
+		iso.perspective = true
+		add_child(iso)
+	else:
+		iso.regler_perspective(not iso.perspective)
+	game.say("Essai 3D. Molette enfoncée + glisser : tourner et incliner. F3 : isométrique. F2 : vue habituelle." if iso.perspective else "Essai isométrique. F3 : vue 3D. F2 : vue habituelle.")
 	queue_redraw()
 
 
@@ -788,12 +807,19 @@ func _dessiner_monde() -> void:
 	for w: GameState.Worker in ws:
 		if w.offmap:
 			continue
-		var p := w.pos * TILE
+		# La partie n'avance que 10 fois par seconde : à l'écran, le personnage glisse d'une position à la suivante.
+		# Il marche tant qu'il vient de recevoir une nouvelle position, et pas seulement aux images où elle a changé.
+		var aff: Array = _position_affichee(w)
+		var p: Vector2 = aff[0] * TILE
+		var moving: bool = aff[2]
 		var f: Array = facing.get(w, ["face", false, w.pos])
 		var d: Vector2 = w.pos - f[2]
-		var moving := d.length() > 0.0005
-		if moving:
-			if absf(d.x) > absf(d.y):
+		if d.length() > 0.0005:
+			if iso:
+				var dx: float = iso.x_ecran(d)
+				if absf(dx) > 0.001:
+					f = ["profil", dx < 0.0, w.pos]
+			elif absf(d.x) > absf(d.y):
 				f = ["profil", d.x < 0.0, w.pos]
 			else:
 				f = ["face" if d.y > 0.0 else "dos", f[1], w.pos]  # de profil seulement : il garde son côté
@@ -815,13 +841,13 @@ func _dessiner_monde() -> void:
 			var to: Vector2 = work["target"] - p
 			if to.length() > 1.0:
 				f[0] = "profil" if absf(to.x) >= absf(to.y) * 0.6 else ("face" if to.y > 0.0 else "dos")
-				f[1] = to.x < 0.0
+				f[1] = (iso.x_ecran(to) if iso else to.x) < 0.0
 			body = p + Vector2(0, -absf(sin(tw * float(work["rythme"]))) * 0.9)
 		# personnage dessiné selon le métier (scripts/rendu/sprites_bd.gd), petit balancement en marchant
 		# Les jambes suivent la distance parcourue, pas le temps : pas de pédalage sur place, et une cadence limitée en accéléré
 		var phase_pas: float = marche_phase.get(w, 0.0)
 		if moving:
-			phase_pas += minf(d.length() / MARCHE_CASES_PAR_IMAGE, get_process_delta_time() * MARCHE_IMAGES_MAX)
+			phase_pas += minf(float(aff[1]) / MARCHE_CASES_PAR_IMAGE, get_process_delta_time() * MARCHE_IMAGES_MAX)
 			marche_phase[w] = phase_pas
 		var pas := absf(sin(phase_pas * PI / 2.0)) * 0.2 if moving and w.pause_left <= 0.0 else 0.0
 		# Personnage de la carte, animé : le geste de sa tâche s'il en a un sur sa feuille, sinon l'outil par-dessus
@@ -1225,8 +1251,8 @@ func _draw_turned(r: Rect2, turned: bool, draw_fn: Callable) -> void:
 ## Entrée du zoo : deux piliers et un portique.
 ## Marche : jambe avant, jambes croisées, autre jambe, jambes croisées.
 const MARCHE_CYCLE := [0, 1, 2, 1]
-const MARCHE_CASES_PAR_IMAGE := 1.1  # une foulée complète couvre un peu plus de 4 cases
-const MARCHE_IMAGES_MAX := 1.6  # images par seconde au plus, même en jeu accéléré
+const MARCHE_CASES_PAR_IMAGE := 0.5  # un pas couvre une case, comme l'écart des pieds sur le dessin : les pieds ne glissent pas
+const MARCHE_IMAGES_MAX := 3.0  # images par seconde au plus, même en jeu accéléré
 
 
 ## Outil de la tâche -> rangée de la feuille d'animation du personnage.
@@ -1483,7 +1509,7 @@ func _draw_animal(a: GameState.Animal, index: int, now: float) -> void:
 			var p0 := Vector2(a.tiles[(seed + slot * 31) % a.tiles.size()])
 			var p1 := Vector2(a.tiles[(seed + (slot + 1) * 31) % a.tiles.size()])
 			var pos := (p0.lerp(p1, f) + Vector2(0.5, 0.5)) * TILE
-			var dir := -1.0 if p1.x < p0.x else 1.0
+			var dir := -1.0 if (iso.x_ecran(p1 - p0) if iso else p1.x - p0.x) < 0.0 else 1.0
 			if tex:
 				# illustration du contrat, à l'échelle de l'espèce, retournée selon la marche, petit sautillement
 				var bob := absf(sin(clock * TAU * 3.0)) * 0.8 if f > 0.0 and f < 1.0 else 0.0
@@ -1922,6 +1948,8 @@ func _unhandled_input(event: InputEvent) -> void:
 					selected_animal = null
 			KEY_F2:
 				basculer_iso()
+			KEY_F3:
+				basculer_3d()
 			KEY_DELETE, KEY_BACKSPACE:
 				_delete_selection()
 			KEY_B, KEY_E, KEY_O, KEY_L, KEY_R, KEY_F:
@@ -1961,7 +1989,11 @@ func _input(event: InputEvent) -> void:
 			drag_end = event.position
 		if panning:
 			if iso:
-				camera.position -= iso.delta_monde(event.relative)
+				# Molette enfoncée : tourne la vue ; avec Maj, la déplace
+				if Input.is_key_pressed(KEY_SHIFT):
+					camera.position -= iso.delta_monde(event.relative)
+				else:
+					iso.tourner(event.relative.x * 0.3, event.relative.y * 0.2)
 			else:
 				camera.position -= event.relative / camera.zoom
 		if painting and _is_paint_build():
@@ -1971,6 +2003,8 @@ func _input(event: InputEvent) -> void:
 	elif event is InputEventMouseButton and not event.pressed:
 		if event.button_index == MOUSE_BUTTON_MIDDLE:
 			panning = false
+			if iso:
+				iso.aligner()
 		elif event.button_index == MOUSE_BUTTON_LEFT:
 			painting = false
 			if drag_start != null:
@@ -2066,6 +2100,23 @@ func _try_place(t: Vector2i, first_click: bool) -> void:
 	if (s or reseau) and not _is_paint_build() and not Input.is_key_pressed(KEY_SHIFT):
 		_set_build({})
 		selected_site = s
+
+
+## Position à l'écran d'un ouvrier : [position, distance parcourue à cette image, en marche ?].
+func _position_affichee(w: GameState.Worker) -> Array:
+	var now := Time.get_ticks_msec() / 1000.0
+	var e: Array = positions_vues.get(w, [])
+	if e.is_empty() or w.pos.distance_to(e[1]) > 2.5:  # début de journée, retour de l'extérieur
+		e = [w.pos, w.pos, now - 1.0, w.pos]
+		positions_vues[w] = e
+	if w.pos != e[1]:
+		e[0] = e[3]
+		e[1] = w.pos
+		e[2] = now
+	var duree: float = GameState.TICK / maxf(speed, 1.0)
+	var avant: Vector2 = e[3]
+	e[3] = Vector2(e[0]).lerp(e[1], clampf((now - float(e[2])) / duree, 0.0, 1.0))
+	return [e[3], avant.distance_to(e[3]), now - float(e[2]) < duree * 1.8]
 
 
 ## Arrivé à l'Agence d'intérim, il attend qu'on choisisse son remplaçant.
@@ -2209,6 +2260,10 @@ func _pan_keys(delta: float) -> void:
 	if Input.is_physical_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
 		dir.y += 1
 	if iso:
+		if panning:  # molette enfoncée + direction : tourne la vue
+			if dir != Vector2.ZERO:
+				iso.tourner(dir.x * 90.0 * delta, dir.y * 45.0 * delta)
+			return
 		camera.position += iso.delta_monde(dir * 600.0 * delta)
 		return
 	camera.position += dir * 600.0 * delta / camera.zoom.x

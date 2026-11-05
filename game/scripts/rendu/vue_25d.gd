@@ -1,6 +1,7 @@
 class_name Vue25D
 extends Node
-## Essai jouable de la vue isométrique (F2 en jeu, ou --iso). Ce n'est pas le mode principal : la partie ne change pas.
+## Essai jouable de la vue isométrique (F2 en jeu, ou --iso) et de la vue 3D (F3, ou --voie3). Ce n'est pas le mode
+## principal : la partie ne change pas. Molette enfoncée + glisser ou direction : tourne et incline la vue.
 ## - Sol : main.gd et la carte continuent de dessiner comme d'habitude. Un SubViewport partage leur World2D et photographie
 ##   toute la carte : chemins, chantiers, repères et sélections se retrouvent ainsi drapés sur un terrain en relief.
 ## - Tout ce qui est debout (bâtiments, animaux, personnages) n'est plus dessiné en 2D : SpritesBD le note (collecte), et cette
@@ -9,15 +10,23 @@ extends Node
 ## - Clics : main._screen_to_world passe par monde_depuis_ecran. Tout le reste du code garde ses coordonnées de carte.
 
 const ECHELLE_SOL := 3  # pixels de la photo du sol par pixel du monde (16 pixels du monde par case)
-const LACET := 45.0
-const TANGAGE := 35.0
+const FOV := 38.0
+const AXES_ALIGNEMENT := 8.0  # degrés : à moins de cet écart d'un multiple de 45°, la vue s'aligne au relâchement
+const TANGAGE_MIN := 18.0
+const TANGAGE_MAX := 80.0
 const CADRAGE := 1.15  # à zoom égal, un peu plus de terrain visible qu'en 2D
-const AGRANDI_BATIMENT := 1.25  # une emprise vue en losange est plus large : le bâtiment doit suivre
-const RECUL_BATIMENT := 0.3  # le pied du bâtiment est posé devant le centre de son emprise
+const AGRANDI_BATIMENT := 0.25  # en plus à 45° : une emprise vue en losange est plus large, le bâtiment doit suivre
 const RELIEF := {"Prairie": 0.0, "Foret": 0.1, "Eau": -0.26, "Roche": 0.22, "Sable": 0.02, "Montagne": 1.1, "MineOr": 0.2}
 const PAS_GRILLE := 2  # points de relief par case
 
 var m  # main.gd
+var lacet := 45.0  # 0 : on regarde vers le nord, dans l'axe mairie, route, camp
+var tangage := 35.0
+var perspective := false
+var etendue := 30.0  # cases visibles en hauteur
+var env: Environment
+var couleurs_rail := {"enceinte": Color("EFE6D0"), "enclos": Color("B97A35"), "enclos_herbivore": Color("F0C02A"), "enclos_predateur": Color("2F6B3A"),
+	"enclos_aquatique": Color("BFE6F0"), "enclos_aerien": Color("C8A070")}
 var map: GameMap
 var sol_vp: SubViewport
 var vue: SubViewport
@@ -65,7 +74,7 @@ func _ready() -> void:
 	image.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	m.ui.add_child(image)
 	m.ui.move_child(image, 0)
-	var env := Environment.new()
+	env = Environment.new()
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = UiTokens.ENCRE
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
@@ -87,12 +96,12 @@ func _ready() -> void:
 	camera = Camera3D.new()
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 	camera.near = 1.0
-	camera.far = 500.0
+	camera.far = 3000.0
 	racine.add_child(camera)
 	camera.current = true
 	var autour := MeshInstance3D.new()
 	var plan := PlaneMesh.new()
-	plan.size = Vector2(600, 600)
+	plan.size = Vector2(4000, 4000)
 	autour.mesh = plan
 	var ma := StandardMaterial3D.new()
 	ma.albedo_color = Color("6FA845")
@@ -112,7 +121,47 @@ func _ready() -> void:
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	terrain.material_override = mat
 	_synchroniser()
+	regler_perspective(perspective)
+
+
+## Isométrique ou caméra en perspective : deux réglages de la même scène.
+func regler_perspective(oui: bool) -> void:
+	perspective = oui
+	camera.projection = Camera3D.PROJECTION_PERSPECTIVE if oui else Camera3D.PROJECTION_ORTHOGONAL
+	camera.fov = FOV
+	env.background_color = Color("BFE3F0") if oui else UiTokens.ENCRE
+	if oui:
+		tangage = minf(tangage, 40.0)
 	_placer_camera()
+
+
+## Molette enfoncée : le glissement tourne autour de la verticale et incline la vue.
+func tourner(d_lacet: float, d_tangage: float) -> void:
+	lacet = fposmod(lacet - d_lacet, 360.0)
+	tangage = clampf(tangage + d_tangage, TANGAGE_MIN, TANGAGE_MAX)
+	_placer_camera()
+	sig_clotures = ""  # les rails suivent l'axe de la vue
+	attente = minf(attente, 0.1)
+
+
+## Au relâchement, la vue se cale sur l'axe voisin : 0° est l'axe mairie, route, camp.
+func aligner() -> void:
+	var axe := roundf(lacet / 45.0) * 45.0
+	if absf(lacet - axe) <= AXES_ALIGNEMENT:
+		lacet = fposmod(axe, 360.0)
+		_placer_camera()
+
+
+## Déplacement sur la carte vu à l'écran : son décalage horizontal (+ : vers la droite).
+func x_ecran(d: Vector2) -> float:
+	var l := deg_to_rad(lacet)
+	return d.x * cos(l) - d.y * sin(l)
+
+
+## Direction, sur la carte, de ce qui est tourné vers la caméra.
+func _vers_camera() -> Vector2:
+	var l := deg_to_rad(lacet)
+	return Vector2(sin(l), cos(l))
 
 
 ## Retour à la vue 2D : le décor reprend sa place, rien d'autre n'a changé.
@@ -137,10 +186,12 @@ func _process(delta: float) -> void:
 
 func _placer_camera() -> void:
 	var cible := Vector3(m.camera.position.x / m.TILE, 0.0, m.camera.position.y / m.TILE)
-	var t := deg_to_rad(TANGAGE)
-	var dir := Vector3(0.0, sin(t), cos(t)).rotated(Vector3.UP, deg_to_rad(LACET))
-	camera.size = _hauteur_ui() / (m.camera.zoom.x * m.TILE) * CADRAGE
-	camera.look_at_from_position(cible + dir * 200.0, cible)
+	var t := deg_to_rad(tangage)
+	var dir := Vector3(0.0, sin(t), cos(t)).rotated(Vector3.UP, deg_to_rad(lacet))
+	etendue = _hauteur_ui() / (m.camera.zoom.x * m.TILE) * CADRAGE
+	camera.size = etendue
+	var recul := etendue / (2.0 * tan(deg_to_rad(FOV) / 2.0)) if perspective else 200.0
+	camera.look_at_from_position(cible + dir * recul, cible)
 
 
 func _hauteur_ui() -> float:
@@ -269,8 +320,8 @@ func recevoir(notes: Array) -> void:
 	cadres.clear()
 	var n := 0
 	var nb_textes := 0
-	var ui_h := _hauteur_ui()
-	var par_case: float = ui_h / camera.size  # pixels d'interface par case
+	var cote_cam := _vers_camera()
+	var vers_cam := absf(sin(2.0 * deg_to_rad(lacet)))  # 0 dans l'axe d'un côté, 1 en diagonale
 	for e: Dictionary in notes:
 		if e.has("texte"):
 			_poser_texte(nb_textes, e)
@@ -290,28 +341,54 @@ func recevoir(notes: Array) -> void:
 			rect = Rect2(objet.rect)
 		elif objet is String and objet == "camp":
 			rect = Rect2(m.game.map.camp)
+		var pied_note: Vector2 = e["pied"]
 		if rect.size != Vector2.ZERO and (not objet is GameState.Site or not objet.def.get("effet", {}).has("decor")):
-			pos = rect.get_center() + rect.size * RECUL_BATIMENT
-			taille *= AGRANDI_BATIMENT
-		_regler(s, tex, e["pied"], pos.x, pos.y, taille, e["miroir"], e["region"])
+			# Le pied du bâtiment va au bord de l'emprise tourné vers la caméra
+			var profond: float = maxf(rect.size.x, rect.size.y) * (0.5 - 0.08 * vers_cam)
+			pos = rect.get_center() + cote_cam * profond
+			taille *= 1.0 + AGRANDI_BATIMENT * vers_cam
+			var biais := _image_de_biais(objet, rect)
+			if not biais.is_empty():
+				tex = biais["tex"]
+				pied_note = biais["pied"]
+				pos = rect.get_center() + cote_cam * maxf(rect.size.x, rect.size.y) * 0.68
+				taille = biais["taille"]
+		_regler(s, tex, pied_note, pos.x, pos.y, taille, e["miroir"], e["region"])
 		s.modulate = e["teinte"]
 		# Cadres cliquables : personnages et bâtiments
 		if objet is GameState.Worker or objet is GameState.Site:
 			var dim: Vector2 = (e["region"] as Rect2).size if e["region"].size != Vector2.ZERO else Vector2(tex.get_width(), tex.get_height())
 			var ecran := ecran_de(s.position)
-			var pied: Vector2 = e["pied"]
-			var r := Rect2(ecran - pied * taille * par_case, dim * taille * par_case)
+			# Pixels d'interface par case, à cette distance de la caméra (elle varie en perspective)
+			var par_case: float = ecran.distance_to(ecran_de(s.position + camera.global_basis.x))
+			var r := Rect2(ecran - pied_note * taille * par_case, dim * taille * par_case)
 			var cible: Vector2 = objet.pos * m.TILE if objet is GameState.Worker else Vector2(objet.rect.get_center()) * m.TILE + Vector2(m.TILE, m.TILE) * 0.0
 			if objet is GameState.Worker:
 				r = r.grow_individual(-r.size.x * 0.32, -r.size.y * 0.1, -r.size.x * 0.32, 0.0)
 			else:
 				r = r.grow(-r.size.x * 0.1)
-			cadres.append({"rect": r, "monde": cible, "rang": (1000.0 if objet is GameState.Worker else 0.0) + s.position.x + s.position.z})
+			cadres.append({"rect": r, "monde": cible, "rang": (1000.0 if objet is GameState.Worker else 0.0) + s.position.x * cote_cam.x + s.position.z * cote_cam.y})
 	for k in range(n, sprites.size()):
 		sprites[k].visible = false
 	for k in range(nb_textes, textes.size()):
 		textes[k].visible = false
 	cadres.sort_custom(func(a, b): return a["rang"] > b["rang"])
+
+
+## Bâtiment dessiné de biais, s'il existe et si la vue est en diagonale : iso_<id> (façade vers le bas à gauche), iso_<id>_d (vers le bas à droite).
+func _image_de_biais(objet: Variant, rect: Rect2) -> Dictionary:
+	if not objet is GameState.Site or not objet.done:
+		return {}
+	var s := sin(deg_to_rad(lacet))
+	if absf(s) < 0.38:
+		return {}  # dans l'axe : l'image de face est la bonne
+	var nom := "iso_%s" % objet.def_id()
+	if s < 0.0:
+		nom += "_d"
+	if not SpritesBD.existe(nom):
+		return {}
+	var tex := SpritesBD.texture(nom)
+	return {"tex": tex, "pied": SpritesBD.pied(nom), "taille": (rect.size.x + rect.size.y) * 0.8 / tex.get_width()}
 
 
 func _poser_texte(i: int, e: Dictionary) -> void:
@@ -329,7 +406,7 @@ func _poser_texte(i: int, e: Dictionary) -> void:
 	l.visible = true
 	l.text = e["texte"]
 	l.font_size = 24
-	l.pixel_size = camera.size / _hauteur_ui() * clampf(float(e["taille"]) * 0.05, 0.4, 0.9)
+	l.pixel_size = etendue / _hauteur_ui() * clampf(float(e["taille"]) * 0.05, 0.4, 0.9)
 	l.modulate = e["encre"]
 	l.outline_modulate = e["fond"]
 	var p: Vector2 = e["pos"] / m.TILE
@@ -416,17 +493,18 @@ func _construire_cloture(s: GameState.Site, style: String, liens: Dictionary) ->
 		var centre := c + Vector2(d) * long * 0.5
 		var phase: int = posmod(p.x if d.x != 0 else p.y, 2)
 		var haut := _troncon(style, phase, centre.x, centre.y, long, 0.0 if d.x != 0 else 90.0)
-		if id == "cloture":
-			var b := BoxMesh.new()
-			b.size = Vector3(long, 0.05, 0.2) if d.x != 0 else Vector3(0.2, 0.05, long)
-			var dessus := MeshInstance3D.new()
-			dessus.mesh = b
-			var mb := StandardMaterial3D.new()
-			mb.albedo_color = Color("EFE6D0")
-			mb.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-			dessus.material_override = mb
-			dessus.position = Vector3(centre.x, _h(centre.x, centre.y) + haut, centre.y)
-			clotures.add_child(dessus)
+		# Un dessus : vue dans son axe, la clôture ne disparaît pas
+		var large := 0.2 if id == "cloture" else 0.07
+		var b := BoxMesh.new()
+		b.size = Vector3(long, 0.05, large) if d.x != 0 else Vector3(large, 0.05, long)
+		var dessus := MeshInstance3D.new()
+		dessus.mesh = b
+		var mb := StandardMaterial3D.new()
+		mb.albedo_color = couleurs_rail.get(style, Color("B97A35"))
+		mb.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		dessus.material_override = mb
+		dessus.position = Vector3(centre.x, _h(centre.x, centre.y) + haut * (1.0 if id == "cloture" else 0.8), centre.y)
+		clotures.add_child(dessus)
 	# Coins seuls : un tronçon de biais
 	var diagonale := false
 	for d: Vector2i in [Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)]:
@@ -471,8 +549,8 @@ func _sur_le_plan(p: Vector2, y: float) -> Vector3:
 func sol(p: Vector2) -> Vector2:
 	_placer_camera()
 	var q := _sur_le_plan(p, 0.0)
-	for k in 3:
-		q = _sur_le_plan(p, _h(q.x, q.z))
+	for k in 8:  # amorti : sur une pente, le point oscillerait sinon d'une case à l'autre
+		q = q.lerp(_sur_le_plan(p, _h(q.x, q.z)), 0.6)
 	return Vector2(q.x, q.z) * m.TILE
 
 

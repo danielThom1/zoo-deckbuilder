@@ -35,6 +35,7 @@ const TERRAIN := {
 const PX := 8  # pixels par case dans l'image de fond
 
 static var iso_demande := false  # essai de la vue isométrique, lancé depuis le menu
+static var vue3d_demandee := false  # essai de la vue 3D, lancé depuis le menu
 var graine := 0
 var adversaires := 3
 var difficile := false  # IA difficile : stratégies apprises par l'IA évolutive
@@ -198,6 +199,13 @@ func _construire() -> void:
 			iso_demande = true
 			lancer.emit(false, graine, adversaires, difficile))
 		dev.add_child(b_iso)
+		var b_3d := Button.new()
+		b_3d.text = "Essai : vue 3D"
+		b_3d.tooltip_text = "Une partie normale, avec une caméra en perspective. F3 et F2 changent de vue à tout moment."
+		b_3d.pressed.connect(func():
+			vue3d_demandee = true
+			lancer.emit(false, graine, adversaires, difficile))
+		dev.add_child(b_3d)
 		var b_regarder := Button.new()
 		b_regarder.text = "Dév. : regarder des IA jouer"
 		b_regarder.pressed.connect(func(): lancer.emit(true, graine, 4, difficile))

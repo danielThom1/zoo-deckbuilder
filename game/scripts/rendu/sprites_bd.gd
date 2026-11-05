@@ -191,12 +191,44 @@ static func perso_a_rangee(tex: Texture2D, rangee: int) -> bool:
 	return (rangee + 1) * PERSO_CELLULE.y <= tex.get_height()
 
 
+static var _tetes := {}
+
+
+## Les images de marche sont calées sur le pied arrière : d'une image à l'autre, le corps sauterait d'avant en arrière.
+## On les recale sur le milieu de la tête, qui reste à la même place pendant la marche.
+static func _centre_tete(tex: Texture2D, image: int) -> float:
+	var cle := "%d_%d" % [tex.get_rid().get_id(), image]
+	if _tetes.has(cle):
+		return _tetes[cle]
+	var img := tex.get_image()
+	if img.is_compressed():
+		img.decompress()
+	var x0 := int(image * PERSO_CELLULE.x)
+	var haut := -1
+	var somme := 0.0
+	var n := 0
+	for y in int(PERSO_CELLULE.y):
+		for x in int(PERSO_CELLULE.x):
+			if img.get_pixel(x0 + x, y).a > 0.5:
+				if haut < 0:
+					haut = y
+				somme += x
+				n += 1
+		if haut >= 0 and y >= haut + 22:
+			break
+	_tetes[cle] = somme / n if n > 0 else PERSO_PIED.x
+	return _tetes[cle]
+
+
 ## Dessine une image de la feuille, les pieds sur « pied_monde » ; « hauteur » est celle du corps debout.
 static func dessiner_perso(ci: CanvasItem, tex: Texture2D, rangee: int, image: int, pied_monde: Vector2, hauteur: float, miroir := false) -> void:
 	var k := hauteur / PERSO_CORPS
 	var source := Rect2(Vector2(image % 3, rangee) * PERSO_CELLULE, PERSO_CELLULE)
+	var pied_image := PERSO_PIED
+	if rangee == PERSO_MARCHE:
+		pied_image.x = _centre_tete(tex, image % 3)
 	if collecte != null:
-		_noter(tex, PERSO_PIED, pied_monde, k, miroir, Color.WHITE, source)
+		_noter(tex, pied_image, pied_monde, k, miroir, Color.WHITE, source)
 		return
 	ci.draw_set_transform(pied_monde, 0.0, Vector2(1.0, 0.28))
 	ci.draw_circle(Vector2.ZERO, hauteur * 0.26, Color(0.078, 0.125, 0.169, 0.2))
@@ -204,7 +236,7 @@ static func dessiner_perso(ci: CanvasItem, tex: Texture2D, rangee: int, image: i
 		ci.draw_set_transform(pied_monde, 0.0, Vector2(-1, 1))
 	else:
 		ci.draw_set_transform(pied_monde, 0.0, Vector2.ONE)
-	ci.draw_texture_rect_region(tex, Rect2(-PERSO_PIED * k, PERSO_CELLULE * k), source)
+	ci.draw_texture_rect_region(tex, Rect2(-pied_image * k, PERSO_CELLULE * k), source)
 	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
