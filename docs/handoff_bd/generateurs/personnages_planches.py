@@ -9,6 +9,8 @@ Chaque planche porte le prénom du personnage (Fatou.png, Élise.webp). Deux for
 sprites_bd.json et réécrit game/data/personnages.json d'après toutes les feuilles présentes : une nouvelle planche
 remplace celle du même personnage, les autres restent.
 Dans chaque image, le pied du personnage est au même point (PIED) : l'animation ne saute pas.
+Une planche <prénom>_biais (docs/prompt_marche_biais.md) donne <id>_biais.png : marche de trois quarts face et dos,
+pour la vue isométrique.
 """
 import glob, json, os, sys, unicodedata
 from collections import deque
@@ -326,6 +328,59 @@ def decouper(chemin, fiche_id):
     return feuille, portrait, deborde
 
 
+def decouper_biais(chemin, fiche_id):
+    """Planche de marche de biais (Victor_biais.png) : pas de portrait, 2 rangées de 3 images, de trois quarts face
+    (vers le bas à droite) puis de trois quarts dos (vers le haut à droite). Même échelle que la marche de profil ;
+    chaque image est calée sur le milieu de la tête, qui reste à la même place pendant la marche."""
+    rgb = np.array(Image.open(chemin).convert('RGB'))
+    couleurs, alpha = fond_transparent(rgb)
+    masque = alpha > 0.5
+    h, w = masque.shape
+    rgba = np.dstack([np.clip(couleurs, 0, 255), alpha * 255.0]).astype(np.uint8)
+    sols = lignes_de_sol(masque, 0, 0, 2)
+    if len(sols) != 2:
+        raise ValueError('%s : %d lignes de sol %s' % (fiche_id, len(sols), sols))
+    images = []
+    y_prec = 0
+    largeur = masque.sum(axis=1)
+    for r, (sol, sol_bas) in enumerate(sols):
+        cols = trois_images(masque, y_prec, sol - 1, 0)
+        if len(cols) != 3:
+            raise ValueError('%s : rangée %d, %d colonnes' % (fiche_id, r, len(cols)))
+        for c0, c1 in cols:
+            yy = np.where(masque[y_prec:sol, c0:c1].sum(axis=1) > 0)[0]
+            images.append((r, c0, c1, y_prec + yy[0], sol))
+        y_prec = sol_bas + 1
+        while y_prec < h - 1 and y_prec - sol_bas < 16 and largeur[y_prec] > largeur[sol_bas] * 0.2:
+            y_prec += 1
+        y_prec += 1
+    corps = float(np.median([i[4] - i[3] for i in images]))
+    k = HAUTEUR / corps
+    feuille = Image.new('RGBA', (CELLULE[0] * 3, CELLULE[1] * 2), (0, 0, 0, 0))
+    deborde = 0
+    for n, (r, c0, c1, haut, sol) in enumerate(images):
+        cellule = rgba[haut:sol, c0:c1].copy()
+        m = cellule[:, :, 3] > 127
+        ch, cw = m.shape
+        rien_dessus = m[max(0, ch - 16):max(1, ch - 6)].sum(axis=0) == 0
+        cellule[ch - 6:, rien_dessus, 3] = 0
+        m = cellule[:, :, 3] > 127
+        # Milieu de la tête : les pixels des premières lignes (22 pixels du corps de référence)
+        bande = m[:max(2, round(22 / k))]
+        tete = float(np.where(bande)[1].mean()) if bande.any() else cw / 2.0
+        im = Image.fromarray(cellule, 'RGBA').convert('RGBa')
+        nw, nh = max(1, round(cw * k)), max(1, round(ch * k))
+        im = im.resize((nw, nh), Image.LANCZOS).convert('RGBA')
+        px = PIED[0] - round(tete * k)
+        py = PIED[1] - nh
+        if px < 0 or py < 0 or px + nw > CELLULE[0] or py + nh > CELLULE[1]:
+            deborde += 1
+        boite = Image.new('RGBA', CELLULE, (0, 0, 0, 0))
+        boite.paste(im, (px, py), im)
+        feuille.paste(boite, ((n % 3) * CELLULE[0], (n // 3) * CELLULE[1]))
+    return feuille, deborde
+
+
 def main():
     src, racine = sys.argv[1], sys.argv[2]
     controle = next((a.split('=', 1)[1] for a in sys.argv[3:] if a.startswith('--controle=')), '')
@@ -338,6 +393,16 @@ def main():
     faits = []
     for chemin in sorted(fichiers):
         pid = identifiant(os.path.splitext(os.path.basename(chemin))[0])
+        if pid.endswith('_biais') and pid[:-6] in connus:
+            feuille, deborde = decouper_biais(chemin, pid)
+            feuille.save(os.path.join(sortie, pid + '.png'), optimize=True)
+            print(pid, ': marche de biais', '(%d images débordent)' % deborde if deborde else '')
+            if controle:
+                os.makedirs(controle, exist_ok=True)
+                fond = Image.new('RGB', feuille.size, (200, 220, 190))
+                fond.paste(feuille, (0, 0), feuille)
+                fond.save(os.path.join(controle, pid + '.png'))
+            continue
         if pid not in connus:
             print('Ignorée (prénom inconnu) :', os.path.basename(chemin).encode('ascii', 'replace').decode())
             continue

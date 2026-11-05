@@ -816,9 +816,15 @@ func _dessiner_monde() -> void:
 		var d: Vector2 = w.pos - f[2]
 		if d.length() > 0.0005:
 			if iso:
+				# En isométrique, la marche suit la diagonale de l'écran : de trois quarts face en descendant, de trois
+				# quarts dos en montant (planche <id>_biais), de profil à l'horizontale. Les images regardent à droite.
 				var dx: float = iso.x_ecran(d)
-				if absf(dx) > 0.001:
-					f = ["profil", dx < 0.0, w.pos]
+				var dy: float = d.dot(iso._vers_camera())
+				var cote: bool = dx < 0.0 if absf(dx) > 0.001 else f[1]
+				if absf(dy) > absf(dx) * BIAIS_SEUIL:
+					f = ["biais_face" if dy > 0.0 else "biais_dos", cote, w.pos]
+				elif absf(dx) > 0.001:
+					f = ["profil", cote, w.pos]
 			elif absf(d.x) > absf(d.y):
 				f = ["profil", d.x < 0.0, w.pos]
 			else:
@@ -855,7 +861,15 @@ func _dessiner_monde() -> void:
 		var geste := int(GESTES.get(str(work.get("outil", "")), -1))
 		if feuille and geste >= 0 and not SpritesBD.perso_a_rangee(feuille, geste):
 			geste = -1  # planche à 4 gestes : image de marche
-		if feuille:
+		var biais: Texture2D = null
+		if iso and feuille and geste < 0 and str(f[0]).begins_with("biais_"):
+			biais = SpritesBD.feuille_perso(str(game.perso_of(w.card)["id"]) + "_biais")
+		if biais:
+			var image_b: int = MARCHE_CYCLE[int(phase_pas) % MARCHE_CYCLE.size()] if moving else 1
+			SpritesBD.collecte_objet = w
+			SpritesBD.dessiner_perso(self, biais, 0 if f[0] == "biais_face" else 1, image_b, p + Vector2(0, 6.2 - pas), TILE * SpritesBD.HAUTEUR_PERSONNE, f[1])
+			SpritesBD.collecte_objet = null
+		elif feuille:
 			var rangee: int = geste if geste >= 0 else SpritesBD.PERSO_MARCHE
 			var image: int = MARCHE_CYCLE[int(phase_pas) % MARCHE_CYCLE.size()] if moving else (int(tw * float(work["rythme"]) * 0.45) if geste >= 0 else 1)
 			SpritesBD.collecte_objet = w
@@ -1251,6 +1265,8 @@ func _draw_turned(r: Rect2, turned: bool, draw_fn: Callable) -> void:
 ## Entrée du zoo : deux piliers et un portique.
 ## Marche : jambe avant, jambes croisées, autre jambe, jambes croisées.
 const MARCHE_CYCLE := [0, 1, 2, 1]
+## Isométrique : au-delà de cette pente à l'écran (environ 24°), la marche de biais remplace le profil.
+const BIAIS_SEUIL := 0.45
 const MARCHE_CASES_PAR_IMAGE := 0.25  # deux images par case parcourue (essai validé à la main)
 const MARCHE_IMAGES_MAX := 6.0  # images par seconde au plus, même en jeu accéléré
 
