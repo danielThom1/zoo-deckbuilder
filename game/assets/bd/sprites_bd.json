@@ -6538,5 +6538,41 @@
    23,
    91
   ]
+ },
+ "cl_enclos_face": {
+  "categorie": "clotures",
+  "fichier": "res://assets/bd/sprites/clotures/cl_enclos_face.png",
+  "pied": [
+   80,
+   55
+  ],
+  "taille": [
+   160,
+   55
+  ]
+ },
+ "cl_enclos_long": {
+  "categorie": "clotures",
+  "fichier": "res://assets/bd/sprites/clotures/cl_enclos_long.png",
+  "pied": [
+   10,
+   160
+  ],
+  "taille": [
+   20,
+   160
+  ]
+ },
+ "cl_enclos_poteau": {
+  "categorie": "clotures",
+  "fichier": "res://assets/bd/sprites/clotures/cl_enclos_poteau.png",
+  "pied": [
+   12,
+   88
+  ],
+  "taille": [
+   25,
+   88
+  ]
  }
 }

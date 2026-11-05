@@ -768,9 +768,6 @@ func order(targets: Array, target: Vector2i, enqueue := false) -> void:
 		if site and site.done and site.def_id() == "entree":
 			_station(w, "ticket", site, target)
 			continue
-		if site and site.done and site.def_id() == "formation":
-			_station(w, "formation", site, target)
-			continue
 		if site and site.done and site.def_id() == "cuisine":
 			w.task = {"type": "feed", "site": site, "phase": "to_kitchen", "rations": 0.0, "prep": 0.0}
 			_set_path(w, target)
@@ -1172,8 +1169,6 @@ func _update_worker(w: Worker, dt: float) -> void:
 						pet.heal = 0.0
 						say("%s est guéri." % pet.def["nom"])
 						version += 1
-			elif w.task["kind"] == "formation":
-				_train(w, dt)
 		"deposit":
 			if in_depot(w.tile()):
 				_unload(w)
@@ -1562,23 +1557,6 @@ func _next_to_terrain(t: Vector2i, terrain: String) -> bool:
 	return false
 
 
-## Centre de formation : les ouvriers postés gagnent de l'expérience (×2 si un Formateur est posté aussi).
-## Places limitées (capacite_formation) : les premiers arrivés sont formés.
-func _train(w: Worker, dt: float) -> void:
-	if w.card.metier["id"] == "formateur":
-		return  # il forme les autres
-	var s: Site = w.task["obj"]
-	var present := workers.filter(func(o): return o.task.get("kind") == "formation" and o.task.get("obj") == s \
-		and o.path.is_empty() and o.tile() == o.task["tile"])
-	var trainers := present.filter(func(o): return o.card.metier["id"] == "formateur")
-	var trainees := present.filter(func(o): return o.card.metier["id"] != "formateur")
-	var fx: Dictionary = s.def["effet"]
-	if trainees.find(w) >= int(fx["capacite_formation"]):
-		return
-	var rate := float(fx["xp_par_minute"]) * (2.0 if not trainers.is_empty() else 1.0) * unpaid_mult(w)
-	gain_xp(w.card, rate * dt / 60.0)
-
-
 func _complete(s: Site) -> void:
 	s.done = true
 	if s.def_id() == "enclos" or s.def.get("effet", {}).has("decor"):
@@ -1750,7 +1728,7 @@ func _end_day_player() -> void:
 		if has_capacity(card, "reseau"):
 			influence += 1.0
 		card.deployed = false
-	# Montées de niveau (journées de travail et Centre de formation) : une amélioration gratuite au choix par niveau.
+	# Montées de niveau (journées de travail) : une amélioration gratuite au choix par niveau.
 	for card in all_employees():
 		while card.niveau < int(regles["niveau_max"]) and card.xp >= xp_next_level(card) - 0.0001:
 			card.niveau += 1

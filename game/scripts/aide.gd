@@ -53,7 +53,7 @@ Le lobbying (envoyer un collaborateur à la case Accès) fait monter votre influ
 [b]L'or[/b] : mine et entrepôt tôt, Mineurs et Marchand, or vendu ou changé en labels.
 [b]Les spectacles[/b] : Kiosque et Animateur, boutiques et Vendeurs.
 [b]La politique[/b] : Lobbyistes, prestige et ordre de passage.
-[b]La formation[/b] : Centre de formation et Formateur, pour des collaborateurs légendaires.
+[b]La formation[/b] : Formateur sur les chantiers et cartes Formation express, pour des collaborateurs légendaires.
 
 Adaptez-vous à vos cartes et à ce que prennent les autres : tout se voit, la nuit."""],
 	["Commandes", """[b]Clic gauche[/b] : sélectionner (glisser pour plusieurs). [b]Clic droit[/b] : donner un ordre. [b]Maj + clic droit[/b] : ordre à la suite.

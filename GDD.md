@@ -93,7 +93,6 @@ Ordre de résolution (avant le lot N, pour mémoire) :
 | Lobbying | Hors carte, via la route d'accès | L'ouvrier marche jusqu'à la sortie et disparaît. Tant qu'il est dehors : +1 influence/min × efficacité (Lobbyiste 1.0, autres 0.25). Quand on le rappelle, il revient par la même sortie |
 | Vendre | Boutique de souvenirs | Multiplie les revenus de souvenirs de la nuit |
 | Commerce | Camp | Conversion de ressources en argent |
-| Former | Centre de formation | +XP pour les ouvriers qui s'y entraînent |
 
 - **Construction** (prototype Godot) : on choisit un bâtiment ou un aménagement dans le menu de gauche et on le place sur la carte. Les routes, clôtures et aménagements se placent en glissant la souris. Le coût est payé **au placement** : il est remboursé en entier si on annule avant tout travail, et à moitié ensuite. On envoie ensuite des ouvriers sur le chantier par clic droit, et l'avancement est conservé d'un jour à l'autre. Un ouvrier qui termine un chantier passe tout seul au chantier voisin du même type, dans un rayon de 10 cases (pratique pour une route). Pour l'instant, les bâtiments ne bloquent pas le passage.
 - **Effets de zone** : *Charismatique* donne +20 % de productivité aux autres ouvriers dans un rayon de 3 cases, le *Contremaître* +25 % dans un rayon de 3 cases, et *Rabat-joie* −10 % aux autres ouvriers dans un rayon de 3 cases. Les effets se cumulent et s'appliquent à l'extraction, à la construction et à l'aménagement.
@@ -119,7 +118,6 @@ Liste complète : `data/workers.json`.
 
 ### 6.4 Progression (lot B : implémenté)
 - **Expérience** en jours de travail : +1 par jour déployé, ×2 pour l'**Apprenti**, ×1,5 pour **Bon élève**. Un niveau tous les **2 jours d'expérience**, au maximum le **niveau 4** (+10 % de rendement et +1 de salaire par niveau).
-- **Centre de formation** : un ouvrier posté dessus (clic droit) gagne **0,4 jour d'expérience par minute**, **×2 si un Formateur** y est posté aussi. 4 places. Une journée complète de formation vaut 2 jours de travail en expérience (4 avec un Formateur), en plus du jour travaillé.
 - **À chaque niveau, une amélioration gratuite au choix** parmi 3 (**Têtu** : 2, et expérience −15 %), tirées dans le pool générique et dans celui du métier. Le choix se fait la nuit ; s'il est oublié, la première option est appliquée au matin.
 - Améliorations génériques : Pied léger, Expérience, Maîtrise, Remise en question (supprime un défaut), Révélation (nouveau trait positif), Fidélité, **Seconde spécialité** (une tâche hors métier, tirée au hasard, passe à 1,4).
 - Améliorations de métier : Scie affûtée (Bûcheron : bois +25 %, portage +1), Brouette (Porteur : portage +2), Chasseur de têtes (DRH : embauches −3), Réseau (Lobbyiste : +1 influence par soir déployé), Négociateur (Marchand : vente +25 %), Pédagogue (Formateur : +2 places), Visionnaire (Paysagiste : aménager à côté d'une case du type voulu ×2).
@@ -343,3 +341,7 @@ Liste complète : `data/workers.json`.
 ## Intendance du parc
 
 L'Intendance du parc est un bâtiment de l'enceinte. Tout collaborateur peut y travailler ; l'Intendant de parc, un cadre, y va 2,5 fois plus vite. Chaque décoration demande 100 de travail, 1 bois et 1 pierre, et paraît sur une case libre du parc : massif, banc, lampadaire, topiaire, fontaine, statue, tonnelle ou parterre. Le parc compte au plus une décoration pour 10 cases. Chaque nuit, zoo ouvert, chaque décoration rapporte 0,1 de réputation. Construire sur une décoration la retire.
+
+## Centre de formation retiré (05/11)
+
+Le Centre de formation n'existe plus. L'expérience vient des journées de travail, de l'aura du Formateur sur les chantiers et des cartes Formation express. L'objectif des actionnaires passe à 4 collaborateurs au niveau 4.

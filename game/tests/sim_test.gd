@@ -519,7 +519,6 @@ func _init() -> void:
 	var b_money := b_g.money
 	check(b_g.choose_level_upgrade(b_lc, b_opt) and b_g.level_choices.is_empty() and b_lc.upgrade_names.size() == b_nup + 1 \
 		and is_equal_approx(b_g.money, b_money), "amélioration de niveau choisie gratuitement : %s" % b_opt["nom"])
-	# Centre de formation
 	var b_proba = data["events"]["proba_evenement"]
 	data["events"]["proba_evenement"] = 0.0
 	b_g.start_next_day()
@@ -528,31 +527,8 @@ func _init() -> void:
 	b_g.stock["pierre"] += 60.0
 	b_g.money += 80.0
 	var b_o := Vector2i(b_g.map.camp.position.x - 5, b_g.map.camp.position.y)
-	var b_centre := b_g.place("batiment", b_g.building_def("formation"), b_o)
-	check(b_centre != null, "Centre de formation placé")
-	b_centre.work = b_centre.travail()
-	b_g._complete(b_centre)
-	var b_trainee: GameState.Card = b_g.hand[0]
-	b_g.deploy(b_trainee)
-	b_g.order([b_g.worker_of(b_trainee)], b_centre.rect.position)
-	for i in 300:
-		b_g.tick(GameState.TICK)
-	var b_xp0 := b_trainee.xp
-	for i in 600:
-		b_g.tick(GameState.TICK)
-	var b_rate: float = float(b_g.building_def("formation")["effet"]["xp_par_minute"]) * b_g.xp_mult(b_trainee)
-	var b_gain1 := b_trainee.xp - b_xp0
-	check(absf(b_gain1 - b_rate) < 0.02, "Centre de formation : +%.2f jour d'expérience par minute" % b_gain1)
 	var b_form: GameState.Card = b_mk.call("formateur", [])
 	b_g.deploy(b_form)
-	b_g.order([b_g.worker_of(b_form)], b_centre.rect.position)
-	for i in 300:
-		b_g.tick(GameState.TICK)
-	var b_xp1 := b_trainee.xp
-	for i in 600:
-		b_g.tick(GameState.TICK)
-	var b_gain2 := b_trainee.xp - b_xp1
-	check(absf(b_gain2 - 2.0 * b_rate) < 0.02, "avec un Formateur posté : ×2 (+%.2f par minute)" % b_gain2)
 	# Apprentissage sur le tas : du temps cumulé à 3 cases ou moins du Formateur, rien plus loin
 	var b_pres: GameState.Card = b_mk.call("macon", [])
 	var b_loin: GameState.Card = b_mk.call("macon", [])

@@ -7,6 +7,8 @@ extends RefCounted
 const ARGENT_ABONDANT := 100.0  # au-dessus du plancher de dépenses, l'IA améliore son camp quelle que soit sa stratégie
 const SURPLUS_STOCK := 30.0  # stock gardé en plus des besoins avant de vendre pour payer les chantiers
 const SURPLUS_ARGENT := 30.0  # argent visé au-dessus du plancher de dépenses
+const BONUS_CIBLE := 1.6
+const MALUS_PALIER := 0.5
 const JOUR_SANS_ANIMAL := 3
 const JOUR_FIN_FAST_EXPAND := 5
 const PLANCHER_SANS_ANIMAL := 0.0  # sans recette, garder les salaires de demain ne sert à rien : une carte cédée les paie
@@ -31,7 +33,7 @@ const DEFAULT_STRATEGY := {
 	"marche": false,  # construit le bâtiment Marché (vente à 70 %, 125 % avec un Marchand)
 	"rush_or": false,  # mine et Marché d'abord, entrepôt près de la mine, la plupart des ouvriers à l'or
 	"specialisation": false,  # chaque ouvrier va là où il est le plus efficace
-	"formation": false,  # Centre de formation tôt, ouvriers peu utiles en formation les premiers jours
+	"formation": false,  # Formateur recherché : son aura fait progresser l'équipe sur les chantiers
 	"cartes": false,  # une carte d'action chaque nuit quand l'argent le permet
 	"affinite": false,  # contrats d'un seul continent (affinités), terrain aménagé pour eux
 	"palier_min": 1,  # 2 : plus de contrats T1 une fois les T2 disponibles (sauf premier animal)
@@ -477,7 +479,7 @@ func _prix_premier_animal() -> float:
 	for d in g.market_contracts:
 		if g.has_species(d["id"]) or (zoo_rect.size != Vector2i.ZERO and _plan_enclosure(d).is_empty() and not _can_extend_for(d)):
 			continue
-		if not _strategy_allows(d) or (not _has_landscaper() and not _natural_fit(d)):
+		if not _has_landscaper() and not _natural_fit(d):
 			continue
 		prix = minf(prix, _money_cost(d))
 	return prix
@@ -743,8 +745,6 @@ func _night_contracts() -> void:
 					continue
 				if zoo_rect.size != Vector2i.ZERO and _plan_enclosure(def).is_empty() and not _can_extend_for(def):
 					continue
-				if not _strategy_allows(def):
-					continue
 				# Sans Paysagiste ni Terrassier, aucun aménagement possible : le motif doit déjà exister.
 				if not _has_landscaper() and not _natural_fit(def):
 					continue
@@ -780,7 +780,7 @@ func _contract_score(def: Dictionary, cost: float) -> float:
 		var jours := maxf(0.5, _days_left() - 1.0 - effort)
 		var marge := maxf(1.0, g.money - _cash_floor())
 		score = (_contract_value(def) * jours + _objectif_bonus(def)) * pow(tier, (pref - 1.0) * 2.0) / (1.0 + cost / marge)
-	return score * pow(2.0, float(strat.get("poids_animaux", {}).get(def["id"], 0.0)))
+	return score * _bonus_strategie(def) * pow(2.0, float(strat.get("poids_animaux", {}).get(def["id"], 0.0)))
 
 
 ## Réputation qu'un contrat rapproche via les objectifs des actionnaires : le gain entier s'il remplit un objectif,
@@ -1051,18 +1051,18 @@ func _night_buy_action() -> void:
 
 
 ## Filtres de contrats propres à la stratégie : un seul continent (Affinités), pas de T1 en milieu de partie (Haut de gamme).
-func _strategy_allows(def: Dictionary) -> bool:
-	var first := g.animals.is_empty() and g.contracts.is_empty()
+## La stratégie préfère sans interdire : un contrat de sa cible vaut plus cher à ses yeux, les autres restent possibles.
+func _bonus_strategie(def: Dictionary) -> float:
+	var bonus := 1.0
 	var cc := _continent_target()
-	if cc != "" and def.get("continent", "") != cc and not _cible_relachee(func(d): return d.get("continent", "") == cc):
-		return false
+	if cc != "" and def.get("continent", "") == cc:
+		bonus *= BONUS_CIBLE
 	var tt := _type_target()
-	if tt != "" and def.get("type", "") != tt and not _cible_relachee(func(d): return d.get("type", "") == tt):
-		return false
-	if int(strat["palier_min"]) >= 2 and not first and def["palier"] == "T1" \
-		and g.day >= int(g.data["animals"]["paliers"]["T2"]["jour_min"]):
-		return false
-	return true
+	if tt != "" and def.get("type", "") == tt:
+		bonus *= BONUS_CIBLE
+	if int(strat["palier_min"]) >= 2 and def["palier"] == "T1" and not (g.animals.is_empty() and g.contracts.is_empty()):
+		bonus *= MALUS_PALIER
+	return bonus
 
 
 ## Type d'animal visé : imposé, ou (Même type) celui que les animaux acquis et le marché favorisent le plus. Un rare
@@ -1113,13 +1113,6 @@ func _meilleure_note(notes: Dictionary) -> String:
 
 ## La cible cède si elle bloque la partie : aucun animal à portée pour ouvrir le zoo, ou beaucoup d'argent qui dort
 ## sans rien de ce type au marché.
-func _cible_relachee(convient: Callable) -> bool:
-	var dispo := g.market_contracts.filter(convient)
-	if g.animals.is_empty() and (g.day >= 3 or not dispo.any(func(d): return g.money - _money_cost(d) >= _cash_floor())):
-		return true
-	return dispo.is_empty() and g.money > _cash_floor() + 60.0
-
-
 ## Part des murs de l'enceinte déjà terminés (0 à 1).
 func _walls_progress() -> float:
 	if _murs_version == g.version and _murs_rect == zoo_rect:
@@ -2019,11 +2012,6 @@ func _wants() -> Array:
 		var cspot := _spot_near_camp(g.building_def("comptoir"))
 		if cspot.x >= 0:
 			out.append(["batiment", g.building_def("comptoir"), cspot])
-	# 1 quinquies. Centre de formation (stratégie « Formation »).
-	if strat["formation"] and day >= 2 and not g.has_building("formation"):
-		var fspot := _spot_near_camp(g.building_def("formation"))
-		if fspot.x >= 0:
-			out.append(["batiment", g.building_def("formation"), fspot])
 	# 2. Enceinte et entrée.
 	if entrance.x >= 0 and g.site_at(entrance) == null:
 		out.append(["batiment", g.building_def("entree"), entrance])
@@ -2414,12 +2402,6 @@ func _assign(w: GameState.Worker) -> void:
 		lobby_today += 1
 		g.order([w], g.map.exit_tile)
 		return
-	if strat["formation"] and g.day <= 8 and w.card.niveau < 3 and not w.unpaid and (not strat["adaptatif"] or g.zoo_status()["open"]):
-		var school := g.sites.filter(func(s): return s.done and s.def_id() == "formation")
-		var trainees := g.workers.filter(func(o): return o.task.get("kind") == "formation").size()
-		if not school.is_empty() and trainees < (3 if w.card.metier["id"] == "formateur" else 2):
-			g.order([w], school[0].rect.position)
-			return
 	var site := _best_site_for(w)
 	if site and _va_construire(w, site):
 		g.order([w], site.rect.position)

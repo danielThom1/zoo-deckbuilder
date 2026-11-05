@@ -34,12 +34,12 @@ var res_noms := {"bois": "bois", "pierre": "pierre", "or": "or"}
 var building_colors := {
 	"route": UiTokens.CHEMIN, "pont": Color("9A6A3E"), "maison": Color("D2553A"), "entrepot": Color("8C6A48"),
 	"mine": Color("5A4636"), "cloture": UiTokens.ENCEINTE, "entree": Color("E9D5A8"), "enclos": UiTokens.CLOTURE_ENCLOS,
-	"boutique": Color("E06A5A"), "formation": Color("3A6AE0"), "cuisine": Color("D8A010"), "entretien": Color("7A8A88"), "intendance": Color("3E8F4E"),
+	"boutique": Color("E06A5A"), "cuisine": Color("D8A010"), "entretien": Color("7A8A88"), "intendance": Color("3E8F4E"),
 	"snack": Color("E8782A"), "kiosque": Color("8A4AD0"), "comptoir": Color("D8A010"), "agence": Color("4A7AC8"), "cabinet": Color("6A3AB0"), "camp_n2": Color("A0743C"), "camp_n3": Color("B8864A"),
 	"grand_arbre": Color("2E7A2C"), "rocher_obs": Color("8E8A80"), "bassin_profond": Color("2B86D2"), "abri_chaud": Color("C0703A"),
 }
 var building_short := {
-	"maison": "Maison", "entrepot": "Entrepôt", "comptoir": "Marché", "agence": "Intérim", "cabinet": "Recrutement", "mine": "Mine", "entree": "Entrée", "boutique": "Boutique", "formation": "Formation",
+	"maison": "Maison", "entrepot": "Entrepôt", "comptoir": "Marché", "agence": "Intérim", "cabinet": "Recrutement", "mine": "Mine", "entree": "Entrée", "boutique": "Boutique", 
 	"cuisine": "Cuisine", "entretien": "Entretien", "intendance": "Intendance", "snack": "Snack", "kiosque": "Kiosque",
 	"camp_n2": "Camp niv. 2", "camp_n3": "Camp niv. 3",
 	"grand_arbre": "Grand arbre", "rocher_obs": "Rocher", "bassin_profond": "Bassin profond", "abri_chaud": "Abri chauffé",
@@ -160,7 +160,8 @@ var draft_root: DraftComite
 # Interface Émeraude
 var res_chips := {}  # clé -> [Label valeur, Label légende]
 var race_labels: Array = []  # [segment du bandeau, valeur, delta du jour]
-var rep_matin: Array = []    # réputation de chaque joueur au matin (delta du bandeau)
+var rep_matin: Array = []    # réputation de chaque joueur au matin
+var rep_hier: Array = []     # et au matin précédent : l'écart du bandeau est le gain de la dernière nuit
 var rep_jour := -1
 var outil := ""              # volet ouvert par la colonne d'outils : "", "construire", "zoo", "bourse", "pub"
 var outil_boutons := {}      # outil -> Button
@@ -482,6 +483,14 @@ func _start(watch: bool) -> void:
 		for s_f in game.sites:
 			if s_f.done and s_f.def_id() == str(args["fiche-batiment"]):
 				selected_site = s_f
+	if args.has("camp-niveau"):  # --camp-niveau=3 : camp amélioré d'office (captures)
+		for k in range(2, int(args["camp-niveau"]) + 1):
+			var sc := GameState.Site.new()
+			sc.def = game.building_def("camp_n%d" % k)
+			sc.kind = "batiment"
+			sc.rect = game.map.camp
+			sc.done = true
+			game.sites.append(sc)
 	if args.has("deco"):
 		var dtypes: Array = game.data["buildings"]["reputation_autres"]["embellissement"]["types"]
 		for k in int(args["deco"]):
@@ -941,8 +950,6 @@ func _work_anim(w: GameState.Worker) -> Dictionary:
 			match w.task["kind"]:
 				"care":
 					return {"outil": "soin", "target": here + Vector2(7, 0), "rythme": 2.5, "res": "coeur"}
-				"formation":
-					return {"outil": "livre", "target": here + Vector2(0, 6), "rythme": 1.5, "res": "etoile"}
 				_:
 					return {"outil": "caisse", "target": here + Vector2(0, 6), "rythme": 2.0, "res": "piece"}
 	return {}
@@ -1159,8 +1166,8 @@ func _draw_turned(r: Rect2, turned: bool, draw_fn: Callable) -> void:
 ## Entrée du zoo : deux piliers et un portique.
 ## Marche : jambe avant, jambes croisées, autre jambe, jambes croisées.
 const MARCHE_CYCLE := [0, 1, 2, 1]
-const MARCHE_CASES_PAR_IMAGE := 0.55  # une foulée complète couvre un peu plus de 2 cases
-const MARCHE_IMAGES_MAX := 3.5  # images par seconde au plus, même en jeu accéléré
+const MARCHE_CASES_PAR_IMAGE := 1.1  # une foulée complète couvre un peu plus de 4 cases
+const MARCHE_IMAGES_MAX := 1.6  # images par seconde au plus, même en jeu accéléré
 
 
 ## Outil de la tâche -> rangée de la feuille d'animation du personnage.
@@ -1171,7 +1178,7 @@ const GESTES := {"hache": SpritesBD.PERSO_COUPER, "pioche": SpritesBD.PERSO_MINE
 ## --vitrine : les bâtiments côte à côte à leur taille de jeu, au-dessus du camp (contrôle de nouvelles images).
 func _draw_vitrine() -> void:
 	var o := Vector2(game.map.camp.position) * TILE + Vector2(-TILE * 9.0, -TILE * 9.0)
-	var ids := ["cabinet", "agence", "cuisine", "formation", "maison", "snack", "intendance"]
+	var ids := ["cabinet", "agence", "cuisine", "maison", "snack", "intendance"]
 	for i in ids.size():
 		_draw_building(Rect2(o + Vector2(i * TILE * 3.2, 0), Vector2(TILE * 2.0, TILE * 2.0)), ids[i], Color.WHITE)
 	_draw_gate(Rect2(o + Vector2(0, TILE * 3.5), Vector2(TILE * 2.0, TILE)))
@@ -1343,9 +1350,13 @@ func _draw_camp() -> void:
 		if s.done and s.def_id() in ["camp_n2", "camp_n3"]:
 			level += 1
 	var full := Rect2(Vector2(m.camp.position) * TILE, Vector2(m.camp.size) * TILE)
-	if SpritesBD.existe(SpritesBD.CAMPS[clampi(level - 1, 0, 2)]):
-		SpritesBD.dessiner_largeur(self, SpritesBD.CAMPS[clampi(level - 1, 0, 2)], Vector2(full.get_center().x, full.end.y + 2), full.size.x * 1.15)
-		_label("Camp" + (" niv. %d" % level if level > 1 else ""), full.get_center() + Vector2(0, -full.size.y / 2 - 9), 10)
+	var nom_camp: String = SpritesBD.CAMPS[clampi(level - 1, 0, 2)]
+	if SpritesBD.existe(nom_camp):
+		var tex_camp := SpritesBD.texture(nom_camp)
+		var taille_camp := Vector2(full.size.x * 1.08, full.size.x * 1.08 * tex_camp.get_height() / float(tex_camp.get_width()))
+		var haut_camp := full.end.y + 1.0 - taille_camp.y
+		draw_texture_rect(tex_camp, Rect2(full.get_center().x - taille_camp.x / 2.0, haut_camp, taille_camp.x, taille_camp.y), false)
+		_label("Camp" + (" niv. %d" % level if level > 1 else ""), Vector2(full.get_center().x, haut_camp - 5.0), 10)
 		return
 	draw_rect(Rect2(c.position + Vector2(2, 3), c.size), Color(0, 0, 0, 0.22))
 	draw_rect(c, Color("C49A64"))
@@ -1502,7 +1513,7 @@ func _draw_fence(s: GameState.Site, color: Color) -> void:
 			reaches.append(reach)
 	# Pilier ou poteau d'angle seulement là où le tracé tourne, s'arrête ou se divise
 	var straight := dirs.size() == 2 and dirs[0] + dirs[1] == Vector2i.ZERO
-	var style := "enceinte" if wall else str(_styles_enclos().get(p, ""))
+	var style := "enceinte" if wall else str(_styles_enclos().get(p, "enclos"))
 	if style != "" and SpritesBD.existe("cl_%s_face" % style):
 		_draw_cloture(s, c, dirs, reaches, straight, style)
 		return
@@ -1540,8 +1551,9 @@ func _draw_cloture(s: GameState.Site, c: Vector2, dirs: Array[Vector2i], reaches
 			var v: float = long_.get_height() / CASES_PAR_TRONCON
 			draw_texture_rect_region(long_, Rect2(base.x - l_long / 2.0, y0 - h_face * 0.5, l_long, l), Rect2(0, v * posmod(p.y, int(CASES_PAR_TRONCON)), long_.get_width(), v * part))
 	# Un poteau aux angles et aux bouts ; toutes les deux cases sur une clôture d'enclos, de loin en loin sur le mur
-	var pas := 6 if style == "enceinte" else 2
-	if not straight or (p.x + p.y) % pas == 0:
+	var pas := 6 if style == "enceinte" else int(CASES_PAR_TRONCON)
+	var rang: int = p.x if not dirs.is_empty() and dirs[0].x != 0 else p.y
+	if not straight or posmod(rang, pas) == 0:
 		_poteaux.append([base, style])
 
 
@@ -2471,6 +2483,7 @@ func _build_ui() -> void:
 	var police_cote := UiTokens.police_mono(600)
 	for i in mt.players.size():
 		rep_matin.append(mt.players[i].reputation())
+		rep_hier.append(mt.players[i].reputation())
 		var seg := PanelContainer.new()
 		var ss := StyleBoxFlat.new()
 		ss.bg_color = UiTokens.MARINE_2 if i == game.index else Color(0, 0, 0, 0)
@@ -2790,7 +2803,7 @@ func _build_ui() -> void:
 	lv.add_child(tabs)
 	var group := ButtonGroup.new()
 	var pages := {
-		"Bâtiments": ["route", "pont", "maison", "entrepot", "comptoir", "agence", "cabinet", "mine", "formation", "camp_n2", "camp_n3"],
+		"Bâtiments": ["route", "pont", "maison", "entrepot", "comptoir", "agence", "cabinet", "mine", "camp_n2", "camp_n3"],
 		"Zoo": ["cloture", "entree", "enclos", "grand_arbre", "rocher_obs", "bassin_profond", "abri_chaud", "boutique", "cuisine", "entretien", "intendance", "snack", "kiosque"],
 		"Terrain": [],
 	}
@@ -2939,8 +2952,8 @@ func _build_ui() -> void:
 	# Main : badges centrés, 176 px visibles au repos (ils recouvrent le haut du dock), +44 au survol
 	hand_scroll = ScrollContainer.new()
 	hand_scroll.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	hand_scroll.offset_left = 560
-	hand_scroll.offset_right = -430
+	hand_scroll.offset_left = MAIN_GAUCHE
+	hand_scroll.offset_right = -MAIN_DROITE
 	hand_scroll.offset_top = -Composants.BADGE.y
 	hand_scroll.offset_bottom = 0
 	hand_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -3299,6 +3312,25 @@ func _aide_badges() -> void:
 	tw.tween_callback(p.queue_free)
 
 
+const MAIN_GAUCHE := 596
+const MAIN_DROITE := 462
+const MAIN_ESPACE := 10
+
+
+## Toutes les cartes tiennent dans la largeur de la main : elles se chevauchent plutôt que de passer sous l'horloge.
+func _ajuster_main() -> void:
+	var n := hand_box.get_child_count()
+	if n < 2:
+		return
+	var large := get_viewport_rect().size.x / ui_echelle() - MAIN_GAUCHE - MAIN_DROITE
+	var ecart := minf(MAIN_ESPACE, (large - n * Composants.BADGE.x) / (n - 1))
+	hand_box.add_theme_constant_override("separation", int(floor(ecart)))
+
+
+func ui_echelle() -> float:
+	return 1.0
+
+
 func _rebuild_hand() -> void:
 	_aide_badges()
 	for c in hand_box.get_children():
@@ -3345,6 +3377,7 @@ func _rebuild_hand() -> void:
 				["● Sélectionné" if sel else "● Sur le terrain · Voir", UiTokens.SARCELLE_FONCE], _on_focus.bind(w))
 		widget.get_child(0).tooltip_text = _card_full_tooltip(card)
 		hand_box.add_child(widget)
+	_ajuster_main()
 
 
 ## Carte d'action au marché (format marché) : nom, effet, un bouton (acheter…).
@@ -3456,8 +3489,6 @@ func _task_text(w: GameState.Worker) -> String:
 	if w.task["type"] == "station":
 		if not w.path.is_empty():
 			return "Va à son poste"
-		if w.task["kind"] == "formation":
-			return "Forme les collaborateurs du centre" if w.card.metier["id"] == "formateur" else "Se forme au centre de formation"
 		return {"trade": "Tient le comptoir du camp", "shop": "Tient la boutique", "ticket": "Tient le guichet", "snack": "Tient le snack",
 			"kiosque": "Anime le kiosque", "intendance": "Embellit le parc (%d / %d décorations)" % [game.decorations.size(), game.decorations_max()], "care": "Soigne : " + str(w.task["obj"].def["nom"] if w.task["obj"] else "")}[w.task["kind"]]
 	if w.task["type"] == "feed":
@@ -3526,7 +3557,7 @@ func _update_info() -> void:
 		zoo_title.text = "BÂTIMENT" if selected_site.done else "CHANTIER"
 	else:
 		zoo_title.text = {"bourse": "BOURSE ET LABELS", "pub": "PUBLICITÉ"}.get(outil, "VOTRE ZOO" if not spectator else mt.names[game.index].to_upper())
-		info_subtitle.text = "partie terminée" if mt.game_over else "jour %d" % mt.day
+		info_subtitle.text = "" if outil in ["bourse", "pub"] else ("partie terminée" if mt.game_over else "jour %d" % mt.day)
 	selection_nav.visible = selected.size() == 1
 	btn_lobby.visible = not selected.is_empty()
 	btn_lobby.text = "Partir en reportage" if selected.size() == 1 and game.est_journaliste(selected[0]) else "Envoyer en lobbying"
@@ -3544,7 +3575,7 @@ func _update_info() -> void:
 	if selected.is_empty() and selected_site:
 		var st := selected_site
 		var builders := game.workers.filter(func(w): return w.task.get("site") == st).size()
-		var image_site: String = SpritesBD.BATIMENTS.get(st.def_id(), {"cloture": "cl_enceinte_face", "enclos": "cl_enclos_herbivore_face"}.get(st.def_id(), ""))
+		var image_site: String = SpritesBD.BATIMENTS.get(st.def_id(), {"cloture": "cl_enceinte_face", "enclos": "cl_enclos_face"}.get(st.def_id(), ""))
 		if not st.done and image_site == "":
 			image_site = "chantier1"
 		fiche.append(["identite", image_site, str(st.def["nom"]), "Taille %d × %d" % [st.rect.size.x, st.rect.size.y],
@@ -4178,12 +4209,13 @@ func _update_hud() -> void:
 	if rep_jour != mt.day:
 		rep_jour = mt.day
 		for i in rep_matin.size():
+			rep_hier[i] = rep_matin[i]
 			rep_matin[i] = mt.players[i].reputation()
 	for i in race_labels.size():
 		var rp: int = mt.players[i].reputation()
 		race_labels[i][1].text = str(rp)
-		var dv: int = rp - int(rep_matin[i])
-		race_labels[i][2].text = "▲ +%d" % dv if dv > 0 else ("▼ %d" % dv if dv < 0 else "= 0")
+		var dv: int = rp - int(rep_hier[i])
+		race_labels[i][2].text = "▲ +%d" % dv if dv > 0 else ("▼ %d" % dv if dv < 0 else "")
 		race_labels[i][2].add_theme_color_override("font_color", UiTokens.GAIN_BANDEAU if dv > 0 else (UiTokens.PERTE_BANDEAU if dv < 0 else Color("C8D3DE")))
 	pile_label.text = "Pioche  %d\nDéfausse  %d" % [game.deck.size(), game.discard.size()]
 	medallion.queue_redraw()
