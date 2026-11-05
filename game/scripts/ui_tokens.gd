@@ -94,6 +94,23 @@ const CLOTURE_ENCLOS := Color("A0703E")
 
 static var _polices := {}
 
+# --- Direction « Le Comité » (05/11/2026) : maquettes docs/handoff_comite/ -----------------
+const FOND_FENETRE := Color("F7F8F9")   # fond des grandes fenêtres
+const MEMO := Color("F3F1EA")           # répliques d'Hubert, notes
+const FILET := Color("D5D9DE")          # séparateurs
+const TEXTE_2 := Color("3D4752")        # légendes (contraste 7,9:1)
+const ENCRE_DOUX := Color("6B7480")     # éléments indisponibles, pris par un rival
+const MARINE_2 := Color("2E4256")       # ligne active du bandeau, ordre du jour
+const JAUNE_CLAIR := Color("FFF3C4")    # étape en cours, carte suivie
+const ORANGE_CLAIR := Color("FFE1C6")   # alerte douce, ressource insuffisante
+const SARCELLE_FONCE := Color("0E615C") # gain ▲ en texte
+const OR_TEXTE := Color("8A6400")       # chiffre de l'or (jamais l'argent)
+const BLEU_QUALITE := Color("2F6FD0")   # cercle = qualité
+const GAIN_BANDEAU := Color("7FD6A8")   # ▲ sur fond encre
+const PERTE_BANDEAU := Color("FFB27A")  # ▼ sur fond encre
+const H_BANDEAU := 34                   # bandeau du haut
+const H_DOCK := 96                      # dock du bas
+
 
 ## Icône SVG au trait blanc (à teinter avec modulate / self_modulate).
 static func icone(nom: String) -> Texture2D:
@@ -125,13 +142,65 @@ static func police_titre() -> FontFile:
 	return f if f else ThemeDB.fallback_font as FontFile
 
 
-## Texte : Barlow à la graisse la plus proche (500 corps, 700 gras, 800 chiffres).
+## Texte : Barlow à la graisse la plus proche (500 corps, 600 courant, 700 gras, 800 chiffres).
 static func police_corps(graisse := 400) -> FontVariation:
-	var g := 500 if graisse <= 550 else (700 if graisse <= 750 else 800)
+	var g := 500 if graisse <= 550 else (600 if graisse <= 650 else (700 if graisse <= 750 else 800))
 	var fv := FontVariation.new()
 	var f := _fichier("barlow", g)
 	fv.base_font = f if f else ThemeDB.fallback_font
 	return fv
+
+
+## Chiffres, heures, coûts : IBM Plex Mono (500 ou 600).
+static func police_mono(graisse := 600) -> FontFile:
+	var f := _fichier("ibm-plex-mono", 500 if graisse < 550 else 600)
+	return f if f else ThemeDB.fallback_font as FontFile
+
+
+## Répliques d'Hubert : Barlow 600 italique.
+static func police_italique() -> FontFile:
+	var cle := "barlow_italique"
+	if not _polices.has(cle):
+		var base := POLICES + "barlow-latin-600-italic.woff2"
+		var f: FontFile = load(base) if ResourceLoader.exists(base) else null
+		if f:
+			var ext := POLICES + "barlow-latin-ext-600-italic.woff2"
+			var replis: Array[Font] = []
+			if ResourceLoader.exists(ext):
+				replis.append(load(ext))
+			replis.append(ThemeDB.fallback_font)
+			f.fallbacks = replis
+		_polices[cle] = f
+	return _polices[cle] if _polices[cle] else ThemeDB.fallback_font as FontFile
+
+
+## Panneau « Comité » : papier, contour 2 px, rayon 10, ombre pleine 0 / 4 (StyleBoxFlat seul, sans flou).
+static func panneau(bg := PAPIER, radius := 10, border_w := 2, margin := 10, ombre := true, border := ENCRE) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = bg
+	sb.border_color = border
+	sb.set_border_width_all(border_w)
+	sb.set_corner_radius_all(radius)
+	sb.set_content_margin_all(margin)
+	sb.anti_aliasing = true
+	if ombre:
+		sb.shadow_color = ENCRE
+		sb.shadow_size = 1
+		sb.shadow_offset = Vector2(0, 4)
+	return sb
+
+
+## En-tête de panneau « Comité » (sarcelle par défaut, orange = alerte, encre = sélection), texte blanc.
+static func entete(couleur := SARCELLE, radius := 8) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = couleur
+	sb.corner_radius_top_left = radius
+	sb.corner_radius_top_right = radius
+	sb.content_margin_left = 12
+	sb.content_margin_right = 12
+	sb.content_margin_top = 6
+	sb.content_margin_bottom = 6
+	return sb
 
 
 ## Panneau BD : fond clair, cerne d'encre, ombre pleine décalée.
@@ -146,7 +215,7 @@ static func panel(bg := PANNEAU_MILIEU, border := OR, radius := 12, border_w := 
 	if border_w >= 2 and bg.a > 0.5:
 		sb.shadow_color = ENCRE
 		sb.shadow_size = 1
-		sb.shadow_offset = Vector2(4, 4)
+		sb.shadow_offset = Vector2(0, 4)  # Comité : ombre pleine verticale
 	return sb
 
 
@@ -204,7 +273,7 @@ static func _button(bg: Color, border: Color, radius := 9, ombre := false) -> St
 	if ombre:
 		sb.shadow_color = ENCRE
 		sb.shadow_size = 1
-		sb.shadow_offset = Vector2(3, 3)
+		sb.shadow_offset = Vector2(0, 3)
 	return sb
 
 
@@ -258,8 +327,12 @@ static func build_theme() -> Theme:
 	t.set_stylebox("disabled", "Button", _button(PAPIER_2, Color(ENCRE, 0.25)))
 	t.set_stylebox("focus", "Button", StyleBoxEmpty.new())
 	t.set_stylebox("panel", "PanelContainer", panel())
-	t.set_stylebox("panel", "TooltipPanel", panel(PAPIER, ENCRE, 8, 2, 8))
-	t.set_color("font_color", "TooltipLabel", TEXTE)
+	# Infobulle Comité : encre, texte blanc, sans ombre
+	var tip := panneau(ENCRE, 8, 0, 10, false)
+	tip.content_margin_left = 12
+	tip.content_margin_right = 12
+	t.set_stylebox("panel", "TooltipPanel", tip)
+	t.set_color("font_color", "TooltipLabel", PAPIER)
 	t.set_font("font", "TooltipLabel", corps)
 	t.set_color("font_color", "LineEdit", TEXTE)
 	t.set_stylebox("normal", "LineEdit", _button(PAPIER, ENCRE, 7))
@@ -322,4 +395,60 @@ static func build_theme() -> Theme:
 	t.set_stylebox("hover_pressed", "Onglet", _button(ENCRE, ENCRE, 9))
 	t.set_color("font_pressed_color", "Onglet", TEXTE_CLAIR)
 	t.set_color("font_hover_pressed_color", "Onglet", TEXTE_CLAIR)
+	# --- Comité ---
+	# Boutons du bandeau du haut (fond encre) : texte blanc, actif = blanc plein, texte encre
+	t.set_type_variation("BoutonBandeau", "Button")
+	var bb_n := StyleBoxFlat.new()
+	bb_n.bg_color = Color(0, 0, 0, 0)
+	bb_n.set_content_margin_all(4)
+	var bb_h := bb_n.duplicate()
+	bb_h.bg_color = MARINE_2
+	var bb_p := bb_n.duplicate()
+	bb_p.bg_color = PAPIER
+	for k in [["normal", bb_n], ["hover", bb_h], ["pressed", bb_p], ["hover_pressed", bb_p], ["disabled", bb_n]]:
+		t.set_stylebox(k[0], "BoutonBandeau", k[1])
+	t.set_font("font", "BoutonBandeau", tres_gras)
+	t.set_font_size("font_size", "BoutonBandeau", 13)
+	for k in ["font_color", "font_hover_color", "font_focus_color"]:
+		t.set_color(k, "BoutonBandeau", PAPIER)
+	t.set_color("font_pressed_color", "BoutonBandeau", ENCRE)
+	t.set_color("font_hover_pressed_color", "BoutonBandeau", ENCRE)
+	t.set_color("font_disabled_color", "BoutonBandeau", Color(PAPIER, 0.4))
+	# Bouton d'outil 48 × 48 (colonne de droite) : blanc, actif = sarcelle + anneau jaune
+	t.set_type_variation("BoutonOutil", "Button")
+	t.set_stylebox("normal", "BoutonOutil", panneau(PAPIER, 10, 2, 6, false))
+	t.set_stylebox("hover", "BoutonOutil", panneau(Color("FFF4D6"), 10, 2, 6, false))
+	var outil_on := panneau(SARCELLE, 10, 2, 6, false)
+	outil_on.expand_margin_left = 0
+	t.set_stylebox("pressed", "BoutonOutil", outil_on)
+	t.set_stylebox("hover_pressed", "BoutonOutil", outil_on)
+	t.set_font("font", "BoutonOutil", tres_gras)
+	t.set_font_size("font_size", "BoutonOutil", 11)
+	t.set_color("font_pressed_color", "BoutonOutil", PAPIER)
+	t.set_color("font_hover_pressed_color", "BoutonOutil", PAPIER)
+	t.set_color("icon_normal_color", "BoutonOutil", ENCRE)
+	t.set_color("icon_hover_color", "BoutonOutil", ENCRE)
+	t.set_color("icon_pressed_color", "BoutonOutil", PAPIER)
+	t.set_color("icon_hover_pressed_color", "BoutonOutil", PAPIER)
+	# « Lever la séance » : orange, Barlow Condensed 18, ombre pleine
+	t.set_type_variation("BoutonSeance", "Button")
+	t.set_stylebox("normal", "BoutonSeance", _button(ORANGE, ENCRE, 10, true))
+	t.set_stylebox("hover", "BoutonSeance", _button(Color("F79A50"), ENCRE, 10, true))
+	t.set_stylebox("pressed", "BoutonSeance", _button(Color("D86A1A"), ENCRE, 10))
+	t.set_stylebox("disabled", "BoutonSeance", _button(FOND_FENETRE, Color(ENCRE, 0.3), 10))
+	t.set_font("font", "BoutonSeance", titre)
+	t.set_font_size("font_size", "BoutonSeance", 18)
+	t.set_color("font_color", "BoutonSeance", ENCRE)
+	t.set_color("font_hover_color", "BoutonSeance", ENCRE)
+	# Chiffres en IBM Plex Mono
+	t.set_type_variation("Chiffre", "Label")
+	t.set_font("font", "Chiffre", police_mono(600))
+	t.set_font_size("font_size", "Chiffre", 20)
+	t.set_color("font_color", "Chiffre", ENCRE)
+	# En-tête de panneau Comité (texte blanc condensé 14, interlettré)
+	t.set_type_variation("EnteteComite", "Label")
+	t.set_font("font", "EnteteComite", titre)
+	t.set_font_size("font_size", "EnteteComite", 15)
+	t.set_color("font_color", "EnteteComite", PAPIER)
+	t.set_constant("outline_size", "EnteteComite", 0)
 	return t

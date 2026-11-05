@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Sélection — Inspecteur ancré</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700;800&amp;family=Barlow+Condensed:wght@600;700;800&amp;family=IBM+Plex+Mono:wght@500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#13867F}a:hover{color:#0E615C}
+.badge{position:absolute;width:132px;height:176px;background:#fff;border:2.5px solid #14202B;border-radius:10px;box-shadow:0 4px 0 #14202B;overflow:hidden}
+.hole{position:absolute;left:50%;top:7px;width:30px;height:6px;margin-left:-15px;border-radius:4px;background:#14202B}
+.ph{margin-top:20px;height:72px;border-top:2px solid #14202B;border-bottom:2px solid #14202B;position:relative;overflow:hidden}
+.ph img{position:absolute;left:30px;top:2px;height:96px}
+.bn{font:800 17px 'Barlow Condensed',sans-serif;text-transform:uppercase;line-height:1}
+.bj{font:600 11.5px Barlow;color:#3D4752}
+.q{display:inline-block;width:12px;height:12px;border-radius:50%;background:#2F6FD0;border:1.5px solid #14202B;vertical-align:-2px;flex:none}
+.d{display:inline-block;width:11px;height:11px;background:#F07F2A;border:1.5px solid #14202B;vertical-align:-2px;flex:none}
+.tb{flex:1;height:34px;border:none;border-bottom:3px solid transparent;background:none;font:700 13px Barlow;color:#3D4752;cursor:pointer}
+.ord{position:relative;height:46px;border:2px solid #14202B;border-radius:8px;background:#fff;font:700 13px Barlow;color:#14202B;cursor:pointer}
+.ord kbd{position:absolute;right:4px;top:3px;font:600 10px 'IBM Plex Mono';color:#3D4752}
+.kv{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #E3E6EA;font:600 13px Barlow}
+.kv b{font:600 13.5px 'IBM Plex Mono'}
+</style>
+</helmet>
+<div style="position: relative; width: 1600px; height: 900px; overflow: hidden; background: #6FA84A; font-family: Barlow, sans-serif; color: #14202B">
+<img src="/_blob/2cf2554d78a00702b26dc9d139f89c66" alt="Carte" style="position: absolute; inset: 0; width: 1600px; height: 900px; object-fit: cover">
+<div style="position: absolute; left: 0; top: 0"><dc-import name="Ticker" hint-size="1600px,34px"></dc-import></div>
+
+<div style="position: absolute; left: 744px; top: 430px; width: 56px; height: 56px; border: 3px solid #FFC93C; border-radius: 50%; box-shadow: 0 0 0 2px #14202B"></div>
+<div style="position: absolute; left: 768px; top: 486px; width: 2px; height: 0"></div>
+<svg width="300" height="80" viewBox="0 0 300 80" style="position: absolute; left: 790px; top: 380px" aria-hidden="true"><path d="M0 70 Q150 -20 300 20" fill="none" stroke="#FFC93C" stroke-width="3" stroke-dasharray="7 6"></path><path d="M0 70 Q150 -20 300 20" fill="none" stroke="#14202B" stroke-width="1" stroke-dasharray="7 6"></path></svg>
+<div style="position: absolute; left: 1080px; top: 388px; background: #14202B; color: #fff; font: 600 12px Barlow; padding: 3px 8px; border-radius: 4px">Ordre en file : Boutique → Construire</div>
+
+<!-- pilule d'ordre du jour repliée -->
+<button style="position: absolute; left: 14px; top: 48px; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px 0 6px; background: #fff; border: 2px solid #14202B; border-radius: 20px; box-shadow: 0 3px 0 #14202B; font: 700 13.5px Barlow; cursor: pointer; color: #14202B"><span style="width: 28px; height: 28px; border-radius: 50%; background: #13867F; color: #fff; display: flex; align-items: center; justify-content: center; font: 600 12px 'IBM Plex Mono'">2/4</span>→ Nourrir les zèbres</button>
+
+<!-- INSPECTEUR -->
+<div style="position: absolute; right: 14px; top: 48px; width: 350px; height: 734px; background: #fff; border: 2px solid #14202B; border-radius: 10px; box-shadow: 0 4px 0 #14202B; display: flex; flex-direction: column; overflow: hidden">
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: #14202B; color: #fff; font: 700 12px Barlow">
+<span>SÉLECTION · 1 sur 4</span>
+<span style="display: flex; gap: 4px"><button style="width: 26px; height: 24px; border: 1.5px solid #6B7C8E; background: none; color: #fff; border-radius: 4px; cursor: pointer" aria-label="Précédent">‹</button><button style="width: 26px; height: 24px; border: 1.5px solid #6B7C8E; background: none; color: #fff; border-radius: 4px; cursor: pointer" aria-label="Suivant">›</button><button style="width: 26px; height: 24px; border: 1.5px solid #6B7C8E; background: none; color: #fff; border-radius: 4px; cursor: pointer" aria-label="Réduire">—</button></span>
+</div>
+<div style="display: flex; gap: 12px; padding: 12px; background: #F4EEFB; border-bottom: 2px solid #14202B">
+<div style="width: 78px; height: 92px; border-radius: 8px; border: 2px solid #14202B; overflow: hidden; background: #E8DDF5; flex: none"><img src="/_blob/c04aa22fe636f134bf32b1dfafbe6e6e" alt="Camille" style="width: 78px; height: 118px; object-fit: cover; object-position: top"></div>
+<div style="min-width: 0">
+<div style="font: 800 28px 'Barlow Condensed'; line-height: 1">CAMILLE</div>
+<div style="font: 700 14px Barlow">Vendeuse de souvenirs</div>
+<div style="display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap"><span style="font: 700 11px Barlow; border: 1.5px solid #14202B; border-radius: 10px; padding: 1px 8px; background: #fff">Cadre</span><span style="font: 700 11px Barlow; border: 1.5px solid #14202B; border-radius: 10px; padding: 1px 8px; background: #FFC93C">Niveau 3 / 6</span></div>
+<div style="font: 600 12px 'IBM Plex Mono'; margin-top: 6px">XP ▮▮▮▮▯▯ 4/6</div>
+</div>
+</div>
+<div style="display: flex; border-bottom: 1.5px solid #D5D9DE; padding: 0 8px"><button class="tb" style="border-bottom-color: #13867F; color: #14202B">Fiche</button><button class="tb">Rendement</button><button class="tb">Carrière</button></div>
+<div style="padding: 12px; display: flex; flex-direction: column; gap: 12px; overflow: hidden">
+<div style="font: 600 13px Barlow; line-height: 1.4; color: #14202B"><b>Le métier.</b> Tient une boutique : chaque visiteur qui passe devant achète un souvenir (+1 argent).</div>
+<div style="display: flex; flex-direction: column; gap: 7px; font: 600 13px Barlow; line-height: 1.3">
+<div style="display: flex; gap: 8px"><span class="q" style="margin-top: 3px"></span><div><b>Bonne élève</b> · gagne 50 % d'expérience en plus</div></div>
+<div style="display: flex; gap: 8px"><span class="d" style="margin-top: 3px"></span><div><b>Bavarde</b> · −10 % de vitesse quand elle tient un poste</div></div>
+<div style="display: flex; gap: 8px; color: #3D4752"><span style="flex: none">★</span><div>Seconde spécialité : Construction en pierre</div></div>
+</div>
+<div style="border: 2px solid #14202B; border-radius: 8px; padding: 8px 10px">
+<div style="display: flex; justify-content: space-between; font: 700 13px Barlow"><span>Tient la boutique</span><span style="font-family: 'IBM Plex Mono'; color: #0E615C">+14 ▲</span></div>
+<div style="height: 8px; border-radius: 4px; background: #E3E6EA; margin-top: 6px; overflow: hidden"><div style="width: 62%; height: 100%; background: #13867F"></div></div>
+<div style="font: 600 11.5px Barlow; color: #3D4752; margin-top: 4px">9 visiteurs servis · ensuite : Construire (file)</div>
+</div>
+<div style="font: 800 11.5px 'Barlow Condensed'; letter-spacing: .08em; color: #3D4752">ORDRES · Maj + clic droit pour enchaîner</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px">
+<button class="ord" style="background: #FFF3C4">Boutique<kbd>B</kbd></button><button class="ord">Extraire<kbd>E</kbd></button><button class="ord">Construire<kbd>C</kbd></button>
+<button class="ord">Lobbying<kbd>L</kbd></button><button class="ord">Localiser<kbd>F</kbd></button><button class="ord">Rappeler<kbd>R</kbd></button>
+</div>
+<div>
+<div class="kv"><span>Salaire</span><b>3 / jour</b></div>
+<div class="kv"><span>Vitesse</span><b>0,70 case/s</b></div>
+<div class="kv" style="border: none"><span>Souvenirs vendus</span><b>×1,0</b></div>
+</div>
+</div>
+</div>
+
+<div style="position: absolute; left: 0; bottom: 0"><dc-import name="Dock" hint-size="1600px,96px"></dc-import></div>
+<div class="badge" style="left: 556px; top: 742px"><span class="hole"></span><div class="ph" style="background: #FFE1C6"><img src="/_blob/08d3778398bda3828c2a586b32a9a9b7" alt=""></div><div style="padding: 6px 8px"><div class="bn">Adam</div><div class="bj">Maçon · N1</div><div style="margin-top: 4px; font: 700 11px Barlow; color: #13867F">● Sur le terrain</div></div></div>
+<div class="badge" style="left: 698px; top: 742px; outline: 3px solid #FFC93C"><span class="hole"></span><div class="ph" style="background: #E8DDF5"><img src="/_blob/c04aa22fe636f134bf32b1dfafbe6e6e" alt=""></div><div style="padding: 6px 8px"><div class="bn">Camille</div><div class="bj">Vendeuse de souv.…</div><div style="margin-top: 4px; font: 700 11px Barlow; color: #13867F">● Sélectionnée</div></div></div>
+<div class="badge" style="left: 840px; top: 742px"><span class="hole"></span><div class="ph" style="background: #D6EFEC"><img src="/_blob/abd249bf3073332c294e09db9170d5f7" alt=""></div><div style="padding: 6px 8px"><div class="bn">Bastien</div><div class="bj">Soigneur · N4</div><div style="margin-top: 4px; font: 700 11px Barlow; color: #13867F">● Sur le terrain</div></div></div>
+<div class="badge" style="left: 982px; top: 742px"><span class="hole"></span><div class="ph" style="background: #E8DDF5"><img src="/_blob/f7fc7d55e8e866eb6fc614f0f193409b" alt=""></div><div style="padding: 6px 8px"><div class="bn">Aïcha</div><div class="bj">Lobbyiste · N3</div><div style="margin-top: 4px; font: 700 11px Barlow">⇢ Hors carte · Rappeler</div></div></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1600,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

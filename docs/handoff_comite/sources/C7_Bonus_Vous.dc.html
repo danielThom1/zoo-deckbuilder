@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Nuit, bonus — Vous présidez</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700;800&amp;family=Barlow+Condensed:wght@600;700;800&amp;family=IBM+Plex+Mono:wght@500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#13867F}a:hover{color:#0E615C}
+.li{display:grid;grid-template-columns:150px minmax(0,1fr) 230px 150px;gap:16px;align-items:center;padding:16px 18px;border:2px solid #14202B;border-radius:10px;background:#fff}
+.li small{font:700 11.5px 'IBM Plex Mono';color:#4A535D}
+.li b{display:block;font:800 22px 'Barlow Condensed';line-height:1.05}
+.li p{margin:0;font:600 14px Barlow;line-height:1.35}
+.me{font:700 12.5px Barlow;border:1.5px solid #14202B;border-radius:12px;padding:3px 10px;justify-self:start}
+.ad{height:44px;border:2px solid #14202B;border-radius:8px;box-shadow:0 3px 0 #14202B;font:800 15px Barlow;cursor:pointer;color:#14202B;background:#FFC93C}
+</style>
+</helmet>
+<div style="position: relative; width: 1600px; height: 900px; overflow: hidden; background: #14202B; font-family: Barlow, sans-serif; color: #14202B">
+<div style="position: absolute; left: 0; top: 0"><dc-import name="Agenda" step="{{ 4 }}" tour="{{ 0 }}" hint-size="270px,900px"></dc-import></div>
+<div style="position: absolute; left: 270px; top: 18px; width: 1312px; height: 864px; background: #FFFFFF; border-radius: 14px; box-sizing: border-box; padding: 24px 28px; display: flex; flex-direction: column">
+<div style="display: flex; align-items: flex-end; justify-content: space-between; border-bottom: 3px solid #14202B; padding-bottom: 10px">
+<div><div style="font: 700 12px 'IBM Plex Mono'; color: #4A535D">POINT 4 / 5 · BONUS DU LENDEMAIN</div><div style="font: 800 34px 'Barlow Condensed'; line-height: 1.05">Vous présidez la séance</div></div>
+<div style="display: flex; align-items: center; gap: 10px; background: #FFC93C; border: 2px solid #14202B; border-radius: 8px; padding: 8px 14px; font: 700 14px Barlow"><img src="/_blob/e09fee7db13dd5c0de6c7440df652409" alt="" style="width: 28px">1er en influence : vous seul décidez</div>
+</div>
+<div style="font: 600 14px Barlow; color: #3D4752; margin-top: 12px">La résolution adoptée s'applique demain à <b style="color: #14202B">toutes les filiales</b>, rivaux compris.</div>
+<div style="display: flex; flex-direction: column; gap: 12px; margin-top: 16px">
+<div class="li"><div><small>N° 1</small><b>Semaine des familles</b></div><p>+20 % de visiteurs dans tous les zoos ouverts.</p><span class="me" style="background: #D6EFEC">Pour vous : ✔ zoo ouvert</span><button class="ad">Adopter</button></div>
+<div class="li" style="box-shadow: 0 0 0 4px #FFC93C"><div><small>N° 2</small><b>Inspection sanitaire</b></div><p>−3 de réputation pour chaque zoo dont la propreté est sous 60 %.</p><span class="me" style="background: #D6EFEC">Pour vous : ✔ 87 %, épargné</span><button class="ad">Adopter</button></div>
+<div class="li"><div><small>N° 3</small><b>Livraison groupée</b></div><p>Chaque filiale reçoit 10 bois et 10 pierre au matin.</p><span class="me" style="background: #D6EFEC">Pour vous : ✔ +20 ressources</span><button class="ad">Adopter</button></div>
+</div>
+<div style="display: flex; justify-content: flex-end; margin-top: 14px"><button style="height: 44px; padding: 0 18px; background: #fff; border: 2px solid #14202B; border-radius: 8px; font: 700 14px Barlow; cursor: pointer">Rejeter les trois résolutions</button></div>
+<div style="margin-top: auto; display: flex; align-items: center; gap: 14px; background: #F3F1EA; border-radius: 10px; padding: 10px 16px">
+<img src="/_blob/51ac54ea6f4b306d02dd1e9a3f5d663c" alt="Hubert, moqueur" style="width: 60px; height: 60px; object-fit: contain">
+<div style="font: italic 600 14px Barlow">« L'inspection sanitaire. Rien ne dit “esprit d'équipe” comme un contrôle surprise chez le voisin. »</div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1600,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

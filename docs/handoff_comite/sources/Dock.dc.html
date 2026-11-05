@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Dock</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700;800&amp;family=Barlow+Condensed:wght@600;700;800&amp;family=IBM+Plex+Mono:wght@500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="width: 1600px; height: 96px; box-sizing: border-box; background: #FFFFFF; border-top: 2.5px solid #14202B; display: flex; align-items: center; font-family: Barlow, sans-serif; color: #14202B">
+<div style="display: grid; grid-template-columns: repeat(3, auto); row-gap: 6px; padding: 0 4px">
+<sc-for list="{{res}}" as="r" hint-placeholder-count="6">
+<div style="display: flex; align-items: center; gap: 8px; padding: 0 12px; border-right: 1px solid #D5D9DE">
+<img src="{{r.img}}" alt="" style="width: 28px; height: 28px; object-fit: contain">
+<div><b style="font: 600 20px 'IBM Plex Mono', monospace; line-height: 1; color: {{r.col}}">{{r.v}}</b> <span style="font: 600 11px 'IBM Plex Mono', monospace; color: #13867F">{{r.delta}}</span><div style="font: 700 10px Barlow, sans-serif; color: #4A535D; text-transform: uppercase; letter-spacing: .05em">{{r.nom}}</div></div>
+</div>
+</sc-for>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px; padding: 0 12px; border-left: 2px solid #14202B; border-right: 2px solid #14202B; height: 72px; justify-content: center; font: 700 12px Barlow, sans-serif">
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 22px; height: 28px; background: #13867F; border: 2px solid #14202B; border-radius: 4px"></span>Pioche <b style="font-family: 'IBM Plex Mono', monospace">{{pioche}}</b></span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 22px; height: 28px; border: 2px dashed #14202B; border-radius: 4px"></span>Défausse <b style="font-family: 'IBM Plex Mono', monospace">{{defausse}}</b></span>
+</div>
+<div style="margin-left: auto; display: flex; align-items: center; gap: 14px; padding: 0 16px">
+<div style="width: 220px">
+<div style="display: flex; justify-content: space-between; font: 700 12px Barlow, sans-serif"><span>{{jour}}</span><span style="font-family: 'IBM Plex Mono', monospace">{{heure}} → 18:00</span></div>
+<div style="height: 12px; border: 2px solid #14202B; border-radius: 6px; margin-top: 4px; overflow: hidden; background: repeating-linear-gradient(90deg, transparent 0 17px, #D5D9DE 17px 18px)"><div style="width: {{pct}}; height: 100%; background: #FFC93C; border-right: 2px solid #14202B"></div></div>
+</div>
+<button style="height: 60px; padding: 0 18px; background: #F07F2A; border: 2.5px solid #14202B; border-radius: 10px; box-shadow: 0 4px 0 #14202B; font: 800 18px 'Barlow Condensed', sans-serif; letter-spacing: .04em; color: #14202B; cursor: pointer; line-height: 1.05">LEVER<br>LA SÉANCE</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"argent":{"editor":"text","default":"57"},"heure":{"editor":"text","default":"14:32"},"pct":{"editor":"text","default":"58%"},"jour":{"editor":"text","default":"JOUR 2"},"pioche":{"editor":"text","default":"3"},"defausse":{"editor":"text","default":"4"},"$preview":{"width":1600,"height":96}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const p = this.props;
+    return {
+      res: [
+        { img: '/_blob/6e1e0b9ca68151bdd56ec4051205b816', v: p.argent ?? '57', delta: p.delta ?? '+14', nom: 'Argent', col: '#14202B' },
+        { img: '/_blob/c94624b0320695123802b0afd2ceeedc', v: p.bois ?? '126', delta: '', nom: 'Bois', col: '#14202B' },
+        { img: '/_blob/9ee5a307f503ac0c375161f54ba03f21', v: p.pierre ?? '91', delta: '', nom: 'Pierre', col: '#14202B' },
+        { img: '/_blob/4c9df2ae8b5a550753985ed2fee028f9', v: p.or ?? '4', delta: '', nom: 'Or', col: '#8A6400' },
+        { img: '/_blob/79e20eeed5f172effa80311ab64bf471', v: p.influence ?? '1,0', delta: '', nom: 'Influence (privée)', col: '#14202B' },
+        { img: '/_blob/bae433c937860f171db6c2c5c769f472', v: p.logement ?? '8/8', delta: '', nom: 'Logement', col: '#14202B' }
+      ],
+      heure: p.heure ?? '14:32', pct: p.pct ?? '58%', jour: p.jour ?? 'JOUR 2',
+      pioche: p.pioche ?? '3', defausse: p.defausse ?? '4'
+    };
+  }
+}
+</script>
+</body>
+</html>

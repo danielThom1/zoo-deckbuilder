@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Fin — Rapport aux actionnaires</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700;800&amp;family=Barlow+Condensed:wght@600;700;800&amp;family=IBM+Plex+Mono:wght@500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="position: relative; width: 1600px; height: 900px; overflow: hidden; background: #14202B; font-family: Barlow, sans-serif; color: #14202B">
+<div style="position: absolute; left: 18px; top: 18px; width: 1564px; height: 864px; background: #FFFFFF; border-radius: 14px; box-sizing: border-box; padding: 22px 28px; display: flex; flex-direction: column">
+<!-- bandeau -->
+<div style="display: flex; align-items: center; gap: 18px">
+<div style="background: {{bandeau}}; color: {{bandeauTexte}}; border: 3px solid #14202B; border-radius: 10px; padding: 8px 22px; font: 800 44px 'Barlow Condensed', sans-serif; letter-spacing: .04em; line-height: 1; box-shadow: 0 5px 0 #14202B">{{titre}}</div>
+<div><div style="font: 700 12px 'IBM Plex Mono', monospace; color: #4A535D">RAPPORT AUX ACTIONNAIRES · CLÔTURE AU SOIR DU JOUR 12</div><div style="font: 600 16px Barlow, sans-serif; margin-top: 2px">{{sousTitre}}</div></div>
+<div style="margin-left: auto; border: 3px solid {{tampon}}; color: {{tampon}}; font: 800 20px 'Barlow Condensed', sans-serif; letter-spacing: .12em; padding: 2px 12px; transform: rotate(-7deg)">{{tamponTexte}}</div>
+</div>
+
+<div style="display: flex; gap: 26px; margin-top: 20px; flex: 1; min-height: 0">
+<!-- podium -->
+<div style="width: 600px; flex: none; display: flex; align-items: flex-end; gap: 10px; border-bottom: 3px solid #14202B; padding-bottom: 0">
+<sc-for list="{{podium}}" as="p" hint-placeholder-count="4">
+<div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px">
+<img src="{{p.img}}" alt="" style="width: 76px; height: 76px; object-fit: contain">
+<div style="font: 800 16px 'Barlow Condensed', sans-serif; text-align: center; line-height: 1.05">{{p.nom}}</div>
+<div style="font: 600 22px 'IBM Plex Mono', monospace">{{p.rep}}</div>
+<div style="width: 100%; height: {{p.h}}; background: {{p.bg}}; border: 2.5px solid #14202B; border-bottom: none; border-radius: 8px 8px 0 0; display: flex; flex-direction: column; align-items: center; gap: 6px; padding-top: 10px; box-sizing: border-box">
+<span style="font: 800 30px 'Barlow Condensed', sans-serif; color: {{p.fg}}">{{p.rang}}</span>
+<button style="width: 120px; height: 30px; border: 2px solid #14202B; border-radius: 6px; background: #FFFFFF; font: 700 12px Barlow, sans-serif; cursor: pointer">Voir son zoo</button>
+<sc-if value="{{p.ia}}" hint-placeholder-val="{{ true }}"><button style="width: 120px; height: 30px; border: 2px solid #14202B; border-radius: 6px; background: #FFFFFF; font: 700 12px Barlow, sans-serif; cursor: pointer">Revoir sa partie</button></sc-if>
+</div>
+</div>
+</sc-for>
+</div>
+
+<div style="flex: 1; display: flex; flex-direction: column; gap: 14px; min-width: 0">
+<!-- courbes -->
+<div style="border: 2px solid #14202B; border-radius: 10px; padding: 12px 14px">
+<div style="display: flex; justify-content: space-between"><b style="font: 800 14px 'Barlow Condensed', sans-serif; letter-spacing: .06em">RÉPUTATION, JOUR PAR JOUR</b><span style="font: 600 12px Barlow, sans-serif; color: #3D4752">ligne 100 = victoire</span></div>
+<svg width="820" height="250" viewBox="0 0 820 250" role="img" aria-label="Courbes de réputation des quatre filiales sur 12 jours">
+<line x1="40" y1="20" x2="720" y2="20" stroke="#14202B" stroke-width="1.5" stroke-dasharray="6 4"></line>
+<text x="4" y="24" font-family="IBM Plex Mono" font-size="11" fill="#4A535D">100</text>
+<line x1="40" y1="120" x2="720" y2="120" stroke="#E3E6EA"></line><text x="12" y="124" font-family="IBM Plex Mono" font-size="11" fill="#4A535D">50</text>
+<line x1="40" y1="220" x2="720" y2="220" stroke="#14202B" stroke-width="1.5"></line><text x="20" y="224" font-family="IBM Plex Mono" font-size="11" fill="#4A535D">0</text>
+<text x="40" y="242" font-family="IBM Plex Mono" font-size="11" fill="#4A535D">J1</text><text x="700" y="242" font-family="IBM Plex Mono" font-size="11" fill="#4A535D">J12</text>
+<polyline points="{{l1}}" fill="none" stroke="#13867F" stroke-width="4"></polyline>
+<polyline points="{{l2}}" fill="none" stroke="#F07F2A" stroke-width="3" stroke-dasharray="10 5"></polyline>
+<polyline points="{{l3}}" fill="none" stroke="#2F6FD0" stroke-width="3" stroke-dasharray="3 4"></polyline>
+<polyline points="{{l4}}" fill="none" stroke="#6B7480" stroke-width="3" stroke-dasharray="14 4 3 4"></polyline>
+<text x="728" y="{{y1}}" font-family="Barlow" font-weight="800" font-size="13" fill="#0E615C">{{n1}}</text>
+<text x="728" y="{{y2}}" font-family="Barlow" font-weight="800" font-size="13" fill="#14202B">{{n2}}</text>
+<text x="728" y="{{y3}}" font-family="Barlow" font-weight="800" font-size="13" fill="#14202B">{{n3}}</text>
+<text x="728" y="{{y4}}" font-family="Barlow" font-weight="800" font-size="13" fill="#14202B">{{n4}}</text>
+</svg>
+</div>
+<!-- chiffres clés + sources -->
+<div style="display: flex; gap: 14px">
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; flex: 1">
+<sc-for list="{{kpis}}" as="k" hint-placeholder-count="4"><div style="border: 2px solid #14202B; border-radius: 8px; padding: 10px"><div style="font: 600 26px 'IBM Plex Mono', monospace">{{k.v}}</div><div style="font: 600 12px Barlow, sans-serif; color: #3D4752">{{k.l}}</div></div></sc-for>
+</div>
+<div style="width: 330px; border: 2px solid #14202B; border-radius: 8px; padding: 10px 12px">
+<b style="font: 800 12.5px 'Barlow Condensed', sans-serif; letter-spacing: .06em">VOTRE RÉPUTATION PAR SOURCE</b>
+<div style="display: flex; height: 22px; margin-top: 8px; border: 2px solid #14202B"><span style="width: 42%; background: #13867F"></span><span style="width: 30%; background: #FFC93C; border-left: 2px solid #14202B"></span><span style="width: 18%; background: #F07F2A; border-left: 2px solid #14202B"></span><span style="width: 10%; background: #fff; border-left: 2px solid #14202B"></span></div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 10px; margin-top: 6px; font: 600 11.5px Barlow, sans-serif"><span>■ Fréquentation 42 %</span><span>■ Objectifs 30 %</span><span>■ Animaux 18 %</span><span>□ Labels 10 %</span></div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- pied -->
+<div style="display: flex; align-items: center; gap: 14px; margin-top: 16px">
+<img src="{{hubert}}" alt="Hubert" style="width: 70px; height: 70px; object-fit: contain">
+<div style="font: italic 600 16px Barlow, sans-serif; max-width: 700px">{{replique}}</div>
+<div style="margin-left: auto; display: flex; gap: 10px">
+<button style="height: 50px; padding: 0 18px; border: 2px solid #14202B; border-radius: 8px; background: #FFFFFF; font: 700 15px Barlow, sans-serif; cursor: pointer">Menu principal</button>
+<button style="height: 50px; padding: 0 18px; border: 2px solid #14202B; border-radius: 8px; background: #FFFFFF; font: 700 15px Barlow, sans-serif; cursor: pointer">Revoir la carte finale</button>
+<button style="height: 50px; padding: 0 26px; border: 2.5px solid #14202B; border-radius: 8px; background: #FFC93C; box-shadow: 0 4px 0 #14202B; font: 800 18px 'Barlow Condensed', sans-serif; letter-spacing: .05em; cursor: pointer">REJOUER</button>
+</div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"issue":{"editor":"enum","options":["victoire","defaite"],"default":"victoire"},"$preview":{"width":1600,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const v = (this.props.issue ?? 'victoire') !== 'defaite';
+    const E = { zl: '/_blob/e09fee7db13dd5c0de6c7440df652409', pz: '/_blob/eca2dbe138b321b3e169671986b6ea2e', sf: '/_blob/02a86751c129361fda1d46e734cf8697', bl: '/_blob/7a2c010945dcfb9f72c44b4c66c370f1' };
+    const series = v
+      ? { a: [0,6,13,20,28,37,46,55,66,77,88,100], b: [0,5,11,17,24,31,40,48,57,66,75,84], c: [0,3,8,12,18,24,30,36,42,49,55,61], d: [0,2,6,10,14,19,24,29,34,38,43,47] }
+      : { a: [0,5,10,16,22,29,35,42,50,58,68,79], b: [0,7,15,24,33,42,52,61,71,81,90,100], c: [0,3,8,12,18,24,30,36,42,49,55,61], d: [0,2,6,10,14,19,24,29,34,38,43,47] };
+    const pts = (arr) => arr.map((r, i) => (40 + i * 61.8).toFixed(0) + ',' + (220 - r * 2).toFixed(0)).join(' ');
+    const yEnd = (arr) => String(224 - arr[arr.length - 1] * 2);
+    const ordre = v
+      ? [[E.zl, 'ZooLife™ (vous)', 100, false], [E.pz, 'PanZoo Holdings', 84, true], [E.sf, 'Safari Capital', 61, true], [E.bl, 'BioLand Group', 47, true]]
+      : [[E.pz, 'PanZoo Holdings', 100, true], [E.zl, 'ZooLife™ (vous)', 79, false], [E.sf, 'Safari Capital', 61, true], [E.bl, 'BioLand Group', 47, true]];
+    const hauteurs = ['270px', '220px', '180px', '150px'];
+    const disp = [1, 0, 2, 3];
+    const podium = disp.map((i) => {
+      const [img, nom, rep, ia] = ordre[i];
+      const moi = nom.indexOf('vous') >= 0;
+      return { img, nom, rep: String(rep), ia, rang: String(i + 1), h: hauteurs[i], bg: moi ? (v ? '#13867F' : '#FFE1C6') : '#F3F1EA', fg: moi && v ? '#FFFFFF' : '#14202B' };
+    });
+    return {
+      titre: v ? 'CONCESSION REMPORTÉE' : 'FILIALE LIQUIDÉE',
+      bandeau: v ? '#FFC93C' : '#F07F2A', bandeauTexte: '#14202B',
+      sousTitre: v ? 'ZooLife™ atteint 100 de réputation et remporte la concession de la vallée.' : 'PanZoo Holdings atteint 100 de réputation. Votre filiale est cédée pour un euro symbolique.',
+      tampon: v ? '#13867F' : '#B3361F', tamponTexte: v ? 'APPROUVÉ' : 'LIQUIDÉ',
+      podium,
+      l1: pts(series.a), l2: pts(series.b), l3: pts(series.c), l4: pts(series.d),
+      y1: yEnd(series.a), y2: yEnd(series.b), y3: String(Number(yEnd(series.c))), y4: String(Number(yEnd(series.d)) + 6),
+      n1: 'Vous ━', n2: 'PanZoo ╍', n3: 'Safari ┈', n4: 'BioLand ┅',
+      kpis: v ? [{ v: '6', l: 'espèces' }, { v: '412', l: 'visiteurs cumulés' }, { v: '3/3', l: 'objectifs atteints' }, { v: '11', l: 'collaborateurs' }]
+              : [{ v: '4', l: 'espèces' }, { v: '301', l: 'visiteurs cumulés' }, { v: '1/3', l: 'objectifs atteints' }, { v: '9', l: 'collaborateurs' }],
+      hubert: v ? '/_blob/3e58e7933a059df92e352d6ac775aca0' : '/_blob/85d16529aed6e966eb6e9ca4222da3e5',
+      replique: v ? '« Félicitations. Votre prime sera versée dès que nous aurons trouvé comment ne pas la verser. »' : '« Nous avons perdu. Le plan social commence maintenant : c\'est vous, le plan social. »'
+    };
+  }
+}
+</script>
+</body>
+</html>

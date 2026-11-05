@@ -576,6 +576,7 @@ func _centrer(t: Vector2i) -> void:
 
 
 func _onglet(nom: String) -> void:
+	m.ouvrir_outil("construire")  # interface Comité : le panneau Construire est un volet de la colonne d'outils
 	m.build_tabs[nom].button_pressed = true
 	m.build_tabs[nom].pressed.emit()
 
@@ -593,6 +594,7 @@ func _bouton(id: String) -> Control:
 
 
 func _bourse() -> Control:
+	m.ouvrir_outil("bourse")
 	var c: Node = m.trade_card
 	while c and not c is ScrollContainer:
 		c = c.get_parent()

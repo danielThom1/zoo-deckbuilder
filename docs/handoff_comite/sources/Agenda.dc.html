@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Ordre du jour de nuit</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700;800&amp;family=Barlow+Condensed:wght@600;700;800&amp;family=IBM+Plex+Mono:wght@500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="width: 270px; height: 900px; box-sizing: border-box; padding: 22px 18px; display: flex; flex-direction: column; gap: 4px; background: #14202B; font-family: Barlow, sans-serif; color: #FFFFFF">
+<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px"><img src="/_blob/e09fee7db13dd5c0de6c7440df652409" alt="" style="width: 42px"><div><div style="font: 800 24px 'Barlow Condensed', sans-serif; line-height: 1">CONSEIL · NUIT 2</div><div style="font: 600 12px Barlow, sans-serif; color: #C8D3DE">Ordre du jour de la séance</div></div></div>
+<sc-for list="{{etapes}}" as="e" hint-placeholder-count="5">
+<div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; font: 700 14px Barlow, sans-serif; background: {{e.bg}}; color: {{e.fg}}">
+<span style="width: 26px; height: 26px; border-radius: 50%; border: 2px solid {{e.ring}}; display: flex; align-items: center; justify-content: center; font: 600 13px 'IBM Plex Mono', monospace; flex: none">{{e.n}}</span>{{e.nom}}</div>
+</sc-for>
+<div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; font: 700 14px Barlow, sans-serif; color: #8496A8"><span style="width: 26px; height: 26px; border-radius: 50%; border: 2px dashed #6B7C8E; display: flex; align-items: center; justify-content: center">›</span>Levée de séance · jour 3</div>
+<div style="margin-top: 18px; font: 800 12px 'Barlow Condensed', sans-serif; letter-spacing: .08em; color: #8496A8">TOUR DE PAROLE · INFLUENCE</div>
+<sc-for list="{{tours}}" as="t" hint-placeholder-count="4">
+<div style="display: flex; align-items: center; gap: 8px; font: 600 13px Barlow, sans-serif; padding: 4px 6px; border-radius: 6px; background: {{t.bg}}; color: {{t.fg}}; opacity: {{t.op}}"><img src="{{t.img}}" alt="" style="width: 22px">{{t.nom}}</div>
+</sc-for>
+<div style="margin-top: auto; display: flex; flex-direction: column; gap: 6px">
+<button style="height: 38px; border: 2px solid #6B7C8E; border-radius: 8px; background: transparent; color: #FFFFFF; font: 700 13px Barlow, sans-serif; cursor: pointer">Voir mon zoo</button>
+<button style="height: 38px; border: 2px solid #6B7C8E; border-radius: 8px; background: transparent; color: #FFFFFF; font: 700 13px Barlow, sans-serif; cursor: pointer">Classement · Objectifs · Journal</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"step":{"editor":"int","min":1,"max":5,"default":1},"tour":{"editor":"int","min":1,"max":4,"default":2},"$preview":{"width":270,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const s = Number(this.props.step ?? 1);
+    const tr = Number(this.props.tour ?? 2);
+    const noms = ['Acquisitions animales', 'Recrutements', "Cartes d'action", 'Bonus de demain', "Revue d'équipe"];
+    const etapes = noms.map((nom, i) => {
+      const n = i + 1;
+      const cur = n === s, done = n < s;
+      return { n: done ? '✔' : String(n), nom, bg: cur ? '#FFC93C' : 'transparent', fg: cur ? '#14202B' : (done ? '#8496A8' : '#C8D3DE'), ring: cur ? '#14202B' : '#6B7C8E' };
+    });
+    const joueurs = [
+      ['/_blob/eca2dbe138b321b3e169671986b6ea2e', 'PanZoo'],
+      ['/_blob/e09fee7db13dd5c0de6c7440df652409', 'Vous'],
+      ['/_blob/02a86751c129361fda1d46e734cf8697', 'Safari Capital'],
+      ['/_blob/7a2c010945dcfb9f72c44b4c66c370f1', 'BioLand Group']
+    ];
+    const tours = joueurs.map(([img, n], i) => {
+      const k = i + 1;
+      const etat = k < tr ? ' · a joué ✔' : (k === tr ? ' · décision attendue' : '');
+      return { img, nom: k + ' · ' + n + etat, bg: k === tr ? '#2E4256' : 'transparent', fg: k === tr ? '#FFFFFF' : '#C8D3DE', op: k < tr ? '.6' : '1' };
+    });
+    return { etapes, tours };
+  }
+}
+</script>
+</body>
+</html>

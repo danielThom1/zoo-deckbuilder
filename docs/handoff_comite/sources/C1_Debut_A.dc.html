@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Début — Plan de lancement</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700;800&amp;family=Barlow+Condensed:wght@600;700;800&amp;family=IBM+Plex+Mono:wght@500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#13867F}a:hover{color:#0E615C}
+.badge{position:absolute;width:132px;height:176px;background:#fff;border:2.5px solid #14202B;border-radius:10px;box-shadow:0 4px 0 #14202B;overflow:hidden}
+.hole{position:absolute;left:50%;top:7px;width:30px;height:6px;margin-left:-15px;border-radius:4px;background:#14202B}
+.ph{margin-top:20px;height:72px;border-top:2px solid #14202B;border-bottom:2px solid #14202B;position:relative;overflow:hidden}
+.ph img{position:absolute;left:30px;top:2px;height:96px}
+.bn{font:800 17px 'Barlow Condensed',sans-serif;text-transform:uppercase;line-height:1}
+.bj{font:600 11.5px Barlow;color:#3D4752}
+.pin{position:absolute;width:34px;height:34px;border-radius:50% 50% 50% 4px;transform:rotate(-45deg);background:#FFC93C;border:2.5px solid #14202B;box-shadow:0 3px 0 #14202B}
+.pin b{display:block;transform:rotate(45deg);text-align:center;line-height:30px;font:600 16px 'IBM Plex Mono'}
+.st{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px solid #D5D9DE}
+.st i{flex:none;width:26px;height:26px;border-radius:50%;border:2px solid #14202B;font:600 13px 'IBM Plex Mono';font-style:normal;display:flex;align-items:center;justify-content:center}
+.sb{height:28px;padding:0 10px;border:2px solid #14202B;border-radius:6px;background:#fff;font:700 12px Barlow;cursor:pointer;color:#14202B}
+</style>
+</helmet>
+<div style="position: relative; width: 1600px; height: 900px; overflow: hidden; background: #6FA84A; font-family: Barlow, sans-serif; color: #14202B">
+<img src="/_blob/2cf2554d78a00702b26dc9d139f89c66" alt="Carte" style="position: absolute; inset: 0; width: 1600px; height: 900px; object-fit: cover">
+<div style="position: absolute; left: 0; top: 0"><dc-import name="Ticker" flash="MÉMO · Budget de lancement : 30. Évitez de tout dépenser avant midi." rep="0" hint-size="1600px,34px"></dc-import></div>
+
+<!-- repères numérotés sur la carte -->
+<div style="position: absolute; left: 512px; top: 222px; width: 330px; height: 300px; border: 3px dashed #FFC93C; border-radius: 6px; box-shadow: 0 0 0 2px rgba(20,32,43,.6)"></div>
+<div class="pin" style="left: 500px; top: 196px"><b>1</b></div>
+<div class="pin" style="left: 636px; top: 470px"><b>2</b></div>
+<div class="pin" style="left: 780px; top: 640px"><b>3</b></div>
+
+<!-- PLAN DE LANCEMENT -->
+<div style="position: absolute; left: 14px; top: 48px; width: 330px; background: #fff; border: 2px solid #14202B; border-radius: 10px; box-shadow: 0 4px 0 #14202B; overflow: hidden">
+<div style="background: #F07F2A; padding: 10px 14px; border-bottom: 2px solid #14202B">
+<div style="display: flex; justify-content: space-between; align-items: center"><b style="font: 800 18px 'Barlow Condensed'; letter-spacing: .05em">ZOO FERMÉ</b><span style="font: 600 13px 'IBM Plex Mono'">1 / 4 conditions</span></div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin-top: 6px"><span style="height: 8px; background: #14202B; border-radius: 2px"></span><span style="height: 8px; border: 2px solid #14202B; border-radius: 2px"></span><span style="height: 8px; border: 2px solid #14202B; border-radius: 2px"></span><span style="height: 8px; border: 2px solid #14202B; border-radius: 2px"></span></div>
+</div>
+<div style="padding: 4px 14px 12px">
+<div style="font: 800 12px 'Barlow Condensed'; letter-spacing: .07em; color: #4A535D; padding: 8px 0 4px">PLAN DE LANCEMENT</div>
+<div class="st" style="color: #4A535D"><i style="background: #13867F; color: #fff; border-color: #13867F">✔</i><div style="flex: 1"><b><s>Mobiliser un collaborateur</s></b><div style="font-size: 12px">Fait : Yasmine est au camp.</div></div></div>
+<div class="st" style="background: #FFF3C4; margin: 0 -14px; padding: 9px 14px; border-top: 2px solid #14202B; border-bottom: 2px solid #14202B"><i>1</i><div style="flex: 1"><b>Fermer une enceinte</b><div style="font: 600 12px Barlow; color: #3D4752">Peignez le mur en glissant · 1 pierre par case</div><div style="display: flex; gap: 6px; margin-top: 6px"><button class="sb" style="background: #13867F; color: #fff">Construire l'enceinte</button><button class="sb">Montrer</button></div></div></div>
+<div class="st"><i>2</i><div style="flex: 1"><b>Poser l'entrée du zoo</b><div style="font: 600 12px Barlow; color: #3D4752">Sur le mur, côté route · 8 pierre, 4 bois</div></div><button class="sb">Montrer</button></div>
+<div class="st"><i>3</i><div style="flex: 1"><b>Relier l'entrée à la ville</b><div style="font: 600 12px Barlow; color: #3D4752">Une route jusqu'à la mairie</div></div><button class="sb">Montrer</button></div>
+<div class="st"><i>4</i><div style="flex: 1"><b>Installer un premier animal</b><div style="font: 600 12px Barlow; color: #3D4752">Contrat acheté au marché du soir</div></div><button class="sb">Montrer</button></div>
+</div>
+</div>
+
+<!-- objectifs actionnaires, replié -->
+<div style="position: absolute; right: 14px; top: 48px; width: 250px; background: #fff; border: 2px solid #14202B; border-radius: 10px; box-shadow: 0 4px 0 #14202B; padding: 10px 12px">
+<div style="display: flex; justify-content: space-between"><b style="font: 800 14px 'Barlow Condensed'; letter-spacing: .06em">OBJECTIFS D'ACTIONNAIRES</b><span style="font: 600 12px 'IBM Plex Mono'">0/3</span></div>
+<div style="font: 600 12.5px Barlow; display: flex; flex-direction: column; gap: 4px; margin-top: 6px">
+<div>○ Boutique, kiosque et snack <span style="float: right; font-family: 'IBM Plex Mono'">0/3</span></div>
+<div>○ 1 label obtenu <span style="float: right; font-family: 'IBM Plex Mono'">0/1</span></div>
+<div>○ 1 animal rare <span style="float: right; font-family: 'IBM Plex Mono'">0/1</span></div>
+</div>
+<div style="font: 600 11px Barlow; color: #3D4752; margin-top: 6px">+10 de réputation chacun</div>
+</div>
+
+<!-- Hubert, accueil -->
+<div style="position: absolute; left: 470px; top: 54px; display: flex; align-items: flex-start; gap: 8px">
+<img src="/_blob/4ffc816ad6a75fa0d2fa42d73e0ef3c8" alt="Hubert, neutre" style="width: 70px; height: 70px; object-fit: contain">
+<div style="background: #fff; border: 2px solid #14202B; border-radius: 2px 12px 12px 12px; padding: 8px 12px; font: 600 14px Barlow; max-width: 360px; line-height: 1.3; box-shadow: 0 3px 0 #14202B">Bienvenue dans la filiale. Un zoo sans mur, c'est une forêt avec des factures. <b>Commencez par l'enceinte.</b></div>
+</div>
+
+<!-- infobulle sur un badge -->
+<div style="position: absolute; left: 520px; top: 598px; width: 270px; background: #14202B; color: #fff; border-radius: 8px; padding: 10px 12px; font: 600 13px Barlow; line-height: 1.35">
+<b style="color: #FFC93C">Mobiliser</b> : payez son salaire, il apparaît au camp et attend vos ordres (clic droit sur la carte).<br><b style="color: #FFC93C">+4</b> : il cède sa journée contre 4 argent.
+<svg width="20" height="12" viewBox="0 0 20 12" style="position: absolute; left: 196px; bottom: -11px" aria-hidden="true"><path d="M0 0 L10 12 L20 0 Z" fill="#14202B"></path></svg>
+</div>
+
+<!-- dock -->
+<div style="position: absolute; left: 0; bottom: 0"><dc-import name="Dock" argent="30" bois="15" pierre="15" or="0" influence="0,0" logement="1/8" delta="" heure="06:00" pct="2%" jour="JOUR 1" pioche="4" defausse="0" hint-size="1600px,96px"></dc-import></div>
+
+<!-- badges -->
+<div class="badge" style="left: 556px; top: 742px"><span class="hole"></span><div class="ph" style="background: #D6EFEC"><img src="/_blob/825a5ebf1b502013ce0ad268a1240609" alt=""></div><div style="padding: 6px 8px"><div class="bn">Yasmine</div><div class="bj">Cantonnière · N1</div><div style="margin-top: 4px; font: 700 11px Barlow; color: #13867F">● Au camp</div></div></div>
+<div class="badge" style="left: 698px; top: 670px; height: 220px; outline: 3px solid #FFC93C; z-index: 3"><span class="hole"></span><div class="ph" style="background: #FFE1C6"><img src="/_blob/feb975ece7e141b464eb018312c7eea9" alt=""></div><div style="padding: 6px 8px"><div class="bn">Basile</div><div class="bj">Manœuvre · N1 · peu qual.</div><div style="font: 600 11px Barlow; margin-top: 3px; color: #3D4752">Construit, extrait, porte</div>
+<div style="display: flex; gap: 4px; margin-top: 8px"><button style="flex: 1; height: 30px; border: 2px solid #14202B; border-radius: 8px; background: #FFC93C; font: 700 12.5px Barlow; cursor: pointer">Mobiliser 1</button><button style="width: 34px; height: 30px; border: 2px solid #14202B; border-radius: 8px; background: #fff; font: 700 12.5px Barlow; cursor: pointer">+4</button></div></div></div>
+<div class="badge" style="left: 840px; top: 742px"><span class="hole"></span><div class="ph" style="background: #FFE1C6"><img src="/_blob/08d3778398bda3828c2a586b32a9a9b7" alt=""></div><div style="padding: 6px 8px"><div class="bn">Adam</div><div class="bj">Maçon · N1</div><div style="margin-top: 4px; font: 700 11px Barlow">Salaire 1</div></div></div>
+<div class="badge" style="left: 982px; top: 742px"><span class="hole"></span><div class="ph" style="background: #E8DDF5"><img src="/_blob/f7fc7d55e8e866eb6fc614f0f193409b" alt=""></div><div style="padding: 6px 8px"><div class="bn">Aïcha</div><div class="bj">Lobbyiste · N1</div><div style="margin-top: 4px; font: 700 11px Barlow; color: #13867F">◆ Peut jouer</div></div></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1600,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

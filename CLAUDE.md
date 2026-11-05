@@ -2,7 +2,13 @@
 
 Jeu de gestion vu du dessus : deckbuilding d'ouvriers + construction d'un zoo. Prototype **Godot 4.7.2** dans `game/` (ouvrir `game/project.godot`). Tout le texte du jeu est en **français**. Écran de référence 1600×900.
 
-## Direction artistique en vigueur : « BD néo ligne claire » (1er novembre 2026) — INTÉGRÉE
+## Interface en vigueur : « Le Comité » (05/11/2026) — EN COURS D'INTÉGRATION
+La carte occupe tout l'écran : bandeau de cotations en haut (34 px), dock en bas (96 px), ordre du jour en haut à gauche, colonne d'outils et volets à droite. La nuit est un conseil d'administration (colonne « Ordre du jour » + diapositive), la fin un rapport aux actionnaires. Elle remplace la mise en page « Néo » (le style BD de la carte et des sprites reste).
+- **À faire maintenant** : `docs/handoff_comite/HANDOFF_COMITE.md` (§0 fait, §2 et §3 à faire dans l'ordre du §4). Maquettes : `docs/handoff_comite/maquettes/*.png`, cotes exactes dans `sources/*.dc.html`.
+- Fait (commit « Interface Comité : fondations et écran de jour ») : jetons et variations de thème Comité (`UiTokens.panneau`, `entete`, `police_mono`, `BoutonBandeau`, `BoutonOutil`, `BoutonSeance`, `Chiffre`, `EnteteComite`), IBM Plex Mono, `Composants.jeton_dock` / `badge_ouvrier` / `badge_action` / `entete_comite`, bandeau, dock et horloge (`_draw_horloge`), main en badges, colonne d'outils (`ouvrir_outil`, `_appliquer_outils`, capture `--outil=…`), ordre du jour (`_build_ordre_du_jour`, `_update_ordre_du_jour`).
+- Bonus de nuit présidé par un rival : aucune action pour le joueur, on n'affiche que sa décision (passage automatique).
+
+## Direction artistique de la carte : « BD néo ligne claire » (1er novembre 2026) — INTÉGRÉE
 Remplace « Émeraude » (lots E et suivants pour le visuel ; les règles ne changent pas). Référence : `docs/handoff_bd/` (captures `jeu_*.png` = état actuel, `cible_*.png` = maquettes).
 - **Carte** : `game/scripts/rendu/` — `CarteBD` (sol en shader `sol_bd.gdshader`, détecte seul les cases modifiées), `RoutesBD` (chemins continus, allées pavées dans l'enceinte via `occuper()`, ponts), `DecorBD` (arbres, rochers, pics, roseaux triés en Y ; cases occupées par un chantier laissées nues), `SpritesBD` (sprites dessinés + tables `BATIMENTS`, `CAMPS`, `METIERS`, `ANIMAUX`, `VISITEURS`, portraits). `main.gd` : `_build_terrain()`, `_update_occupation()`, `_draw_wall()`/`_draw_palisade()` en perspective. L'ancien `ui/terrain.gdshader`, `PersoDessin` et les SVG de `ui/batiments`, `ui/animaux`, `ui/portraits` ne sont plus utilisés pour le rendu (gardés en repli).
 - **Assets** : `game/assets/bd/` (286 sprites, 77 décors, 5 textures, polices Barlow) ; manifestes `sprites_bd.json`, `decor_bd.json` ; noms : `docs/handoff_bd/captures/planche_tous_les_sprites.png`. Nouveau métier, bâtiment ou espèce → compléter les tables de `SpritesBD`.

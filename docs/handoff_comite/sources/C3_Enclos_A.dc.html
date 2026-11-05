@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Enclos — Gabarit sur la carte</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700;800&amp;family=Barlow+Condensed:wght@600;700;800&amp;family=IBM+Plex+Mono:wght@500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#13867F}a:hover{color:#0E615C}
+.m{display:grid;grid-template-columns:repeat(3,22px);gap:2px}
+.m i{width:22px;height:22px;border:2px solid #14202B;box-sizing:border-box;font:800 11px Barlow;font-style:normal;display:flex;align-items:center;justify-content:center;color:#14202B}
+.P{background:#9CD36A}.E{background:#6EC3EA}.X{background:transparent;border-color:transparent!important}
+.lg{display:flex;align-items:center;gap:8px;font:600 12.5px Barlow}
+.lg i{width:20px;height:20px;border:2px solid #14202B;box-sizing:border-box;font:800 10px Barlow;font-style:normal;display:flex;align-items:center;justify-content:center}
+.btn{height:40px;padding:0 14px;border:2px solid #14202B;border-radius:8px;font:700 14px Barlow;cursor:pointer;color:#14202B;background:#fff}
+</style>
+</helmet>
+<div style="position: relative; width: 1600px; height: 900px; overflow: hidden; background: #6FA84A; font-family: Barlow, sans-serif; color: #14202B">
+<img src="/_blob/2cf2554d78a00702b26dc9d139f89c66" alt="Carte" style="position: absolute; inset: 0; width: 1600px; height: 900px; object-fit: cover">
+<!-- voile hors zone utile -->
+<div style="position: absolute; inset: 0; background: rgba(20,32,43,.28)"></div>
+<div style="position: absolute; left: 0; top: 0"><dc-import name="Ticker" flash="MÉMO · La grue arrive ce soir. Elle ne dormira pas dans un carton." hint-size="1600px,34px"></dc-import></div>
+
+<!-- gabarit d'enclos : 6 × 4 cases -->
+<div style="position: absolute; left: 1150px; top: 560px; display: grid; grid-template-columns: repeat(6, 38px); grid-template-rows: repeat(4, 38px); outline: 4px dashed #FFFFFF; box-shadow: 0 0 0 7px #14202B">
+<sc-for list="{{cases}}" as="c" hint-placeholder-count="24"><span style="box-sizing: border-box; border: 1px solid rgba(20,32,43,.45); background: {{c.bg}}; display: flex; align-items: center; justify-content: center; font: 800 13px Barlow; color: #14202B">{{c.t}}</span></sc-for>
+</div>
+<div style="position: absolute; left: 1150px; top: 724px; background: #13867F; color: #fff; padding: 5px 10px; border: 2px solid #14202B; border-radius: 6px; font: 700 13px Barlow">✔ Motif trouvé · emplacement proposé 1 sur 3</div>
+<div style="position: absolute; left: 1060px; top: 520px; background: #fff; border: 2px solid #14202B; border-radius: 6px; padding: 3px 8px; font: 700 12px Barlow">Clôture : 20 segments · 20 bois</div>
+
+<!-- bandeau de contrat -->
+<div style="position: absolute; left: 330px; top: 48px; width: 940px; background: #fff; border: 2px solid #14202B; border-radius: 10px; box-shadow: 0 4px 0 #14202B; display: flex; align-items: stretch; overflow: hidden">
+<div style="width: 110px; background: #E3F2F8; border-right: 2px solid #14202B; display: flex; align-items: center; justify-content: center"><img src="/_blob/82f1c7c0c31137a6771a8157a34ab7a8" alt="" style="height: 82px"></div>
+<div style="padding: 10px 14px; flex: 1">
+<div style="font: 700 11.5px 'IBM Plex Mono'; color: #3D4752">CONTRAT À INSTALLER · 1 sur 2</div>
+<div style="font: 800 26px 'Barlow Condensed'; line-height: 1">Grue du Japon</div>
+<div style="font: 600 13px Barlow; color: #3D4752; margin-top: 2px">L'enclos doit contenir ce motif. Aménagement requis : aucun.</div>
+</div>
+<div style="padding: 10px 14px; border-left: 1.5px solid #D5D9DE; display: flex; align-items: center; gap: 10px"><div class="m"><i class="E">E</i><i class="E">E</i><i class="P">P</i><i class="E">E</i><i class="P">P</i><i class="X"></i></div><span style="font: 600 12px Barlow; color: #3D4752">5 cases<br>2 × 3</span></div>
+<div style="padding: 10px 14px; border-left: 1.5px solid #D5D9DE; display: flex; flex-direction: column; gap: 6px; justify-content: center">
+<button class="btn" style="background: #FFC93C; box-shadow: 0 3px 0 #14202B">Valider · Entrée</button>
+<div style="display: flex; gap: 6px"><button class="btn" style="height: 32px; font-size: 12.5px">Autre ⇥</button><button class="btn" style="height: 32px; font-size: 12.5px">Tourner R</button><button class="btn" style="height: 32px; font-size: 12.5px">Annuler</button></div>
+</div>
+</div>
+
+<!-- légende -->
+<div style="position: absolute; left: 14px; top: 560px; width: 210px; background: #fff; border: 2px solid #14202B; border-radius: 10px; box-shadow: 0 4px 0 #14202B; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px">
+<b style="font: 800 13px 'Barlow Condensed'; letter-spacing: .06em">LÉGENDE DU MOTIF</b>
+<div class="lg"><i style="background: #9CD36A">P</i>Prairie</div>
+<div class="lg"><i style="background: #3E8F4E; color: #fff">F</i>Forêt</div>
+<div class="lg"><i style="background: #6EC3EA">E</i>Eau</div>
+<div class="lg"><i style="background: #B7B9BC">R</i>Roche</div>
+<div class="lg"><i style="background: #F1D58C">S</i>Sable</div>
+<div class="lg"><i style="background: repeating-linear-gradient(45deg,#F07F2A 0 3px,#fff 3px 6px)">✕</i>Case impossible</div>
+</div>
+
+<div style="position: absolute; left: 0; bottom: 0"><dc-import name="Dock" heure="15:10" pct="64%" hint-size="1600px,96px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1600,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const motif = { '1,1': 'E', '2,1': 'E', '3,1': 'P', '1,2': 'E', '2,2': 'P' };
+    const cases = [];
+    for (let y = 0; y < 4; y++) for (let x = 0; x < 6; x++) {
+      const k = x + ',' + y;
+      if (motif[k]) cases.push({ t: motif[k], bg: motif[k] === 'E' ? 'rgba(110,195,234,.92)' : 'rgba(156,211,106,.92)' });
+      else if (x === 5 && y === 3) cases.push({ t: '✕', bg: 'repeating-linear-gradient(45deg,#F07F2A 0 4px,rgba(255,255,255,.9) 4px 8px)' });
+      else cases.push({ t: '', bg: 'rgba(255,255,255,.22)' });
+    }
+    return { cases };
+  }
+}
+</script>
+</body>
+</html>

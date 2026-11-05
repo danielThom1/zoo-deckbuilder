@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Nuit, bonus — Décision d'un rival</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700;800&amp;family=Barlow+Condensed:wght@600;700;800&amp;family=IBM+Plex+Mono:wght@500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#13867F}a:hover{color:#0E615C}
+.li{display:grid;grid-template-columns:150px minmax(0,1fr) 240px;gap:16px;align-items:center;padding:16px 18px;border:2px solid #14202B;border-radius:10px;background:#fff}
+.li small{font:700 11.5px 'IBM Plex Mono';color:#4A535D}
+.li b{display:block;font:800 22px 'Barlow Condensed';line-height:1.05}
+.li p{margin:0;font:600 14px Barlow;line-height:1.35}
+.me{font:700 12.5px Barlow;border:1.5px solid #14202B;border-radius:12px;padding:3px 10px;justify-self:start}
+.off{background:#F1F2F4;border-color:#9AA2AC;border-style:dashed}
+.off b,.off p{color:#4A535D}
+</style>
+</helmet>
+<div style="position: relative; width: 1600px; height: 900px; overflow: hidden; background: #14202B; font-family: Barlow, sans-serif; color: #14202B">
+<div style="position: absolute; left: 0; top: 0"><dc-import name="Agenda" step="{{ 4 }}" tour="{{ 1 }}" hint-size="270px,900px"></dc-import></div>
+<div style="position: absolute; left: 270px; top: 18px; width: 1312px; height: 864px; background: #FFFFFF; border-radius: 14px; box-sizing: border-box; padding: 24px 28px; display: flex; flex-direction: column">
+<div style="display: flex; align-items: flex-end; justify-content: space-between; border-bottom: 3px solid #14202B; padding-bottom: 10px">
+<div><div style="font: 700 12px 'IBM Plex Mono'; color: #4A535D">POINT 4 / 5 · BONUS DU LENDEMAIN</div><div style="font: 800 34px 'Barlow Condensed'; line-height: 1.05">PanZoo Holdings a tranché</div></div>
+<div style="display: flex; align-items: center; gap: 10px; font: 600 13px Barlow; color: #3D4752"><span style="width: 120px; height: 8px; border-radius: 4px; background: #E3E6EA; overflow: hidden; display: inline-block"><span style="display: block; width: 60%; height: 100%; background: #13867F"></span></span>Point suivant dans 3 s</div>
+</div>
+
+<!-- décision -->
+<div style="display: flex; align-items: stretch; gap: 0; margin-top: 20px; border: 2.5px solid #14202B; border-radius: 12px; box-shadow: 0 5px 0 #14202B; overflow: hidden">
+<div style="width: 210px; background: #14202B; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 14px">
+<img src="/_blob/eca2dbe138b321b3e169671986b6ea2e" alt="PanZoo" style="width: 80px; height: 80px; background: #fff; border-radius: 50%; border: 3px solid #FFC93C">
+<div style="font: 800 15px 'Barlow Condensed'; letter-spacing: .05em; text-align: center">PANZOO PRÉSIDE<br><span style="font-weight: 600; color: #C8D3DE">1er en influence</span></div>
+</div>
+<div style="flex: 1; padding: 18px 22px; background: #FFF3C4; display: flex; flex-direction: column; gap: 8px">
+<div style="font: 700 12px 'IBM Plex Mono'; color: #4A535D">RÉSOLUTION ADOPTÉE · S'APPLIQUE DEMAIN À TOUTES LES FILIALES</div>
+<div style="font: 800 40px 'Barlow Condensed'; line-height: 1">Inspection sanitaire</div>
+<div style="font: 600 16px Barlow">−3 de réputation pour chaque zoo dont la propreté est sous 60 %.</div>
+<div style="display: flex; gap: 8px; align-items: center; margin-top: 4px"><span class="me" style="background: #D6EFEC; font-size: 13.5px; padding: 4px 12px">Pour vous : ✔ propreté 87 %, épargné</span><span style="font: 600 13px Barlow; color: #3D4752">Gardez le zoo propre demain : un Agent d'entretien suffit.</span></div>
+</div>
+</div>
+
+<div style="font: 800 12.5px 'Barlow Condensed'; letter-spacing: .08em; color: #4A535D; margin-top: 22px">NON RETENUES</div>
+<div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px">
+<div class="li off"><div><small>N° 1</small><b>Semaine des familles</b></div><p>+20 % de visiteurs dans tous les zoos ouverts.</p><span class="me" style="border-style: dashed">non retenue</span></div>
+<div class="li off"><div><small>N° 3</small><b>Livraison groupée</b></div><p>Chaque filiale reçoit 10 bois et 10 pierre au matin.</p><span class="me" style="border-style: dashed">non retenue</span></div>
+</div>
+
+<div style="margin-top: auto; display: flex; align-items: center; gap: 14px; background: #F3F1EA; border-radius: 10px; padding: 10px 16px">
+<img src="/_blob/7bfa92ac2b5095fffd53f38dabd1545f" alt="Hubert, contrarié" style="width: 60px; height: 60px; object-fit: contain">
+<div style="font: italic 600 14px Barlow">« Vous n'êtes pas premier en influence. Retenez la sensation : c'est celle de nos actionnaires minoritaires. »</div>
+<div style="margin-left: auto; font: 600 12.5px Barlow; color: #3D4752; max-width: 260px">Pour présider : montez votre influence (lobbying à la Ville, cadres).</div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1600,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

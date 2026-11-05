@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Bandeau cotations</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700;800&amp;family=Barlow+Condensed:wght@600;700;800&amp;family=IBM+Plex+Mono:wght@500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="width: 1600px; height: 34px; background: #14202B; color: #FFFFFF; display: flex; align-items: center; font: 600 13px 'IBM Plex Mono', monospace; white-space: nowrap; overflow: hidden">
+<span style="background: #FFC93C; color: #14202B; font: 800 13px 'Barlow Condensed', sans-serif; letter-spacing: .08em; padding: 0 12px; height: 34px; display: flex; align-items: center">COURSE À 100</span>
+<span style="padding: 0 14px; display: flex; align-items: center; gap: 6px"><img src="/_blob/eca2dbe138b321b3e169671986b6ea2e" alt="" style="width: 20px">PNZ 52 <span style="color: #7FD6A8">▲ +5</span></span>
+<span style="padding: 0 14px; display: flex; align-items: center; gap: 6px; background: #2E4256; height: 34px"><img src="/_blob/e09fee7db13dd5c0de6c7440df652409" alt="" style="width: 20px">ZLF (vous) {{rep}} <span style="color: #7FD6A8">▲ +3</span></span>
+<span style="padding: 0 14px; display: flex; align-items: center; gap: 6px"><img src="/_blob/02a86751c129361fda1d46e734cf8697" alt="" style="width: 20px">SFC 31 <span style="color: #FFB27A">▼ −1</span></span>
+<span style="padding: 0 14px; display: flex; align-items: center; gap: 6px"><img src="/_blob/7a2c010945dcfb9f72c44b4c66c370f1" alt="" style="width: 20px">BLG 22 <span style="color: #C8D3DE">= 0</span></span>
+<span style="padding: 0 14px; color: #FFC93C; font-family: Barlow, sans-serif; font-weight: 700; overflow: hidden; text-overflow: ellipsis">{{flash}}</span>
+<span style="margin-left: auto; display: flex; height: 34px; flex: none">
+<button style="width: 40px; border: none; background: transparent; color: #FFFFFF; font: 800 14px Barlow, sans-serif; cursor: pointer" aria-label="Pause">II</button>
+<button style="width: 40px; border: none; background: #FFFFFF; color: #14202B; font: 800 13px Barlow, sans-serif; cursor: pointer">×1</button>
+<button style="width: 40px; border: none; background: transparent; color: #FFFFFF; font: 800 13px Barlow, sans-serif; cursor: pointer">×2</button>
+<button style="width: 40px; border: none; background: transparent; color: #FFFFFF; font: 800 13px Barlow, sans-serif; cursor: pointer">×4</button>
+<button style="width: 40px; border: none; background: transparent; color: #FFFFFF; font: 800 13px Barlow, sans-serif; cursor: pointer">×8</button>
+<button style="width: 44px; border: none; background: transparent; color: #FFFFFF; font: 800 13px Barlow, sans-serif; cursor: pointer">×16</button>
+<button style="width: 44px; border: none; border-left: 1px solid #3A4D60; background: transparent; color: #FFFFFF; font: 800 16px Barlow, sans-serif; cursor: pointer" aria-label="Menu">≡</button>
+</span>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"flash":{"editor":"text","default":"FLASH · Un journaliste visite le parc : +30 % de visiteurs ce soir"},"rep":{"editor":"text","default":"46"},"$preview":{"width":1600,"height":34}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      flash: this.props.flash ?? 'FLASH · Un journaliste visite le parc : +30 % de visiteurs ce soir',
+      rep: this.props.rep ?? '46'
+    };
+  }
+}
+</script>
+</body>
+</html>

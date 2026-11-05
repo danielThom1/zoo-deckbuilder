@@ -16,6 +16,7 @@ extends Node2D
 ##   --cadre         ajoute un cadre à la main (bouton « Jouer »)
 ##   --un            avec --autoplay : un seul ouvrier sélectionné (panneau d'unité)
 ##   --zoom=2.5      zoom de la caméra (captures de détail)
+##   --outil=construire  ouvre un volet de la colonne d'outils (construire, zoo, bourse, pub)
 ##   --jours=N       spectateur : avance de N jours avant d'afficher
 
 const TILE := 16.0
@@ -88,6 +89,7 @@ var acc := 0.0
 var info_clock := 0.0
 var ai_timer := 0.0
 var hand_version := -1
+var hand_sel_sig := 0  # badge « sélectionné » de la main
 var images := {}  # chemin -> texture des illustrations (animaux, bâtiments), ou null si absente
 var facing := {}  # Worker -> [vue ("face", "profil", "dos"), miroir, dernière position]
 var toast_signature := ""
@@ -173,7 +175,24 @@ var draft_grid: GridContainer
 var draft_picks: RichTextLabel
 # Interface Émeraude
 var res_chips := {}  # clé -> [Label valeur, Label légende]
-var race_labels: Array = []
+var race_labels: Array = []  # [segment du bandeau, valeur, delta du jour]
+var rep_matin: Array = []    # réputation de chaque joueur au matin (delta du bandeau)
+var rep_jour := -1
+var outil := ""              # volet ouvert par la colonne d'outils : "", "construire", "zoo", "bourse", "pub"
+var outil_boutons := {}      # outil -> Button
+var volet_construire: Control
+var volet_droit: Control
+var fiche_box: VBoxContainer # contenu « fiche de sélection » du volet de droite
+var pub_card: Control
+var zoo_widget: PanelContainer
+var zoo_widget_titre: Label
+var zoo_widget_kpi: Array = []  # 3 Labels : visiteurs, attractivité, propreté
+var ordre_panel: PanelContainer
+var ordre_entete: Dictionary
+var ordre_lignes: VBoxContainer
+var ordre_signature := ""
+var dock: PanelContainer
+var outils_col: VBoxContainer
 var zoo_title: Label
 var unit_name: Label
 var unit_job: Label
@@ -508,6 +527,9 @@ func _start(watch: bool) -> void:
 		_open_pile()
 	if args.has("reglages"):
 		ui.add_child(Reglages.new())
+	# --outil=construire|zoo|bourse|pub : ouvre un volet de la colonne d'outils (captures de l'interface Comité)
+	if args.has("outil"):
+		ouvrir_outil(str(args["outil"]))
 	if args.has("marche"):
 		market_root.visible = true
 		_rebuild_market_preview()
@@ -1927,8 +1949,13 @@ func _process(delta: float) -> void:
 	_refresh_terrain()
 	queue_redraw()
 	_update_hud()
+	var sel_sig := selected.map(func(w): return w.get_instance_id() if w is Object else hash(w)).hash()
+	if sel_sig != hand_sel_sig and hand_version == game.version:
+		hand_sel_sig = sel_sig
+		_rebuild_hand()
 	if hand_version != game.version:
 		hand_version = game.version
+		hand_sel_sig = sel_sig
 		_rebuild_hand()
 		_rebuild_draft()
 		_rebuild_contracts()
@@ -2281,78 +2308,93 @@ func _build_ui() -> void:
 	ui.theme = UiTokens.build_theme()
 	layer.add_child(ui)
 
-	# Barre du haut (h 52) : jetons de ressources, course à la réputation, vitesse — capture 03
-	# Barre du haut « BD » : pastilles blanches flottantes cernées d'encre (ressources, course, vitesse)
-	var top := MarginContainer.new()
-	top.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	top.offset_top = 8
-	top.offset_left = 14
-	top.offset_right = -14
-	top.custom_minimum_size.y = 50
-	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	ui.add_child(top)
+	# Bandeau du haut « Comité » (h 34, pleine largeur, fond encre) : course à la réputation façon cotations,
+	# flash d'événement, vitesses, aide / réglages / menu. Maquette : docs/handoff_comite/maquettes/Ticker.png
+	var ticker := PanelContainer.new()
+	var st_t := StyleBoxFlat.new()
+	st_t.bg_color = UiTokens.ENCRE
+	ticker.add_theme_stylebox_override("panel", st_t)
+	ticker.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	ticker.offset_bottom = UiTokens.H_BANDEAU
+	ui.add_child(ticker)
 	var bar := HBoxContainer.new()
-	bar.add_theme_constant_override("separation", 10)
-	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	top.add_child(bar)
-	var pastille_haut := func(sep: int) -> HBoxContainer:
-		var pc := PanelContainer.new()
-		var st := UiTokens.panel(UiTokens.PAPIER, UiTokens.ENCRE, 14, 3, 6)
-		st.content_margin_left = 10
-		st.content_margin_right = 12
-		pc.add_theme_stylebox_override("panel", st)
-		bar.add_child(pc)
-		var inner := HBoxContainer.new()
-		inner.add_theme_constant_override("separation", sep)
-		pc.add_child(inner)
-		return inner
-	var hb: HBoxContainer = pastille_haut.call(14)
-	for r in [["argent", "Argent"], ["bois", "Bois"], ["pierre", "Pierre"], ["or", "Or"], ["influence", "Influence (privée)"],
-			["logement", "Logement"], ["reputation", "Réputation"]]:
-		var res: Dictionary = UiTokens.RESSOURCES[r[0]]
-		var chip := Composants.jeton_ressource(res["icone"], res["couleur"], res["reflet"], r[1], res.get("sprite", ""))
-		chip["racine"].tooltip_text = res["nom"]
-		hb.add_child(chip["racine"])
-		res_chips[r[0]] = chip
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bar.add_child(spacer)
-	hb = pastille_haut.call(6)
-	var race_title := Composants.label("COURSE À %d" % game.objective(), "NomCarte")
-	race_title.add_theme_font_size_override("font_size", 15)
-	race_title.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	hb.add_child(race_title)
-	var race := HBoxContainer.new()
-	race.add_theme_constant_override("separation", 4)
-	race.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	hb.add_child(race)
+	bar.add_theme_constant_override("separation", 0)
+	ticker.add_child(bar)
+	var course := PanelContainer.new()
+	var st_c := StyleBoxFlat.new()
+	st_c.bg_color = UiTokens.SELECTION
+	st_c.content_margin_left = 12
+	st_c.content_margin_right = 12
+	course.add_theme_stylebox_override("panel", st_c)
+	var cl := Composants.label("COURSE À %d" % game.objective(), "")
+	cl.add_theme_font_override("font", UiTokens.police_titre())
+	cl.add_theme_font_size_override("font_size", 14)
+	cl.add_theme_color_override("font_color", UiTokens.ENCRE)
+	cl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	course.add_child(cl)
+	bar.add_child(course)
+	var police_cote := UiTokens.police_mono(600)
 	for i in mt.players.size():
-		var pill := PanelContainer.new()
-		var ps := UiTokens.chip(UiTokens.JOUEURS[i % UiTokens.JOUEURS.size()], 15, 3)
-		ps.content_margin_left = 8
-		ps.content_margin_right = 8
-		pill.add_theme_stylebox_override("panel", ps)
-		pill.tooltip_text = mt.names[i]
-		var pl := Composants.label("0", "Compteur")
-		pl.add_theme_font_size_override("font_size", 15)
-		pl.add_theme_color_override("font_color", UiTokens.TEXTE_CLAIR)
+		rep_matin.append(mt.players[i].reputation())
+		var seg := PanelContainer.new()
+		var ss := StyleBoxFlat.new()
+		ss.bg_color = UiTokens.MARINE_2 if i == game.index else Color(0, 0, 0, 0)
+		ss.content_margin_left = 12
+		ss.content_margin_right = 12
+		seg.add_theme_stylebox_override("panel", ss)
+		seg.tooltip_text = "%s : réputation (variation depuis ce matin)" % mt.names[i]
+		var sh := HBoxContainer.new()
+		sh.add_theme_constant_override("separation", 6)
+		seg.add_child(sh)
+		var logo := Composants.logo_groupe(mt.names[i], true)
+		if logo:
+			var lr := Composants.image_logo(logo, Vector2(20, 20))
+			lr.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			sh.add_child(lr)
+		for k in 3:
+			var l := Composants.label(_nom_court(i) if k == 0 else ("0" if k == 1 else ""), "")
+			l.add_theme_font_override("font", police_cote)
+			l.add_theme_font_size_override("font_size", 13)
+			l.add_theme_color_override("font_color", UiTokens.PAPIER if k < 2 else UiTokens.GAIN_BANDEAU)
+			l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			sh.add_child(l)
+		bar.add_child(seg)
+		race_labels.append([seg, sh.get_child(sh.get_child_count() - 2), sh.get_child(sh.get_child_count() - 1)])
 		if i == game.index:
-			ps.border_color = UiTokens.SELECTION
-			ps.set_border_width_all(3)
-		pill.add_child(pl)
-		race.add_child(pill)
-		race_labels.append([pill, pl])
+			res_chips["reputation"] = {"racine": seg, "valeur": race_labels[i][1], "legende": race_labels[i][2]}
+	var em := MarginContainer.new()
+	em.add_theme_constant_override("margin_left", 14)
+	em.add_theme_constant_override("margin_right", 8)
+	em.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	em.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bar.add_child(em)
+	event_label = Label.new()
+	event_label.add_theme_font_override("font", UiTokens.police_corps(700))
+	event_label.add_theme_font_size_override("font_size", 13)
+	event_label.add_theme_color_override("font_color", UiTokens.SELECTION)
+	event_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	event_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	event_label.clip_text = true
+	event_label.mouse_filter = Control.MOUSE_FILTER_PASS
+	em.add_child(event_label)
+	var bouton_bandeau := func(txt: String, largeur: int) -> Button:
+		var b := Button.new()
+		b.text = txt
+		b.theme_type_variation = "BoutonBandeau"
+		b.focus_mode = Control.FOCUS_NONE
+		b.custom_minimum_size = Vector2(largeur, UiTokens.H_BANDEAU)
+		bar.add_child(b)
+		return b
 	if spectator:
-		hb = pastille_haut.call(4)
 		if replay:
-			var marque := Composants.label("REPLAY")
-			marque.add_theme_font_override("font", UiTokens.police_corps(800))
+			var marque := Composants.label("  REPLAY  ")
+			marque.add_theme_font_override("font", UiTokens.police_titre())
 			marque.add_theme_color_override("font_color", UiTokens.ORANGE)
-			hb.add_child(marque)
+			marque.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			bar.add_child(marque)
 		var num_ia := 0
 		for i in mt.players.size():
-			var vb := Button.new()
+			var vb: Button = bouton_bandeau.call("", 50)
 			if mt.is_ai(i):
 				num_ia += 1
 				vb.text = "IA %d" % num_ia
@@ -2361,99 +2403,47 @@ func _build_ui() -> void:
 			vb.tooltip_text = mt.names[i]
 			vb.toggle_mode = true
 			vb.button_pressed = i == game.index
-			vb.focus_mode = Control.FOCUS_NONE
 			vb.pressed.connect(_view_player.bind(i))
 			view_buttons.append(vb)
-			hb.add_child(vb)
-	hb = pastille_haut.call(4)
-	var speeds := HBoxContainer.new()
-	speeds.add_theme_constant_override("separation", 4)
-	speeds.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	hb.add_child(speeds)
 	for s in ([1.0, 2.0, 4.0, 8.0, 16.0] if reseau else [0.0, 1.0, 2.0, 4.0, 8.0, 16.0]):
-		var b := Button.new()
-		b.text = "II" if s == 0.0 else "×%d" % int(s)
+		var b: Button = bouton_bandeau.call("II" if s == 0.0 else "×%d" % int(s), 44 if s >= 16.0 else 40)
 		b.toggle_mode = true
-		b.focus_mode = Control.FOCUS_NONE
-		b.custom_minimum_size = Vector2(34 if spectator else 40, 34)
-		b.theme_type_variation = "Onglet"
+		b.tooltip_text = "Pause (Espace)" if s == 0.0 else "Vitesse ×%d" % int(s)
 		b.pressed.connect(_set_speed.bind(s))
 		speed_buttons[s] = b
-		speeds.add_child(b)
-	# Le marché du soir est tiré le matin : on peut le consulter en journée pour s'organiser (influence, argent).
-	var market_btn := Button.new()
-	market_btn.text = "Marché du soir"
-	market_btn.focus_mode = Control.FOCUS_NONE
-	market_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	market_btn.custom_minimum_size.y = 46
-	market_btn.theme_type_variation = "BoutonPrincipal"
-	market_btn.tooltip_text = "Collaborateurs, contrats et cartes d'action proposés cette nuit, dans l'ordre d'influence"
-	market_btn.pressed.connect(func():
-		market_root.visible = not market_root.visible
-		_rebuild_market_preview())
-	if not spectator:  # la barre doit laisser la place au bouton Menu
-		bar.add_child(market_btn)
-	var help := Button.new()
-	help.text = "?"
-	help.focus_mode = Control.FOCUS_NONE
-	help.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	help.custom_minimum_size = Vector2(46, 46)
-	help.tooltip_text = "Clic gauche : sélectionner (glisser pour plusieurs)\nClic droit : déplacer, extraire, construire, tenir un poste, lobbying (case Accès) · Maj + clic droit : enchaîner un ordre après la tâche en cours
-Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter un bâtiment · double-clic : tout un tracé de clôture, mur ou route · Suppr : démolir\nMenu de gauche : placer un bâtiment (glisser pour routes et clôtures, R pour tourner l'entrée), Échap pour arrêter\nMolette : zoom · ZQSD : vue · Espace : pause"
+	# Le marché du soir est tiré le matin : consultable en journée depuis la colonne d'outils (bouton « Marché »).
+	var help: Button = bouton_bandeau.call("?", 40)
+	help.tooltip_text = "Clic gauche : sélectionner (glisser pour plusieurs)\nClic droit : déplacer, extraire, construire, tenir un poste, lobbying (case Accès) · Maj + clic droit : enchaîner un ordre après la tâche en cours\nCtrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter un bâtiment · double-clic : tout un tracé de clôture, mur ou route · Suppr : démolir\nBâtir (colonne de droite) : placer un bâtiment (glisser pour routes et clôtures, R pour tourner l'entrée), Échap pour arrêter\nMolette : zoom · ZQSD : vue · Espace : pause"
 	help.pressed.connect(func(): ui.add_child(Aide.new(game.data)))
-	if not spectator:
-		bar.add_child(help)
-	var reg_btn := Button.new()
+	help.visible = not spectator
+	var reg_btn: Button = bouton_bandeau.call("", 40)
 	reg_btn.icon = UiTokens.icone("ui_reglages")
 	reg_btn.expand_icon = true
-	reg_btn.focus_mode = Control.FOCUS_NONE
-	reg_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	reg_btn.custom_minimum_size = Vector2(46, 46)
-	reg_btn.add_theme_color_override("icon_normal_color", UiTokens.ENCRE)
-	reg_btn.add_theme_color_override("icon_hover_color", UiTokens.ENCRE)
-	reg_btn.add_theme_color_override("icon_pressed_color", UiTokens.ENCRE)
+	reg_btn.add_theme_constant_override("icon_max_width", 18)
+	reg_btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	reg_btn.tooltip_text = "Réglages : résolution, plein écran, volume"
 	reg_btn.pressed.connect(func(): ui.add_child(Reglages.new()))
-	if not spectator:
-		bar.add_child(reg_btn)
-	var quit_btn := Button.new()
+	reg_btn.visible = not spectator
+	var quit_btn: Button = bouton_bandeau.call("≡", 44)
 	menu_btn = quit_btn
-	quit_btn.text = "Menu"
-	quit_btn.focus_mode = Control.FOCUS_NONE
-	quit_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	quit_btn.custom_minimum_size = Vector2(0, 46)
 	quit_btn.tooltip_text = "Retour au menu. La partie est sauvegardée chaque matin : « Continuer » reprendra au début de cette journée."
 	quit_btn.pressed.connect(func(): _restart("menu"))
-	bar.add_child(quit_btn)
-
-	event_label = Label.new()
-	event_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	event_label.offset_top = 70
-	event_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	var ev_style := UiTokens.panel(UiTokens.PAPIER, UiTokens.ENCRE, 10, 3, 8)
-	ev_style.border_width_left = 14
-	ev_style.border_color = UiTokens.ENCRE
-	ev_style.content_margin_left = 14
-	event_label.add_theme_stylebox_override("normal", ev_style)
-	event_label.add_theme_color_override("font_color", UiTokens.TEXTE)
-	event_label.add_theme_font_override("font", UiTokens.police_corps(700))
-	event_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	ui.add_child(event_label)
 
 	# Panneau d'information à droite : bandeau sarcelle + fiche en cartes (zoo, ouvrier, chantier, animal)
 	var right := PanelContainer.new()
-	right.add_theme_stylebox_override("panel", UiTokens.panel(UiTokens.PAPIER, UiTokens.ENCRE, 12, 3, 0))
+	right.add_theme_stylebox_override("panel", UiTokens.panneau(UiTokens.PAPIER, 10, 2, 0))
 	right.set_anchors_and_offsets_preset(Control.PRESET_RIGHT_WIDE)
-	right.offset_left = -318
-	right.offset_right = -14
-	right.offset_top = 72
-	right.offset_bottom = -250
+	right.offset_left = -432
+	right.offset_right = -76
+	right.offset_top = UiTokens.H_BANDEAU + 14
+	right.offset_bottom = -(UiTokens.H_DOCK + 14)
 	ui.add_child(right)
+	volet_droit = right
 	var rv0 := VBoxContainer.new()
 	rv0.add_theme_constant_override("separation", 0)
 	right.add_child(rv0)
 	var rhead := PanelContainer.new()
-	rhead.add_theme_stylebox_override("panel", UiTokens.bandeau())
+	rhead.add_theme_stylebox_override("panel", UiTokens.entete(UiTokens.ENCRE))
 	rv0.add_child(rhead)
 	var rhb := HBoxContainer.new()
 	rhead.add_child(rhb)
@@ -2480,24 +2470,27 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 	rv.add_theme_constant_override("separation", 8)
 	rv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	rmargin.add_child(rv)
+	fiche_box = VBoxContainer.new()
+	fiche_box.add_theme_constant_override("separation", 8)
+	rv.add_child(fiche_box)
 	info_view = VBoxContainer.new()
 	info_view.add_theme_constant_override("separation", 8)
-	rv.add_child(info_view)
+	fiche_box.add_child(info_view)
 	info_text = RichTextLabel.new()
 	info_text.bbcode_enabled = true
 	info_text.fit_content = true
 	info_text.scroll_active = false
 	info_text.add_theme_font_size_override("normal_font_size", 14)
 	info_text.add_theme_font_size_override("bold_font_size", 15)
-	rv.add_child(info_text)
+	fiche_box.add_child(info_text)
 	info_extra = VBoxContainer.new()
 	info_extra.add_theme_constant_override("separation", 4)
-	rv.add_child(info_extra)
+	fiche_box.add_child(info_extra)
 	btn_lobby = Button.new()
 	btn_lobby.text = "Envoyer en lobbying"
 	btn_lobby.focus_mode = Control.FOCUS_NONE
 	btn_lobby.pressed.connect(func(): _cmd("order", [selected, game.map.exit_tile]))
-	rv.add_child(btn_lobby)
+	fiche_box.add_child(btn_lobby)
 	btn_reportage = Button.new()
 	btn_reportage.text = "Carnet de reportage"
 	btn_reportage.focus_mode = Control.FOCUS_NONE
@@ -2505,21 +2498,21 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 	btn_reportage.pressed.connect(func():
 		if selected.size() == 1:
 			ui.add_child(Reportage.new(self, game, selected[0])))
-	rv.add_child(btn_reportage)
+	fiche_box.add_child(btn_reportage)
 	btn_recall = Button.new()
 	btn_recall.text = "Rappeler sur la carte"
 	btn_recall.focus_mode = Control.FOCUS_NONE
 	btn_recall.pressed.connect(func():
 		for w in selected:
 			_cmd("recall", [w]))
-	rv.add_child(btn_recall)
+	fiche_box.add_child(btn_recall)
 	btn_swap = Button.new()
 	btn_swap.text = "Remplacer (Agence d'intérim)"
 	btn_swap.focus_mode = Control.FOCUS_NONE
 	btn_swap.pressed.connect(func():
 		if selected.size() == 1:
 			_open_swap_picker(selected[0]))
-	rv.add_child(btn_swap)
+	fiche_box.add_child(btn_swap)
 	btn_cancel_site = Button.new()
 	btn_cancel_site.text = "Annuler le chantier"
 	btn_cancel_site.focus_mode = Control.FOCUS_NONE
@@ -2527,12 +2520,12 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 		if selected_site:
 			_cmd("cancel_site", [selected_site])
 			selected_site = null)
-	rv.add_child(btn_cancel_site)
+	fiche_box.add_child(btn_cancel_site)
 	btn_demolish = Button.new()
 	btn_demolish.text = "Démolir (sans remboursement)"
 	btn_demolish.focus_mode = Control.FOCUS_NONE
 	btn_demolish.pressed.connect(_delete_selection)
-	rv.add_child(btn_demolish)
+	fiche_box.add_child(btn_demolish)
 	# Bourse des ressources : vendre et acheter la quantité choisie (Marchand au camp ou au bâtiment Marché pour de meilleurs prix)
 	if not spectator:
 		var cm := _fiche_carte(rv, "BOURSE DES RESSOURCES", "metier_marchand", UiTokens.RESSOURCES["argent"]["couleur"])
@@ -2584,6 +2577,7 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 			label_buttons[ld["id"]] = lb
 		# Publicité : campagnes menées par les ouvriers à l'extérieur, elles seules augmentent l'affluence
 		rv = _fiche_carte(cm.get_parent().get_parent().get_parent(), "PUBLICITÉ", "ressource_influence", UiTokens.RESSOURCES["influence"]["couleur"])
+		pub_card = rv.get_parent().get_parent()
 		pub_note = Composants.label("", "TexteSecondaire")
 		pub_note.add_theme_font_size_override("font_size", 12)
 		pub_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -2601,20 +2595,30 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 
 	# Panneau Construire à gauche (l 250) : onglets Bâtiments / Zoo / Terrain, lignes à icône et coût
 	var left := PanelContainer.new()
-	left.add_theme_stylebox_override("panel", UiTokens.panel(UiTokens.PAPIER, UiTokens.ENCRE, 12, 3, 0))
-	left.set_anchors_and_offsets_preset(Control.PRESET_LEFT_WIDE)
-	left.offset_left = 14
-	left.offset_right = 270
-	left.offset_top = 72
-	left.offset_bottom = -250
+	left.add_theme_stylebox_override("panel", UiTokens.panneau(UiTokens.FOND_FENETRE, 10, 2, 0))
+	left.set_anchors_and_offsets_preset(Control.PRESET_RIGHT_WIDE)
+	left.offset_left = -456
+	left.offset_right = -76
+	left.offset_top = UiTokens.H_BANDEAU + 14
+	left.offset_bottom = -(UiTokens.H_DOCK + 14)
 	ui.add_child(left)
+	volet_construire = left
 	var lv0 := VBoxContainer.new()
 	lv0.add_theme_constant_override("separation", 0)
 	left.add_child(lv0)
 	var lhead := PanelContainer.new()
-	lhead.add_theme_stylebox_override("panel", UiTokens.bandeau())
+	lhead.add_theme_stylebox_override("panel", UiTokens.entete(UiTokens.SARCELLE))
 	lv0.add_child(lhead)
-	lhead.add_child(Composants.label("CONSTRUIRE", "TitreBandeau"))
+	var lht := HBoxContainer.new()
+	lhead.add_child(lht)
+	var lt0 := Composants.label("CONSTRUIRE", "EnteteComite")
+	lt0.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lht.add_child(lt0)
+	var lt1 := Composants.label("R tourner · Échap fermer", "")
+	lt1.add_theme_font_override("font", UiTokens.police_corps(600))
+	lt1.add_theme_font_size_override("font_size", 12)
+	lt1.add_theme_color_override("font_color", UiTokens.PAPIER)
+	lht.add_child(lt1)
 	var lmargin := MarginContainer.new()
 	lmargin.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	for side in ["left", "right", "top", "bottom"]:
@@ -2670,33 +2674,52 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 	for k in build_pages:
 		build_pages[k].visible = k == "Bâtiments"
 
-	# Bas de l'écran : pioche et défausse, main de cartes, médaillon du jour (capture 03)
-	var shade := ColorRect.new()
-	shade.color = Color(0, 0, 0, 0)
-	shade.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	shade.offset_top = -238
-	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	ui.add_child(shade)
+	# Bas de l'écran « Comité » : dock (ressources, pioche, horloge, Lever la séance) et main en badges qui dépassent du dock.
+	dock = PanelContainer.new()
+	var sd := StyleBoxFlat.new()
+	sd.bg_color = UiTokens.PAPIER
+	sd.border_color = UiTokens.ENCRE
+	sd.border_width_top = 3
+	dock.add_theme_stylebox_override("panel", sd)
+	dock.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	dock.offset_top = -UiTokens.H_DOCK
+	ui.add_child(dock)
+	var dh := HBoxContainer.new()
+	dh.add_theme_constant_override("separation", 0)
+	dock.add_child(dh)
+	var grille := GridContainer.new()
+	grille.columns = 3
+	grille.add_theme_constant_override("h_separation", 6)
+	grille.add_theme_constant_override("v_separation", 2)
+	var gm := MarginContainer.new()
+	gm.add_theme_constant_override("margin_left", 14)
+	gm.add_theme_constant_override("margin_right", 10)
+	gm.add_child(grille)
+	gm.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	dh.add_child(gm)
+	for r in ["argent", "bois", "pierre", "or", "influence", "logement"]:
+		var res: Dictionary = UiTokens.RESSOURCES[r]
+		var chip := Composants.jeton_dock(res.get("sprite", ""), "Influence (privée)" if r == "influence" else res["nom"],
+			UiTokens.OR_TEXTE if r == "or" else UiTokens.ENCRE)
+		chip["racine"].tooltip_text = res["nom"]
+		grille.add_child(chip["racine"])
+		res_chips[r] = chip
 	pile_panel = PanelContainer.new()
-	pile_panel.add_theme_stylebox_override("panel", UiTokens.panel(UiTokens.SARCELLE, UiTokens.ENCRE, 14, 3, 8))
-	pile_panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	pile_panel.offset_left = 14
-	pile_panel.offset_right = 112
-	pile_panel.offset_top = -200
-	pile_panel.offset_bottom = -14
-	ui.add_child(pile_panel)
-	var pv := VBoxContainer.new()
-	pv.alignment = BoxContainer.ALIGNMENT_CENTER
-	pile_panel.add_child(pv)
-	var pico := Composants.icone_rect("ui_pioche", Vector2(40, 40), UiTokens.TEXTE_CLAIR)
-	pico.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	pv.add_child(pico)
+	var spp := StyleBoxFlat.new()
+	spp.bg_color = UiTokens.PAPIER
+	spp.border_color = UiTokens.ENCRE
+	spp.border_width_left = 2
+	spp.border_width_right = 2
+	spp.content_margin_left = 12
+	spp.content_margin_right = 12
+	pile_panel.add_theme_stylebox_override("panel", spp)
+	pile_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	dh.add_child(pile_panel)
 	pile_label = Composants.label("", "")
-	pile_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	pile_label.add_theme_color_override("font_color", UiTokens.TEXTE_CLAIR)
 	pile_label.add_theme_font_override("font", UiTokens.police_corps(700))
-	pile_label.add_theme_font_size_override("font_size", 14)
-	pv.add_child(pile_label)
+	pile_label.add_theme_font_size_override("font_size", 13)
+	pile_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	pile_panel.add_child(pile_label)
 	pile_panel.tooltip_text = "Cliquez pour voir les cartes de la pioche et de la défausse"
 	pile_panel.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	pile_panel.gui_input.connect(func(ev: InputEvent):
@@ -2704,61 +2727,34 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 			pile_panel.accept_event()
 			if ev.pressed:
 				_open_pile())
-	rotate_btn = Composants.bouton("⟲ Tourner (R)", "BoutonPrincipal")
-	rotate_btn.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	rotate_btn.offset_left = -90
-	rotate_btn.offset_right = 90
-	rotate_btn.offset_top = 76
-	rotate_btn.offset_bottom = 114
-	rotate_btn.focus_mode = Control.FOCUS_NONE
-	rotate_btn.visible = false
-	rotate_btn.tooltip_text = "Tourne le bâtiment à poser d'un quart de tour (entrée du zoo verticale ou horizontale)"
-	rotate_btn.pressed.connect(_rotate_build)
-	ui.add_child(rotate_btn)
-	# Tout déployer : chaque carte de la main payable part sur le terrain (au-dessus de la pioche)
-	deploy_all_btn = Composants.bouton("Tout mobiliser", "BoutonPrincipal")
-	deploy_all_btn.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	deploy_all_btn.offset_left = 16
-	deploy_all_btn.offset_right = 160
-	deploy_all_btn.offset_top = -244
-	deploy_all_btn.offset_bottom = -206
+	# Tout mobiliser : sous la pioche, dans le dock
+	deploy_all_btn = Composants.bouton("Tout mobiliser", "BoutonSecondaire")
+	deploy_all_btn.add_theme_font_size_override("font_size", 12)
+	deploy_all_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	deploy_all_btn.tooltip_text = "Mobilise toutes les cartes collaborateurs de la main, tant que l'argent suffit à payer leur salaire"
 	deploy_all_btn.pressed.connect(_deploy_all)
-	ui.add_child(deploy_all_btn)
-	hand_scroll = ScrollContainer.new()
-	hand_scroll.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	hand_scroll.offset_left = 124
-	hand_scroll.offset_right = -200
-	hand_scroll.offset_top = -236
-	hand_scroll.offset_bottom = -6
-	hand_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	hand_scroll.mouse_filter = Control.MOUSE_FILTER_PASS
-	ui.add_child(hand_scroll)
-	hand_box = HBoxContainer.new()
-	hand_box.add_theme_constant_override("separation", 8)
-	hand_box.alignment = BoxContainer.ALIGNMENT_CENTER
-	hand_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hand_box.size_flags_vertical = Control.SIZE_SHRINK_END
-	hand_box.custom_minimum_size.y = 228
-	hand_scroll.add_child(hand_box)
+	var dam := MarginContainer.new()
+	dam.add_theme_constant_override("margin_left", 10)
+	dam.add_child(deploy_all_btn)
+	dh.add_child(dam)
+	var esp := Control.new()
+	esp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	esp.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dh.add_child(esp)
+	# Horloge : jour, heure de jeu et barre de la journée (remplace le médaillon)
 	medallion = Control.new()
-	medallion.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-	medallion.offset_left = -178
-	medallion.offset_right = -24
-	medallion.offset_top = -228
-	medallion.offset_bottom = -74
+	medallion.custom_minimum_size = Vector2(230, 40)
+	medallion.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	medallion.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	medallion.draw.connect(_draw_medallion)
-	ui.add_child(medallion)
+	medallion.draw.connect(_draw_horloge)
+	dh.add_child(medallion)
 	end_day_btn = Button.new()
-	end_day_btn.text = "TERMINER LA JOURNÉE"
-	end_day_btn.theme_type_variation = "BoutonFort"
+	end_day_btn.text = "LEVER\nLA SÉANCE"
+	end_day_btn.theme_type_variation = "BoutonSeance"
 	end_day_btn.focus_mode = Control.FOCUS_NONE
-	end_day_btn.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-	end_day_btn.offset_left = -222
-	end_day_btn.offset_right = -18
-	end_day_btn.offset_top = -64
-	end_day_btn.offset_bottom = -18
+	end_day_btn.custom_minimum_size = Vector2(150, 62)
+	end_day_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	end_day_btn.tooltip_text = "Terminer la journée : la nuit commence (bilan, marché, équipe)"
 	end_day_btn.pressed.connect(func():
 		if reseau:
 			reseau.basculer_pret()
@@ -2766,26 +2762,63 @@ Ctrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter 
 			mt.noter("fin_jour")
 			game.end_day())
 	end_day_btn.visible = not spectator
-	ui.add_child(end_day_btn)
-
+	var edm := MarginContainer.new()
+	edm.add_theme_constant_override("margin_left", 14)
+	edm.add_theme_constant_override("margin_right", 16)
+	edm.add_child(end_day_btn)
+	edm.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	dh.add_child(edm)
+	var shade := Control.new()  # gardé pour day_hud (l'ancien voile du bas)
+	rotate_btn = Composants.bouton("⟲ Tourner (R)", "BoutonPrincipal")
+	rotate_btn.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	rotate_btn.offset_left = -90
+	rotate_btn.offset_right = 90
+	rotate_btn.offset_top = 56
+	rotate_btn.offset_bottom = 94
+	rotate_btn.focus_mode = Control.FOCUS_NONE
+	rotate_btn.visible = false
+	rotate_btn.tooltip_text = "Tourne le bâtiment à poser d'un quart de tour (entrée du zoo verticale ou horizontale)"
+	rotate_btn.pressed.connect(_rotate_build)
+	ui.add_child(rotate_btn)
+	# Main : badges centrés, 176 px visibles au repos (ils recouvrent le haut du dock), +44 au survol
+	hand_scroll = ScrollContainer.new()
+	hand_scroll.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	hand_scroll.offset_left = 560
+	hand_scroll.offset_right = -430
+	hand_scroll.offset_top = -Composants.BADGE.y
+	hand_scroll.offset_bottom = 0
+	hand_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	hand_scroll.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ui.add_child(hand_scroll)
+	hand_box = HBoxContainer.new()
+	hand_box.add_theme_constant_override("separation", 10)
+	hand_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	hand_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hand_box.size_flags_vertical = Control.SIZE_SHRINK_END
+	hand_box.custom_minimum_size.y = Composants.BADGE.y
+	hand_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hand_scroll.add_child(hand_box)
+	_build_outils()
+	_build_ordre_du_jour()
 	status_label = Label.new()
 	status_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	status_label.offset_top = -272
-	status_label.offset_bottom = -244
-	status_label.offset_left = 276
-	status_label.add_theme_stylebox_override("normal", UiTokens.panel(UiTokens.PAPIER, UiTokens.ENCRE, 8, 2, 6))
+	status_label.offset_top = -(UiTokens.H_DOCK + 44)
+	status_label.offset_bottom = -(UiTokens.H_DOCK + 14)
+	status_label.offset_left = 14
+	status_label.add_theme_stylebox_override("normal", UiTokens.panneau(UiTokens.ENCRE, 8, 0, 6, false))
+	status_label.add_theme_color_override("font_color", UiTokens.PAPIER)
 	status_label.add_theme_font_size_override("font_size", 13)
 	status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui.add_child(status_label)
 
 	toast_box = VBoxContainer.new()
 	toast_box.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	toast_box.offset_top = 196
+	toast_box.offset_top = UiTokens.H_BANDEAU + 16
 	toast_box.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	toast_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui.add_child(toast_box)
 
-	day_hud = [left, right, shade, pile_panel, hand_scroll, medallion, deploy_all_btn]
+	day_hud = [dock, hand_scroll, ordre_panel, outils_col]
 	_build_proposal_box()
 	_build_unit_panel()
 	_build_night_ui()
@@ -3156,11 +3189,11 @@ func _rebuild_hand() -> void:
 		hand_box.add_child(l)
 		return
 	deploy_all_btn.disabled = spectator or game.phase != "day" or not game.hand.any(func(c): return not c.is_action() and not c.deployed)
-	# Cartes Émeraude 136×216 (capture 03) : à déployer, sur le terrain, en lobbying, ou carte d'action
+	# Badges « Comité » (132 × 176 visibles, +44 au survol) : à mobiliser, sur le terrain, hors carte, ou carte d'action
 	for card in game.hand:
 		if card.is_action():
 			var ciblee: bool = card.action.get("cible", false)
-			hand_box.add_child(Composants.carte_action(card, "Choisir…" if ciblee else "Jouer", spectator or game.phase != "day",
+			hand_box.add_child(Composants.badge_action(card, "Choisir une cible" if ciblee else "Jouer", spectator or game.phase != "day",
 				_open_action_picker.bind(card) if ciblee else _cmd.bind("play_action", [card])))
 			continue
 		var w := game.worker_of(card)
@@ -3169,25 +3202,27 @@ func _rebuild_hand() -> void:
 		if not card.deployed:
 			var sal := 0 if game.prime_left > 0 else game.salary(card)
 			var short := game.money < sal
-			var main_btn := ["Prime" if game.prime_left > 0 else ("Manque %d" % ceili(sal - game.money) if short else "Mobiliser"),
+			var main_btn := ["Prime" if game.prime_left > 0 else ("Manque %d" % ceili(sal - game.money) if short else "Mobiliser %d" % sal),
 				"BoutonPrincipal", spectator or short, _on_deploy.bind(card)]
 			var ceder_btn := ["+%d" % game.ceder_gain(), "BoutonSecondaire", spectator or game.phase != "day", _cmd.bind("ceder_carte", [card]),
 				"Céder sa journée : +%d d'argent.\nCe collaborateur ne travaille pas aujourd'hui et part à la défausse." % game.ceder_gain()]
 			var btns := [main_btn, ceder_btn]
 			var A := game.cadre_action(card)
+			var ligne := ["✕ Manque %d argent" % ceili(sal - game.money), UiTokens.ENCRE] if short else ["Salaire %d" % sal, UiTokens.ENCRE]
 			if not A.is_empty():
 				btns.append(["Jouer", "BoutonOrdre", spectator or game.phase != "day", _on_play_cadre.bind(card),
-					"%s : %s
-Le cadre ne travaille pas aujourd'hui (pas de salaire) et part à la défausse." % [A["nom"], A["texte"]]])
-			widget = Composants.carte_ouvrier(d, "non_abordable" if short else "normale", "main", btns)
+					"%s : %s\nLe cadre ne travaille pas aujourd'hui (pas de salaire) et part à la défausse." % [A["nom"], A["texte"]]])
+				if not short:
+					ligne = ["◆ Peut jouer · salaire %d" % sal, UiTokens.SARCELLE_FONCE]
+			widget = Composants.badge_ouvrier(d, "non_abordable" if short else "normale", btns, ligne)
 		elif w and w.offmap:
-			widget = Composants.carte_ouvrier(d, "hors_carte", "main", [["Rappeler", "BoutonSecondaire", spectator, _on_recall.bind(w)]],
-				["LOBBYING", Color("6A3AB0")], _on_focus.bind(w))
+			widget = Composants.badge_ouvrier(d, "hors_carte", [["Rappeler", "BoutonSecondaire", spectator, _on_recall.bind(w)]],
+				["⇢ Hors carte · Rappeler", UiTokens.ENCRE], _on_focus.bind(w))
 		else:
-			var tag := ["GRATUIT 25" + Composants.NBSP + "%", Color("18A88A")] if w and w.unpaid else ["SUR LE TERRAIN", UiTokens.MARINE]
-			widget = Composants.carte_ouvrier(d, "deployee", "main", [["Localiser", "BoutonSecondaire", false, _on_focus.bind(w)]],
-				tag, _on_focus.bind(w))
-		widget.tooltip_text = _card_full_tooltip(card)
+			var sel := w != null and selected.has(w)
+			widget = Composants.badge_ouvrier(d, "selectionnee" if sel else "deployee", [["Localiser", "BoutonSecondaire", false, _on_focus.bind(w)]],
+				["● Sélectionné" if sel else "● Sur le terrain · Voir", UiTokens.SARCELLE_FONCE], _on_focus.bind(w))
+		widget.get_child(0).tooltip_text = _card_full_tooltip(card)
 		hand_box.add_child(widget)
 
 
@@ -3399,7 +3434,7 @@ func _update_info() -> void:
 	elif selected_site:
 		zoo_title.text = "BÂTIMENT" if selected_site.done else "CHANTIER"
 	else:
-		zoo_title.text = "VOTRE ZOO" if not spectator else mt.names[game.index].to_upper()
+		zoo_title.text = {"bourse": "BOURSE ET LABELS", "pub": "PUBLICITÉ"}.get(outil, "VOTRE ZOO" if not spectator else mt.names[game.index].to_upper())
 		info_subtitle.text = "partie terminée" if mt.game_over else "jour %d" % mt.day
 	btn_lobby.visible = not selected.is_empty()
 	btn_lobby.text = "Partir en reportage" if selected.size() == 1 and game.est_journaliste(selected[0]) else "Envoyer en lobbying"
@@ -3849,12 +3884,20 @@ func _update_hud() -> void:
 		res_chips[r]["valeur"].text = str(floori(game.stock[r]))
 	res_chips["influence"]["valeur"].text = "%.1f" % game.influence
 	res_chips["logement"]["valeur"].text = "%d/%d" % [game.employees(), game.housing()]
-	res_chips["reputation"]["valeur"].text = "%d" % game.reputation()
-	res_chips["reputation"]["legende"].text = "/ %d Réputation" % game.objective()
+	if rep_jour != mt.day:
+		rep_jour = mt.day
+		for i in rep_matin.size():
+			rep_matin[i] = mt.players[i].reputation()
 	for i in race_labels.size():
-		race_labels[i][1].text = str(mt.players[i].reputation())
-	pile_label.text = "Pioche %d\nDéfausse %d" % [game.deck.size(), game.discard.size()]
+		var rp: int = mt.players[i].reputation()
+		race_labels[i][1].text = str(rp)
+		var dv: int = rp - int(rep_matin[i])
+		race_labels[i][2].text = "▲ +%d" % dv if dv > 0 else ("▼ %d" % dv if dv < 0 else "= 0")
+		race_labels[i][2].add_theme_color_override("font_color", UiTokens.GAIN_BANDEAU if dv > 0 else (UiTokens.PERTE_BANDEAU if dv < 0 else Color("C8D3DE")))
+	pile_label.text = "Pioche  %d\nDéfausse  %d" % [game.deck.size(), game.discard.size()]
 	medallion.queue_redraw()
+	_update_ordre_du_jour()
+	_update_zoo_widget()
 
 	var now := Time.get_ticks_msec()
 	game.messages = game.messages.filter(func(m): return now - m["at"] < 4000)
@@ -3962,6 +4005,7 @@ func _update_hud() -> void:
 	var day_view := game.phase == "day" or (mt.game_over and end_dismissed)
 	for c in day_hud:
 		c.visible = day_view
+	_appliquer_outils(day_view)
 	end_day_btn.visible = day_view and not spectator and not mt.game_over
 	status_label.visible = status_label.visible and day_view
 
@@ -4050,9 +4094,6 @@ func _update_unit_panel() -> void:
 	var show := false
 	unit_panel.visible = show
 	# Le panneau d'unité pousse la pioche et la main vers la droite (cotes de la capture 03).
-	pile_panel.offset_left = 372.0 if show else 14.0
-	pile_panel.offset_right = 458.0 if show else 112.0
-	hand_scroll.offset_left = 470.0 if show else 124.0
 	if not show:
 		unit_portrait_for = null
 		return
@@ -6183,3 +6224,313 @@ func _rebuild_contracts() -> void:
 				_set_build({"kind": "animal", "def": def})
 				selected.clear())
 		contracts_box.add_child(b)
+
+
+# --- Interface « Le Comité » (05/11/2026) : bandeau, dock, colonne d'outils, ordre du jour ----------------
+# Maquettes et spécification : docs/handoff_comite/ (HANDOFF_COMITE.md, maquettes/*.png, sources/*.dc.html)
+
+## Nom court du bandeau : « VOUS » pour le joueur, premier mot du groupe sinon (PanZoo, Safari, BioLand).
+func _nom_court(i: int) -> String:
+	if i == game.index and not spectator:
+		return "VOUS"
+	var n: String = str(mt.names[i]).replace("™", "")
+	return n.split(" ")[0]
+
+
+## Colonne d'outils à droite (48 × 48) : chaque bouton ouvre un volet au même emplacement, à gauche de la colonne.
+func _build_outils() -> void:
+	outils_col = VBoxContainer.new()
+	outils_col.add_theme_constant_override("separation", 8)
+	outils_col.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	outils_col.offset_left = -62
+	outils_col.offset_right = -14
+	outils_col.offset_top = UiTokens.H_BANDEAU + 14
+	outils_col.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	ui.add_child(outils_col)
+	var defs := [
+		["construire", "batiment_maison", "Bâtir : bâtiments, zoo, aménagement du terrain"],
+		["zoo", "ressource_visiteurs", "Votre zoo : visiteurs, journée, entretien, objectifs"],
+		["bourse", "ressource_argent", "Bourse des ressources et labels"],
+		["pub", "ressource_influence", "Publicité : campagnes menées hors de la carte"],
+		["marche", "ui_recruter", "Marché du soir : ce qui sera proposé cette nuit"],
+	]
+	for d in defs:
+		if spectator and d[0] in ["construire", "bourse", "pub"]:
+			continue
+		var b := Button.new()
+		b.theme_type_variation = "BoutonOutil"
+		b.toggle_mode = d[0] != "marche"
+		b.focus_mode = Control.FOCUS_NONE
+		b.custom_minimum_size = Vector2(48, 48)
+		b.icon = UiTokens.icone(d[1])
+		b.expand_icon = true
+		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		b.add_theme_constant_override("icon_max_width", 26)
+		b.tooltip_text = d[2]
+		var id: String = d[0]
+		if id == "marche":
+			b.pressed.connect(func():
+				market_root.visible = not market_root.visible
+				_rebuild_market_preview())
+		else:
+			b.pressed.connect(func(): ouvrir_outil("" if outil == id else id))
+		outils_col.add_child(b)
+		outil_boutons[id] = b
+	# Pastille d'alerte sur Pub : une campagne est possible (à brancher par Claude Code)
+
+	# Widget du zoo (volet fermé) : état et trois chiffres ; un clic ouvre le volet « zoo ».
+	zoo_widget = PanelContainer.new()
+	zoo_widget.add_theme_stylebox_override("panel", UiTokens.panneau(UiTokens.PAPIER, 10, 2, 10))
+	zoo_widget.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	zoo_widget.offset_left = -76 - 250
+	zoo_widget.offset_right = -76
+	zoo_widget.offset_top = UiTokens.H_BANDEAU + 14
+	zoo_widget.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	zoo_widget.tooltip_text = "Cliquez pour le détail du zoo"
+	zoo_widget.gui_input.connect(func(ev: InputEvent):
+		if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
+			zoo_widget.accept_event()
+			ouvrir_outil("zoo"))
+	ui.add_child(zoo_widget)
+	var zv := VBoxContainer.new()
+	zv.add_theme_constant_override("separation", 4)
+	zv.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	zoo_widget.add_child(zv)
+	zoo_widget_titre = Composants.label("ZOO", "")
+	zoo_widget_titre.add_theme_font_override("font", UiTokens.police_titre())
+	zoo_widget_titre.add_theme_font_size_override("font_size", 14)
+	zv.add_child(zoo_widget_titre)
+	var zg := GridContainer.new()
+	zg.columns = 3
+	zg.add_theme_constant_override("h_separation", 10)
+	zg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	zv.add_child(zg)
+	for leg in ["VISITEURS", "ATTRACTIVITÉ", "PROPRETÉ"]:
+		var c := VBoxContainer.new()
+		c.add_theme_constant_override("separation", -2)
+		c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var v := Composants.label("–", "Chiffre")
+		v.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		c.add_child(v)
+		var l := Composants.label(leg, "")
+		l.add_theme_font_override("font", UiTokens.police_corps(700))
+		l.add_theme_font_size_override("font_size", 10)
+		l.add_theme_color_override("font_color", UiTokens.TEXTE_2)
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		c.add_child(l)
+		zg.add_child(c)
+		zoo_widget_kpi.append(v)
+
+
+## Ouvre un volet ("" pour tout refermer). Appelé par la colonne d'outils et le tutoriel.
+func ouvrir_outil(id: String) -> void:
+	outil = id
+	for k in outil_boutons:
+		var b: Button = outil_boutons[k]
+		if b.toggle_mode:
+			b.set_pressed_no_signal(k == outil)
+	if id != "construire" and not build_choice.is_empty():
+		build_choice = {}
+	if id in ["zoo", "bourse", "pub"]:
+		# Un outil explicite remplace la fiche de sélection
+		selected.clear()
+		selected_sites.clear()
+		selected_site = null
+		selected_animal = null
+	if id == "bourse" and trade_card:
+		_update_info()
+
+
+## Visibilité des volets selon l'outil et la sélection (appelée à chaque image par _update_hud).
+func _appliquer_outils(day_view: bool) -> void:
+	var a_selection := not selected.is_empty() or selected_site != null or selected_sites.size() > 1 or selected_animal != null
+	if a_selection and outil in ["zoo", "bourse", "pub"]:
+		ouvrir_outil("")  # une nouvelle sélection reprend le volet
+	var mode := outil
+	if a_selection and outil != "construire":
+		mode = "fiche"
+	var droit := mode in ["fiche", "zoo", "bourse", "pub"]
+	volet_droit.visible = day_view and droit
+	volet_construire.visible = day_view and mode == "construire"
+	zoo_widget.visible = day_view and not droit and mode != "construire"
+	fiche_box.visible = mode in ["fiche", "zoo"]
+	if trade_card:
+		trade_card.visible = mode == "bourse"
+	if pub_card:
+		pub_card.visible = mode == "pub"
+	if mode == "bourse":
+		zoo_title.text = "BOURSE ET LABELS"
+		info_subtitle.text = ""
+	elif mode == "pub":
+		zoo_title.text = "PUBLICITÉ"
+		info_subtitle.text = ""
+
+
+func _update_zoo_widget() -> void:
+	if not zoo_widget or not zoo_widget.visible:
+		return
+	var z := game.zoo_live()
+	var ouvert: bool = z["open"]
+	zoo_widget_titre.text = "ZOO · OUVERT" if ouvert else "ZOO · FERMÉ"
+	zoo_widget_titre.add_theme_color_override("font_color", UiTokens.SARCELLE_FONCE if ouvert else UiTokens.ORANGE.darkened(0.25))
+	zoo_widget_kpi[0].text = "%d" % int(z.get("inside", 0)) if ouvert else "–"
+	zoo_widget_kpi[1].text = "%d" % int(z.get("attract", 0)) if ouvert else "–"
+	zoo_widget_kpi[2].text = "%d%%" % roundi(game.proprete)
+
+
+## Ordre du jour (en haut à gauche) : ce qu'il faut faire maintenant. Zoo fermé = plan de lancement en étapes ;
+## zoo ouvert = alertes à traiter puis objectifs des actionnaires. Les contrats à installer s'y ajoutent.
+func _build_ordre_du_jour() -> void:
+	ordre_panel = PanelContainer.new()
+	ordre_panel.add_theme_stylebox_override("panel", UiTokens.panneau(UiTokens.PAPIER, 10, 2, 0))
+	ordre_panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	ordre_panel.offset_left = 14
+	ordre_panel.offset_top = UiTokens.H_BANDEAU + 14
+	ordre_panel.custom_minimum_size.x = 320
+	ordre_panel.offset_right = 14 + 320
+	ui.add_child(ordre_panel)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 0)
+	ordre_panel.add_child(v)
+	ordre_entete = Composants.entete_comite("ORDRE DU JOUR")
+	v.add_child(ordre_entete["racine"])
+	var m := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		m.add_theme_constant_override("margin_" + side, 10)
+	v.add_child(m)
+	var body := VBoxContainer.new()
+	body.add_theme_constant_override("separation", 6)
+	m.add_child(body)
+	ordre_lignes = VBoxContainer.new()
+	ordre_lignes.add_theme_constant_override("separation", 6)
+	body.add_child(ordre_lignes)
+	# Les contrats à installer (construits par _rebuild_contracts) rejoignent l'ordre du jour
+	if contracts_box:
+		contracts_box.get_parent().remove_child(contracts_box)
+		body.add_child(contracts_box)
+
+
+func _update_ordre_du_jour() -> void:
+	if not ordre_panel or not ordre_panel.visible:
+		return
+	var z := game.zoo_live()
+	var items: Array = []  # [fait, titre, détail, action ("" ou id d'outil)]
+	if not z["open"]:
+		var raison := str(z["reason"])
+		var e_ok := not raison.begins_with("Construisez l'entrée")
+		var c_ok := e_ok and not raison.begins_with("Enceinte")
+		items.append([e_ok, "Poser l'entrée du zoo", "Bâtir › Zoo › Entrée du zoo", "construire"])
+		items.append([c_ok, "Fermer l'enceinte", "Peignez le mur en glissant, relié à l'entrée", "construire"])
+		var a_detail := "Installez le contrat ci-dessous" if not game.contracts.is_empty() else "Signez un contrat au marché du soir"
+		items.append([false, "Installer un premier animal", a_detail, ""])
+	else:
+		var hungry := game.animals.filter(func(a): return a.arrived and not a.fed).size()
+		if float(z.get("guichet_min", 1.0)) <= 0.0:
+			items.append([false, "Tenir le guichet", "Clic droit sur l'entrée avec un collaborateur", ""])
+		if hungry > 0:
+			items.append([false, "Nourrir %d animal(aux)" % hungry, "Cuisine des animaux + Animalier", ""])
+		if game.cleanliness_mult() < 1.0:
+			items.append([false, "Nettoyer le parc", "Local d'entretien + Agent d'entretien", ""])
+		if int(z.get("inside", 0)) >= int(z.get("capacity", 1)) and int(z.get("queue", 0)) > 0:
+			items.append([false, "Agrandir l'enceinte", "Le parc est plein, la file attend", "construire"])
+	for o in mt.objectifs:
+		var fait := game.objectifs_faits.has(o["id"])
+		items.append([fait, str(o["texte"]), "Objectif · +10 réputation" if not fait else "Objectif atteint",
+			"", "%d/%d" % [mini(game.objectif_valeur(o), int(o["n"])), int(o["n"])]])
+	var sig := str(items) + str(z["open"])
+	if sig == ordre_signature:
+		return
+	ordre_signature = sig
+	var faits := items.filter(func(it): return it[0]).size()
+	ordre_entete["titre"].text = "ZOO FERMÉ · PLAN DE LANCEMENT" if not z["open"] else "ORDRE DU JOUR"
+	ordre_entete["droite"].text = "%d / %d" % [faits, items.size()]
+	ordre_entete["racine"].add_theme_stylebox_override("panel", UiTokens.entete(UiTokens.ORANGE.darkened(0.12) if not z["open"] else UiTokens.SARCELLE))
+	for c in ordre_lignes.get_children():
+		c.queue_free()
+	var courant_vu := false
+	for it in items:
+		var courant: bool = not it[0] and not courant_vu
+		if courant:
+			courant_vu = true
+		var row := PanelContainer.new()
+		var sr := StyleBoxFlat.new()
+		sr.bg_color = UiTokens.JAUNE_CLAIR if courant else Color(0, 0, 0, 0)
+		sr.set_corner_radius_all(6)
+		sr.set_content_margin_all(4)
+		if courant:
+			sr.border_color = UiTokens.ENCRE
+			sr.set_border_width_all(2)
+			sr.set_content_margin_all(6)
+		row.add_theme_stylebox_override("panel", sr)
+		var h := HBoxContainer.new()
+		h.add_theme_constant_override("separation", 8)
+		row.add_child(h)
+		var puce := Composants.label("✔" if it[0] else ("→" if courant else "○"), "")
+		puce.add_theme_font_override("font", UiTokens.police_corps(800))
+		puce.add_theme_color_override("font_color", UiTokens.SARCELLE_FONCE if it[0] else UiTokens.ENCRE)
+		h.add_child(puce)
+		var tv := VBoxContainer.new()
+		tv.add_theme_constant_override("separation", 0)
+		tv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		h.add_child(tv)
+		var t := Composants.label(it[1], "")
+		t.add_theme_font_override("font", UiTokens.police_corps(700))
+		t.add_theme_font_size_override("font_size", 13)
+		t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		t.add_theme_color_override("font_color", UiTokens.TEXTE_2 if it[0] else UiTokens.ENCRE)
+		tv.add_child(t)
+		if courant or not it[0]:
+			var dl := Composants.label(it[2], "")
+			dl.add_theme_font_override("font", UiTokens.police_corps(600))
+			dl.add_theme_font_size_override("font_size", 11)
+			dl.add_theme_color_override("font_color", UiTokens.TEXTE_2)
+			dl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			tv.add_child(dl)
+		if it.size() > 4:
+			var n := Composants.label(it[4], "")
+			n.add_theme_font_override("font", UiTokens.police_mono(600))
+			n.add_theme_font_size_override("font_size", 12)
+			h.add_child(n)
+		if courant and it[3] != "" and not spectator:
+			var b := Composants.bouton("Bâtir", "BoutonPrincipal")
+			b.add_theme_font_size_override("font_size", 12)
+			b.focus_mode = Control.FOCUS_NONE
+			b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			var id: String = it[3]
+			b.pressed.connect(func():
+				ouvrir_outil(id)
+				if build_tabs.has("Zoo"):
+					build_tabs["Zoo"].button_pressed = true
+					build_tabs["Zoo"].pressed.emit())
+			h.add_child(b)
+		ordre_lignes.add_child(row)
+
+
+## Horloge du dock : « JOUR n », heure de jeu (06:00 → 18:00) et barre de la journée.
+func _draw_horloge() -> void:
+	var s := medallion.size
+	var ink := UiTokens.ENCRE
+	var frac := clampf(game.time / game.day_length, 0.0, 1.0) if game.phase == "day" else 1.0
+	var minutes := 6 * 60 + int(frac * 12 * 60)
+	var corps := UiTokens.police_corps(700)
+	var mono := UiTokens.police_mono(600)
+	medallion.draw_string(corps, Vector2(0, 13), "JOUR %d" % game.day, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, ink)
+	medallion.draw_string(mono, Vector2(0, 13), "%02d:%02d → 18:00" % [minutes / 60, minutes % 60] if game.phase == "day" else "NUIT",
+		HORIZONTAL_ALIGNMENT_RIGHT, s.x, 12, ink)
+	var r := Rect2(0, 20, s.x, 14)
+	var fond := StyleBoxFlat.new()
+	fond.bg_color = UiTokens.PAPIER
+	fond.border_color = ink
+	fond.set_border_width_all(2)
+	fond.set_corner_radius_all(7)
+	medallion.draw_style_box(fond, r)
+	for k in range(1, 12):
+		var x := r.position.x + r.size.x * k / 12.0
+		medallion.draw_line(Vector2(x, r.position.y + 3), Vector2(x, r.end.y - 3), UiTokens.FILET, 1.0)
+	if frac > 0.0:
+		var plein := StyleBoxFlat.new()
+		plein.bg_color = UiTokens.SELECTION if frac < 0.85 else UiTokens.ORANGE
+		plein.border_color = ink
+		plein.set_border_width_all(2)
+		plein.set_corner_radius_all(7)
+		medallion.draw_style_box(plein, Rect2(r.position, Vector2(maxf(14.0, r.size.x * frac), r.size.y)))

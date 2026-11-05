@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Feuille de style ZooLife</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700;800&amp;family=Barlow+Condensed:wght@600;700;800&amp;family=IBM+Plex+Mono:wght@500;600&amp;family=Bangers&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#13867F}a:hover{color:#0E615C}
+h2{font:800 22px 'Barlow Condensed';letter-spacing:.06em;margin:0 0 12px;border-bottom:3px solid #14202B;padding-bottom:4px}
+.sw{border:2px solid #14202B;border-radius:8px;overflow:hidden;background:#fff}
+.sw div{height:64px}
+.sw p{margin:0;padding:6px 8px;font:600 12px Barlow;line-height:1.35}
+.sw code{font:600 12px 'IBM Plex Mono'}
+.ty{display:grid;grid-template-columns:240px minmax(0,1fr);gap:12px;align-items:baseline;padding:6px 0;border-bottom:1px solid #E3E6EA}
+.ty code{font:500 11.5px 'IBM Plex Mono';color:#3D4752}
+.tk{display:flex;gap:10px;align-items:center;font:600 12.5px Barlow}
+.tk code{font:500 11.5px 'IBM Plex Mono';color:#3D4752}
+</style>
+</helmet>
+<div style="width: 1600px; height: 1240px; box-sizing: border-box; padding: 40px 48px; background: #FFFFFF; font-family: Barlow, sans-serif; color: #14202B; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 36px 48px; align-content: start">
+<div style="grid-column: span 2; display: flex; align-items: center; gap: 16px"><img src="/_blob/e09fee7db13dd5c0de6c7440df652409" alt="" style="width: 56px"><div><div style="font: 800 40px 'Barlow Condensed'; line-height: 1">Feuille de style · direction « Le Comité »</div><div style="font: 600 14px Barlow; color: #3D4752">Base 1600 × 900. Godot : StyleBoxFlat (aplat, contour, coins, ombre pleine décalée), pas de flou.</div></div></div>
+
+<section>
+<h2>COULEURS</h2>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px">
+<div class="sw"><div style="background: #14202B"></div><p><b>Encre</b><br><code>#14202B</code><br>texte, contours, ombres</p></div>
+<div class="sw"><div style="background: #FFFFFF; border-bottom: 1px solid #D5D9DE"></div><p><b>Papier</b><br><code>#FFFFFF</code><br>panneaux</p></div>
+<div class="sw"><div style="background: #F7F8F9"></div><p><b>Papier 2</b><br><code>#F7F8F9</code><br>fond de fenêtre</p></div>
+<div class="sw"><div style="background: #F3F1EA"></div><p><b>Mémo</b><br><code>#F3F1EA</code><br>Hubert, notes</p></div>
+<div class="sw"><div style="background: #13867F"></div><p><b>Sarcelle</b><br><code>#13867F</code> · foncé <code>#0E615C</code><br>en-têtes, gains</p></div>
+<div class="sw"><div style="background: #FFC93C"></div><p><b>Jaune</b><br><code>#FFC93C</code> · clair <code>#FFF3C4</code><br>action principale, sélection</p></div>
+<div class="sw"><div style="background: #F07F2A"></div><p><b>Orange</b><br><code>#F07F2A</code> · clair <code>#FFE1C6</code><br>défauts, alertes, fin de journée</p></div>
+<div class="sw"><div style="background: #2F6FD0"></div><p><b>Bleu qualité</b><br><code>#2F6FD0</code><br>cercle = qualité</p></div>
+<div class="sw"><div style="background: #3D4752"></div><p><b>Texte 2</b><br><code>#3D4752</code> (7,9:1)<br>légendes</p></div>
+<div class="sw"><div style="background: #D5D9DE"></div><p><b>Filet</b><br><code>#D5D9DE</code><br>séparateurs</p></div>
+<div class="sw"><div style="background: #8A6400"></div><p><b>Or (texte)</b><br><code>#8A6400</code><br>chiffre de l'or</p></div>
+<div class="sw"><div style="background: #2E4256"></div><p><b>Marine</b><br><code>#2E4256</code><br>bandeau, ligne active</p></div>
+</div>
+<div style="font: 600 12.5px Barlow; color: #3D4752; margin-top: 10px; line-height: 1.45">Argent : icône de pièces grises, chiffre en encre. Or : icône jaune, chiffre <code style="font-family: 'IBM Plex Mono'">#8A6400</code>. Gain ▲ et perte ▼ toujours avec le signe et la flèche.</div>
+</section>
+
+<section>
+<h2>TYPOGRAPHIE</h2>
+<div class="ty"><span style="font: 800 34px 'Barlow Condensed'; line-height: 1">Titre d'écran</span><code>Barlow Condensed 800 · 34 / 30 px</code></div>
+<div class="ty"><span style="font: 800 20px 'Barlow Condensed'; letter-spacing: .02em">NOM SUR UNE CARTE</span><code>Barlow Condensed 800 · 17–24 px · capitales</code></div>
+<div class="ty"><span style="font: 800 13px 'Barlow Condensed'; letter-spacing: .08em">EN-TÊTE DE PANNEAU</span><code>Barlow Condensed 800 · 13–15 px · interlettrage 0,07 em</code></div>
+<div class="ty"><span style="font: 600 14px Barlow">Texte courant et descriptions</span><code>Barlow 600 · 13–15 px · interligne 1,35–1,4</code></div>
+<div class="ty"><span style="font: 700 14px Barlow">Libellé de bouton</span><code>Barlow 700–800 · 12–15 px</code></div>
+<div class="ty"><span style="font: 600 20px 'IBM Plex Mono'">57 · +14 ▲ · 14:32</span><code>IBM Plex Mono 600 · chiffres, heures, coûts</code></div>
+<div class="ty"><span style="font: italic 600 14px Barlow">« Réplique d'Hubert »</span><code>Barlow 600 italique</code></div>
+<div class="ty" style="border: none"><span style="font: 400 22px Bangers; letter-spacing: .04em">NOMS SUR LA CARTE</span><code>Bangers · étiquettes du terrain uniquement</code></div>
+<div style="font: 600 12.5px Barlow; color: #3D4752; margin-top: 8px">Toutes sous licence SIL Open Font License. Taille minimale : 11 px en 1600 × 900.</div>
+</section>
+
+<section>
+<h2>ESPACEMENTS · RAYONS · OMBRES · CONTOURS</h2>
+<div style="display: flex; gap: 14px; align-items: flex-end; margin-bottom: 14px">
+<sc-for list="{{esp}}" as="e" hint-placeholder-count="7"><div style="text-align: center; font: 600 11.5px 'IBM Plex Mono'"><div style="width: {{e.px}}; height: {{e.px}}; background: #13867F; margin: 0 auto 4px"></div>{{e.n}}</div></sc-for>
+<span style="font: 600 12.5px Barlow; color: #3D4752; margin-left: 10px">Échelle de 4 : 4 · 6 · 8 · 12 · 16 · 20 · 28. Marges écran : 14 px.</span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px">
+<div class="tk" style="flex-direction: column; align-items: flex-start"><div style="width: 100%; height: 56px; border: 2px solid #14202B; border-radius: 6px"></div><b>Rayon 6</b><code>boutons secondaires</code></div>
+<div class="tk" style="flex-direction: column; align-items: flex-start"><div style="width: 100%; height: 56px; border: 2px solid #14202B; border-radius: 10px"></div><b>Rayon 10</b><code>panneaux, badges</code></div>
+<div class="tk" style="flex-direction: column; align-items: flex-start"><div style="width: 100%; height: 56px; border: 2px solid #14202B; border-radius: 10px; box-shadow: 0 4px 0 #14202B"></div><b>Ombre pleine</b><code>0 4 0 encre</code></div>
+<div class="tk" style="flex-direction: column; align-items: flex-start"><div style="width: 100%; height: 56px; border: 2px solid #14202B; border-radius: 10px; box-shadow: 0 4px 0 #14202B, 0 0 0 4px #FFC93C"></div><b>Sélection</b><code>+ anneau jaune 3–4</code></div>
+</div>
+<div style="font: 600 12.5px Barlow; color: #3D4752; margin-top: 10px; line-height: 1.45">Contours : 2 px (panneaux), 2,5 px (cartes, fenêtres). Pointillé = indisponible ou à venir. Les panneaux posés sur la carte ont toujours un fond plein.</div>
+</section>
+
+<section>
+<h2>ANCRAGES (1280 × 720 → 4K)</h2>
+<div style="position: relative; height: 230px; border: 2px solid #14202B; border-radius: 8px; background: #8DBE68; overflow: hidden">
+<div style="position: absolute; left: 0; right: 0; top: 0; height: 18px; background: #14202B; color: #fff; font: 600 11px Barlow; padding-left: 8px; line-height: 18px">Bandeau · pleine largeur, haut</div>
+<div style="position: absolute; left: 8px; top: 26px; width: 130px; height: 60px; background: #fff; border: 2px solid #14202B; border-radius: 6px; font: 600 11px Barlow; padding: 4px; box-sizing: border-box">Ordre du jour · haut gauche</div>
+<div style="position: absolute; right: 8px; top: 26px; width: 120px; height: 120px; background: #fff; border: 2px solid #14202B; border-radius: 6px; font: 600 11px Barlow; padding: 4px; box-sizing: border-box">Zoo, outils, fiche · haut droite, hauteur max. = écran − dock</div>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; height: 40px; background: #fff; border-top: 2px solid #14202B; font: 600 11px Barlow; padding: 4px 8px; box-sizing: border-box">Dock · bas · ressources à gauche, horloge à droite</div>
+<div style="position: absolute; left: 50%; bottom: 26px; width: 150px; margin-left: -75px; height: 40px; background: #FFF3C4; border: 2px solid #14202B; border-radius: 6px; font: 600 11px Barlow; padding: 4px; box-sizing: border-box; text-align: center">Main · centrée sur le dock</div>
+<div style="position: absolute; left: 50%; top: 70px; width: 200px; margin-left: -100px; height: 70px; border: 2px dashed #14202B; border-radius: 6px; font: 600 11px Barlow; padding: 4px; box-sizing: border-box; text-align: center; background: rgba(255,255,255,.7)">Fenêtres · centrées, max. 1280 × 700, échelle d'interface 100–150 %</div>
+</div>
+<div style="font: 600 12.5px Barlow; color: #3D4752; margin-top: 8px; line-height: 1.45">À 1280 × 720 : le dock passe les ressources sur 2 lignes de 3 (déjà le cas) et la main réduit ses badges à 112 px. En 21:9, seule la carte s'élargit.</div>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1600,"height":1240}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const esp = [4, 6, 8, 12, 16, 20, 28].map((n) => ({ n: String(n), px: n + 'px' }));
+    return { esp };
+  }
+}
+</script>
+</body>
+</html>

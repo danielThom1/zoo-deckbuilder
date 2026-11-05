@@ -469,3 +469,239 @@ static func carte_action(card: GameState.Card, texte_bouton: String, desactive: 
 	placer(carte, txt, Vector2(8, 100), Vector2(t.x - 16, t.y - 146))
 	carte.add_child(_bouton_carte([texte_bouton, "BoutonPrincipal", desactive, action], Vector2(8, t.y - 38), Vector2(t.x - 16, 30)))
 	return racine
+
+
+# ================================================================== direction « Le Comité »
+# Maquettes : docs/handoff_comite/maquettes/ (briques : Briques.png, feuille de style : Feuille_de_style.png)
+
+const BADGE := Vector2(132, 220)   # racine du badge : 176 visibles au repos, 220 au survol
+const BADGE_REPOS := 44.0          # décalage vertical au repos (le bas sort de l'écran)
+
+
+## Jeton de ressource du dock : icône dessinée 28 px, chiffre en IBM Plex Mono 20, légende en capitales 10.
+## Renvoie {racine, valeur, legende, delta} (mêmes clés que jeton_ressource, + delta).
+static func jeton_dock(sprite: String, legende: String, couleur_chiffre := UiTokens.ENCRE) -> Dictionary:
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 8)
+	h.custom_minimum_size = Vector2(112, 38)
+	h.mouse_filter = Control.MOUSE_FILTER_PASS
+	var tr := TextureRect.new()
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	if SpritesBD.existe(sprite):
+		tr.texture = SpritesBD.texture(sprite)
+	tr.custom_minimum_size = Vector2(28, 28)
+	tr.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_child(tr)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", -2)
+	v.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var ligne := HBoxContainer.new()
+	ligne.add_theme_constant_override("separation", 4)
+	var valeur := label("0", "Chiffre")
+	valeur.add_theme_color_override("font_color", couleur_chiffre)
+	ligne.add_child(valeur)
+	var delta := label("", "")
+	delta.add_theme_font_override("font", UiTokens.police_mono(600))
+	delta.add_theme_font_size_override("font_size", 11)
+	delta.add_theme_color_override("font_color", UiTokens.SARCELLE_FONCE)
+	delta.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	ligne.add_child(delta)
+	v.add_child(ligne)
+	var leg := label(legende.to_upper(), "")
+	leg.add_theme_font_override("font", UiTokens.police_corps(700))
+	leg.add_theme_font_size_override("font_size", 10)
+	leg.add_theme_color_override("font_color", UiTokens.TEXTE_2)
+	v.add_child(leg)
+	h.add_child(v)
+	return {"racine": h, "valeur": valeur, "legende": leg, "delta": delta}
+
+
+## Badge de collaborateur (main, 132 × 176 visibles) : monte de 44 px au survol et révèle ses boutons.
+##   etat    : "normale", "non_abordable", "deployee", "hors_carte", "selectionnee"
+##   boutons : [texte, variation, désactivé, Callable, infobulle?] — 1 à 2 en bas ; le 3e (« Jouer » d'un cadre) en pilule sur la photo
+##   ligne   : [texte, couleur] = ligne d'état sous le métier (« ● Sur le terrain », « ✕ Manque 2 argent »…)
+static func badge_ouvrier(d: Dictionary, etat := "normale", boutons: Array = [], ligne: Array = [], clic := Callable()) -> Control:
+	var cat: Dictionary = UiTokens.CATEGORIES[d["categorie"]]
+	var racine := Control.new()
+	racine.custom_minimum_size = BADGE
+	racine.size = BADGE
+	racine.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var carte := Panel.new()
+	carte.size = BADGE
+	carte.position.y = BADGE_REPOS
+	carte.mouse_filter = Control.MOUSE_FILTER_PASS
+	var hors := etat == "hors_carte"
+	var sb := UiTokens.panneau(UiTokens.PAPIER, 10, 2, 0, true)
+	if hors:
+		sb.border_color = UiTokens.ENCRE
+		sb.draw_center = true
+	if etat == "selectionnee":
+		sb.expand_margin_left = 3
+		sb.expand_margin_right = 3
+		sb.expand_margin_top = 3
+		sb.border_color = UiTokens.SELECTION
+		sb.set_border_width_all(3)
+	carte.add_theme_stylebox_override("panel", sb)
+	racine.add_child(carte)
+	# trou de cordon
+	var trou := Panel.new()
+	var st := StyleBoxFlat.new()
+	st.bg_color = UiTokens.ENCRE
+	st.set_corner_radius_all(3)
+	trou.add_theme_stylebox_override("panel", st)
+	trou.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	placer(carte, trou, Vector2(51, 7), Vector2(30, 6))
+	# bande photo teintée par catégorie
+	var photo := Panel.new()
+	var sp := StyleBoxFlat.new()
+	sp.bg_color = cat["portrait"]
+	sp.border_color = UiTokens.ENCRE
+	sp.border_width_top = 2
+	sp.border_width_bottom = 2
+	photo.add_theme_stylebox_override("panel", sp)
+	photo.clip_contents = true
+	photo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	placer(carte, photo, Vector2(2, 20), Vector2(BADGE.x - 4, 72))
+	if d.has("portrait") and texture_portrait(d["portrait"]) != null:
+		var pr := portrait_rect(d["portrait"], Vector2(76, 100))
+		placer(photo, pr, Vector2(26, 2), Vector2(76, 100))
+		if etat == "deployee" or etat == "non_abordable":
+			desaturer(pr, 0.5, 0.9)
+	# catégorie (texte + forme) et niveau
+	var chip_cat := PanelContainer.new()
+	chip_cat.add_theme_stylebox_override("panel", UiTokens.chip(UiTokens.PAPIER, 8, 1))
+	chip_cat.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var lc := label(cat["court"], "")
+	lc.add_theme_font_override("font", UiTokens.police_titre())
+	lc.add_theme_font_size_override("font_size", 10)
+	chip_cat.add_child(lc)
+	chip_cat.position = Vector2(6, 24)
+	carte.add_child(chip_cat)
+	var niv := label(str(d["niveau"]), "")
+	niv.add_theme_font_override("font", UiTokens.police_mono(600))
+	niv.add_theme_font_size_override("font_size", 12)
+	niv.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	niv.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	var sn := StyleBoxFlat.new()
+	sn.bg_color = UiTokens.SELECTION
+	sn.border_color = UiTokens.ENCRE
+	sn.set_border_width_all(2)
+	sn.set_corner_radius_all(11)
+	niv.add_theme_stylebox_override("normal", sn)
+	niv.tooltip_text = "Niveau %d sur 6" % int(d["niveau"])
+	placer(carte, niv, Vector2(BADGE.x - 30, 24), Vector2(22, 22))
+	# nom, métier, état
+	var nom := label(d["nom"], "")
+	nom.add_theme_font_override("font", UiTokens.police_titre())
+	nom.add_theme_font_size_override("font_size", 17)
+	nom.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	placer(carte, nom, Vector2(8, 96), Vector2(BADGE.x - 16, 20))
+	var met := label("%s · N%d" % [d["metier"], d["niveau"]], "")
+	met.add_theme_font_override("font", UiTokens.police_corps(600))
+	met.add_theme_font_size_override("font_size", 11)
+	met.add_theme_color_override("font_color", UiTokens.TEXTE_2)
+	met.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	met.tooltip_text = d["metier"]
+	met.mouse_filter = Control.MOUSE_FILTER_PASS
+	placer(carte, met, Vector2(8, 115), Vector2(BADGE.x - 16, 16))
+	if not ligne.is_empty():
+		var le := label(ligne[0], "")
+		le.add_theme_font_override("font", UiTokens.police_corps(700))
+		le.add_theme_font_size_override("font_size", 11)
+		le.add_theme_color_override("font_color", ligne[1])
+		le.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		placer(carte, le, Vector2(8, 132), Vector2(BADGE.x - 16, 16))
+	# qualités (cercle bleu) / défauts (carré orange) : double codage conservé
+	var qd := HBoxContainer.new()
+	qd.add_theme_constant_override("separation", 3)
+	qd.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for q in d["qualites"]:
+		qd.add_child(mini_pastille(true, q, 18))
+	for df in d["defauts"]:
+		qd.add_child(mini_pastille(false, df, 18))
+	placer(carte, qd, Vector2(8, 152), Vector2(BADGE.x - 16, 18))
+	# boutons (révélés au survol)
+	var by := BADGE.y - 38
+	if boutons.size() == 1:
+		carte.add_child(_bouton_carte(boutons[0], Vector2(8, by), Vector2(BADGE.x - 16, 30)))
+	elif boutons.size() >= 2:
+		carte.add_child(_bouton_carte(boutons[0], Vector2(8, by), Vector2(BADGE.x - 54, 30)))
+		carte.add_child(_bouton_carte(boutons[1], Vector2(BADGE.x - 42, by), Vector2(34, 30)))
+	if boutons.size() >= 3:
+		carte.add_child(_bouton_carte(boutons[2], Vector2(BADGE.x - 60, 66), Vector2(54, 24)))
+	# montée au survol ; reste levé tant que la souris est sur la carte ou ses boutons
+	var monter := func(haut: bool):
+		var tw := carte.create_tween()
+		tw.tween_property(carte, "position:y", 0.0 if haut else BADGE_REPOS, 0.09)
+	carte.mouse_entered.connect(func(): monter.call(true))
+	carte.mouse_exited.connect(func():
+		if not carte.get_global_rect().has_point(carte.get_global_mouse_position()):
+			monter.call(false))
+	carte.gui_input.connect(func(ev: InputEvent):
+		if ev is InputEventMouseButton and ev.button_index == MOUSE_BUTTON_LEFT:
+			carte.accept_event()
+			if ev.pressed and clic.is_valid():
+				clic.call())
+	return racine
+
+
+## Badge d'une carte d'action (même gabarit, fond jaune clair, contour pointillé simulé par un filet doux).
+static func badge_action(card: GameState.Card, texte_bouton: String, desactive: bool, action: Callable) -> Control:
+	var racine := Control.new()
+	racine.custom_minimum_size = BADGE
+	racine.size = BADGE
+	racine.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var carte := Panel.new()
+	carte.size = BADGE
+	carte.position.y = BADGE_REPOS
+	carte.mouse_filter = Control.MOUSE_FILTER_PASS
+	carte.add_theme_stylebox_override("panel", UiTokens.panneau(Color("FFFBEA"), 10, 2, 0, true))
+	racine.add_child(carte)
+	var k := label("CARTE D'ACTION", "")
+	k.add_theme_font_override("font", UiTokens.police_titre())
+	k.add_theme_font_size_override("font_size", 10)
+	k.add_theme_color_override("font_color", UiTokens.OR_TEXTE)
+	placer(carte, k, Vector2(8, 20), Vector2(BADGE.x - 16, 14))
+	var nom := label(str(card.action["nom"]).to_upper(), "")
+	nom.add_theme_font_override("font", UiTokens.police_titre())
+	nom.add_theme_font_size_override("font_size", 17)
+	nom.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	placer(carte, nom, Vector2(8, 36), Vector2(BADGE.x - 16, 40))
+	var txt := label(str(card.action["texte"]), "")
+	txt.add_theme_font_override("font", UiTokens.police_corps(600))
+	txt.add_theme_font_size_override("font_size", 11)
+	txt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	txt.clip_text = true
+	placer(carte, txt, Vector2(8, 78), Vector2(BADGE.x - 16, 92))
+	carte.add_child(_bouton_carte([texte_bouton, "BoutonPrincipal", desactive, action], Vector2(8, BADGE.y - 38), Vector2(BADGE.x - 16, 30)))
+	carte.tooltip_text = "%s : %s" % [card.action["nom"], card.action["texte"]]
+	carte.mouse_entered.connect(func(): carte.create_tween().tween_property(carte, "position:y", 0.0, 0.09))
+	carte.mouse_exited.connect(func():
+		if not carte.get_global_rect().has_point(carte.get_global_mouse_position()):
+			carte.create_tween().tween_property(carte, "position:y", BADGE_REPOS, 0.09))
+	carte.gui_input.connect(func(ev: InputEvent):
+		if ev is InputEventMouseButton and ev.button_index == MOUSE_BUTTON_LEFT:
+			carte.accept_event())
+	return racine
+
+
+## En-tête de panneau Comité : bande colorée, titre condensé blanc, valeur à droite (mono).
+static func entete_comite(titre: String, droite := "", couleur := UiTokens.SARCELLE) -> Dictionary:
+	var pc := PanelContainer.new()
+	pc.add_theme_stylebox_override("panel", UiTokens.entete(couleur))
+	pc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var hb := HBoxContainer.new()
+	pc.add_child(hb)
+	var t := label(titre.to_upper(), "EnteteComite")
+	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	t.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	hb.add_child(t)
+	var r := label(droite, "")
+	r.add_theme_font_override("font", UiTokens.police_mono(600))
+	r.add_theme_font_size_override("font_size", 12)
+	r.add_theme_color_override("font_color", UiTokens.PAPIER)
+	hb.add_child(r)
+	return {"racine": pc, "titre": t, "droite": r}
