@@ -132,3 +132,31 @@ Propositions, de la plus simple à la plus forte :
 5. **Objectifs** : +10 au premier qui les remplit, +15 à un joueur à plus de 20 points du premier.
 
 Mon avis : commencer par 1 et 4, qui ne changent pas la façon de jouer, puis essayer 2 si l'écart reste grand. Pour juger, il faut une mesure qu'on n'a pas encore : la part des parties gagnées par le premier au jour 6, et l'écart moyen entre le premier et le dernier à la fin. Je peux l'ajouter à `balance_sim` et à l'étude.
+
+## Étude de midi : 914 parties avec les nouvelles règles (06/11, 11 h 39 – 13 h 58)
+Rares et peu communs moins chers, creusement, or, prédateurs, Portes ouvertes, Journaliste, objectifs, Braderie, plan de relance, enceinte d'abord. Étude courte : 18 générations, et seulement 6 parties par stratégie en finale (±20 points) ; le classement de la finale et les niveaux d'IA sont à prendre avec prudence.
+
+**Ce qui a marché**
+- Rares achetés 22 à 28 % des nuits (2 à 3 % avant), peu communs 22 à 33 % (9 à 15 %). « 1 animal rare installé » : 39 % de réussite (5 %).
+- Prédateurs remis à niveau : Hyène −1 pt, Ocelot +2 (+14 avant).
+- Asie relevée : 3 espèces et plus d'Asie, 55 % de victoires (le meilleur continent) ; la Loutre cendrée est l'espèce la plus achetée.
+- Or : Mine −7 pts (−18 avant) ; Rush or à 50 % en finale.
+- Journaliste à 0 (−9), Formateur à 0 (−5), Intendant à −1 (−7). Animateur, Vendeur +10, Marchand, Lobbyiste, Paysagiste +7.
+- Portes ouvertes ramenée dans la moyenne (+1 pt, +1,9 de réputation le jour même contre +4,3).
+
+**Ce qui cloche**
+- Les communs sont maintenant les moins achetés (13 à 32 %) et un seul commun installé va avec la défaite (−7 pts). Un peu commun donne 3 fois plus d'attractivité pour 2 fois le prix : l'ordre de valeur s'est inversé.
+- Objectifs presque impossibles : « 4 collaborateurs au niveau 5 » et « camp niveau 3 avant le jour 8 », 2 % chacun.
+- Beauté : toujours 0 % de la réputation. Labels : 1 %.
+- Braderie jouée 5 fois : l'IA ne la joue qu'avec deux boutiques, impossible de juger.
+- Accusation du Journaliste : +42 pts et +6,3 de réputation le jour même, la carte la plus forte (79 joueurs seulement).
+- Parc évolutif : 0 % en finale, et des IA bloquées à 0. Corrigé ensuite (commit « IA : parc évolutif là où un animal peut s'installer… ») : sur les 3 parties gardées, 116, 14 et 62 au lieu de 0 ; aucune IA à 0 sur 16 parties de contrôle.
+- Rattrapage : l'étude ne le mesure pas (seul `balance_sim` le fait).
+
+**Propositions**
+1. Objectifs : « 2 collaborateurs au niveau 5 » au lieu de 4, « camp niveau 3 avant le jour 10 » au lieu du jour 8.
+2. Communs à 5 d'attractivité (4), pour qu'ils restent un bon début de partie.
+3. Beauté : plutôt qu'une réputation directe, +1 % de visiteurs par décoration (20 % au plus) : elle nourrirait la fréquentation, qui fait 70 % de la réputation.
+4. Labels moins chers en or (5 / 10 / 16 au lieu de 8 / 15 / 24) : ce sont le seul débouché de l'or en dehors de la vente, ce qui aide la ruée vers l'or.
+5. Accusation : à surveiller sur une étude plus longue avant de la toucher.
+6. Étude : ajouter au rapport la mesure du rattrapage (premier au jour 6 qui gagne, écart final), et lancer au moins 3 000 parties pour des niveaux d'IA fiables (la finale fait 10 % des parties : il en faut une trentaine par stratégie).
