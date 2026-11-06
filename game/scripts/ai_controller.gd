@@ -70,6 +70,7 @@ var target_rect := Rect2i()  # parc évolutif : enceinte finale visée
 var expanded := false
 var entrance := Vector2i(-1, -1)  # case gauche de l'entrée (2x1)
 var shop_rect := Rect2i()
+var cuisine_rect := Rect2i()  # place gardée pour la Cuisine, de l'autre côté de l'entrée : les enclos ne la prennent pas
 var plans: Array = []  # enclos prévus : {"def", "interior": Rect2i, "ring": Array, "conv": Array}
 var reserved := {}  # cases réservées par le plan du zoo (murs, boutique, intérieurs des enclos)
 var fence_tiles := {}  # clôtures d'enclos prévues : elles peuvent être partagées entre enclos voisins
@@ -1289,6 +1290,13 @@ func _choose_zoo() -> void:
 	var sizes: Array = [ZOO_SIZES["grand"] if mode == "evolutif" else ZOO_SIZES.get(mode, ZOO_SIZES["moyen"])]
 	sizes.append_array([ZOO_SIZES["moyen"], ZOO_SIZES["petit"]])
 	var fit := _pattern_fit_maps()
+	for passe in (2 if mode == "evolutif" else 1):
+		if _choisir_parc(sizes, camp_c, fit, mode == "evolutif" and passe == 0):
+			return
+
+
+func _choisir_parc(sizes: Array, camp_c: Vector2, fit: Array, evolutif: bool) -> bool:
+	var m := g.map
 	for size in sizes:
 		var cands := []
 		for y in range(1, m.h - size.y - 1, 2):
@@ -1302,8 +1310,9 @@ func _choose_zoo() -> void:
 		cands.sort_custom(func(a, b): return a[0] < b[0])
 		for c in cands.slice(0, 12):
 			var ent := _find_entrance(c[1], camp_c)
-			if ent.x >= 0 and _setup_zoo(c[1], ent, mode == "evolutif"):
-				return
+			if ent.x >= 0 and _setup_zoo(c[1], ent, evolutif, fit):
+				return true
+	return false
 
 
 ## Murs constructibles sur tout le pourtour : ni route, ni or (l'eau se construit, la montagne sert de mur).
@@ -1317,7 +1326,7 @@ func _ring_ok(r: Rect2i) -> bool:
 
 
 ## Renvoie false si l'emplacement ne convient pas (parc évolutif : aucun petit parc aux murs constructibles).
-func _setup_zoo(r: Rect2i, ent: Vector2i, evolutive: bool) -> bool:
+func _setup_zoo(r: Rect2i, ent: Vector2i, evolutive: bool, fit: Array = []) -> bool:
 	var bottom := ent.y == r.end.y - 1
 	if evolutive:
 		# Petit parc collé au mur de l'entrée, à l'intérieur du grand parc visé. Son mur intérieur traverse
@@ -1325,14 +1334,21 @@ func _setup_zoo(r: Rect2i, ent: Vector2i, evolutive: bool) -> bool:
 		var sz: Vector2i = ZOO_SIZES["petit"]
 		var y0 := r.end.y - sz.y if bottom else r.position.y
 		var x_center := clampi(ent.x - sz.x / 2, r.position.x, r.end.x - sz.x)
+		# Parmi les petits parcs possibles le long de l'entrée : celui où un animal visé s'installe le plus facilement.
+		# Sans aucun, l'IA resterait sans animal, donc sans recette, et ne pourrait jamais agrandir.
 		var small := Rect2i()
+		var meilleur := 99
+		var tolere := 2 if _has_landscaper() else 0
 		for off in sz.x:
 			for sgn in [1, -1]:
 				var x0 := clampi(x_center + off * sgn, r.position.x, r.end.x - sz.x)
 				var cand := Rect2i(x0, y0, sz.x, sz.y)
-				if small.size == Vector2i.ZERO and x0 + 1 <= ent.x and ent.x + 1 <= x0 + sz.x - 2 and _ring_ok(cand):
-					small = cand
-		if small.size == Vector2i.ZERO:
+				if x0 + 1 <= ent.x and ent.x + 1 <= x0 + sz.x - 2 and _ring_ok(cand):
+					var b := _motif_dans(cand, fit) if not fit.is_empty() else 0
+					if b < meilleur:
+						meilleur = b
+						small = cand
+		if small.size == Vector2i.ZERO or meilleur > tolere:
 			return false
 		target_rect = r
 		zoo_rect = small
@@ -1344,11 +1360,28 @@ func _setup_zoo(r: Rect2i, ent: Vector2i, evolutive: bool) -> bool:
 	var inner := zoo_rect.grow(-1)
 	var shop_y := inner.end.y - 2 if bottom else inner.position.y
 	shop_rect = Rect2i(clampi(entrance.x + 3, inner.position.x, inner.end.x - 2), shop_y, 2, 2)
+	cuisine_rect = Rect2i(clampi(entrance.x - 3, inner.position.x, inner.end.x - 2), shop_y, 2, 2)
+	if cuisine_rect.intersects(shop_rect):
+		cuisine_rect = Rect2i()
 	for t in _ring(zoo_rect):
 		reserved[t] = true
 	for t in _rect_tiles(shop_rect):
 		reserved[t] = true
+	for t in _rect_tiles(cuisine_rect):
+		reserved[t] = true
 	return true
+
+
+## Aménagements qu'il faudrait, au mieux, pour poser dans ce parc le motif d'un des animaux visés.
+func _motif_dans(r: Rect2i, fit: Array) -> int:
+	var w := g.map.w
+	var zone := r.grow(-1)
+	var b := 99
+	for f in fit:
+		for y in range(zone.position.y, zone.end.y - 3):
+			for x in range(zone.position.x, zone.end.x - 3):
+				b = mini(b, f["best"][y * w + x])
+	return b
 
 
 ## Zone du parc (actuelle ou visée) où l'on ne construit ni maison, ni entrepôt, ni mine.
@@ -1369,6 +1402,10 @@ func _find_entrance(r: Rect2i, camp_c: Vector2) -> Vector2i:
 				if x <= r.position.x or x + 1 >= r.end.x - 1:
 					continue
 				var front := Vector2i(x, y_wall + out_dir)
+				# Côté intérieur : une montagne devant l'entrée empêcherait de reconnaître l'enceinte comme fermée
+				var dedans := Vector2i(x, y_wall - out_dir)
+				if not g.map.in_bounds(dedans.x, dedans.y) or g.is_mountain(dedans) or g.is_mountain(dedans + Vector2i(1, 0)):
+					continue
 				if _land(Vector2i(x, y_wall)) and _land(Vector2i(x + 1, y_wall)) and _land(front) \
 					and (not _road_plan_to(front, r).is_empty() or g.map.road[g.map.idx(front.x, front.y)] == 1):
 					return Vector2i(x, y_wall)
@@ -1788,6 +1825,28 @@ func _ajoute_extension(out: Array, neuf: Rect2i, strip: Rect2i, cote: Vector2i) 
 	out.append({"rect": neuf, "strip": strip, "murs": murs, "montagnes": montagnes})
 
 
+## Coût de la Cuisine quand un animal l'attend et qu'on ne peut pas encore la payer, sinon vide.
+func _cuisine_en_attente() -> Dictionary:
+	if g.animals.is_empty() or g.has_building("cuisine") or g.sites.any(func(s): return s.def_id() == "cuisine"):
+		return {}
+	var cout: Dictionary = g.building_def("cuisine")["cout"]
+	return {} if g.can_afford(cout) else cout
+
+
+## Parc évolutif sans animal où ni les contrats détenus ni ceux du marché ne trouvent de place : sans agrandir,
+## il resterait bloqué (pas d'animal, pas de recette, pas d'agrandissement).
+## Aussi : un animal est là mais la Cuisine n'y trouve pas de place, il mourrait de faim.
+func _petit_parc_sans_place() -> bool:
+	if target_rect.size == Vector2i.ZERO or expanded or g.day < 3:
+		return false
+	if not _sans_animal():
+		return not g.has_building("cuisine") and _park_spot(g.building_def("cuisine")).x < 0
+	for d in g.contracts + g.market_contracts:
+		if not _plan_enclosure(d).is_empty():
+			return false
+	return true
+
+
 ## Cases du mur de l'enceinte qu'un enclos peut prendre comme côté : pas l'entrée, et pas les murs
 ## du petit parc évolutif qui seront démolis à l'agrandissement.
 func _usable_walls() -> Dictionary:
@@ -2031,9 +2090,16 @@ func _wants() -> Array:
 		if t == entrance or t == entrance + Vector2i(1, 0) or g.site_at(t) != null or g.is_mountain(t):
 			continue
 		out.append(["batiment", g.building_def("cloture"), t])
+	# Un animal sans Cuisine meurt de faim : elle passe avant l'agrandissement et les enclos suivants.
+	if not g.animals.is_empty() and not g.has_building("cuisine") and not g.sites.any(func(s): return s.def_id() == "cuisine"):
+		var cspot_faim := _park_spot(g.building_def("cuisine"))
+		if cspot_faim.x >= 0:
+			out.append(["batiment", g.building_def("cuisine"), cspot_faim])
 	# 2 bis. Parc évolutif : une fois le petit parc lancé, on construit l'enceinte du grand parc,
 	# puis on démolit les anciens murs intérieurs.
-	if target_rect.size != Vector2i.ZERO and not expanded and not _sans_animal() and _walls_progress() >= 1.0 and (day >= 6 or g.animals.size() >= 2 or agrandissements > 0):
+	var bloque := _petit_parc_sans_place()
+	if target_rect.size != Vector2i.ZERO and not expanded and (not _sans_animal() or bloque) and _walls_progress() >= 1.0 \
+			and (day >= 6 or g.animals.size() >= 2 or agrandissements > 0 or bloque):
 		var big_ring := _ring_depuis_camp(target_rect)
 		var pending := false
 		for t in big_ring:
@@ -2192,9 +2258,17 @@ func _place_wants() -> void:
 	var open := g.sites.filter(func(s): return not s.done).size()
 	var max_open := 6 + g.workers.size() * 3
 	var floor_cash := _cash_floor() + float(strat["reserve"])
+	# Un animal attend sa Cuisine : le bois et la pierre lui sont gardés, les autres chantiers attendent.
+	var faim := _cuisine_en_attente()
+	if not faim.is_empty():
+		_acheter_manque(g.building_def("cuisine"), 0.0)  # sans Cuisine, plus de recette : on y met tout
+		faim = _cuisine_en_attente()
 	for wnt in _wants():
 		if open >= max_open:
 			break
+		var cout_w: Dictionary = wnt[1].get("cout", {})
+		if not faim.is_empty() and str(wnt[1].get("id", "")) != "cuisine" and (cout_w.has("bois") or cout_w.has("pierre")):
+			continue
 		# Les chantiers payés en argent ne doivent pas vider la trésorerie (salaires de demain), sauf ceux du
 		# premier enclos : sans animal il n'y a aucun revenu, et garder la réserve bloquerait la partie.
 		var argent := float(wnt[1].get("cout", {}).get("argent", 0))
@@ -2215,14 +2289,14 @@ func _place_wants() -> void:
 
 
 ## Un gros chantier ne se paie jamais avec un stock vidé par les petits : on achète ce qui manque si l'argent suffit.
-func _acheter_manque(def: Dictionary) -> void:
+func _acheter_manque(def: Dictionary, plancher := -1.0) -> void:
 	var cout: Dictionary = def.get("cout", {})
 	var total := float(cout.get("argent", 0))
 	var manque := {}
 	for res in ["bois", "pierre"]:
 		manque[res] = maxi(0, int(ceil(float(cout.get(res, 0)) - g.stock[res])))
 		total += manque[res] * g.buy_price(res)
-	if g.money - total < _cash_floor():
+	if g.money - total < (_cash_floor() if plancher < 0.0 else plancher):
 		return
 	for res in manque:
 		if manque[res] > 0:
@@ -2358,6 +2432,9 @@ func _park_spot(def: Dictionary) -> Vector2i:
 
 
 func _search_park_spot(def: Dictionary) -> Vector2i:
+	# La Cuisine a sa place gardée dès le choix du parc : sans elle, un petit parc rempli d'enclos laisse l'animal affamé.
+	if def["id"] == "cuisine" and cuisine_rect.size != Vector2i.ZERO and g.placement_error("batiment", def, cuisine_rect.position, false) == "":
+		return cuisine_rect.position
 	var inner := zoo_rect.grow(-1)
 	var cands: Array[Vector2i] = []
 	for y in range(inner.position.y, inner.end.y):
@@ -2830,6 +2907,11 @@ func _gather(w: GameState.Worker) -> void:
 				return
 	var deficit_b: float = needs["bois"] - g.stock["bois"]
 	var deficit_p: float = needs["pierre"] - g.stock["pierre"]
+	# Un animal attend sa Cuisine : ses matériaux d'abord, même si les murs à venir demandent bien plus de pierre.
+	var faim := _cuisine_en_attente()
+	if not faim.is_empty():
+		deficit_b = float(faim.get("bois", 0)) - g.stock["bois"]
+		deficit_p = float(faim.get("pierre", 0)) - g.stock["pierre"]
 	if (deficit_b <= 0 and deficit_p <= 0) or (strat["specialisation"] and deficit_b > 0 and deficit_p > 0):
 		res = "bois" if g.efficiency(w.card, "extraire_bois") >= g.efficiency(w.card, "extraire_pierre") else "pierre"
 	elif strat["specialisation"]:
