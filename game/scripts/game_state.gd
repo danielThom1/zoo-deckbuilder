@@ -95,6 +95,7 @@ var traits_by_id_f := {}  # mêmes traits, nom au féminin (Paresseuse, Têtue�
 var positive_ids := {}
 var money := 0.0
 var influence := 0.0
+var sans_enceinte := false  # tests d'enclos et de motifs seulement : installer un animal sans enceinte fermée
 var publicite := 0.0  # points de publicité gagnés par les campagnes terminées (pour toute la partie)
 var campaign := {}  # campagne en cours : {"def": définition, "progress": travail fait}
 var stock := {"bois": 0.0, "pierre": 0.0, "or": 0.0}
@@ -1584,7 +1585,9 @@ func _next_to_terrain(t: Vector2i, terrain: String) -> bool:
 
 func _complete(s: Site) -> void:
 	s.done = true
-	if s.def_id() == "enclos" or s.def.get("effet", {}).has("decor"):
+	# Un enclos, un aménagement, ou l'enceinte qui se ferme (mur, entrée) : les animaux réservés peuvent arriver
+	if s.def_id() in ["enclos", "cloture", "entree"] or s.def.get("effet", {}).has("decor"):
+		version += 1  # l'enceinte est recalculée avant de vérifier les réservations
 		_check_pending_installs()
 	var p := s.rect.position
 	# Architecte / Débrouillard : une partie des ressources payées est remboursée.
@@ -2454,6 +2457,8 @@ func _check_pending_installs() -> void:
 		var enc := enclosure_at(r["tile"])
 		if enc.get("planned", false) or (enc["closed"] and decor_waiting(r["def"], enc)):
 			continue
+		if zoo_status()["interior"].is_empty() and not sans_enceinte:
+			continue  # l'enceinte a été ouverte entre-temps : l'animal attend qu'elle soit refermée
 		pending_installs.erase(r)
 		contracts.append(r["def"])
 		if enc["closed"] and not enc.get("park", false):
@@ -2637,6 +2642,13 @@ func animal_error(def: Dictionary, enc: Dictionary) -> String:
 	for t in tiles:
 		if map.in_camp(t.x, t.y):
 			return "L'enclos ne peut pas contenir le camp"
+	# Le zoo d'abord : pas d'animal tant que l'enceinte (entrée comprise) n'est pas fermée, ni hors de l'enceinte
+	if not sans_enceinte:
+		var interieur: Dictionary = zoo_status()["interior"]
+		if interieur.is_empty():
+			return "Terminez d'abord l'enceinte du zoo (entrée comprise)"
+		if not tiles.all(func(c): return interieur.has(c)):
+			return "L'enclos doit être dans l'enceinte du zoo"
 	# Enclos partagé : la surface doit couvrir tous les animaux ; un prédateur reste seul, et jamais en liberté.
 	var predator: bool = def.get("special", "") == "predateur"
 	if predator and enc.get("park", false):

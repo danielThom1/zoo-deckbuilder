@@ -205,6 +205,7 @@ func _init() -> void:
 
 	print("Marché et contrats :")
 	var gk := _fresh_day(data, 12345)
+	gk.sans_enceinte = true  # ces tests d'enclos se passent hors de toute enceinte
 	check(gk.market_workers.size() == 5 and gk.market_contracts.size() == 5, "marché ouvert : 5 ouvriers, 5 contrats")
 	check(gk.market_contracts.any(func(d): return d["palier"] == "T3") and gk.market_contracts.any(func(d): return d["palier"] == "T2"), "dès le jour 1 : au moins un rare et un peu commun au marché")
 	gk.stock["bois"] = 20.0
@@ -269,6 +270,9 @@ func _init() -> void:
 	var enc := gk.enclosure_at(interior)
 	check(enc["closed"] and enc["tiles"].size() == 6, "enclos fermé de 6 cases")
 	check(gk.animal_error(lion, enc) != "", "Lion refusé : %s" % gk.animal_error(lion, enc))
+	gk.sans_enceinte = false
+	check(gk.animal_error(zebre, enc) == "Terminez d'abord l'enceinte du zoo (entrée comprise)", "pas d'animal avant que l'enceinte soit fermée")
+	gk.sans_enceinte = true
 	check(gk.animals.size() == 1 and gk.pending_installs.is_empty() and gk.contracts.is_empty(), "clôtures terminées : le Zèbre s'installe")
 	check(gk.attractiveness() == 0, "pas d'attractivité avant l'arrivée")
 	gk.end_day()
@@ -934,6 +938,7 @@ func _init() -> void:
 	check(fg.affinity_bonus() >= f_bonus0 + 0.149, "affinités : continent +10 %% et type partagé +5 %% (%.2f → %.2f)" % [f_bonus0, fg.affinity_bonus()])
 	# Enclos en chantier : l'animal est réservé et n'arrive qu'une fois les clôtures terminées
 	var fq := _fresh_day(data, 2027)
+	fq.sans_enceinte = true
 	fq.stock["bois"] = 50.0
 	var f_fence := fq.building_def("enclos")
 	var f_spot := Vector2i(-1, -1)
@@ -1153,6 +1158,8 @@ func _init() -> void:
 	l_g._complete(l_rock)
 	l_g.contracts.append(l_lion)
 	var l_enc := l_g.enclosure_at(l_o + Vector2i(2, 2))
+	check("enceinte" in l_g.animal_error(l_lion, l_enc), "enclos hors de l'enceinte refusé (%s)" % l_g.animal_error(l_lion, l_enc))
+	l_g.sans_enceinte = true
 	check(l_enc["closed"] and l_g.animal_error(l_lion, l_enc) == "", "Lion : rocher sur une case du motif, installation possible (%s)" % l_g.animal_error(l_lion, l_enc))
 
 	print("Lot Q : eau, Marchand, bonus refusé :")
