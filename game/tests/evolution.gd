@@ -75,6 +75,7 @@ var processus_bloques := 0
 var parties_a_zero := 0
 var ia_a_zero := 0  # joueurs à 0 de réputation en fin de partie
 var ia_sans_animal := 0  # joueurs sans aucun animal en fin de partie
+var rattrapage := {"n4": 0, "g4": 0, "n6": 0, "g6": 0, "ecart": 0.0, "n": 0}  # premier aux jours 4 et 6 qui gagne, écart final
 var derniere_a_zero := -1
 var processus: Array[int] = []
 var serie := 0  # numéro de la série de parties en cours
@@ -581,7 +582,16 @@ func _play(seed: int, genomes: Array) -> Dictionary:
 			"paliers": p.animals.filter(func(a): return a.arrived).map(func(a): return a.def["palier"]),
 			"objectifs": p.objectifs_faits.keys(), "bonus": p.journal_bonus, "agrandis": m.ais[i].agrandis, "parc": m.ais[i].zoo_rect.get_area(),
 			"decorations": p.decorations.size(), "animaux_tous": p.animals.size()})
-	var out := {"day": m.day, "winner": m.winner, "seed": seed, "joueurs": joueurs, "offres": m.offres, "objectifs": m.objectifs.map(func(o): return o["id"])}
+	# Rattrapage : le premier en réputation au soir des jours 4 et 6, et l'écart entre premier et dernier à la fin
+	var tetes := {}
+	for row in m.history:
+		var j := int(row[0]["day"])
+		if j == 4 or j == 6:
+			var reps: Array = row.map(func(e): return float(e["rep"]))
+			tetes[str(j)] = reps.find(reps.max())
+	var finales: Array = m.players.map(func(pp): return float(pp.reputation()))
+	var out := {"day": m.day, "winner": m.winner, "seed": seed, "joueurs": joueurs, "offres": m.offres, "objectifs": m.objectifs.map(func(o): return o["id"]),
+		"tetes": tetes, "ecart": finales.max() - finales.min()}
 	m.dispose()
 	return out
 
@@ -632,7 +642,8 @@ func _sauver_reprise(chemin: String, pop: Array, cumuls: Array, history: Array, 
 		"minutes": minutes_avant + int((Time.get_ticks_msec() - t0) / 60000), "pop": pop, "cumuls": cumuls, "history": history,
 		"stats": {"stats": stats, "base": base, "cartes": cartes, "offres": offres, "achats": achats, "jours_achat": jours_achat,
 			"sources": sources, "jours_fin": jours_fin, "record": record, "objectifs_tires": objectifs_tires,
-			"parties_a_zero": parties_a_zero, "ia_a_zero": ia_a_zero, "ia_sans_animal": ia_sans_animal, "processus_bloques": processus_bloques}}
+			"parties_a_zero": parties_a_zero, "ia_a_zero": ia_a_zero, "ia_sans_animal": ia_sans_animal, "processus_bloques": processus_bloques,
+			"rattrapage": rattrapage}}
 	var tmp := chemin + ".tmp"
 	var f := FileAccess.open(tmp, FileAccess.WRITE)
 	f.store_string(JSON.stringify(etat))
@@ -655,6 +666,7 @@ func _charger_statistiques(s: Dictionary) -> void:
 	ia_a_zero = int(s["ia_a_zero"])
 	ia_sans_animal = int(s["ia_sans_animal"])
 	processus_bloques = int(s["processus_bloques"])
+	rattrapage = s.get("rattrapage", rattrapage)
 
 
 ## Trois niveaux d'IA d'après le classement de la finale (stratégies écrites et apprises, mesurées l'une contre l'autre) :
@@ -709,6 +721,14 @@ func _note(cat: String, cle: String, gagne: bool, rep: float) -> void:
 
 func _cumuler(r: Dictionary, genomes: Array) -> void:
 	jours_fin.append(int(r["day"]))
+	var tetes: Dictionary = r.get("tetes", {})
+	for j in ["4", "6"]:
+		if tetes.has(j):
+			rattrapage["n" + j] += 1
+			if int(tetes[j]) == int(r["winner"]):
+				rattrapage["g" + j] += 1
+	rattrapage["ecart"] += float(r.get("ecart", 0.0))
+	rattrapage["n"] += 1
 	var objectif := float(data["buildings"]["partie"]["objectif_reputation"])
 	for i in 4:
 		var j: Dictionary = r["joueurs"][i]
@@ -860,6 +880,10 @@ func _write_report(pop: Array, order: Array, scores: Array, history: Array, clas
 	if not record.is_empty():
 		L.append("Record : victoire au jour %d (%.0f de réputation, graine %d)." % [record["day"], record["rep"], record["seed"]])
 	L.append("IA bloquées : %d joueurs sur %d finissent à 0 de réputation, %d sans aucun animal." % [ia_a_zero, int(base["n"]), ia_sans_animal])
+	if int(rattrapage["n"]) > 0:
+		L.append("Rattrapage : le premier au soir du jour 4 gagne %d %% des parties, celui du jour 6 %d %% (25 %% si la tête ne comptait pas) ; écart moyen de %.0f points entre premier et dernier à la fin." % [
+			roundi(100.0 * float(rattrapage["g4"]) / maxf(1.0, float(rattrapage["n4"]))), roundi(100.0 * float(rattrapage["g6"]) / maxf(1.0, float(rattrapage["n6"]))),
+			float(rattrapage["ecart"]) / maxf(1.0, float(rattrapage["n"]))])
 	L.append("")
 	L.append("**Comment lire les tableaux** : « Victoires avec » est le taux de victoire des joueurs qui avaient cet élément en fin de partie, « sans » celui des autres. Un écart positif veut dire que l'élément accompagne la victoire, sans le prouver : un joueur qui gagne a aussi plus d'ouvriers, de bâtiments et d'animaux. « ≈ » signale un écart trop faible pour conclure, compte tenu du nombre de parties.")
 	L.append("")

@@ -27,7 +27,7 @@
     "_note": "Unités par minute à efficacité 1.0, avant temps de transport. Un collaborateur porte 5 unités (porteur : +2 par amélioration), puis va déposer au Camp ou à l'Entrepôt le plus proche.",
     "bois": 7.5,
     "pierre": 5,
-    "or": 1.875,
+    "or": 2.0,
     "capacite_portage": 5
   },
 
@@ -156,7 +156,7 @@
 
   "reputation_autres": {
     "_note": "Autres façons de gagner de la réputation que la fréquentation. Spectacles : par journée de Kiosque tenu (× efficacité « animer » : Animateur ×2). Boutique : par souvenir vendu, une seule boutique comptée (la mieux tenue), Braderie comprise. Prestige politique : chaque nuit, le 1er puis le 2e en influence (s'ils ont au moins influence_min). Labels : achetés en or, avec un Marchand mobilisé, une fois chacun. Légendaire : un collaborateur qui atteint le niveau 5.",
-    "embellissement": { "_note": "Intendance : travail par décoration (efficacité « embellir » par seconde), matériaux de chaque décoration, réputation par décoration et par nuit zoo ouvert, une décoration au plus pour tant de cases du parc.", "travail": 100, "cout": { "bois": 1, "pierre": 1 }, "reputation_nuit": 0.25, "cases_par_decoration": 10, "types": ["massif", "banc", "lampadaire", "topiaire", "fontaine", "statue", "tonnelle", "parterre"] },
+    "embellissement": { "_note": "Intendance : travail par décoration (efficacité « embellir » par seconde), matériaux de chaque décoration, réputation par décoration et par nuit zoo ouvert, une décoration au plus pour tant de cases du parc.", "travail": 100, "cout": { "bois": 1, "pierre": 1 }, "reputation_nuit": 0.4, "cases_par_decoration": 10, "types": ["massif", "banc", "lampadaire", "topiaire", "fontaine", "statue", "tonnelle", "parterre"] },
     "label_sans_marchand": 2, "kiosque_par_jour": 2.5,
     "boutique_par_souvenir": 0.07,
     "prestige_politique": [3, 1],
@@ -181,10 +181,10 @@
       { "id": "especes", "type": "especes", "n": 5, "texte": "5 espèces installées" },
       { "id": "parc", "type": "parc", "n": 350, "texte": "Enceinte de 350 cases" },
       { "id": "visiteurs", "type": "visiteurs", "n": 120, "texte": "120 visiteurs en une journée" },
-      { "id": "veterans", "type": "niveau", "niveau": 5, "n": 4, "texte": "4 collaborateurs au niveau 5" },
+      { "id": "veterans", "type": "niveau", "niveau": 5, "n": 2, "texte": "2 collaborateurs au niveau 5" },
       { "id": "cadres", "type": "cadres", "n": 3, "texte": "3 cadres dans l'équipe" },
       { "id": "effectif", "type": "effectif", "n": 11, "texte": "11 collaborateurs" },
-      { "id": "camp", "type": "camp", "n": 2, "avant_jour": 8, "texte": "Camp au niveau 3 avant le jour 8" },
+      { "id": "camp", "type": "camp", "n": 2, "avant_jour": 10, "texte": "Camp au niveau 3 avant le jour 10" },
       { "id": "services", "type": "services", "n": 3, "texte": "Boutique, Kiosque et Snack" },
       { "id": "publicite", "type": "publicite", "n": 4, "texte": "4 points de publicité" },
       { "id": "label", "type": "label", "n": 1, "texte": "1 label obtenu" }
