@@ -6646,5 +6646,341 @@
    460,
    415
   ]
+ },
+ "iso_agence": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_agence.png",
+  "pied": [
+   230,
+   348
+  ],
+  "taille": [
+   460,
+   348
+  ]
+ },
+ "iso_agence_d": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_agence_d.png",
+  "pied": [
+   230,
+   344
+  ],
+  "taille": [
+   460,
+   344
+  ]
+ },
+ "iso_boutique": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_boutique.png",
+  "pied": [
+   230,
+   379
+  ],
+  "taille": [
+   460,
+   379
+  ]
+ },
+ "iso_boutique_d": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_boutique_d.png",
+  "pied": [
+   230,
+   378
+  ],
+  "taille": [
+   460,
+   378
+  ]
+ },
+ "iso_cabinet": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_cabinet.png",
+  "pied": [
+   230,
+   390
+  ],
+  "taille": [
+   460,
+   390
+  ]
+ },
+ "iso_cabinet_d": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_cabinet_d.png",
+  "pied": [
+   230,
+   394
+  ],
+  "taille": [
+   460,
+   394
+  ]
+ },
+ "iso_camp1": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_camp1.png",
+  "pied": [
+   230,
+   317
+  ],
+  "taille": [
+   460,
+   317
+  ]
+ },
+ "iso_camp1_d": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_camp1_d.png",
+  "pied": [
+   230,
+   319
+  ],
+  "taille": [
+   460,
+   319
+  ]
+ },
+ "iso_camp2": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_camp2.png",
+  "pied": [
+   230,
+   333
+  ],
+  "taille": [
+   460,
+   333
+  ]
+ },
+ "iso_camp2_d": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_camp2_d.png",
+  "pied": [
+   230,
+   333
+  ],
+  "taille": [
+   460,
+   333
+  ]
+ },
+ "iso_camp3": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_camp3.png",
+  "pied": [
+   230,
+   337
+  ],
+  "taille": [
+   460,
+   337
+  ]
+ },
+ "iso_camp3_d": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_camp3_d.png",
+  "pied": [
+   230,
+   327
+  ],
+  "taille": [
+   460,
+   327
+  ]
+ },
+ "iso_comptoir": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_comptoir.png",
+  "pied": [
+   230,
+   371
+  ],
+  "taille": [
+   460,
+   371
+  ]
+ },
+ "iso_comptoir_d": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_comptoir_d.png",
+  "pied": [
+   230,
+   384
+  ],
+  "taille": [
+   460,
+   384
+  ]
+ },
+ "iso_entree": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_entree.png",
+  "pied": [
+   230,
+   392
+  ],
+  "taille": [
+   460,
+   392
+  ]
+ },
+ "iso_entree_d": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_entree_d.png",
+  "pied": [
+   230,
+   379
+  ],
+  "taille": [
+   460,
+   379
+  ]
+ },
+ "iso_entrepot": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_entrepot.png",
+  "pied": [
+   230,
+   384
+  ],
+  "taille": [
+   460,
+   384
+  ]
+ },
+ "iso_entrepot_d": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_entrepot_d.png",
+  "pied": [
+   230,
+   388
+  ],
+  "taille": [
+   460,
+   388
+  ]
+ },
+ "iso_entretien": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_entretien.png",
+  "pied": [
+   230,
+   382
+  ],
+  "taille": [
+   460,
+   382
+  ]
+ },
+ "iso_entretien_d": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_entretien_d.png",
+  "pied": [
+   230,
+   371
+  ],
+  "taille": [
+   460,
+   371
+  ]
+ },
+ "iso_kiosque": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_kiosque.png",
+  "pied": [
+   230,
+   383
+  ],
+  "taille": [
+   460,
+   383
+  ]
+ },
+ "iso_kiosque_d": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_kiosque_d.png",
+  "pied": [
+   230,
+   398
+  ],
+  "taille": [
+   460,
+   398
+  ]
+ },
+ "iso_mairie": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_mairie.png",
+  "pied": [
+   230,
+   480
+  ],
+  "taille": [
+   460,
+   480
+  ]
+ },
+ "iso_mairie_d": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_mairie_d.png",
+  "pied": [
+   230,
+   472
+  ],
+  "taille": [
+   460,
+   472
+  ]
+ },
+ "iso_maison": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_maison.png",
+  "pied": [
+   230,
+   385
+  ],
+  "taille": [
+   460,
+   385
+  ]
+ },
+ "iso_maison_d": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_maison_d.png",
+  "pied": [
+   230,
+   393
+  ],
+  "taille": [
+   460,
+   393
+  ]
+ },
+ "iso_mine": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_mine.png",
+  "pied": [
+   230,
+   357
+  ],
+  "taille": [
+   460,
+   357
+  ]
+ },
+ "iso_mine_d": {
+  "categorie": "batiments",
+  "fichier": "res://assets/bd/sprites/batiments/iso_mine_d.png",
+  "pied": [
+   230,
+   359
+  ],
+  "taille": [
+   460,
+   359
+  ]
  }
 }

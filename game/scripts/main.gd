@@ -736,7 +736,9 @@ func _dessiner_monde() -> void:
 	# Routes, ponts et allées pavées : RoutesBD (scripts/rendu/) ; ici la mairie au bout de l'accès
 	_update_occupation()
 	var ex := Vector2(m.exit_tile) * TILE
+	SpritesBD.collecte_objet = "mairie"  # vue de biais : iso_mairie
 	_draw_town_hall(ex + Vector2(TILE / 2, TILE * 3.6))
+	SpritesBD.collecte_objet = null
 	# Intérieur de l'enceinte du zoo : allées plus claires
 	for t in game.zoo_status()["interior"]:
 		draw_rect(Rect2(Vector2(t) * TILE, Vector2(TILE, TILE)), Color(UiTokens.ALLEE_ZOO, 0.16))

@@ -328,6 +328,31 @@ def decouper(chemin, fiche_id):
     return feuille, portrait, deborde
 
 
+def _sans_bouts_de_sol(im):
+    """Petits morceaux détachés tout en bas de l'image (bouts du trait de sol à côté d'un pied) : effacés."""
+    a = np.array(im)
+    m = a[:, :, 3] > 60
+    h, w = m.shape
+    vu = np.zeros((h, w), bool)
+    for y0 in range(h - 1, max(-1, h - 8), -1):
+        for x0 in np.where(m[y0] & ~vu[y0])[0]:
+            morceau = [(y0, int(x0))]
+            vu[y0, x0] = True
+            file = deque(morceau)
+            while file and len(morceau) <= 80:
+                cy, cx = file.popleft()
+                for ny in (cy - 1, cy, cy + 1):
+                    for nx in (cx - 1, cx, cx + 1):
+                        if 0 <= ny < h and 0 <= nx < w and m[ny, nx] and not vu[ny, nx]:
+                            vu[ny, nx] = True
+                            file.append((ny, nx))
+                            morceau.append((ny, nx))
+            if len(morceau) <= 80 and min(q[0] for q in morceau) >= h - 8:
+                for q in morceau:
+                    a[q[0], q[1], 3] = 0
+    return Image.fromarray(a, 'RGBA')
+
+
 def decouper_biais(chemin, fiche_id):
     """Planche de marche de biais (Victor_biais.png) : pas de portrait, 2 rangées de 3 images, de trois quarts face
     (vers le bas à droite) puis de trois quarts dos (vers le haut à droite). Même échelle que la marche de profil ;
@@ -365,12 +390,26 @@ def decouper_biais(chemin, fiche_id):
         rien_dessus = m[max(0, ch - 16):max(1, ch - 6)].sum(axis=0) == 0
         cellule[ch - 6:, rien_dessus, 3] = 0
         m = cellule[:, :, 3] > 127
+        # Reste du trait de sol collé aux pieds : une ligne sombre continue et large tout en bas, qu'on retire
+        lum = cellule[:, :, :3].astype(np.float32).mean(axis=2)
+        for r in range(ch - 1, max(0, ch - 7), -1):
+            sombre = np.where(m[r] & (lum[r] < 80))[0]
+            if len(sombre) < 30 or len(sombre) < 0.7 * (sombre[-1] - sombre[0] + 1):
+                break
+            cellule[r, :, 3] = 0
+        m = cellule[:, :, 3] > 127
+        # Bouts de trait isolés à côté d'un pied : rien juste au-dessus, on les efface ; et le liseré pâle qui reste
+        vide = m[max(0, ch - 6):max(1, ch - 3)].sum(axis=0) == 0
+        cellule[ch - 3:, vide, 3] = 0
+        bas = cellule[ch - 3:, :, 3]
+        bas[bas < 160] = 0
+        m = cellule[:, :, 3] > 127
         # Milieu de la tête : les pixels des premières lignes (22 pixels du corps de référence)
         bande = m[:max(2, round(22 / k))]
         tete = float(np.where(bande)[1].mean()) if bande.any() else cw / 2.0
         im = Image.fromarray(cellule, 'RGBA').convert('RGBa')
         nw, nh = max(1, round(cw * k)), max(1, round(ch * k))
-        im = im.resize((nw, nh), Image.LANCZOS).convert('RGBA')
+        im = _sans_bouts_de_sol(im.resize((nw, nh), Image.LANCZOS).convert('RGBA'))
         px = PIED[0] - round(tete * k)
         py = PIED[1] - nh
         if px < 0 or py < 0 or px + nw > CELLULE[0] or py + nh > CELLULE[1]:

@@ -378,12 +378,18 @@ func recevoir(notes: Array) -> void:
 			var profond: float = maxf(rect.size.x, rect.size.y) * (0.5 - 0.08 * vers_cam)
 			pos = rect.get_center() + cote_cam * profond
 			taille *= 1.0 + AGRANDI_BATIMENT * vers_cam
-			var biais := _image_de_biais(objet, rect)
+			var biais := _image_de_biais(objet, rect, tex)
 			if not biais.is_empty():
 				tex = biais["tex"]
 				pied_note = biais["pied"]
 				pos = rect.get_center() + cote_cam * maxf(rect.size.x, rect.size.y) * 0.68
 				taille = biais["taille"]
+		elif objet is String and objet == "mairie":
+			var biais_m := _image_de_biais(objet, Rect2(), tex)
+			if not biais_m.is_empty():
+				tex = biais_m["tex"]
+				pied_note = biais_m["pied"]
+				taille = biais_m["taille"]
 		_regler(s, tex, pied_note, pos.x, pos.y, taille, e["miroir"], e["region"])
 		s.modulate = e["teinte"]
 		if rect.size != Vector2.ZERO:
@@ -481,19 +487,34 @@ func _silhouette(s: Sprite3D, w: Variant) -> void:
 
 
 ## Bâtiment dessiné de biais, s'il existe et si la vue est en diagonale : iso_<id> (façade vers le bas à gauche), iso_<id>_d (vers le bas à droite).
-func _image_de_biais(objet: Variant, rect: Rect2) -> Dictionary:
-	if not objet is GameState.Site or not objet.done:
+## Camp et mairie : d'après leur image de face (iso_camp2, iso_mairie). L'entrée suit la géométrie du mur : son passage
+## doit aller dans le sens où on le voit, selon l'axe de la vue et le sens du mur.
+func _image_de_biais(objet: Variant, rect: Rect2, face: Texture2D = null) -> Dictionary:
+	var nom := ""
+	if objet is GameState.Site and objet.done:
+		nom = "iso_%s" % objet.def_id()
+	elif objet is String and objet in ["camp", "mairie"] and face != null:
+		nom = "iso_" + face.resource_path.get_file().get_basename()
+	if nom == "":
 		return {}
-	var s := sin(deg_to_rad(lacet))
-	if absf(s) < 0.38:
+	var l := deg_to_rad(lacet)
+	if absf(sin(l)) < 0.38:
 		return {}  # dans l'axe : l'image de face est la bonne
-	var nom := "iso_%s" % objet.def_id()
-	if s < 0.0:
+	var droite := sin(l) < 0.0
+	if objet is GameState.Site and objet.def_id() == "entree":
+		if absf(sin(2.0 * l)) < 0.5:
+			return {}
+		# Mur le long de x vu en diagonale : il descend vers la droite quand sin(2·lacet) > 0, le passage vers la gauche
+		droite = sin(2.0 * l) < 0.0
+		if rect.size.y > rect.size.x:
+			droite = not droite  # entrée tournée : le passage est le long de x
+	if droite:
 		nom += "_d"
 	if not SpritesBD.existe(nom):
 		return {}
 	var tex := SpritesBD.texture(nom)
-	return {"tex": tex, "pied": SpritesBD.pied(nom), "taille": (rect.size.x + rect.size.y) * 0.8 / tex.get_width()}
+	var largeur := (rect.size.x + rect.size.y) * 0.8 if rect.size != Vector2.ZERO else 3.4
+	return {"tex": tex, "pied": SpritesBD.pied(nom), "taille": largeur / tex.get_width()}
 
 
 func _poser_texte(i: int, e: Dictionary) -> void:
