@@ -364,6 +364,12 @@ func end_day() -> void:
 			p.night_report["prestige"] = pts
 			if k == 0:
 				p.annonce("prestige", {"effet": "+%d de réputation" % int(pts)})
+	# Plan de relance : les joueurs derrière le premier paient moins cher ce soir (GameState.remise_relance)
+	for p in players:
+		var remise := p.remise_relance()
+		if remise > 0.0:
+			p.night_report["relance"] = remise
+			p.annonce("relance", {"remise": "%d %%" % roundi(remise * 100.0)}, "Plan de relance : −%d %% sur vos achats ce soir." % roundi(remise * 100.0))
 	_annoncer_rival()
 	night_turn = 0
 	night_stage = NIGHT_STAGES[0]

@@ -506,9 +506,22 @@ func _cellule(col: VBoxContainer, h: int, pris: bool, enfant: Control = null, bo
 	return p
 
 
+## Plan de relance : un bandeau en tête des pages du marché, si le joueur a droit à une remise ce soir.
+func _bandeau_relance(page: VBoxContainer) -> void:
+	var remise: float = m.game.remise_relance()
+	if remise <= 0.0:
+		return
+	var al := PanelContainer.new()
+	al.add_theme_stylebox_override("panel", UiTokens.panneau(Color("D9F0EC"), 8, 2, 8, false, UiTokens.SARCELLE))
+	al.add_child(_corps("Plan de relance de la direction : −%d %% sur vos achats ce soir (contrats, collaborateurs, cartes). Vous êtes à %d points du premier." % [
+		roundi(remise * 100.0), roundi(remise / float(m.game.data["buildings"]["marche"]["remise_relance"]["par_point"]))], 14, 700))
+	page.add_child(al)
+
+
 func _page_contrats() -> void:
 	var page: VBoxContainer = pages["contrats"]
 	var game: GameState = m.game
+	_bandeau_relance(page)
 	var pris := _objets_pris("contrats")
 	var defs := _dans_l_ordre("contrats", game.market_contracts + pris)
 	# Meilleures valeurs, parmi ce qui reste à prendre : une pastille écrite, seulement si tout n'est pas à égalité
@@ -670,6 +683,7 @@ func _raison_contrat(err: String, d: Dictionary) -> String:
 func _page_collaborateurs() -> void:
 	var page: VBoxContainer = pages["ouvriers"]
 	var game: GameState = m.game
+	_bandeau_relance(page)
 	var pris := _objets_pris("ouvriers")
 	var plein: bool = game.employees() >= game.housing()
 	if plein:
@@ -691,6 +705,7 @@ func _page_collaborateurs() -> void:
 func _page_cartes() -> void:
 	var page: VBoxContainer = pages["cartes"]
 	var mt: Match = m.mt
+	_bandeau_relance(page)
 	var pris := _objets_pris("cartes")
 	var cartes := _dans_l_ordre("cartes", mt.market_actions + pris)
 	var rangee := HBoxContainer.new()

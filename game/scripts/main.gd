@@ -2633,6 +2633,8 @@ func _auto_play() -> void:
 	if args.has("endday"):
 		if args.has("president"):  # --president : le joueur humain préside le conseil (captures)
 			game.influence += 100.0
+		if args.has("retard"):  # --retard=20 : un rival a 20 points d'avance, pour voir le plan de relance (captures)
+			mt.players[(game.index + 1) % mt.players.size()].rep_points += float(args["retard"])
 		game.end_day()
 		if args.has("etape"):  # --etape=ouvriers : avance la nuit jusqu'à cette étape (captures)
 			mt.night_goto(args["etape"], game.index)

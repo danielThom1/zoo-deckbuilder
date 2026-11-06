@@ -176,6 +176,11 @@
     "defaite": [
       "Nous avons perdu. Le plan social commence maintenant : c'est vous, le plan social."
     ],
+    "relance": [
+      "Le siège débloque un plan de relance : {remise} de remise sur vos achats ce soir. Ne le dites pas aux autres filiales, elles sont devant.",
+      "Vous êtes à la traîne : la direction vous accorde {remise} de rabais ce soir. C'est de la compassion, budgétée.",
+      "Plan de relance validé : {remise} sur le marché du soir. Les actionnaires appellent ça « investir dans le potentiel »."
+    ],
     "objectif": [
       "Objectif atteint : « {objectif} ». Les actionnaires applaudissent. D'une main : l'autre compte.",
       "« {objectif} » : c'est fait. Je m'en attribue le mérite, comme convenu avec moi-même."

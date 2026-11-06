@@ -1324,6 +1324,25 @@ func _init() -> void:
 	check(float(bd_g.visit.get("souvenirs_rep", 0.0)) > 0.0, "Braderie : la réputation de boutique compte")
 	bd_g.action_fx.erase("boutiques")
 
+	print("Plan de relance :")
+	var rl_a: GameState = bd_m.players[0]
+	var rl_b: GameState = bd_m.players[1]
+	var rl_carte: GameState.Card = bd_m.market_workers[0] if not bd_m.market_workers.is_empty() else rl_a.hand[0]
+	var rl_def: Dictionary = data["animals"]["animaux"].filter(func(d): return d["palier"] == "T2")[0]
+	rl_a.rep_points = 10.0
+	rl_b.rep_points = 10.0
+	var rl_embauche := rl_a.hire_cost(rl_carte)
+	var rl_contrat := int(rl_a.contract_cost(rl_def)["argent"])
+	check(is_zero_approx(rl_a.remise_relance()), "à égalité : pas de remise")
+	rl_b.rep_points = 30.0
+	check(is_equal_approx(rl_a.remise_relance(), 0.2) and is_zero_approx(rl_b.remise_relance()), "20 points derrière : −20 %% (%.2f), rien pour le premier" % rl_a.remise_relance())
+	check(int(rl_a.contract_cost(rl_def)["argent"]) == roundi(rl_contrat * 0.8) and rl_a.hire_cost(rl_carte) <= rl_embauche,
+		"contrat %d → %d, embauche %d → %d" % [rl_contrat, int(rl_a.contract_cost(rl_def)["argent"]), rl_embauche, rl_a.hire_cost(rl_carte)])
+	rl_b.rep_points = 90.0
+	check(is_equal_approx(rl_a.remise_relance(), 0.3), "remise plafonnée à 30 %")
+	rl_a.rep_points = 0.0
+	rl_b.rep_points = 0.0
+
 	var ob_m := Match.new(data, 4242, 3, 0, [{}, {}, {}])
 	ob_m.advance_ai_draft()
 	while ob_m.phase == "draft":

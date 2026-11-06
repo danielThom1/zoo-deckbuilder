@@ -1810,6 +1810,18 @@ func zoo_area() -> int:
 	return zoo_status()["interior"].size()
 
 
+## Plan de relance : part de remise sur les achats du soir (contrats, embauches, cartes d'action) pour un joueur
+## derrière le premier en réputation, selon l'écart (marche.remise_relance). 0 pour le premier.
+func remise_relance() -> float:
+	var r: Dictionary = data["buildings"]["marche"].get("remise_relance", {})
+	if r.is_empty() or mt == null:
+		return 0.0
+	var tete := 0
+	for p in mt.players:
+		tete = maxi(tete, p.reputation())
+	return clampf((tete - reputation()) * float(r["par_point"]), 0.0, float(r["max"]))
+
+
 func hire_cost(card: Card) -> int:
 	var pos := card.traits.filter(func(t): return is_positive(t)).size()
 	var neg := card.traits.size() - pos
@@ -1818,6 +1830,7 @@ func hire_cost(card: Card) -> int:
 	# Chasseur de têtes : un DRH de l'équipe négocie 3 de moins.
 	if all_employees().any(func(c): return has_capacity(c, "chasseur_tetes")):
 		base -= 3.0
+	base *= 1.0 - remise_relance()
 	return maxi(int(regles["cout_min_embauche"]), roundi(base))
 
 
@@ -1922,6 +1935,7 @@ func contract_cost(def: Dictionary) -> Dictionary:
 		mult *= 1.0 + float(m.get("hausse_prix_par_jour", 0.0)) * (day - 1)  # les contrats renchérissent au fil des jours
 		if contracts_tonight >= 1:
 			mult *= 1.0 + float(m["surcout_2e_contrat"])
+		mult *= 1.0 - remise_relance()
 		cost["argent"] = roundi(float(cost["argent"]) * mult)
 	return cost
 
@@ -2340,7 +2354,7 @@ func action_cards() -> Array[Card]:
 ## Achat d'une carte d'action au marché de nuit (1 par nuit, dans l'ordre d'influence) : elle va à la défausse.
 ## Prix d'une carte d'action ce soir : certaines renchérissent chaque jour, leur effet grandit avec le zoo.
 func action_price(card: Card) -> int:
-	return roundi(float(card.action["cout"]) * (1.0 + float(card.action.get("hausse_par_jour", 0.0)) * (day - 1)))
+	return roundi(float(card.action["cout"]) * (1.0 + float(card.action.get("hausse_par_jour", 0.0)) * (day - 1)) * (1.0 - remise_relance()))
 
 
 func action_error(card: Card) -> String:

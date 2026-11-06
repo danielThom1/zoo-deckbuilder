@@ -113,6 +113,7 @@
     "surcout_2e_contrat": 0.5,
     "hausse_prix_par_animal": 0.15,
     "hausse_prix_par_jour": 0.04,
+    "remise_relance": { "par_point": 0.01, "max": 0.3, "_note": "Plan de relance : un joueur derrière le premier en réputation paie moins cher ses achats du soir (part en argent des contrats, embauches, cartes d'action), 1 % par point d'écart, 30 % au plus." },
     "prix_achat_materiaux": 2.0,
     "_note_achat": "Le bois et la pierre s'achètent à tout moment de la journée, au double du prix de revente de base : l'argent (et donc l'or) se transforme en vitesse de construction.",
     "_note_prix": "Prix en argent d'un contrat × (1 + 0,15 par animal déjà possédé ou en attente) ; le 2e contrat de la nuit coûte 50 % de plus.",
