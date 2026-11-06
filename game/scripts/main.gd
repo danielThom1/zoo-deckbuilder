@@ -3955,7 +3955,7 @@ func _fiche_zoo(fiche: Array) -> void:
 		for o in mt.objectifs:
 			var fait := game.objectifs_faits.has(o["id"])
 			fiche.append(["ligne", "ui_valide" if fait else "ui_suivant", UiTokens.QUALITE if fait else UiTokens.TEXTE_SECONDAIRE, str(o["texte"]),
-				"fait" if fait else "%d / %d" % [mini(game.objectif_valeur(o), int(o["n"])), int(o["n"])]])
+				game.objectif_avancement(o)])
 	if z["open"]:
 		fiche.append(["chiffres", [["%d" % z["attract"], "attractivité", "ressource_reputation", UiTokens.RESSOURCES["reputation"]["couleur"]],
 			["%+d %%" % roundi((z["pub"] - 1.0) * 100), "publicité", "ressource_influence", UiTokens.RESSOURCES["influence"]["couleur"]]]])
@@ -6368,7 +6368,7 @@ func _update_ordre_du_jour() -> void:
 	for o in mt.objectifs:
 		var fait := game.objectifs_faits.has(o["id"])
 		items.append([fait, str(o["texte"]), "Objectif · +10 réputation" if not fait else "Objectif atteint",
-			"", "%d/%d" % [mini(game.objectif_valeur(o), int(o["n"])), int(o["n"])]])
+			"", game.objectif_avancement(o).replace(" / ", "/")])
 	var sig := str(items) + str(z["open"])
 	if sig == ordre_signature:
 		return

@@ -790,7 +790,7 @@ func _objectif_bonus(def: Dictionary) -> float:
 	var owned := _owned_defs()
 	var bonus := 0.0
 	for o in mt.objectifs:
-		if g.objectifs_faits.has(o["id"]):
+		if g.objectifs_faits.has(o["id"]) or g.objectif_manque(o):
 			continue
 		var n := -1
 		match str(o["type"]):
@@ -815,7 +815,7 @@ func _objectif_bonus(def: Dictionary) -> float:
 ## Objectif encore ouvert de ce type, ou vide.
 func _objectif_ouvert(type: String) -> Dictionary:
 	for o in mt.objectifs:
-		if o["type"] == type and not g.objectifs_faits.has(o["id"]):
+		if o["type"] == type and not g.objectifs_faits.has(o["id"]) and not g.objectif_manque(o):
 			return o
 	return {}
 

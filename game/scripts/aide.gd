@@ -96,6 +96,8 @@ var page := 0
 
 
 var groupe_onglets := ButtonGroup.new()
+var fiche_animal: Control  # fiche de l'animal cliqué, en haut de la page Animaux
+const NOMS_TERRAINS := {"Prairie": "Prairie", "Foret": "Forêt", "Eau": "Eau", "Roche": "Roche", "Sable": "Sable"}
 
 
 func _init(game_data: Dictionary) -> void:
@@ -194,7 +196,14 @@ func _glossaire_ressources() -> void:
 	var L: Array[String] = []
 	for r in RESSOURCES:
 		L.append("[b]%s[/b] : %s" % [r[0], r[1]])
+	var ex: Dictionary = data["buildings"]["extraction"]
+	L.append("[b]Récolte[/b] : à rendement ×1, un collaborateur tire d'une case %s bois, %s pierre ou %s or par minute (l'or demande une Mine sur le gisement). Il porte %d unités, puis va les déposer au Camp ou à l'Entrepôt le plus proche : les trajets comptent. Les métiers et les traits multiplient ces chiffres (voir Métiers)." % [
+		_nombre(float(ex["bois"])), _nombre(float(ex["pierre"])), _nombre(float(ex["or"])), int(ex["capacite_portage"])])
 	_feuille("Ressources").text = "\n\n".join(L)
+
+
+func _nombre(v: float) -> String:
+	return ("%.2f" % v).trim_suffix("0").trim_suffix("0").trim_suffix(".").replace(".", ",")
 
 
 func _glossaire_metiers() -> void:
@@ -267,7 +276,7 @@ func _glossaire_animaux() -> void:
 	var conts: Dictionary = data["animals"]["continents"]
 	var types: Dictionary = data["animals"]["types"]
 	var paliers: Dictionary = data["animals"]["paliers"]
-	var L: Array[String] = []
+	var L: Array[String] = ["[i]Cliquez sur un animal pour voir le motif de terrain à reproduire.[/i]\n"]
 	for c in ["Europe", "Amerique", "Asie", "Afrique"]:
 		L.append("[b]%s[/b]" % str(conts[c]).to_upper())
 		for pal in ["T3", "T2", "T1"]:
@@ -278,7 +287,7 @@ func _glossaire_animaux() -> void:
 				var img := ""
 				if not esp.is_empty() and str(esp[2]) != "" and SpritesBD.existe(str(esp[2])):
 					img = "[img=44x44]res://assets/bd/sprites/animaux_v2/%s.png[/img] " % str(esp[2])
-				var l := "%s[b]%s[/b] · %s · %s · %s · attractivité %d · enclos de %d cases" % [img, a["nom"], paliers[pal]["nom"], types[a["type"]],
+				var l := "%s[url=%s][b]%s[/b][/url] · %s · %s · %s · attractivité %d · enclos de %d cases" % [img, a["id"], a["nom"], paliers[pal]["nom"], types[a["type"]],
 					_cout(a["cout"]), int(a["reputation"]), int(a["taille"])]
 				if a.has("decor"):
 					l += " + aménagement requis"
@@ -286,7 +295,104 @@ func _glossaire_animaux() -> void:
 					l += "\n    [color=#13867F]%s[/color]" % a["effet_texte"]
 				L.append(l)
 		L.append("")
-	_feuille("Animaux").text = "\n".join(L)
+	var r := _feuille("Animaux")
+	r.meta_underlined = false
+	r.meta_clicked.connect(func(meta): _fiche_animal(str(meta)))
+	r.text = "\n".join(L)
+
+
+## Fiche d'un animal en haut de la page : son image, ses chiffres et le motif à reproduire, case par case.
+func _fiche_animal(id: String) -> void:
+	var a: Dictionary = {}
+	for x in data["animals"]["animaux"]:
+		if x["id"] == id:
+			a = x
+	if a.is_empty():
+		return
+	if is_instance_valid(fiche_animal):
+		fiche_animal.queue_free()
+	var cadre := PanelContainer.new()
+	var st := StyleBoxFlat.new()
+	st.bg_color = Color.WHITE
+	st.border_color = UiTokens.ENCRE
+	st.set_border_width_all(2)
+	st.set_corner_radius_all(8)
+	st.set_content_margin_all(14)
+	cadre.add_theme_stylebox_override("panel", st)
+	var ligne := HBoxContainer.new()
+	ligne.add_theme_constant_override("separation", 22)
+	cadre.add_child(ligne)
+	var esp: Array = SpritesBD.ANIMAUX.get(id, [])
+	if not esp.is_empty() and SpritesBD.existe(str(esp[0])):
+		var img := TextureRect.new()
+		img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		img.texture = SpritesBD.texture(str(esp[0]))
+		img.custom_minimum_size = Vector2(150, 130)
+		ligne.add_child(img)
+	var texte := VBoxContainer.new()
+	texte.add_theme_constant_override("separation", 6)
+	texte.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ligne.add_child(texte)
+	var nom := Composants.label(str(a["nom"]))
+	nom.add_theme_font_override("font", UiTokens.police_titre())
+	nom.add_theme_font_size_override("font_size", 24)
+	texte.add_child(nom)
+	var paliers: Dictionary = data["animals"]["paliers"]
+	var infos := RichTextLabel.new()
+	infos.bbcode_enabled = true
+	infos.fit_content = true
+	infos.scroll_active = false
+	infos.add_theme_font_size_override("normal_font_size", 15)
+	infos.add_theme_font_size_override("bold_font_size", 15)
+	infos.add_theme_color_override("default_color", UiTokens.ENCRE)
+	var compte := {}
+	for c in a["motif"]:
+		compte[str(c[2])] = int(compte.get(str(c[2]), 0)) + 1
+	var parts: Array[String] = []
+	for k in compte:
+		parts.append("%d %s" % [compte[k], NOMS_TERRAINS.get(k, k)])
+	var l: Array[String] = ["%s · %s · %s · %s · attractivité %d" % [paliers[a["palier"]]["nom"], data["animals"]["types"][a["type"]],
+		data["animals"]["continents"][a["continent"]], _cout(a["cout"]), int(a["reputation"])]]
+	l.append("[b]Motif à reproduire[/b], tel quel, tourné ou retourné : %s, dans un enclos d'au moins %d cases." % [", ".join(parts), int(a["taille"])])
+	if a.has("decor"):
+		var dnom := str(a["decor"])
+		for b in data["buildings"]["batiments"]:
+			if b["id"] == a["decor"]:
+				dnom = str(b["nom"])
+		l.append("[b]En plus[/b] : un %s, bâtiment à poser dans l'enclos (onglet Zoo)." % dnom)
+	if a.get("special", "") == "predateur":
+		l.append("Prédateur : un enclos à lui seul, toujours clôturé.")
+	if a.has("effet_texte"):
+		l.append("[color=#13867F]%s[/color]" % a["effet_texte"])
+	infos.text = "\n".join(l)
+	texte.add_child(infos)
+	var bas := HBoxContainer.new()
+	bas.add_theme_constant_override("separation", 22)
+	texte.add_child(bas)
+	var motif := FenetreComite.MotifLettre.new()
+	motif.regler(a, 30.0)
+	bas.add_child(motif)
+	var legende := VBoxContainer.new()
+	legende.add_theme_constant_override("separation", 3)
+	for k in ["Prairie", "Foret", "Eau", "Roche", "Sable"]:
+		if not compte.has(k):
+			continue
+		var lg := HBoxContainer.new()
+		lg.add_theme_constant_override("separation", 8)
+		var pastille := ColorRect.new()
+		pastille.color = FenetreComite.FOND_MOTIF[k]
+		pastille.custom_minimum_size = Vector2(18, 18)
+		lg.add_child(pastille)
+		var nl := Composants.label("%s : %s" % [FenetreComite.LETTRES[k], NOMS_TERRAINS[k]])
+		nl.add_theme_font_size_override("font_size", 14)
+		lg.add_child(nl)
+		legende.add_child(lg)
+	bas.add_child(legende)
+	corps.add_child(cadre)
+	corps.move_child(cadre, 1)
+	fiche_animal = cadre
+	scroll.scroll_vertical = 0
 
 
 func _glossaire_actions() -> void:

@@ -886,11 +886,25 @@ func objectif_valeur(o: Dictionary) -> int:
 	return 0
 
 
+## Un objectif à date (« avant_jour ») n'est plus possible une fois ce jour venu.
+func objectif_manque(o: Dictionary) -> bool:
+	return o.has("avant_jour") and not objectifs_faits.has(o["id"]) and day >= int(o["avant_jour"])
+
+
+## « fait », « manqué » ou l'avancement « 2 / 4 ».
+func objectif_avancement(o: Dictionary) -> String:
+	if objectifs_faits.has(o["id"]):
+		return "fait"
+	if objectif_manque(o):
+		return "manqué"
+	return "%d / %d" % [mini(objectif_valeur(o), int(o["n"])), int(o["n"])]
+
+
 ## Fin de journée : les objectifs nouvellement remplis rapportent leur réputation, une seule fois.
 func verifier_objectifs() -> void:
 	var pts := float(data["buildings"]["objectifs"]["reputation"])
 	for o in mt.objectifs:
-		if not objectifs_faits.has(o["id"]) and objectif_valeur(o) >= int(o["n"]):
+		if not objectifs_faits.has(o["id"]) and not objectif_manque(o) and objectif_valeur(o) >= int(o["n"]):
 			objectifs_faits[o["id"]] = day
 			rep_points += pts
 			add_rep_source("objectifs", pts)
@@ -943,6 +957,9 @@ func report_goto(w: Worker, tile: Vector2i) -> bool:
 
 func _update_reportage(w: Worker, dt: float) -> void:
 	var r := w.reportage
+	# Le parc visité perd de l'influence au rythme où un Lobbyiste en gagne (efficacité 1)
+	var visite: GameState = mt.players[int(r["cible"])]
+	visite.influence = maxf(0.0, visite.influence - LOBBYING_PAR_MINUTE / 60.0 * dt)
 	var pos: Vector2 = r["pos"]
 	var but: Vector2 = r["but"]
 	var pas := float(data["buildings"]["presse"]["vitesse"]) * float(event_effects().get("vitesse", 1.0)) * dt

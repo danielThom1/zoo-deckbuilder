@@ -1276,7 +1276,7 @@ func _rendre_journal() -> void:
 	cols[0].add_child(_cond("OBJECTIFS DES ACTIONNAIRES", 16))
 	for o in mt.objectifs:
 		var fait: bool = game.objectifs_faits.has(o["id"])
-		cols[0].add_child(_replie(_corps(("✓ " if fait else "○ ") + "%s (%s)" % [o["texte"], "fait" if fait else "%d / %d" % [mini(game.objectif_valeur(o), int(o["n"])), int(o["n"])]],
+		cols[0].add_child(_replie(_corps(("✓ " if fait else "○ ") + "%s (%s)" % [o["texte"], game.objectif_avancement(o)],
 			13, 600, UiTokens.SARCELLE_FONCE if fait else UiTokens.ENCRE)))
 	# Compte de résultat
 	cols[1].add_child(_cond("COMPTE DE RÉSULTAT · JOUR %d" % mt.day, 16))

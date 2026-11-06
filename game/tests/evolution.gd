@@ -160,8 +160,11 @@ func _init() -> void:
 		parties_par_genome = PARTIES_PAR_GENOME_LONGUE
 	# --fin=08:00 : l'étude s'arrête d'elle-même à temps pour jouer sa finale et écrire son rapport.
 	var budget_ms := 0
-	if args.has("fin") and ":" in str(args["fin"]):
-		var h: PackedStringArray = str(args["fin"]).split(":")
+	var fin := str(args.get("fin", "")).to_lower().replace("h", ":").strip_edges()
+	if fin.ends_with(":"):
+		fin += "00"  # « 8h » : 8:00
+	if ":" in fin:
+		var h: PackedStringArray = fin.split(":")
 		var now := Time.get_time_dict_from_system()
 		var secondes := int(h[0]) * 3600 + int(h[1]) * 60 - (int(now["hour"]) * 3600 + int(now["minute"]) * 60)
 		budget_ms = (secondes if secondes > 0 else secondes + 86400) * 1000
@@ -583,12 +586,20 @@ func _play(seed: int, genomes: Array) -> Dictionary:
 	return out
 
 
+## Écriture parfois refusée par Windows (antivirus, indexation) : on réessaie. Une erreur de script bloquerait le
+## processus (il attend dans le débogueur) et l'étude perdrait la partie et 10 minutes.
 func _save(nom: String, result: Dictionary) -> void:
 	var tmp := dir.path_join(nom + ".tmp")
-	var f := FileAccess.open(tmp, FileAccess.WRITE)
-	f.store_string(JSON.stringify(result))
-	f.close()
-	DirAccess.rename_absolute(tmp, dir.path_join(nom + ".res"))
+	var texte := JSON.stringify(result)
+	for essai in 50:
+		var f := FileAccess.open(tmp, FileAccess.WRITE)
+		if f != null:
+			f.store_string(texte)
+			f.close()
+			if DirAccess.rename_absolute(tmp, dir.path_join(nom + ".res")) == OK:
+				return
+		OS.delay_msec(200)
+	printerr("Résultat %s impossible à écrire : %s" % [nom, error_string(FileAccess.get_open_error())])
 
 
 func _mean(a: Array) -> float:

@@ -879,14 +879,15 @@ func _init() -> void:
 	f_out.card.metier = fm.metier_def("lobbyiste")
 	check(fm.campaign_cost(f_aff) < int(f_aff["cout"]), "campagne moins chère avec un Lobbyiste dehors (%d au lieu de %d)" % [fm.campaign_cost(f_aff), int(f_aff["cout"])])
 	f_out.card.metier = f_metier0
-	var f_inf0 := fm.influence
+	# Influence gagnée (et non solde) : un Journaliste rival en reportage chez nous la fait baisser
+	var f_inf0: float = fm.day_stats["influence"]
 	check(fm.launch_campaign(f_aff) and is_equal_approx(fm.money, 100.0 - float(f_aff["cout"])), "campagne lancée et payée (%d)" % int(f_aff["cout"]))
 	for i in 1500:
 		fm.tick(0.1)
 		if fm.campaign.is_empty():
 			break
-	check(is_equal_approx(fm.publicite, float(f_aff["points"])) and fm.influence > f_inf0,
-		"campagne terminée par l'ouvrier dehors (+%d point), l'influence continue (%.1f)" % [int(f_aff["points"]), fm.influence])
+	check(is_equal_approx(fm.publicite, float(f_aff["points"])) and float(fm.day_stats["influence"]) > f_inf0,
+		"campagne terminée par l'ouvrier dehors (+%d point), l'influence continue (+%.2f)" % [int(f_aff["points"]), float(fm.day_stats["influence"]) - f_inf0])
 	check(fm.publicity_mult() > 1.05, "la publicité augmente l'affluence : ×%.2f" % fm.publicity_mult())
 
 	var fg := _fresh_day(data, 2027)
@@ -1310,6 +1311,16 @@ func _init() -> void:
 	check(is_equal_approx(ob_g.rep_points, ob_rep + 10.0) and ob_g.objectifs_faits.has("test"), "objectif rempli : +10 de réputation")
 	ob_g.verifier_objectifs()
 	check(is_equal_approx(ob_g.rep_points, ob_rep + 10.0), "un objectif ne paie qu'une fois")
+	ob_m.objectifs = [{"id": "test_date", "type": "effectif", "n": 1, "avant_jour": 8, "texte": "test"}]
+	var ob_jour := ob_m.day
+	ob_m.day = 8
+	ob_g.verifier_objectifs()
+	check(ob_g.objectif_manque(ob_m.objectifs[0]) and not ob_g.objectifs_faits.has("test_date") and ob_g.objectif_avancement(ob_m.objectifs[0]) == "manqué",
+		"objectif à date : manqué à partir du jour 8")
+	ob_m.day = 7
+	ob_g.verifier_objectifs()
+	check(ob_g.objectifs_faits.has("test_date"), "objectif à date : rempli au jour 7")
+	ob_m.day = ob_jour
 	var ob_c: GameState.Card = ob_g.hand[0]
 	ob_c.metier = data["workers"]["metiers"].filter(func(mm): return mm["id"] == "journaliste")[0]
 	ob_g.money = 500.0
@@ -1318,6 +1329,13 @@ func _init() -> void:
 	check(ob_g.report_error(ob_w, 1) != "", "reportage : il faut d'abord sortir de la carte")
 	ob_w.offmap = true
 	check(ob_g.report_error(ob_w, 0) != "" and ob_g.report_start(ob_w, 1), "reportage : seulement chez un rival")
+	var ob_rival: GameState = ob_g.mt.players[1]
+	ob_rival.influence = 5.0
+	ob_g._update_reportage(ob_w, 60.0)
+	check(is_equal_approx(ob_rival.influence, 4.0), "reportage : le parc visité perd 1 d'influence par minute (%.2f)" % ob_rival.influence)
+	ob_rival.influence = 0.3
+	ob_g._update_reportage(ob_w, 60.0)
+	check(ob_rival.influence == 0.0, "reportage : l'influence ne descend pas sous 0")
 	check(not ob_g.vus[1].is_empty() and ob_g.vus[1].size() < ob_r.map.w * ob_r.map.h / 4, "brouillard : seules les cases autour du Journaliste sont dévoilées")
 	var ob_pub := ob_r.publicity_mult()
 	check(ob_g.publish_article(ob_w) and is_equal_approx(ob_r.publicity_mult(), ob_pub * 0.8), "article : publicité du rival ×0,8")
