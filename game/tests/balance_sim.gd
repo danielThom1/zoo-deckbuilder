@@ -39,6 +39,9 @@ const STRATEGIES := [
 ]
 
 
+var sortie := "rapport_equilibrage.md"
+
+
 func _init() -> void:
 	var args := {}
 	for a in OS.get_cmdline_user_args():
@@ -48,6 +51,10 @@ func _init() -> void:
 	var dt := float(args.get("dt", "1.0"))
 	var detail := args.has("detail")
 	var data := GameData.load_all()
+	# --objectif=120 : autre objectif de réputation (essais) ; --sortie=nom.md : autre fichier de rapport
+	if args.has("objectif"):
+		data["buildings"]["partie"]["objectif_reputation"] = int(args["objectif"])
+	sortie = str(args.get("sortie", "rapport_equilibrage.md"))
 	var dir := ProjectSettings.globalize_path("user://balance_sim")
 
 	# Processus de travail : joue les parties gi ≡ lot (mod lots), un fichier de résultat par partie.
@@ -76,6 +83,8 @@ func _init() -> void:
 				"--parties=%d" % n_games, "--dt=%s" % str(dt), "--lot=%d" % lot, "--lots=%d" % jobs]
 			if detail:
 				a.append("--detail")
+			if args.has("objectif"):
+				a.append("--objectif=%s" % args["objectif"])
 			pids.append(OS.create_process(OS.get_executable_path(), a))
 		while results.size() < n_games:
 			var all_done := pids.all(func(p): return not OS.is_process_running(p))
@@ -163,6 +172,39 @@ func _save(dir: String, gi: int, result: Dictionary) -> void:
 	DirAccess.rename_absolute(tmp, dir.path_join("%d.json" % gi))
 
 
+## Rattrapage : un joueur en tête tôt gagne-t-il presque toujours ? Part des parties gagnées par le premier
+## au soir des jours 4 et 6, écart entre premier et dernier à ces jours et à la fin, jour moyen de fin.
+func _rattrapage(L: Array[String], results: Dictionary, n_games: int) -> void:
+	var leader_gagne := {4: 0, 6: 0}
+	var parties := {4: 0, 6: 0}
+	var ecart := {4: 0.0, 6: 0.0, "fin": 0.0}
+	var jours := 0.0
+	for gi in n_games:
+		var r: Dictionary = results[gi]
+		var hist: Array = r["history"]
+		jours += float(r["day"])
+		var fin: Array = r["players"].map(func(p): return float(p["rep"]))
+		ecart["fin"] += fin.max() - fin.min()
+		for j in [4, 6]:
+			for row in hist:
+				if int(row[0]["day"]) != j:
+					continue
+				var reps: Array = row.map(func(e): return float(e["rep"]))
+				var tete := reps.find(reps.max())
+				parties[j] += 1
+				ecart[j] += reps.max() - reps.min()
+				if tete == int(r["winner"]):
+					leader_gagne[j] += 1
+	L.append("## Rattrapage")
+	L.append("")
+	L.append("Fin de partie au jour %.1f en moyenne." % (jours / maxf(1.0, n_games)))
+	for j in [4, 6]:
+		L.append("- Premier au soir du jour %d : gagne %d %% des parties (%d parties) ; écart premier-dernier %.0f." % [
+			j, roundi(100.0 * leader_gagne[j] / maxi(1, parties[j])), parties[j], ecart[j] / maxi(1, parties[j])])
+	L.append("- Écart premier-dernier en fin de partie : %.0f." % (ecart["fin"] / maxf(1.0, n_games)))
+	L.append("")
+
+
 func _print_game(r: Dictionary, n_games: int, t0: int) -> void:
 	var w: Dictionary = r["players"][int(r["winner"])]
 	print("Partie %d/%d (graine %d) : fin au jour %d, gagnant %s (%d) — %s  [%.0f s, total %.0f s]" % [
@@ -230,6 +272,7 @@ func _write_report(results: Dictionary, n_games: int, dt: float, data: Dictionar
 	L.append("%d parties à 4 IA, objectif %d de réputation, fin forcée au jour %d, pas de simulation %.1f s." % [
 		games.size(), int(data["buildings"]["partie"]["objectif_reputation"]), int(data["buildings"]["partie"]["jour_max"]), dt])
 	L.append("")
+	_rattrapage(L, results, n_games)
 	L.append("## Vitesse : victoires à %d et jour de victoire" % int(data["buildings"]["partie"]["objectif_reputation"]))
 	L.append("")
 	L.append("Classement par taux de victoire, puis par jour moyen de victoire (plus tôt = mieux).")
@@ -306,7 +349,7 @@ func _write_report(results: Dictionary, n_games: int, dt: float, data: Dictionar
 	L.append("")
 	for gm in games:
 		L.append("- Graine %d : fin au jour %d, **%s** gagne (%d). %s" % [gm["seed"], gm["day"], gm["winner"], gm["rep"], gm["line"]])
-	var path := ProjectSettings.globalize_path("res://").path_join("../rapport_equilibrage.md")
+	var path := ProjectSettings.globalize_path("res://").path_join("../" + sortie)
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	f.store_string("\n".join(L) + "\n")
 	f.close()

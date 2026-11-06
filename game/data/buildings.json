@@ -35,7 +35,7 @@
     "_note": "Marchand au Camp. Taux en argent par unité.",
     "bois": 0.5,
     "pierre": 0.8,
-    "or": 5
+    "or": 6
   },
 
   "regles_amenagement": { "metiers": ["paysagiste", "terrassier"], "_note": "Seuls ces métiers savent transformer une case de terrain en une autre." },
@@ -63,7 +63,7 @@
     { "id": "comptoir",   "nom": "Marché",               "taille": [2, 2], "travail": 90,  "type_travail": "construire_bois",  "cout": { "bois": 10, "pierre": 4 }, "effet": { "commerce": true }, "unique": true, "_note_effet": "Vente du stock à 70 % sans personne. Tenu par un Marchand (clic droit) : vente à 125 % et achat de bois et de pierre 30 % moins cher (Négociateur : +25 % de vente et −10 % d'achat en plus)." },
     { "id": "agence",     "nom": "Agence d'intérim",     "taille": [2, 2], "travail": 105,  "type_travail": "construire_bois",  "cout": { "bois": 12, "pierre": 6 }, "effet": { "echange": true }, "unique": true, "_note_effet": "En journée, une fois par jour : remplace un collaborateur sur le terrain par une carte de sa pioche ou de sa défausse. Coût : voir la section agence." },
     { "id": "cabinet",    "nom": "Cabinet de recrutement", "taille": [2, 2], "travail": 112, "type_travail": "construire_bois", "cout": { "bois": 10, "pierre": 8, "argent": 10 }, "effet": { "recrutement": { "peu_qualifie": 12, "qualifie": 25, "cadre": 50 } }, "unique": true, "_note_effet": "La nuit, à votre tour d'embauche, une fois : remplace une carte de la rangée des collaborateurs par une carte au hasard de la catégorie choisie (prix selon la rareté)." },
-    { "id": "mine",       "nom": "Mine d'or",            "taille": [2, 2], "travail": 150, "type_travail": "construire_pierre", "cout": { "bois": 10, "pierre": 15 }, "effet": { "permet_extraction": "or" }, "sur": "MineOr", "hors_enceinte": true, "_note": "Une mine par gisement (2 gisements par carte)." },
+    { "id": "mine",       "nom": "Mine d'or",            "taille": [2, 2], "travail": 120, "type_travail": "construire_pierre", "cout": { "bois": 10, "pierre": 15 }, "effet": { "permet_extraction": "or" }, "sur": "MineOr", "hors_enceinte": true, "_note": "Une mine par gisement (2 gisements par carte)." },
     { "id": "cloture",    "nom": "Enceinte (segment)",   "taille": [1, 1], "travail": 4,   "type_travail": "construire_pierre", "cout": { "pierre": 1 },            "effet": { "enceinte": true }, "peinture": true },
     { "id": "entree",     "nom": "Entrée du zoo",        "taille": [2, 1], "travail": 90,  "type_travail": "construire_pierre", "cout": { "pierre": 8, "bois": 4 }, "effet": { "entree_zoo": true }, "unique": true },
     { "id": "enclos",     "nom": "Clôture d'enclos (segment)", "taille": [1, 1], "travail": 6, "type_travail": "construire_enclos", "cout": { "bois": 1 }, "effet": { "enclos": true }, "peinture": true, "_note": "Une zone fermée de clôtures d'enclos validée contre les exigences d'un contrat d'animal" },
@@ -145,7 +145,6 @@
     "reputation_par_visiteur_moyen": 0.3,
     "rations": { "cout": 1, "preparation_s": 3, "_note": "Chaque animal mange par jour autant de rations que sa nourriture de palier (T1 2, T2 4, T3 6), réparties sur la journée. Réserve maximale : une journée. À 0, il a faim : il ne compte plus dans l'attractivité. Avant l'ouverture du zoo, le fournisseur le nourrit." },
     "proprete": { "salete_par_visiteur_minute": 0.3, "nettoyage_par_minute": 18, "seuils": [[60, 0.85], [30, 0.6]], "_note": "Propreté du parc de 0 à 100. Les visiteurs présents la font baisser ; un collaborateur du Local d'entretien la remonte. En dessous des seuils, la demande de visiteurs est multipliée (×0,85 sous 60, ×0,6 sous 30)." },
-    "bonus_predateur": 2,
     "bonus_soigneur": 2,
     "maladie": { "_note": "Chaque nuit, chaque animal peut tomber malade (plus souvent s'il a eu faim dans la journée ou si le parc est sale), et un malade peut contaminer les animaux de son enclos. Un animal malade ne compte pas dans l'attractivité. Seul un Soigneur posté dans l'enclos le guérit (soin_travail points, 1 par seconde à efficacité 1).", "proba_nuit": 0.03, "guerison_nuits": 2, "proba_faim": 0.15, "proba_sale": 0.08, "seuil_sale": 40, "contagion": 0.25, "soin_travail": 60 },
     "mult_vendeur": 2.5,
@@ -155,7 +154,7 @@
 
 
   "reputation_autres": {
-    "_note": "Autres façons de gagner de la réputation que la fréquentation. Spectacles : par journée de Kiosque tenu (× efficacité « animer » : Animateur ×2). Boutique : par souvenir vendu, une seule boutique comptée (la mieux tenue), Braderie exclue. Prestige politique : chaque nuit, le 1er puis le 2e en influence (s'ils ont au moins influence_min). Labels : achetés en or, avec un Marchand mobilisé, une fois chacun. Légendaire : un collaborateur qui atteint le niveau 5.",
+    "_note": "Autres façons de gagner de la réputation que la fréquentation. Spectacles : par journée de Kiosque tenu (× efficacité « animer » : Animateur ×2). Boutique : par souvenir vendu, une seule boutique comptée (la mieux tenue), Braderie comprise. Prestige politique : chaque nuit, le 1er puis le 2e en influence (s'ils ont au moins influence_min). Labels : achetés en or, avec un Marchand mobilisé, une fois chacun. Légendaire : un collaborateur qui atteint le niveau 5.",
     "embellissement": { "_note": "Intendance : travail par décoration (efficacité « embellir » par seconde), matériaux de chaque décoration, réputation par décoration et par nuit zoo ouvert, une décoration au plus pour tant de cases du parc.", "travail": 100, "cout": { "bois": 1, "pierre": 1 }, "reputation_nuit": 0.25, "cases_par_decoration": 10, "types": ["massif", "banc", "lampadaire", "topiaire", "fontaine", "statue", "tonnelle", "parterre"] },
     "label_sans_marchand": 2, "kiosque_par_jour": 2.5,
     "boutique_par_souvenir": 0.07,

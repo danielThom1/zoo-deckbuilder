@@ -52,7 +52,7 @@
     {"id": "messager", "nom": "Messager sagittaire", "biome": "Desert", "continent": "Afrique", "type": "aerien", "palier": "T1", "cout": {"argent": 10}, "taille": 6, "motif": [[0, 0, "Sable"], [1, 0, "Sable"], [2, 0, "Prairie"], [1, 1, "Prairie"], [2, 1, "Prairie"]], "reputation": 4}
   ],
   "specials": {
-    "predateur": "Ne peut pas être adjacent à l'enclos d'une proie herbivore ❓ ; +2 visiteurs/nuit",
+    "predateur": "Un enclos à lui seul, toujours clôturé (jamais dans le parc libre ni avec un autre animal).",
     "voliere": "Nécessite une clôture haute (coût de clôture ×1,5)"
   }
 }

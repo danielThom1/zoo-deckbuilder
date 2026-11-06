@@ -1296,7 +1296,34 @@ func _init() -> void:
 	var mp_c: Variant = Commandes.coder({"a": [Vector2i(1, 2)], "b": 3})
 	check(mp_c["a"][0] == Vector2i(1, 2) and mp_c["b"] == 3, "codage : les valeurs simples restent telles quelles")
 
-	print("Objectifs des actionnaires et Journaliste :")
+	print("Braderie :")
+	var bd_m := Match.new(data, 777, 2, 0)
+	while bd_m.phase == "draft":
+		bd_m.pick_draft(bd_m.ai_choice())
+	var bd_g: GameState = bd_m.players[0]
+	var bd_def: Dictionary = bd_g.building_def("boutique")
+	var bd_inter := {}
+	for k in 2:
+		var s := GameState.Site.new()
+		s.kind = "batiment"
+		s.def = bd_def
+		s.rect = Rect2i(Vector2i(5 + 3 * k, 5), Vector2i(2, 2))
+		s.done = true
+		bd_g.sites.append(s)
+		bd_inter[s.rect.position] = true
+	var bd_ventes := func() -> float:
+		bd_g._zoo_cache_version = bd_g.version
+		bd_g._zoo_cache = {"interior": bd_inter}
+		var avant := bd_g.money
+		bd_g._sell_souvenirs()
+		return bd_g.money - avant
+	check(is_zero_approx(bd_ventes.call()), "boutiques vides : rien de vendu")
+	bd_g.action_fx["boutiques"] = 2.0
+	var bd_v: float = bd_ventes.call()
+	check(is_equal_approx(bd_v, 4.0 * float(bd_def["effet"]["souvenirs_par_visiteur"])), "Braderie : deux boutiques vides vendent ×2 chacune (%.1f)" % bd_v)
+	check(float(bd_g.visit.get("souvenirs_rep", 0.0)) > 0.0, "Braderie : la réputation de boutique compte")
+	bd_g.action_fx.erase("boutiques")
+
 	var ob_m := Match.new(data, 4242, 3, 0, [{}, {}, {}])
 	ob_m.advance_ai_draft()
 	while ob_m.phase == "draft":

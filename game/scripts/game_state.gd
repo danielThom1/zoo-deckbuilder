@@ -3173,7 +3173,7 @@ func reputation() -> int:
 	return floori(rep_points)
 
 
-## Attractivité : points par espèce et effets des rares (+ soins et prédateurs).
+## Attractivité : points par espèce et effets des rares (+ soins).
 ## Elle fixe combien de visiteurs se présentent. `only` : restreint aux animaux donnés (ceux de l'enceinte).
 func attractiveness(only = null) -> int:
 	var species := {}
@@ -3183,8 +3183,6 @@ func attractiveness(only = null) -> int:
 		if not a.arrived or not a.fed or a.sick:
 			continue
 		species[a.def["id"]] = a.def
-		if a.def.get("special", "") == "predateur":
-			extra += int(Z["bonus_predateur"])
 		if cared_today.has(a):
 			extra += int(Z["bonus_soigneur"])
 	var total := extra + (kiosque_bonus() + int(action_fx.get("attractivite", 0)) if not species.is_empty() else 0)
@@ -3491,7 +3489,7 @@ func guichet_rate() -> float:
 
 
 ## Multiplicateur de souvenirs d'une boutique : 0 si elle est vide, 1 si tenue, 2,5 avec un Vendeur (un seul ouvrier
-## par boutique ; chaque boutique vend de son côté). La Braderie est comptée à part, dans _sell_souvenirs.
+## par boutique ; chaque boutique vend de son côté). La Braderie s'y ajoute, dans _sell_souvenirs.
 func _shop_mult(shop: Site) -> float:
 	var best := 0.0
 	for w in workers:
@@ -3500,20 +3498,22 @@ func _shop_mult(shop: Site) -> float:
 	return best
 
 
-## Un visiteur passe aux boutiques : l'argent de toutes, la Braderie sur celle où elle apporte le plus, et la réputation
-## d'une seule (la mieux tenue, sans la Braderie). Sans cela, multiplier les boutiques multipliait la réputation.
+## Un visiteur passe aux boutiques : l'argent de toutes, et la réputation d'une seule (la mieux tenue). Sans cela,
+## multiplier les boutiques multipliait la réputation. Braderie : chaque boutique vend ×2 en plus de celui qui la tient,
+## une boutique vide comme si quelqu'un la tenait ; la réputation compte.
 func _sell_souvenirs() -> void:
 	var souv := 0.0
 	var pour_reputation := 0.0
-	var braderie := 0.0
+	var braderie := float(action_fx.get("boutiques", 1.0))
 	for s in sites:
 		if s.done and s.def_id() == "boutique" and zoo_status().get("interior", {}).has(s.rect.position):
 			var par_visiteur := float(s.def["effet"]["souvenirs_par_visiteur"])
-			var vendu := par_visiteur * _shop_mult(s)
+			var mult := _shop_mult(s)
+			if braderie > 1.0:
+				mult = maxf(mult, 1.0) * braderie
+			var vendu := par_visiteur * mult
 			souv += vendu
 			pour_reputation = maxf(pour_reputation, vendu)
-			braderie = maxf(braderie, par_visiteur * float(action_fx.get("boutiques", 0.0)) - vendu)
-	souv += braderie
 	money += souv
 	visit["souvenirs"] += souv
 	visit["souvenirs_rep"] = float(visit.get("souvenirs_rep", 0.0)) + pour_reputation

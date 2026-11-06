@@ -309,8 +309,10 @@ func _play_cadres() -> void:
 				if g.event_is_negative():
 					g.play_cadre(c)
 			"vendeur":
-				# Posté à la boutique, il vend ×2,5 et rapporte de la réputation : la Braderie, faute de quoi le payer.
-				if open and built.call("boutique") and g.money < g.salary(c):
+				# Posté, il fait vendre ×2,5 une boutique ; la Braderie double toutes les boutiques : elle vaut mieux
+				# à partir de deux boutiques, ou faute de quoi payer son salaire.
+				var boutiques := g.sites.filter(func(s): return s.done and s.def_id() == "boutique").size()
+				if open and boutiques > 0 and (boutiques >= 2 or g.money < g.salary(c)):
 					g.play_cadre(c)
 			"formateur":
 				# Stage : la meilleure carte qui a un défaut, s'il reste assez de bras pour la journée.
