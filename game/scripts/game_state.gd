@@ -1322,8 +1322,30 @@ func cost_text(cost: Dictionary) -> String:
 		return "gratuit"
 	var parts: Array[String] = []
 	for k in cost:
-		parts.append("%d %s" % [int(cost[k]), k])
+		var v := float(cost[k])
+		parts.append(("%d %s" if is_equal_approx(v, roundf(v)) else "%.1f %s") % [v, k])
 	return ", ".join(parts)
+
+
+## Architecte mobilisé (sur la carte ou dehors) : remise sur tous les nouveaux chantiers, la plus forte s'il y en a plusieurs.
+func remise_architecte() -> float:
+	var r := 0.0
+	for w in workers:
+		r = maxf(r, float(w.card.metier.get("remise_chantiers", 0.0)))
+	return r
+
+
+## Ce que coûte vraiment un chantier à poser maintenant (remise de l'Architecte comprise). Les ressources restent
+## fractionnaires (stock en nombres réels) : 1 pierre devient 0,67, sans arrondi qui annulerait la remise.
+func cout_chantier(def: Dictionary) -> Dictionary:
+	var cout: Dictionary = def.get("cout", {})
+	var r := remise_architecte()
+	if r <= 0.0 or cout.is_empty():
+		return cout
+	var out := {}
+	for k in cout:
+		out[k] = snappedf(float(cout[k]) * (1.0 - r), 0.01)
+	return out
 
 
 func can_afford(cost: Dictionary) -> bool:
@@ -1451,7 +1473,7 @@ func placement_error(kind: String, def: Dictionary, origin: Vector2i, check_cost
 				for x in range(r.position.x, r.end.x):
 					if interior.has(Vector2i(x, y)):
 						return "Interdit dans l'enceinte du zoo"
-	var cost: Dictionary = def.get("cout", {})
+	var cost: Dictionary = cout_chantier(def)
 	if check_cost and not can_afford(cost):
 		return "Pas assez de ressources (%s)" % cost_text(cost)
 	return ""
@@ -1466,7 +1488,7 @@ func place(kind: String, def: Dictionary, origin: Vector2i) -> Site:
 	s.kind = kind
 	s.def = def
 	s.rect = footprint(kind, def, origin)
-	s.paid = def.get("cout", {}).duplicate()
+	s.paid = cout_chantier(def).duplicate()
 	_pay(s.paid)
 	sites.append(s)
 	for t in _tiles(s.rect):
@@ -1594,14 +1616,14 @@ func _complete(s: Site) -> void:
 	if s.savings < 1.0:
 		var refund: Array[String] = []
 		for k in s.paid:
-			var back := floorf(float(s.paid[k]) * (1.0 - s.savings))
+			var back := snappedf(float(s.paid[k]) * (1.0 - s.savings), 0.01)
 			if back <= 0.0:
 				continue
 			if k == "argent":
 				money += back
 			else:
 				stock[k] += back
-			refund.append("%d %s" % [int(back), k])
+			refund.append(cost_text({k: back}))
 		if not refund.is_empty():
 			say("%s : économie de %s." % [s.def["nom"], ", ".join(refund)])
 	if s.kind == "amenagement":

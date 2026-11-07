@@ -2393,7 +2393,7 @@ func _process(delta: float) -> void:
 		info_clock = 0.0
 		_update_info()
 		for entry in build_buttons:
-			entry[0].disabled = game.phase != "day" or not game.can_afford(entry[2].get("cout", {}))
+			entry[0].disabled = game.phase != "day" or not game.can_afford(game.cout_chantier(entry[2]))
 		_update_trade()
 		_update_publicity()
 		var ev: Dictionary = mt.current_event
@@ -4579,7 +4579,7 @@ func _update_hud() -> void:
 	elif not build_choice.is_empty():
 		var def: Dictionary = build_choice["def"]
 		var err := game.placement_error(build_choice["kind"], def, _build_origin(hover))
-		status = "%s : %s, travail %d" % [def["nom"], game.cost_text(def.get("cout", {})), int(def["travail"])]
+		status = "%s : %s, travail %d" % [def["nom"], game.cost_text(game.cout_chantier(def)), int(def["travail"])]
 		if err != "":
 			status += "  —  " + err
 	elif site and game.phase == "day":

@@ -548,20 +548,29 @@ func _init() -> void:
 		b_g.tick(GameState.TICK)
 	check(b_g.worker_of(b_pres).temps_mentor > 0.0 and is_zero_approx(b_g.worker_of(b_loin).temps_mentor), "Formateur : du temps d'apprentissage seulement à 3 cases ou moins")
 	check(b_g.mentor_rayon(b_form) == 3.0 and b_g.mentor_rayon(b_pres) == 0.0, "Formateur : rayon de 3 cases")
-	# Architecte col blanc : supervise sans construire, puis rembourse 25 % à la fin
+	# Architecte mobilisé : -33 % sur tous les nouveaux chantiers, même là où il ne travaille pas ; col blanc : il ne construit pas
+	var b_route_def: Dictionary = b_g.building_def("route")
+	check(is_equal_approx(float(b_g.cout_chantier(b_route_def)["pierre"]), 1.0), "sans Architecte : route à 1 pierre")
 	var b_arch: GameState.Card = b_mk.call("architecte", ["col_blanc"])
 	b_g.deploy(b_arch)
+	check(is_equal_approx(float(b_g.cout_chantier(b_route_def)["pierre"]), 0.67), "Architecte mobilisé : route à 0,67 pierre")
+	var b_bois_av: float = b_g.stock["bois"]
 	var b_maison := b_g.place("batiment", b_g.building_def("maison"), b_o + Vector2i(0, 3))
 	check(b_maison != null, "maison placée")
+	var b_prix_maison := float(b_g.building_def("maison")["cout"]["bois"])
+	check(is_equal_approx(b_bois_av - b_g.stock["bois"], snappedf(b_prix_maison * 0.67, 0.01)), "Architecte : maison payée %.2f bois au lieu de %d" % [b_bois_av - b_g.stock["bois"], int(b_prix_maison)])
 	b_g.order([b_g.worker_of(b_arch)], b_maison.rect.position)
 	for i in 300:
 		b_g.tick(GameState.TICK)
-	check(is_equal_approx(b_maison.savings, 0.6) and is_zero_approx(b_maison.work), "Architecte col blanc : il supervise sans construire")
+	check(is_zero_approx(b_maison.work), "Architecte col blanc : il ne construit pas de ses mains")
+	# Débrouillard : 40 % des ressources payées remboursées à la fin, sans arrondi
+	var b_debr: GameState.Card = b_mk.call("manoeuvre", ["debrouillard"])
+	b_maison.savings = b_g.resource_mult(b_debr)
 	var b_bois0: float = b_g.stock["bois"]
 	b_maison.work = b_maison.travail()
 	b_g._complete(b_maison)
 	var b_refund: float = b_g.stock["bois"] - b_bois0
-	check(is_equal_approx(b_refund, floorf(float(b_maison.paid["bois"]) * 0.4)), "chantier terminé : 40 %% du bois remboursé (+%d)" % int(b_refund))
+	check(is_equal_approx(b_refund, snappedf(float(b_maison.paid["bois"]) * 0.4, 0.01)), "Débrouillard : 40 %% du bois remboursé (+%.2f)" % b_refund)
 	# Matinal, Peureux
 	var b_mat: GameState.Card = b_mk.call("manoeuvre", ["matinal"])
 	b_mat.last_work_tile = b_o + Vector2i(0, 3)

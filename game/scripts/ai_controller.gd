@@ -73,6 +73,7 @@ var shop_rect := Rect2i()
 var cuisine_rect := Rect2i()  # place gardée pour la Cuisine, de l'autre côté de l'entrée : les enclos ne la prennent pas
 var plans: Array = []  # enclos prévus : {"def", "interior": Rect2i, "ring": Array, "conv": Array}
 var reserved := {}  # cases réservées par le plan du zoo (murs, boutique, intérieurs des enclos)
+var route_mine_plan: Array[Vector2i] = []  # tracé de la route de la mine, gardé une fois choisi
 var fence_tiles := {}  # clôtures d'enclos prévues : elles peuvent être partagées entre enclos voisins
 var conv_defs := {}  # "Prairie>Eau" -> définition d'aménagement
 var resource_tiles := {}  # "bois" / "pierre" -> cases triées par distance au camp
@@ -157,7 +158,7 @@ func _card_bonus(c: GameState.Card) -> float:
 		"drh":
 			return 0.2 if not has.call("drh") else -1.0
 		"architecte":
-			return 0.5 if not has.call("architecte") else -1.0  # rembourse 25 % des chantiers où il travaille
+			return 0.6 if not has.call("architecte") else -1.0  # mobilisé : -33 % de ressources sur tous les chantiers
 		"animalier":
 			return 0.6 if not has.call("animalier") else -0.3  # nourrit les animaux deux fois plus vite
 		"agent_entretien":
@@ -289,7 +290,8 @@ func _play_cadres() -> void:
 			continue
 		match c.metier["id"]:
 			"architecte":
-				if g.sites.filter(func(s): return not s.done).size() >= 4:
+				# Mobilisé, il fait payer un tiers de moins chaque chantier posé : on ne le joue que devant un gros retard.
+				if g.sites.filter(func(s): return not s.done).size() >= 8:
 					g.play_cadre(c)
 			"contremaitre":
 				if g.hand.filter(func(o): return o != c and o.traits.any(func(t): return not g.is_positive(t))).size() >= 3:
@@ -2070,7 +2072,7 @@ func _wants() -> Array:
 		if mspot.x >= 0:
 			out.append(["batiment", g.building_def("mine"), mspot])
 	# 1 sexies. Route de la mine.
-	if strat["route_mine"] and g.mine_built:
+	if strat["route_mine"] and g.mine_built and g.zoo_status()["open"]:
 		var nr := 0
 		for t in _mine_road():
 			if nr >= 12:
@@ -2187,8 +2189,22 @@ func _camp_upgraded() -> bool:
 
 
 ## Route de la mine jusqu'au réseau (Accès, routes, camp) : la case libre autour de la mine la plus proche du camp.
+## Route de la mine au réseau, si elle est courte. Elle ne se pose qu'une fois le zoo ouvert : avant, chaque pierre
+## manque aux murs. Le tracé retenu est gardé tant qu'il reste constructible : recalculé à chaque réflexion, il changeait
+## de diagonale et laissait des bouts de route parallèles (une « échelle » de 50 cases ou plus).
+const ROUTE_MINE_MAX := 16
+
+
 func _mine_road() -> Array[Vector2i]:
-	return _cached("route_mine", _search_mine_road)
+	if not route_mine_plan.is_empty() and route_mine_plan.all(func(t: Vector2i):
+		var s := g.site_at(t)
+		return (s == null or s.def_id() in ["route", "pont"]) and not reserved.has(t) and not fence_tiles.has(t)):
+		return route_mine_plan
+	var p: Array[Vector2i] = _cached("route_mine", _search_mine_road)
+	if p.size() > ROUTE_MINE_MAX:
+		return []  # trop longue : elle coûterait plus de pierre et de travail qu'elle ne ferait gagner de marche
+	route_mine_plan = p
+	return p
 
 
 func _search_mine_road() -> Array[Vector2i]:
