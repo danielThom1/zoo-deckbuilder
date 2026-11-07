@@ -2332,6 +2332,7 @@ func _process(delta: float) -> void:
 		_hide_hover_card()
 	# Chaque nouvelle journée commence en pause : on prépare ses ordres, puis on lance le temps.
 	_sons_de_la_partie()
+	_sons_du_monde(delta)
 	# Les bulles d'Hubert sont sur un calque au-dessus de l'interface : elles s'effacent devant les fenêtres.
 	if hubert:
 		hubert.get_parent().visible = mt.phase != "night" and not market_root.visible and build_choice.get("kind") != "animal" and not draft_root.visible and not (pile_root != null and pile_root.visible) and not ((picker_root != null and picker_root.visible) \
@@ -2501,13 +2502,69 @@ var _son_objectifs := 0
 var _son_fin := false
 
 
+var _son_geste := 0.0
+var _son_cri := 4.0
+var _hasard_sons := RandomNumberGenerator.new()  # pas celui de la partie
+const GESTES_SONS := {"hache": "geste_hache", "pioche": "geste_pioche", "pelle": "geste_pelle", "marteau": "geste_marteau"}
+
+
+## Ambiances (nature, foule selon les visiteurs, conseil la nuit), coups d'outils et cris d'animaux visibles à l'écran,
+## plus forts quand la caméra est proche. Ne fait qu'observer la partie.
+func _sons_du_monde(delta: float) -> void:
+	if mt.game_over:
+		return
+	var jour: bool = mt.phase == "day"
+	Sons.ambiance("ambiance_nature", -16.0 if jour else -80.0)
+	var dedans := game.in_zoo.size() if jour else 0
+	Sons.ambiance("ambiance_foule", lerpf(-30.0, -13.0, clampf(dedans / 40.0, 0.0, 1.0)) if dedans > 0 else -80.0)
+	Sons.ambiance("ambiance_conseil", -14.0 if mt.phase == "night" else -80.0)
+	if not jour or speed <= 0.0:
+		return
+	var ecran := get_viewport_rect().size / camera.zoom
+	var vue := Rect2(camera.position - ecran / 2.0, ecran).grow(ecran.x * (0.3 if iso else 0.05))
+	# Plus on est près, plus c'est fort : -20 dB vue large, -6 dB de très près ; moins fort loin du centre
+	var proche := clampf((camera.zoom.x - 1.0) / 3.0, 0.0, 1.0)
+	var volume := func(p: Vector2) -> float:
+		var d := (p - camera.position).length() / (ecran.length() / 2.0)
+		return lerpf(-20.0, -6.0, proche) - 8.0 * clampf(d, 0.0, 1.0)
+	_son_geste -= delta
+	if _son_geste <= 0.0:
+		_son_geste = _hasard_sons.randf_range(0.45, 1.1) / sqrt(maxf(speed, 1.0))
+		var au_travail := []
+		for w in game.workers:
+			if vue.has_point(w.pos * TILE):
+				var outil: String = _work_anim(w).get("outil", "")
+				if GESTES_SONS.has(outil):
+					au_travail.append([w, outil])
+		if not au_travail.is_empty():
+			var c: Array = au_travail[_hasard_sons.randi() % au_travail.size()]
+			var nom: String = GESTES_SONS[c[1]]
+			if c[1] == "marteau" and _hasard_sons.randf() < 0.3:
+				nom = "geste_scie"
+			Sons.effet(nom, volume.call(c[0].pos * TILE))
+	_son_cri -= delta
+	if _son_cri <= 0.0:
+		_son_cri = _hasard_sons.randf_range(7.0, 16.0)
+		var visibles := []
+		for a in game.animals:
+			if a.arrived and not a.tiles.is_empty():
+				var p := Vector2(a.tiles[a.tiles.size() / 2]) * TILE
+				if vue.has_point(p):
+					visibles.append([a, p])
+		if not visibles.is_empty():
+			var v: Array = visibles[_hasard_sons.randi() % visibles.size()]
+			Sons.effet("cri_" + str(v[0].def.get("type", "")), volume.call(v[1]) + 2.0)
+
+
 ## Musique et bruitages selon ce qui vient de se passer. Ne fait qu'observer la partie.
 func _sons_de_la_partie() -> void:
 	if mt.game_over:
 		if not _son_fin:
 			_son_fin = true
-			Sons.musique("menu")
-			Sons.effet("victoire" if mt.winner == game.index else "defaite")
+			Sons.couper_ambiances()
+			var gagne: bool = mt.winner == game.index and not spectator
+			Sons.effet("victoire" if gagne else "defaite")
+			Sons.musique("victoire" if gagne and Sons.existe("musique_victoire") else "menu", 5.0)
 		return
 	if mt.phase != _son_phase:
 		if mt.phase == "night" and _son_phase == "day":

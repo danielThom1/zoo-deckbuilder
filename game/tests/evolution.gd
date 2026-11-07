@@ -8,6 +8,9 @@ extends SceneTree
 ## --total : nombre de parties de l'étude (ou lancer_etude.bat à la racine). --jobs=N : processus en parallèle.
 ## Écrit rapport_etude.md à la racine, mis à jour à chaque génération, et game/data/ia_evolution.json (meilleures stratégies).
 ## Après la finale : game/data/ia_niveaux.json, trois niveaux d'IA (facile, moyen, difficile) mesurés en finale.
+##   --ia=auto (par défaut) : ils ne remplacent ceux du jeu que si la finale est au moins aussi solide (80 % de ses
+##   parties) que celle qui a produit les niveaux actuels ; --ia=oui : toujours ; --ia=non : jamais. Quand ils ne
+##   remplacent pas, ils sont écrits à côté du rapport, dans ia_niveaux_candidat.json, pour les adopter à la main.
 ## Reprise : etude_reprise.json (racine) garde la population et les statistiques à chaque génération.
 ##   -- --reprendre --total=2000 : 2000 parties de plus ; -- --reprendre --jusqua=12000 : jusqu'à 12000 au total.
 
@@ -85,6 +88,9 @@ var minutes_avant := 0
 var gen_avant := 0
 var genomes_finale := {}  # nom -> génome des candidats de la finale
 var niveaux := {}  # niveau -> {"strategies", "victoires", "rep"}
+var mode_ia := "auto"  # --ia=auto|oui|non : remplacer les niveaux d'IA du jeu à la fin de l'étude
+var decision_ia := ""  # ce qui a été fait, pour le rapport
+const CANDIDAT := "ia_niveaux_candidat.json"  # à la racine, à côté du rapport
 
 
 func _init() -> void:
@@ -139,6 +145,9 @@ func _init() -> void:
 
 	rng.seed = int(args.get("seed", str(Time.get_ticks_usec())))
 	total_parties = maxi(8, int(args.get("total", "200")))
+	mode_ia = str(args.get("ia", "auto")).to_lower()
+	if not mode_ia in ["auto", "oui", "non"]:
+		mode_ia = "auto"
 	var jobs := int(args.get("jobs", str(maxi(1, OS.get_processor_count() / 2))))
 	# --reprendre : on repart de la population et des statistiques de la dernière génération enregistrée
 	var chemin_reprise := ProjectSettings.globalize_path("res://").path_join("../" + REPRISE)
@@ -242,7 +251,7 @@ func _init() -> void:
 		DirAccess.remove_absolute(dir.path_join(f))
 	DirAccess.remove_absolute(dir)
 	print("Étude terminée en %d min. Rapport : %s" % [int((Time.get_ticks_msec() - t0) / 60000), ProjectSettings.globalize_path("res://").path_join("../rapport_etude.md")])
-	print("Niveaux d'IA : %s. Pour continuer : -- --reprendre --total=N (%d parties au total jusqu'ici)." % [ProjectSettings.globalize_path(NIVEAUX), parties_avant + parties_jouees])
+	print("Pour continuer : -- --reprendre --total=N (%d parties au total jusqu'ici)." % (parties_avant + parties_jouees))
 	quit(0)
 
 
@@ -700,10 +709,30 @@ func _ecrire_niveaux(classement: Array) -> void:
 			g["explore"] = 0.0
 			strategies.append(g)
 		niveaux[niv] = {"victoires": float(w_tot) / maxi(1, n_tot), "rep": r_tot / maxi(1, n_tot), "noms": parts.map(func(e): return e["nom"]), "strategies": strategies}
-	var fj := FileAccess.open(NIVEAUX, FileAccess.WRITE)
-	fj.store_string(JSON.stringify({"_note": "Niveaux d'IA choisis par tests/evolution.gd d'après sa finale (victoires mesurées dans des parties à 4 entre IA).",
-		"date": Time.get_datetime_string_from_system().replace("T", " "), "parties": parties_avant + parties_jouees, "niveaux": niveaux}, "  "))
+	var places := 0
+	for e in classement:
+		places += int(e["n"])
+	var finale := roundi(places / 4.0)
+	# Remplacer les niveaux du jeu ? Une étude courte a une petite finale, où le hasard pèse lourd : ses niveaux
+	# seraient moins sûrs que ceux d'une longue étude. En « auto », on compare la taille des deux finales.
+	var actuel = JSON.parse_string(FileAccess.get_file_as_string(NIVEAUX)) if FileAccess.file_exists(NIVEAUX) else null
+	var finale_actuelle := 0
+	if actuel is Dictionary:
+		finale_actuelle = int(actuel.get("finale", roundi(float(actuel.get("parties", 0)) * PART_FINALE)))
+	var remplacer := mode_ia == "oui" or (mode_ia == "auto" and finale >= finale_actuelle * 0.8)
+	var contenu := JSON.stringify({"_note": "Niveaux d'IA choisis par tests/evolution.gd d'après sa finale (victoires mesurées dans des parties à 4 entre IA).",
+		"date": Time.get_datetime_string_from_system().replace("T", " "), "parties": parties_avant + parties_jouees, "finale": finale, "niveaux": niveaux}, "  ")
+	var chemin := NIVEAUX if remplacer else ProjectSettings.globalize_path("res://").path_join("../" + CANDIDAT)
+	var fj := FileAccess.open(chemin, FileAccess.WRITE)
+	fj.store_string(contenu)
 	fj.close()
+	if remplacer:
+		decision_ia = "Installés dans le jeu (finale de %d parties%s)." % [finale, "" if finale_actuelle == 0 else ", contre %d pour les précédents" % finale_actuelle]
+	elif mode_ia == "non":
+		decision_ia = "Non installés (--ia=non) : les niveaux du jeu restent ceux d'avant. Ceux-ci sont dans %s, à copier dans game/data/ia_niveaux.json pour les adopter." % CANDIDAT
+	else:
+		decision_ia = "Non installés : leur finale (%d parties) est plus petite que celle des niveaux du jeu (%d), ils seraient moins sûrs. Ils sont dans %s, à copier dans game/data/ia_niveaux.json pour les adopter quand même." % [finale, finale_actuelle, CANDIDAT]
+	print("Niveaux d'IA : " + decision_ia)
 
 
 # --- Statistiques ------------------------------------------------------------------------------------
@@ -911,8 +940,11 @@ func _write_report(pop: Array, order: Array, scores: Array, history: Array, clas
 			L.append("| %s | %d | %d %% | %s | %.0f |" % [e["nom"], e["n"], roundi(100.0 * e["wins"] / maxi(1, e["n"])), "—" if e["days"].is_empty() else "%.1f" % _mean(e["days"]), e["rep"] / maxi(1, e["n"])])
 		L.append("")
 	if not niveaux.is_empty():
-		L.append("## Niveaux d'IA enregistrés (game/data/ia_niveaux.json)")
+		L.append("## Niveaux d'IA mesurés en finale")
 		L.append("")
+		if decision_ia != "":
+			L.append(decision_ia)
+			L.append("")
 		L.append("| Niveau | Victoires en finale | Réputation moyenne | Stratégies |")
 		L.append("|---|---|---|---|")
 		for niv in ["facile", "moyen", "difficile"]:

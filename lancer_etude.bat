@@ -38,13 +38,23 @@ set /p "PARTIES=Combien de parties ? [1000] : "
 :horaire
 set "FIN="
 set /p "FIN=Heure de fin au plus tard, ex. 08:00 (vide : aucune) : "
+echo.
+echo A la fin, l'etude mesure trois niveaux d'IA (facile, moyen, difficile). Faut-il qu'ils remplacent ceux du jeu ?
+echo   A = automatique : seulement si l'etude est au moins aussi poussee que celle qui a fait les IA actuelles
+echo   O = oui, toujours        N = non, garder les IA actuelles (les nouvelles sont mises de cote)
+set "IA=A"
+set /p "IA=Remplacer les IA du jeu ? (A/O/N) [A] : "
+set "MODE_IA=auto"
+if /i "%IA%"=="O" set "MODE_IA=oui"
+if /i "%IA%"=="N" set "MODE_IA=non"
 set /a JOBS=%NUMBER_OF_PROCESSORS%-2
 if %JOBS% LSS 1 set JOBS=1
 
-"%GODOT%" --headless --path game --script res://tests/evolution.gd -- %OPTS% --total=%PARTIES% --jobs=%JOBS% --fin=%FIN%
+"%GODOT%" --headless --path game --script res://tests/evolution.gd -- %OPTS% --total=%PARTIES% --jobs=%JOBS% --fin=%FIN% --ia=%MODE_IA%
 
 echo.
-echo Termine. Le rapport est dans rapport_etude.md, les trois niveaux d'IA dans game\data\ia_niveaux.json.
+echo Termine. Le rapport est dans rapport_etude.md. Les niveaux d'IA sont dans game\data\ia_niveaux.json s'ils ont
+echo remplace les precedents, sinon dans ia_niveaux_candidat.json (le rapport dit lequel).
 echo Pour continuer cette etude plus tard, relancez ce fichier et repondez O a la reprise.
 if exist rapport_etude.md start "" rapport_etude.md
 pause
