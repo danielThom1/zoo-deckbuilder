@@ -167,10 +167,23 @@ func regler_perspective(oui: bool) -> void:
 ## Molette enfoncée : le glissement tourne autour de la verticale et incline la vue.
 func tourner(d_lacet: float, d_tangage: float) -> void:
 	lacet = fposmod(lacet - d_lacet, 360.0)
+	var lim := limite_lacet()
+	if lim < 180.0:
+		lacet = fposmod(clampf(wrapf(lacet, -180.0, 180.0), -lim, lim), 360.0)
 	tangage = clampf(tangage + d_tangage, TANGAGE_MIN, TANGAGE_MAX)
 	_placer_camera()
 	sig_clotures = ""  # les rails suivent l'axe de la vue
 	attente = minf(attente, 0.1)
+
+
+## Les bâtiments sont fixes, façade au sud : la caméra ne va que là où leurs images existent (la Maison sert de référence).
+## Face et biais : 67° de chaque côté ; avec les vues de côté (cote_<id>) : 112° ; avec les dos : le tour complet.
+func limite_lacet() -> float:
+	if SpritesBD.existe("dos_maison") and SpritesBD.existe("iso_maison_dos"):
+		return 180.0
+	if SpritesBD.existe("cote_maison"):
+		return 112.0
+	return 67.0
 
 
 ## Au relâchement, la vue se cale sur l'axe voisin : 0° est l'axe mairie, route, camp.
@@ -363,6 +376,9 @@ func recevoir(notes: Array) -> void:
 		var s: Sprite3D = sprites[n]
 		n += 1
 		s.visible = true
+		s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		s.basis = Basis()
+		s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		var tex: Texture2D = e["tex"]
 		var pos: Vector2 = e["pos"] / m.TILE
 		var taille: float = float(e["k"]) / m.TILE
@@ -373,24 +389,33 @@ func recevoir(notes: Array) -> void:
 		elif objet is String and objet == "camp":
 			rect = Rect2(m.game.map.camp)
 		var pied_note: Vector2 = e["pied"]
+		var miroir: bool = e["miroir"]
+		if objet is String and objet == "camp":
+			_poser_a_plat(s, tex, rect)
+			s.modulate = e["teinte"]
+			_silhouette(s, null)
+			continue
 		if rect.size != Vector2.ZERO and (not objet is GameState.Site or not objet.def.get("effet", {}).has("decor")):
 			# Le pied du bâtiment va au bord de l'emprise tourné vers la caméra
 			var profond: float = maxf(rect.size.x, rect.size.y) * (0.5 - 0.08 * vers_cam)
 			pos = rect.get_center() + cote_cam * profond
 			taille *= 1.0 + AGRANDI_BATIMENT * vers_cam
-			var biais := _image_de_biais(objet, rect, tex)
-			if not biais.is_empty():
-				tex = biais["tex"]
-				pied_note = biais["pied"]
-				pos = rect.get_center() + cote_cam * maxf(rect.size.x, rect.size.y) * 0.68
-				taille = biais["taille"]
+			var vue := _image_de_biais(objet, rect, tex) if objet is GameState.Site and objet.def_id() == "entree" else _vue_fixe(objet, rect, tex, taille)
+			if not vue.is_empty():
+				tex = vue["tex"]
+				pied_note = vue["pied"]
+				taille = vue["taille"]
+				miroir = miroir != vue.get("miroir", false)
+				if vue.get("biais", true):
+					pos = rect.get_center() + cote_cam * maxf(rect.size.x, rect.size.y) * 0.68
 		elif objet is String and objet == "mairie":
-			var biais_m := _image_de_biais(objet, Rect2(), tex)
-			if not biais_m.is_empty():
-				tex = biais_m["tex"]
-				pied_note = biais_m["pied"]
-				taille = biais_m["taille"]
-		_regler(s, tex, pied_note, pos.x, pos.y, taille, e["miroir"], e["region"])
+			var vue_m := _vue_fixe(objet, Rect2(), tex, taille)
+			if not vue_m.is_empty():
+				tex = vue_m["tex"]
+				pied_note = vue_m["pied"]
+				taille = vue_m["taille"]
+				miroir = miroir != vue_m.get("miroir", false)
+		_regler(s, tex, pied_note, pos.x, pos.y, taille, miroir, e["region"])
 		s.modulate = e["teinte"]
 		if rect.size != Vector2.ZERO:
 			batis.append([rect, s.position])
@@ -486,9 +511,141 @@ func _silhouette(s: Sprite3D, w: Variant) -> void:
 	sil.set_instance_shader_parameter("miroir", 1.0 if s.flip_h else 0.0)
 
 
-## Bâtiment dessiné de biais, s'il existe et si la vue est en diagonale : iso_<id> (façade vers le bas à gauche), iso_<id>_d (vers le bas à droite).
-## Camp et mairie : d'après leur image de face (iso_camp2, iso_mairie). L'entrée suit la géométrie du mur : son passage
-## doit aller dans le sens où on le voit, selon l'axe de la vue et le sens du mur.
+## Bâtiments fixes dans le monde : façade au sud (à l'ouest pour un bâtiment tourné). Selon l'angle entre la caméra et la
+## façade, on montre la vue dessinée pour cet angle, par secteurs de 45° : face, iso_<id> (45°, façade en bas à gauche),
+## cote_<id> (90°), iso_<id>_dos (135°), dos_<id> (180°), puis l'autre côté par les versions _d ou en miroir.
+## Sans l'image voulue, la plus proche qui existe ; {} : l'image de face. taille_face : cases par pixel de l'image de face.
+const VUES := ["", "iso_%s", "cote_%s", "iso_%s_dos", "dos_%s", "iso_%s_dos_d", "cote_%s_d", "iso_%s_d"]
+const VUES_MIROIR := {5: 3, 6: 2}  # secteur -> secteur dont l'image retournée convient
+
+
+func _vue_fixe(objet: Variant, rect: Rect2, face: Texture2D, taille_face: float) -> Dictionary:
+	var id := ""
+	var facade := 0.0
+	if objet is GameState.Site:
+		if not objet.done:
+			return {}
+		id = objet.def_id()
+		if objet.def.get("pivote", false):
+			facade = 270.0
+	elif objet is String and face != null:
+		id = face.resource_path.get_file().get_basename()
+	if id == "":
+		return {}
+	var k := posmod(roundi((lacet - facade) / 45.0), 8)
+	for ecart in [0, -1, 1, -2, 2, -3, 3, 4]:
+		var j := posmod(k + ecart, 8)
+		if j == 0:
+			return {}
+		var nom: String = VUES[j] % id
+		var miroir := false
+		if not SpritesBD.existe(nom) and VUES_MIROIR.has(j):
+			nom = VUES[VUES_MIROIR[j]] % id
+			miroir = true
+		if not SpritesBD.existe(nom):
+			continue
+		var tex := SpritesBD.texture(nom)
+		var taille := 0.0
+		if j % 2 == 1:
+			var largeur := (rect.size.x + rect.size.y) * 0.8 if rect.size != Vector2.ZERO else 3.4
+			taille = largeur / tex.get_width()
+		else:
+			# De dos : aussi large que la face ; de côté : la profondeur du bâtiment
+			var largeur_face := face.get_width() * taille_face if face != null else 3.0
+			if j % 4 == 2 and rect.size != Vector2.ZERO:
+				largeur_face *= (rect.size.y / rect.size.x) if facade == 0.0 else (rect.size.x / rect.size.y)
+			taille = largeur_face / tex.get_width()
+		return {"tex": tex, "pied": SpritesBD.pied(nom), "taille": taille, "miroir": miroir, "biais": j % 2 == 1}
+	return {}
+
+
+## Le camp est surtout un sol vu d'en haut (tentes, feu, palissade) : debout face à la caméra, il ne colle au terrain qu'à
+## l'inclinaison où il a été dessiné et semble flotter ailleurs. On le couche donc sur le terrain, fixe dans le monde,
+## tourné selon le secteur de la vue (face, ou losange iso_campN de biais) et allongé dans la profondeur pour qu'à son
+## inclinaison de dessin il paraisse tel quel. Plus on regarde d'en haut, plus il s'allonge, mais il ne décolle jamais.
+const ELEVATION_FACE := 50.0  # degrés : inclinaison à laquelle les images de face du camp sont dessinées
+var _formes_a_plat := {}
+
+
+func _poser_a_plat(s: Sprite3D, face: Texture2D, rect: Rect2) -> void:
+	var k := posmod(roundi(lacet / 45.0), 8)
+	var tex := face
+	var biais := k % 2 == 1
+	if biais:
+		var nom := "iso_" + face.resource_path.get_file().get_basename() + ("_d" if k == 7 or k == 3 else "")
+		if SpritesBD.existe(nom):
+			tex = SpritesBD.texture(nom)
+		else:
+			biais = false
+			k = posmod(roundi(lacet / 90.0) * 2, 8)
+	var f := _forme_a_plat(tex)
+	var larg: float = f["droite"] - f["gauche"]
+	var centre: Vector2
+	var sin_e: float
+	var taille: float
+	if biais:
+		# Losange : ses coins gauche et droit sont à mi-profondeur, l'angle le plus proche tout en bas
+		sin_e = clampf((f["bas"] - f["coin"]) / (larg / 2.0), 0.3, 1.0)
+		centre = Vector2((f["gauche"] + f["droite"]) / 2.0, f["coin"])
+		taille = (rect.size.x + rect.size.y) / sqrt(2.0) / larg
+	else:
+		sin_e = sin(deg_to_rad(ELEVATION_FACE))
+		centre = Vector2((f["gauche"] + f["droite"]) / 2.0, f["bas"] - larg * sin_e * rect.size.y / rect.size.x / 2.0)
+		taille = rect.size.x / larg
+	var a := deg_to_rad(k * 45.0)
+	var c := rect.get_center()
+	_regler(s, tex, centre, c.x, c.y, taille)
+	s.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+	s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# x de l'image : la droite de l'écran ; y : en s'éloignant de la caméra, allongé de 1 / sin(élévation) ; z : le ciel
+	s.basis = Basis(Vector3(cos(a), 0.0, -sin(a)), Vector3(-sin(a), 0.0, -cos(a)) / sin_e, Vector3.UP)
+	var haut := -10.0
+	for y in range(int(rect.position.y), int(rect.end.y) + 1):
+		for x in range(int(rect.position.x), int(rect.end.x) + 1):
+			haut = maxf(haut, _h(x, y))
+	s.position.y = haut + 0.04
+
+
+## Bords de la partie opaque d'une image : gauche, droite, bas, et hauteur des coins gauche et droit (le bas de leur colonne).
+func _forme_a_plat(tex: Texture2D) -> Dictionary:
+	var cle := tex.resource_path
+	if _formes_a_plat.has(cle):
+		return _formes_a_plat[cle]
+	var im := tex.get_image()
+	if im.is_compressed():
+		im.decompress()
+	var w := im.get_width()
+	var h := im.get_height()
+	var bas_col := PackedInt32Array()
+	bas_col.resize(w)
+	var gauche := w
+	var droite := 0
+	var bas := 0
+	for x in w:
+		bas_col[x] = -1
+		for y in range(h - 1, -1, -1):
+			if im.get_pixel(x, y).a > 0.5:
+				bas_col[x] = y
+				break
+		if bas_col[x] >= 0:
+			gauche = mini(gauche, x)
+			droite = maxi(droite, x)
+			bas = maxi(bas, bas_col[x])
+	var marge := maxi(2, (droite - gauche) / 60)
+	var coin := 0.0
+	var nb := 0
+	for x in range(gauche, gauche + marge) + range(droite - marge + 1, droite + 1):
+		if bas_col[x] >= 0:
+			coin += bas_col[x]
+			nb += 1
+	var f := {"gauche": float(gauche), "droite": float(droite + 1), "bas": float(bas + 1), "coin": coin / maxf(1.0, nb)}
+	_formes_a_plat[cle] = f
+	return f
+
+
+## Entrée du zoo de biais, s'il existe et si la vue est en diagonale : iso_<id> (façade vers le bas à gauche), iso_<id>_d (vers le bas à droite).
+## L'entrée suit la géométrie du mur : son passage doit aller dans le sens où on le voit, selon l'axe de la vue et le sens
+## du mur (un portique se voit pareil des deux côtés).
 func _image_de_biais(objet: Variant, rect: Rect2, face: Texture2D = null) -> Dictionary:
 	var nom := ""
 	if objet is GameState.Site and objet.done:

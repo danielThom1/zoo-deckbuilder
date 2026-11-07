@@ -1,7 +1,9 @@
 class_name Sons
 extends Node
 ## Musique et bruitages. Un seul nœud sous la racine de la scène : il survit au retour au menu et aux relances.
-## N'a aucun effet sur la partie. Sons générés par tools/audio.py (assets/audio/).
+## N'a aucun effet sur la partie. Sons générés par tools/audio.py (assets/audio/), remplacés au fil de l'eau par des sons
+## générés par IA (docs/prompt_musique_sons.md) : un .ogg ou un .mp3 passe avant le .wav du même nom, et les variantes
+## nom_2, nom_3… sont tirées au hasard.
 
 const DOSSIER := "res://assets/audio/"
 const MUSIQUES := {"menu": "musique_menu", "jour": "musique_jour", "nuit": "musique_nuit"}
@@ -18,6 +20,8 @@ var _musique_b: AudioStreamPlayer
 var _piste := ""
 var _cache := {}
 var _dernier := {}
+var _variantes_de := {}
+var _hasard := RandomNumberGenerator.new()  # le sien : le hasard de la partie n'est pas touché
 
 
 ## À appeler une fois au démarrage. Sans carte son (--headless), rien n'est créé et les appels sont sans effet.
@@ -82,13 +86,32 @@ func _clic() -> void:
 
 func _charger(nom: String) -> AudioStream:
 	if not _cache.has(nom):
-		var chemin := DOSSIER + nom + ".wav"
-		_cache[nom] = load(chemin) if ResourceLoader.exists(chemin) else null
+		_cache[nom] = null
+		for ext in [".ogg", ".mp3", ".wav"]:
+			if ResourceLoader.exists(DOSSIER + nom + ext):
+				_cache[nom] = load(DOSSIER + nom + ext)
+				break
 	return _cache[nom]
 
 
+## Le son et ses variantes (nom_2, nom_3…), l'un d'eux au hasard.
+func _choisir(nom: String) -> AudioStream:
+	if not _variantes_de.has(nom):
+		var l := []
+		if _charger(nom) != null:
+			l.append(_charger(nom))
+		for i in range(2, 10):
+			var v := _charger("%s_%d" % [nom, i])
+			if v == null:
+				break
+			l.append(v)
+		_variantes_de[nom] = l
+	var l: Array = _variantes_de[nom]
+	return null if l.is_empty() else l[_hasard.randi() % l.size()]
+
+
 func _jouer(nom: String) -> void:
-	var s := _charger(nom)
+	var s := _choisir(nom)
 	if s == null:
 		return
 	var maintenant := Time.get_ticks_msec()
@@ -112,10 +135,12 @@ func _changer_musique(nom: String) -> void:
 		var t := create_tween()
 		t.tween_property(ancien, "volume_db", -60.0, 1.2)
 		t.tween_callback(ancien.stop)
-	var s := _charger(MUSIQUES.get(nom, ""))
+	var s := _choisir(MUSIQUES.get(nom, ""))
 	if s is AudioStreamWAV:
 		s.loop_mode = AudioStreamWAV.LOOP_FORWARD
 		s.loop_end = int(s.get_length() * s.mix_rate)
+	elif s is AudioStreamOggVorbis or s is AudioStreamMP3:
+		s.loop = true
 	if s != null:
 		nouveau.stream = s
 		nouveau.volume_db = -40.0
