@@ -35,11 +35,11 @@ var building_colors := {
 	"route": UiTokens.CHEMIN, "pont": Color("9A6A3E"), "maison": Color("D2553A"), "entrepot": Color("8C6A48"),
 	"mine": Color("5A4636"), "cloture": UiTokens.ENCEINTE, "entree": Color("E9D5A8"), "enclos": UiTokens.CLOTURE_ENCLOS,
 	"boutique": Color("E06A5A"), "cuisine": Color("D8A010"), "entretien": Color("7A8A88"), "intendance": Color("3E8F4E"),
-	"snack": Color("E8782A"), "kiosque": Color("8A4AD0"), "comptoir": Color("D8A010"), "agence": Color("4A7AC8"), "cabinet": Color("6A3AB0"), "camp_n2": Color("A0743C"), "camp_n3": Color("B8864A"),
+	"snack": Color("E8782A"), "kiosque": Color("8A4AD0"), "comptoir": Color("D8A010"), "agence": Color("4A7AC8"), "cabinet": Color("6A3AB0"), "acquisitions": Color("2A6A9A"), "camp_n2": Color("A0743C"), "camp_n3": Color("B8864A"),
 	"grand_arbre": Color("2E7A2C"), "rocher_obs": Color("8E8A80"), "bassin_profond": Color("2B86D2"), "abri_chaud": Color("C0703A"),
 }
 var building_short := {
-	"maison": "Maison", "entrepot": "Entrepôt", "comptoir": "Marché", "agence": "Intérim", "cabinet": "Recrutement", "mine": "Mine", "entree": "Entrée", "boutique": "Boutique", 
+	"maison": "Maison", "entrepot": "Entrepôt", "comptoir": "Marché", "agence": "Intérim", "cabinet": "Recrutement", "acquisitions": "Acquisitions", "mine": "Mine", "entree": "Entrée", "boutique": "Boutique", 
 	"cuisine": "Cuisine", "entretien": "Entretien", "intendance": "Intendance", "snack": "Snack", "kiosque": "Kiosque",
 	"camp_n2": "Camp niv. 2", "camp_n3": "Camp niv. 3",
 	"grand_arbre": "Grand arbre", "rocher_obs": "Rocher", "bassin_profond": "Bassin profond", "abri_chaud": "Abri chauffé",
@@ -2492,7 +2492,7 @@ func _cmd(nom: String, args := []) -> Variant:
 	return game.callv(nom, args)
 
 
-const SONS_ORDRES := {"deploy": "carte", "play_action": "carte", "play_cadre": "carte", "place": "pose", "buy_contract": "achat", "hire": "achat", "buy_action": "achat",
+const SONS_ORDRES := {"deploy": "carte", "play_action": "carte", "play_cadre": "carte", "place": "pose", "buy_contract": "achat", "achat_jour": "achat", "hire": "achat", "buy_action": "achat",
 	"buy_label": "achat", "launch_campaign": "achat", "sell_amount": "piece", "buy_material": "piece", "ceder_carte": "piece", "publish_article": "presse", "accuse_worker": "presse"}
 var _son_phase := ""
 var _son_chantiers := -1
@@ -3101,7 +3101,7 @@ func _build_ui() -> void:
 	lv.add_child(tabs)
 	var group := ButtonGroup.new()
 	var pages := {
-		"Bâtiments": ["route", "pont", "maison", "entrepot", "comptoir", "agence", "cabinet", "mine", "camp_n2", "camp_n3"],
+		"Bâtiments": ["route", "pont", "maison", "entrepot", "comptoir", "agence", "cabinet", "acquisitions", "mine", "camp_n2", "camp_n3"],
 		"Zoo": ["cloture", "entree", "enclos", "grand_arbre", "rocher_obs", "bassin_profond", "abri_chaud", "boutique", "cuisine", "entretien", "intendance", "snack", "kiosque"],
 		"Terrain": [],
 	}

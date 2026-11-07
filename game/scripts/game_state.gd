@@ -161,6 +161,7 @@ var action_fx := {}  # effets du jour des cartes d'action jouées (productivite,
 var prime_left := 0  # déploiements sans salaire offerts par la carte Prime aujourd'hui
 var bought_action := false  # carte d'action achetée cette nuit
 var swapped_today := false  # échange fait à l'Agence d'intérim aujourd'hui
+var achat_jour_fait := false  # contrat acheté aujourd'hui au Bureau des acquisitions
 var journal_bonus: Array = []  # bonus de nuit choisis (étude)
 var objectifs_faits := {}  # identifiant d'objectif -> jour où il a été rempli
 var record_visiteurs := 0  # le plus de visiteurs entrés en une journée
@@ -1814,6 +1815,7 @@ func _start_day_player() -> void:
 	action_fx = {}
 	prime_left = 0
 	swapped_today = false
+	achat_jour_fait = false
 	presse_jours = maxi(0, presse_jours - 1)
 	article_du_jour = false
 	accusation_du_jour = false
@@ -1952,13 +1954,13 @@ func hire(card: Card) -> bool:
 
 ## Coût réel d'un contrat pour ce joueur : le prix en argent monte avec le nombre d'animaux
 ## déjà possédés ou en attente, et le 2e contrat de la nuit coûte plus cher. L'or ne change pas.
-func contract_cost(def: Dictionary) -> Dictionary:
+func contract_cost(def: Dictionary, nuit := true) -> Dictionary:
 	var m: Dictionary = data["buildings"]["marche"]
 	var cost: Dictionary = def.get("cout", {}).duplicate()
 	if cost.has("argent"):
 		var mult := 1.0 + float(m["hausse_prix_par_animal"]) * (animals.size() + contracts.size() + pending_installs.size())
 		mult *= 1.0 + float(m.get("hausse_prix_par_jour", 0.0)) * (day - 1)  # les contrats renchérissent au fil des jours
-		if contracts_tonight >= 1:
+		if nuit and contracts_tonight >= 1:
 			mult *= 1.0 + float(m["surcout_2e_contrat"])
 		mult *= 1.0 - remise_relance()
 		cost["argent"] = roundi(float(cost["argent"]) * mult)
@@ -1983,8 +1985,8 @@ func contract_error(def: Dictionary) -> String:
 
 ## Ce que l'achat d'un contrat prélève : l'or du stock, puis l'or manquant acheté en argent au prix du marché
 ## (double du prix de revente). L'argent de fin de partie ouvre ainsi les T3, la mine restant plus rentable.
-func contract_payment(def: Dictionary) -> Dictionary:
-	var cost := contract_cost(def)
+func contract_payment(def: Dictionary, cout_donne := {}) -> Dictionary:
+	var cost: Dictionary = contract_cost(def) if cout_donne.is_empty() else cout_donne
 	var need_or := float(cost.get("or", 0))
 	var from_stock := minf(need_or, floorf(float(stock["or"])))
 	var pay := {"argent": float(cost.get("argent", 0)) + ceilf((need_or - from_stock) * buy_price("or"))}
@@ -2013,6 +2015,55 @@ func buy_contract(def: Dictionary) -> bool:
 	annonce("contrat_achete", {"animal": def["nom"]}, "Contrat acheté : %s. Construisez-lui un enclos." % def["nom"])
 	if not mt.is_ai(index) and contracts_tonight >= int(data["buildings"]["marche"]["contrats_par_nuit"]):
 		mt.pass_turn()  # un contrat par tour : au joueur suivant
+	mt.bump()
+	return true
+
+
+## Bureau des acquisitions : en journée, un contrat du marché à moitié prix (argent et or), en plus de celui de la nuit.
+func achat_jour_cout(def: Dictionary) -> Dictionary:
+	var f := float(building_def("acquisitions")["effet"]["achat_jour"])
+	var c := contract_cost(def, false)
+	var out := {}
+	for k in c:
+		out[k] = roundi(float(c[k]) * f) if k == "argent" else snappedf(float(c[k]) * f, 0.5)
+	return out
+
+
+func achat_jour_paiement(def: Dictionary) -> Dictionary:
+	return contract_payment(def, achat_jour_cout(def))
+
+
+func achat_jour_error(def: Dictionary) -> String:
+	if phase != "day":
+		return "Uniquement en journée"
+	if not has_building("acquisitions"):
+		return "Il faut le Bureau des acquisitions"
+	if achat_jour_fait:
+		return "Déjà un achat aujourd'hui au Bureau des acquisitions"
+	if not market_contracts.has(def):
+		return "Ce contrat n'est plus au marché"
+	if has_species(def["id"]):
+		return "Vous avez déjà cette espèce"
+	if not can_afford(achat_jour_paiement(def)):
+		return "Pas assez d'argent (%d, or manquant compris)" % int(achat_jour_paiement(def)["argent"])
+	return ""
+
+
+func achat_jour(def: Dictionary) -> bool:
+	if achat_jour_error(def) != "":
+		return false
+	var p := achat_jour_paiement(def)
+	var manque := float(achat_jour_cout(def).get("or", 0)) - float(p.get("or", 0.0))
+	_pay(p)
+	if manque > 0.0:
+		say("%s or acheté pour le contrat." % str(manque))
+	market_contracts.erase(def)
+	contracts.append(def)
+	achat_jour_fait = true
+	journal_contrats.append({"id": def["id"], "day": day})
+	mt._refresh_market(day, false)  # les rivaux retrouvent cinq contrats ce soir
+	annonce("contrat_achete", {"animal": def["nom"]}, "Contrat acheté au Bureau des acquisitions : %s. Construisez-lui un enclos." % def["nom"])
+	verifier_objectifs()
 	mt.bump()
 	return true
 

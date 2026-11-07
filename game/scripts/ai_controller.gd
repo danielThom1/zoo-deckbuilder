@@ -410,6 +410,15 @@ func _play_targeted(c: GameState.Card) -> void:
 func _campaign_wanted() -> Dictionary:
 	if not g.campaign.is_empty() or not g.zoo_status()["open"]:
 		return {}
+	if _fin_de_partie():
+		# Fin de partie : la campagne la plus rentable, si elle vaut ce que rapporterait l'argent ailleurs
+		var meilleure := {}
+		var ratio := 0.0
+		for r in _rendements():
+			if r["genre"] == "campagne" and r["ok"] and r["ratio"] > ratio:
+				ratio = r["ratio"]
+				meilleure = r["def"]
+		return meilleure
 	var best := {}
 	for d in g.campaign_defs():
 		if g.money - float(g.campaign_cost(d)) * 2.0 >= _floor_achats() + float(strat["reserve"]):
@@ -604,10 +613,13 @@ func update(dt: float) -> void:
 		_sell_for(_cash_floor())
 	_financer_premier_animal()
 	_sell_surplus()
+	_achat_jour_ia()
 	var a_marchand := g.all_employees().any(func(c): return c.metier["id"] == "marchand")
+	var objectif_label := not _objectif_ouvert("label").is_empty()
 	for ld in g.label_defs():
-		if g.label_error(ld) == "" and (not a_marchand or g.label_price(ld) <= float(ld["or"])):
+		if g.label_error(ld) == "" and (not a_marchand or g.label_price(ld) <= float(ld["or"]) or objectif_label):
 			g.buy_label(ld)
+			objectif_label = false
 	# Rush or : l'or extrait est vendu au fur et à mesure (petite réserve pour les contrats et le prochain label),
 	# l'argent paie les matériaux.
 	if strat["rush_or"] and g.stock["or"] >= 4.0:
@@ -912,6 +924,156 @@ func _contract_value(def: Dictionary) -> float:
 	var utile := minf(ajout, place) + maxf(0.0, ajout - place) * (0.6 if strat["agrandir"] else 0.15)
 	var par_point := _presence_par_attractivite() * float(g.data["buildings"]["zoo"]["reputation_par_visiteur_moyen"])
 	return (utile + _affinity_gain(def) * minf(base + ajout, limite)) * par_point
+
+
+## --- Rentabilité de fin de partie -------------------------------------------------------------------
+## En fin de partie, chaque dépense possible est jugée sur la même échelle : la réputation qu'elle rapportera d'ici la fin
+## (jours restants estimés), divisée par son coût en argent (bois, pierre et or comptés au prix d'achat du marché).
+## Elle n'est faite que si elle vaut au moins RENTABILITE_MIN fois ce que rapporterait le même argent dans le meilleur
+## contrat du marché, et sans passer sous le plancher de dépenses. Les règles du début de partie restent les mêmes.
+const RENTABILITE_MIN := 0.6
+const POSTE_PAR_JOUR := 2.0  # coût d'un collaborateur posté toute la journée (ce qu'il aurait fait ailleurs)
+
+
+func _fin_de_partie() -> bool:
+	return g.zoo_status()["open"] and not g.animals.is_empty() and (g.day >= 6 or _days_left() <= 8.0)
+
+
+## Coût d'un bâtiment en argent, matériaux au prix d'achat.
+func _cout_argent(cout: Dictionary) -> float:
+	var t := 0.0
+	for k in cout:
+		t += float(cout[k]) if k == "argent" else float(cout[k]) * g.buy_price(k)
+	return t
+
+
+## Réputation de fréquentation par jour, avec une attractivité multipliée ou augmentée (plafonnée par la place du parc).
+func _frequentation_jour(mult := 1.0, plus := 0.0) -> float:
+	var par_point := _presence_par_attractivite() * float(g.data["buildings"]["zoo"]["reputation_par_visiteur_moyen"])
+	return minf((_owned_attr() + plus) * mult, _attr_limit()) * par_point * g.publicity_mult()
+
+
+func _meilleure_efficacite(tache: String) -> float:
+	var e := 0.0
+	for c in g.all_employees():
+		e = maxf(e, g.efficiency(c, tache))
+	return e
+
+
+## Ce que rapporte un argent placé dans le meilleur contrat du marché ce soir (réputation par unité d'argent).
+func _ratio_reference() -> float:
+	var D := _days_left()
+	var best := 0.0
+	for def in g.market_contracts:
+		if g.has_species(def["id"]) or (_plan_enclosure(def).is_empty() and not _can_extend_for(def)):
+			continue
+		if not _has_landscaper() and not _natural_fit(def):
+			continue
+		var rep := _contract_value(def) * maxf(0.5, D - 2.0) + _objectif_bonus(def)
+		best = maxf(best, rep / maxf(1.0, _money_cost(def)))
+	return best
+
+
+func _rendements() -> Array:
+	return _cached("rendements|%d" % g.day, _calculer_rendements) if _fin_de_partie() else []
+
+
+func _calculer_rendements() -> Array:
+	var D := _days_left()
+	var out := []
+	var ajout := func(genre: String, rep: float, cout: float, extra: Dictionary):
+		var r := {"genre": genre, "rep": rep, "cout": cout, "ratio": rep / maxf(1.0, cout)}
+		r.merge(extra)
+		out.append(r)
+	var pts_objectif := float(g.data["buildings"]["objectifs"]["reputation"])
+	var services := _objectif_ouvert("services")
+	var services_manquants := ["boutique", "kiosque", "snack"].filter(func(id): return not g.has_building(id))
+	# Kiosque d'animation tenu : spectacles et attractivité, selon le meilleur animateur de l'équipe
+	if not g.has_building("kiosque"):
+		var e := _meilleure_efficacite("animer")
+		var R: Dictionary = g.data["buildings"]["reputation_autres"]
+		var par_jour := float(R["kiosque_par_jour"]) * e + _frequentation_jour(1.0, 3.0 * e) - _frequentation_jour()
+		var rep := par_jour * maxf(0.0, D - 1.5)
+		if not services.is_empty() and services_manquants.size() == 1:
+			rep += pts_objectif
+		ajout.call("batiment", rep, _cout_argent(g.building_def("kiosque")["cout"]) + POSTE_PAR_JOUR * D, {"batiment": "kiosque"})
+	# Snack tenu : les visiteurs restent plus longtemps (si le parc a de la place)
+	if not g.has_building("snack"):
+		var mult := float(g.building_def("snack")["effet"]["duree_visite_mult"])
+		var rep := (_frequentation_jour(mult) - _frequentation_jour()) * maxf(0.0, D - 1.5)
+		if not services.is_empty() and services_manquants.size() == 1:
+			rep += pts_objectif
+		ajout.call("batiment", rep, _cout_argent(g.building_def("snack")["cout"]) + POSTE_PAR_JOUR * D, {"batiment": "snack"})
+	# Intendance : des décorations qui rapportent chaque nuit jusqu'à la fin
+	if not g.has_building("intendance"):
+		var E: Dictionary = g.data["buildings"]["reputation_autres"]["embellissement"]
+		var par_jour := g.day_length * _meilleure_efficacite("embellir") / float(E["travail"])
+		var place := maxf(0.0, g.zoo_status()["interior"].size() / float(E["cases_par_decoration"]) - g.decorations.size())
+		var rep := 0.0
+		var n := 0.0
+		for k in range(1, int(D)):
+			n = minf(place, n + par_jour)
+			rep += n * float(E["reputation_nuit"])
+		var cout := _cout_argent(g.building_def("intendance")["cout"]) + POSTE_PAR_JOUR * D + n * _cout_argent(E["cout"])
+		ajout.call("batiment", rep, cout, {"batiment": "intendance"})
+	# Bureau des acquisitions : un contrat de plus par jour, à moitié prix
+	if not g.has_building("acquisitions"):
+		var v := 0.0
+		var prix := 0.0
+		for def in g.market_contracts:
+			if g.has_species(def["id"]) or (_plan_enclosure(def).is_empty() and not _can_extend_for(def)):
+				continue
+			if _contract_value(def) > v:
+				v = _contract_value(def)
+				prix = _money_cost(def) * 0.5
+		var rep := 0.0
+		var achats := 0
+		for k in range(1, mini(4, int(D) - 3) + 1):
+			rep += v * maxf(0.0, D - 2.5 - k)
+			achats += 1
+		ajout.call("batiment", rep, _cout_argent(g.building_def("acquisitions")["cout"]) + prix * achats, {"batiment": "acquisitions"})
+	# Campagnes : des points de publicité gardés jusqu'à la fin
+	if g.campaign.is_empty():
+		var P: Dictionary = g.data["buildings"]["publicite"]
+		var maintenant := g.publicity_mult()
+		var obj_pub := _objectif_ouvert("publicite")
+		for d in g.campaign_defs():
+			var pts := g.publicite + float(d["points"])
+			var apres := (1.0 + float(P["max"]) * pts / (pts + float(P["demi_points"]))) * maintenant / maxf(0.01, 1.0 + float(P["max"]) * g.publicite / (g.publicite + float(P["demi_points"])))
+			var rep := _frequentation_jour() * (apres / maintenant - 1.0) * maxf(0.0, D - 1.0)
+			if not obj_pub.is_empty() and pts >= float(obj_pub["n"]):
+				rep += pts_objectif
+			ajout.call("campagne", rep, float(g.campaign_cost(d)), {"def": d})
+	# Garde : rentable face au meilleur contrat, pas sous le plancher, et vraiment utile
+	var ref := _ratio_reference()
+	for r in out:
+		r["ok"] = r["rep"] >= 2.0 and r["ratio"] >= RENTABILITE_MIN * ref and g.money - float(r["cout"]) * 0.6 >= _floor_achats()
+	return out
+
+
+## Bureau des acquisitions : le meilleur contrat du marché à moitié prix, s'il trouve sa place et ne vide pas la caisse.
+func _achat_jour_ia() -> void:
+	if not g.has_building("acquisitions") or g.achat_jour_fait:
+		return
+	var best := {}
+	var best_score := 0.0
+	for def in g.market_contracts:
+		if g.achat_jour_error(def) != "":
+			continue
+		if _plan_enclosure(def).is_empty() and not _can_extend_for(def):
+			continue
+		if not _has_landscaper() and not _natural_fit(def):
+			continue
+		var p := g.achat_jour_paiement(def)
+		var cout := float(p.get("argent", 0)) + 4.0 * float(p.get("or", 0))
+		if g.money - cout < _cash_floor():
+			continue
+		var score := _contract_score(def, cout)
+		if score > best_score:
+			best_score = score
+			best = def
+	if not best.is_empty() and g.achat_jour(best):
+		mt.log.append("%s achète le contrat %s au Bureau des acquisitions." % [mt.names[g.index], best["nom"]])
 
 
 ## Jours restants estimés, d'après l'avance du meilleur joueur.
@@ -2172,6 +2334,16 @@ func _wants() -> Array:
 			var bspot := _spot_near_camp(g.building_def(b[0]))
 			if bspot.x >= 0:
 				out.append(["batiment", g.building_def(b[0]), bspot])
+	# 3 sexies. Fin de partie : bâtiments choisis par rentabilité (réputation attendue d'ici la fin, rapportée à leur coût,
+	# comparée à ce que rapporterait le même argent dans le meilleur contrat du marché).
+	for r in _rendements():
+		var bid: String = r.get("batiment", "")
+		if bid == "" or not r["ok"] or g.has_building(bid) or g.sites.any(func(s): return s.def_id() == bid):
+			continue
+		var bdef := g.building_def(bid)
+		var bspot2 := _park_spot(bdef) if bdef.get("dans_enceinte", false) else _spot_near_camp(bdef)
+		if bspot2.x >= 0:
+			out.append(["batiment", bdef, bspot2])
 	# 4. Boutique, une fois le premier animal installé.
 	if strat["boutique"] and not g.animals.is_empty() and g.site_at(shop_rect.position) == null:
 		out.append(["batiment", g.building_def("boutique"), shop_rect.position])
@@ -2334,6 +2506,10 @@ func _needs() -> Dictionary:
 		for k in cost:
 			if need.has(k):
 				need[k] += float(cost[k])
+	# Intendance : de quoi poser quelques décorations (1 bois et 1 pierre chacune), sinon le décorateur attend sans rien faire.
+	if g.has_building("intendance") and g.decorations.size() < g.decorations_max():
+		need["bois"] += 4.0
+		need["pierre"] += 4.0
 	# Garder de l'or pour un T3 (2 à 3 or) plutôt que de tout vendre le soir.
 	if (float(strat["preference_palier"]) > 1.0 or g.mine_built) and g.day >= 5:
 		need["or"] += 3.0
@@ -2764,7 +2940,9 @@ func _staff_posts() -> void:
 	var open: bool = g.zoo_status()["open"]
 	# Guichet et cuisine d'abord. Les autres postes laissent des bras aux chantiers : sinon, zoo ouvert, plus rien ne se construit.
 	var bras := _builders_needed()
-	_release_posts(bras)
+	# Fin de partie : un service bâti parce qu'il est rentable doit être tenu, quitte à laisser moins de bras aux chantiers.
+	var bras_services := bras / 2 if _fin_de_partie() else bras
+	_release_posts(bras_services)
 	for s in g.sites:
 		if s.done and s.def_id() == "entree" and open:
 			_ensure_post(s, "ticket")
@@ -2775,13 +2953,13 @@ func _staff_posts() -> void:
 			if _free_hands() > bras:
 				_ensure_post(s, "shop")
 		elif s.done and s.def_id() == "snack" and open:
-			if _free_hands() > bras:
+			if _free_hands() > bras_services:
 				_ensure_post(s, "snack")
 		elif s.done and s.def_id() == "kiosque" and open:
-			if _free_hands() > (0 if strat["spectacle"] else bras):
+			if _free_hands() > (0 if strat["spectacle"] else bras_services):
 				_ensure_post(s, "kiosque")
 		elif s.done and s.def_id() == "intendance" and open:
-			if g.decorations.size() < g.decorations_max() and (_free_hands() > bras or g.workers.any(func(w): return w.card.metier["id"] == "intendant")):
+			if g.decorations.size() < g.decorations_max() and (_free_hands() > bras_services or _fin_de_partie() or g.workers.any(func(w): return w.card.metier["id"] == "intendant")):
 				_ensure_post(s, "intendance")
 		elif s.done and s.def_id() == "cuisine" and g.food_due():
 			# Un nourrisseur pour 4 animaux (l'Animalier, puis le Soigneur, puis le moins utile ailleurs)

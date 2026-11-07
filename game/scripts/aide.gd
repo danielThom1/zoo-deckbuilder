@@ -4,7 +4,7 @@ extends ColorRect
 ## existe dans le jeu, généré depuis les fichiers de données. S'ouvre depuis le menu principal et le bouton « ? » en jeu.
 
 const PAGES := [
-	["Le but du jeu", """Vous bâtissez un zoo pour ZooLife™, en concurrence avec d'autres groupes. [b]Le premier à 100 de réputation l'emporte[/b] (sinon, le mieux placé au soir du jour 22).
+	["Le but du jeu", """Vous bâtissez un zoo pour ZooLife™, en concurrence avec d'autres groupes. [b]Le premier à 120 de réputation l'emporte[/b] (sinon, le mieux placé au soir du jour 22).
 
 Vos collaborateurs sont des [b]cartes[/b] : vous en choisissez 8 au début, vous en piochez 4 chaque matin, vous les envoyez travailler, puis ils repartent à la défausse. Une partie alterne [b]les jours[/b], en temps réel, où l'on récolte et construit, et [b]les nuits[/b], au tour par tour, où l'on achète."""],
 	["Le draft", """Avant le premier jour, à chaque tour, une carte de plus que de joueurs est révélée et chacun en prend une à tour de rôle, pendant 8 tours. C'est votre deck de départ.
@@ -70,7 +70,7 @@ const RESSOURCES := [
 	["Pierre", "Extraite de la roche. Murs d'enceinte, entrée, aménagements."],
 	["Or", "Extrait d'un gisement avec une mine. Contrats rares et labels, ou vendu très cher."],
 	["Influence", "Gagnée par le lobbying. Fixe l'ordre de passage la nuit (valeurs cachées) et donne le prestige politique."],
-	["Réputation", "Le score : le premier à 100 gagne."],
+	["Réputation", "Le score : le premier à 120 gagne."],
 	["Logement", "Nombre maximal de collaborateurs. Le camp en loge 8, chaque Maison un de plus."],
 	["Propreté", "Les visiteurs salissent le parc. Sous 60, puis sous 30, moins de visiteurs viennent."],
 ]

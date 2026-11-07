@@ -12,4 +12,4 @@ La vallée attend son zoo, et ZooLife™ vous en confie la filiale. Petit souci 
 
 **La nuit**, le conseil d'administration se réunit : on signe des contrats au marché, on recrute, on joue ses cartes d'action. Le premier en influence choisit le bonus du lendemain, et la filiale à la traîne décroche un plan de relance.
 
-Le premier à 100 de réputation remporte la concession. Seul contre l'IA (trois niveaux) ou jusqu'à quatre en réseau.
+Le premier à 120 de réputation remporte la concession. Seul contre l'IA (trois niveaux) ou jusqu'à quatre en réseau.

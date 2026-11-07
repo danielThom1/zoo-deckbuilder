@@ -720,7 +720,7 @@ func _scenario() -> Array:
 		_dit("cadre", "Bienvenue chez [b]ZooLife™[/b], leader mondial du divertissement animalier responsable ! Vous entrez dans une grande famille. Une famille avec des objectifs trimestriels.", {"logos": ["zoolife"], "entree": func():
 			_deployer_tout()
 			game.money = 8.0}),
-		_dit("cadre", "Notre mission : bâtir ici un parc animalier. Trois mégacorporations rivales font la même chose au même moment. La [b]première à 100 de réputation[/b] rafle la concession. Les autres licencient.", {"logos": ["panzoo", "safari", "bioland"], "cible": func(): return m.race_labels.map(func(r): return r[0]), "position": "bas"}),
+		_dit("cadre", "Notre mission : bâtir ici un parc animalier. Trois mégacorporations rivales font la même chose au même moment. La [b]première à 120 de réputation[/b] rafle la concession. Les autres licencient.", {"logos": ["panzoo", "safari", "bioland"], "cible": func(): return m.race_labels.map(func(r): return r[0]), "position": "bas"}),
 		_dit("terrassier", "Excusez-moi… on a signé pour travailler dans un parc animalier. Il est où, le parc ?"),
 		_dit("cadre", "Article 47, alinéa 12 de votre contrat : « Le salarié construit l'établissement qui l'emploie. » C'était écrit. En petit, certes, mais c'était écrit."),
 		_dit("bucheron", "Et les machines ? Les camions ? Le matériel ?"),
@@ -833,7 +833,7 @@ func _scenario() -> Array:
 		_dit("cadre", "Reste l'[b]influence[/b]. Envoyez un collaborateur à la [b]Mairie[/b], au bout de la route d'Accès : c'est le lobbying. L'influence décide de qui achète en premier le soir et de qui choisit le bonus du lendemain.", {"entree": func(): _centrer(game.map.exit_tile + Vector2i(0, -4)), "voile": false, "monde": func(): return [game.map.exit_tile], "position": "haut"}),
 		_dit("cadre", "Et chaque nuit, le premier en influence gagne [b]+3 de réputation[/b], le deuxième +1. On appelle ça le prestige politique. Nous, on appelle ça un mardi.", {"monde": func(): return [game.map.exit_tile], "position": "haut"}),
 		_dit("manoeuvre", "Et notre période d'essai, elle est validée ?", {"entree": func(): _centrer(parc.get_center())}),
-		_dit("cadre", "Votre période d'essai vient de s'achever. Elle n'était pas rémunérée : article 12. Bienvenue à bord. Maintenant, un vrai parc vous attend, de vraies rivales et de vrais trimestres. [b]Le premier à 100 l'emporte[/b]. Le reste, c'est de la communication.", {"fin": true}),
+		_dit("cadre", "Votre période d'essai vient de s'achever. Elle n'était pas rémunérée : article 12. Bienvenue à bord. Maintenant, un vrai parc vous attend, de vraies rivales et de vrais trimestres. [b]Le premier à 120 l'emporte[/b]. Le reste, c'est de la communication.", {"fin": true}),
 	]
 	for e in s:
 		if e.get("texte") is String:

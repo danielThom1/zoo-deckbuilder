@@ -1340,6 +1340,30 @@ func _init() -> void:
 	check(float(bd_g.visit.get("souvenirs_rep", 0.0)) > 0.0, "Braderie : la réputation de boutique compte")
 	bd_g.action_fx.erase("boutiques")
 
+	print("Bureau des acquisitions :")
+	var aq_g := _fresh_day(data, 5151)
+	aq_g.money = 500.0
+	var aq_def: Dictionary = aq_g.market_contracts[0]
+	check(aq_g.achat_jour_error(aq_def) != "", "sans le Bureau : pas d'achat de contrat en journée")
+	var aq_c := aq_g.map.camp.get_center()
+	var aq_s: GameState.Site = null
+	for aq_r in range(2, 14):
+		for aq_dy in range(-aq_r, aq_r + 1):
+			for aq_dx in range(-aq_r, aq_r + 1):
+				if aq_s == null and aq_g.placement_error("batiment", aq_g.building_def("acquisitions"), aq_c + Vector2i(aq_dx, aq_dy)) == "":
+					aq_s = aq_g.place("batiment", aq_g.building_def("acquisitions"), aq_c + Vector2i(aq_dx, aq_dy))
+	check(aq_s != null, "Bureau des acquisitions posé")
+	aq_s.work = aq_s.travail()
+	aq_g._complete(aq_s)
+	var aq_prix := roundi(float(aq_g.contract_cost(aq_def, false)["argent"]) * 0.5)
+	check(int(aq_g.achat_jour_cout(aq_def)["argent"]) == aq_prix, "moitié prix : %d argent" % aq_prix)
+	var aq_argent := aq_g.money
+	var aq_n := aq_g.market_contracts.size()
+	check(aq_g.achat_jour(aq_def) and aq_g.contracts.has(aq_def), "contrat acheté en journée au Bureau")
+	check(aq_g.market_contracts.size() == aq_n and not aq_g.market_contracts.has(aq_def), "le marché est aussitôt complété")
+	check(aq_argent - aq_g.money >= aq_prix - 0.01, "payé au moins %d argent (or manquant compris)" % aq_prix)
+	check(aq_g.achat_jour_error(aq_g.market_contracts[0]) != "", "un seul achat par jour")
+	aq_g.mt.dispose()
 	print("Plan de relance :")
 	var rl_a: GameState = bd_m.players[0]
 	var rl_b: GameState = bd_m.players[1]
@@ -1428,7 +1452,7 @@ func _init() -> void:
 	ob_n.dispose()
 	print("Lot S : autres sources de réputation :")
 	var x_g := _fresh_day(data, 9191)
-	check(x_g.objective() == 100, "objectif : 100 de réputation")
+	check(x_g.objective() == 120, "objectif : 120 de réputation")
 	x_g.annonce("licenciement", {"nom": "Marcel"})
 	check(x_g.annonces.size() >= 1 and x_g.annonces[-1]["moment"] == "licenciement", "Hubert : une réplique attend le joueur humain")
 	x_g.annonces.clear()

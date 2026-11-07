@@ -29,6 +29,8 @@ Bâtiment : [DESCRIPTION]
 6. **Entrée du zoo** (`entree`) : grand portique de pierre et de bois vu de face, très large, passage libre au centre, deux piliers de pierre, grande enseigne en arc « ZOOLIFE » avec une empreinte de patte. Sans socle d'herbe au centre, pour laisser passer le chemin.
 7. **Entrée du zoo, de côté** (`entree2`) : le même portique, mêmes matériaux et même enseigne, tourné d'un quart de tour : on le voit de profil et le chemin le traverse de gauche à droite.
 
+8. **Bureau des acquisitions** (`acquisitions`) : petit immeuble de bureaux cossu sur deux étages, pierre de taille claire, porte à tambour, plaque dorée, une pile de contrats tamponnés « VENDU » visible derrière la vitrine, un animal en carton (girafe) qui dépasse d'une caisse de livraison devant la porte. Enseigne « ACQUISITIONS ». Aujourd'hui, il utilise l'image de l'ancienne agence (`interim`).
+
 ## Facultatifs
 
 Ceux-ci sont réussis. À refaire seulement si les nouveaux personnages les font paraître dépassés, ou pour marquer davantage ZooLife.

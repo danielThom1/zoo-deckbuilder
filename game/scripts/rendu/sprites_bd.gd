@@ -12,7 +12,7 @@ const MANIFESTE := "res://assets/bd/sprites_bd.json"
 ## Bâtiment terminé → sprite. Largeur dessinée = largeur de l'emprise × LARGEUR_BATIMENT.
 const BATIMENTS := {
 	"camp": "camp3", "maison": "maison", "entrepot": "entrepot", "mine": "mine", "entree": "entree",
-	"boutique": "souvenirs", "comptoir": "marche", "agence": "agence", "cabinet": "cabinet",
+	"boutique": "souvenirs", "comptoir": "marche", "agence": "agence", "cabinet": "cabinet", "acquisitions": "interim",
 	"cuisine": "cuisine", "entretien": "atelier", "intendance": "intendance", "snack": "snack", "kiosque": "scene", "mairie": "mairie",
 	# aménagements d'enclos
 	"grand_arbre": "arbre1", "rocher_obs": "rocher_obs", "bassin_profond": "bassin", "abri_chaud": "abri",

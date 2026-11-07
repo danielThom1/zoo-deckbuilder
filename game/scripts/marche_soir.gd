@@ -1,7 +1,8 @@
 class_name MarcheSoir
 extends FenetreComite
 ## Le marché de ce soir, consulté en journée (handoff §2.4) : un écran par catégorie, le jeu continue derrière.
-## Rien ne s'achète ici. Suivre un élément ne change aucune règle : main.gd l'affiche dans le bandeau (suivis).
+## On n'y achète qu'avec le Bureau des acquisitions (un contrat à moitié prix par jour, ordre « achat_jour »). Suivre un
+## élément ne change aucune règle : main.gd l'affiche dans le bandeau (suivis).
 
 const ONGLETS := ["contrats", "ouvriers", "cartes"]
 const NOMS := {"contrats": "Contrats", "ouvriers": "Collaborateurs", "cartes": "Cartes d'action"}
@@ -134,7 +135,7 @@ func rafraichir() -> void:
 		return
 	var mt: Match = m.mt
 	var sig := "%s|%d|%d|%d|%s|%d|%d|%d" % [onglet, game.market_contracts.size(), mt.market_workers.size(), mt.market_actions.size(), m.suivis.size(),
-		floori(game.money), game.employees(), game.housing()]
+		floori(game.money), game.employees(), game.housing()] + "|%s|%s" % [game.has_building("acquisitions"), game.achat_jour_fait]
 	if sig == signature:
 		return
 	signature = sig
@@ -231,6 +232,10 @@ func _ecran_contrats() -> void:
 	var note := _corps("Un contrat pris n'est remplacé que demain.", 13, 600, UiTokens.TEXTE_2)
 	note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	ht.add_child(note)
+	if game.has_building("acquisitions"):
+		var bureau := _corps("Bureau des acquisitions : %s" % ("achat du jour fait" if game.achat_jour_fait else "1 contrat à moitié prix aujourd'hui"), 13, 700,
+			UiTokens.TEXTE_2 if game.achat_jour_fait else UiTokens.SARCELLE_FONCE)
+		ht.add_child(bureau)
 	ht.add_child(_corps("Votre argent :", 13, 600, UiTokens.TEXTE_2))
 	ht.add_child(_mono(str(floori(game.money)), 13))
 	v.add_child(ht)
@@ -355,6 +360,20 @@ func _fiche_contrat(d: Dictionary) -> Control:
 	pl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	pil.add_child(pl)
 	t.add_child(pil)
+	if game.has_building("acquisitions"):
+		var cj := game.achat_jour_cout(d)
+		var prix := "%d" % int(cj.get("argent", 0)) + (" + %s or" % str(cj["or"]).replace(".", ",") if float(cj.get("or", 0)) > 0.0 else "")
+		var b := Composants.bouton("Acheter · %s" % prix, "BoutonPrincipal")
+		b.add_theme_font_size_override("font_size", 13)
+		b.custom_minimum_size.y = 32
+		var err := game.achat_jour_error(d)
+		b.disabled = err != ""
+		b.tooltip_text = err if err != "" else "Bureau des acquisitions : ce contrat à moitié prix, tout de suite (une fois par jour). Il s'ajoute à celui de ce soir."
+		b.pressed.connect(func():
+			m._cmd("achat_jour", [d])
+			signature = ""
+			rafraichir())
+		t.add_child(b)
 	return p
 
 
