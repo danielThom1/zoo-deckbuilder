@@ -974,8 +974,21 @@ func _ratio_reference() -> float:
 	return best
 
 
+## Recalculé au plus toutes les RENDEMENTS_PERIODE secondes de jeu : le cache par version de la carte le refaisait
+## des centaines de fois par jour (chaque mur, chaque récolte), et l'étude jouait 8 fois moins de parties par heure.
+const RENDEMENTS_PERIODE := 20.0
+var _rendements_cache: Array = []
+var _rendements_quand := -INF
+
+
 func _rendements() -> Array:
-	return _cached("rendements|%d" % g.day, _calculer_rendements) if _fin_de_partie() else []
+	if not _fin_de_partie():
+		return []
+	var maintenant := g.day * 100000.0 + g.time
+	if maintenant - _rendements_quand >= RENDEMENTS_PERIODE:
+		_rendements_quand = maintenant
+		_rendements_cache = _calculer_rendements()
+	return _rendements_cache
 
 
 func _calculer_rendements() -> Array:
@@ -1052,9 +1065,16 @@ func _calculer_rendements() -> Array:
 
 
 ## Bureau des acquisitions : le meilleur contrat du marché à moitié prix, s'il trouve sa place et ne vide pas la caisse.
+var _achat_jour_quand := -INF
+
+
 func _achat_jour_ia() -> void:
 	if not g.has_building("acquisitions") or g.achat_jour_fait:
 		return
+	var maintenant := g.day * 100000.0 + g.time
+	if maintenant - _achat_jour_quand < RENDEMENTS_PERIODE:
+		return
+	_achat_jour_quand = maintenant
 	var best := {}
 	var best_score := 0.0
 	for def in g.market_contracts:
@@ -1763,15 +1783,22 @@ func _plan_enclosure(def: Dictionary) -> Dictionary:
 		_plan_cache.clear()
 	if not _plan_cache.has(def["id"]):
 		var plan := _compute_plan(def)
-		if plan.is_empty():
-			# Sur la terre ferme, aucune place : on accepte quelques clôtures sur l'eau. Pas d'emblée : chaque emplacement
-			# admis demande un calcul d'aménagements coûteux, et les parties allaient 2,6 fois moins vite.
-			plan = _compute_plan(def, Rect2i(), Rect2i(), true)
+		if plan.is_empty() and g.animals.is_empty() and _walls_progress() >= 0.6:
+			# Encore aucun animal et, sur la terre ferme, aucune place : on accepte quelques clôtures sur l'eau (parc plein
+			# d'eau, sinon l'IA n'achète aucun contrat de la partie). Pas d'emblée, pas après le premier animal, et une fois
+			# par jour seulement : chaque emplacement admis demande un calcul d'aménagements coûteux (refait à chaque
+			# changement de la carte, l'étude jouait plusieurs fois moins de parties par heure).
+			var e: Dictionary = _plans_eau.get(def["id"], {})
+			if e.is_empty() or int(e["jour"]) != g.day or e["zoo"] != zoo_rect:
+				e = {"jour": g.day, "zoo": zoo_rect, "plan": _compute_plan(def, Rect2i(), Rect2i(), true)}
+				_plans_eau[def["id"]] = e
+			plan = e["plan"]
 		_plan_cache[def["id"]] = plan
 	return _plan_cache[def["id"]]
 
 
 ## park et scan : parc supposé et zone à explorer, pour juger un agrandissement avant de le construire.
+var _plans_eau := {}  # espèce -> {"jour", "zoo", "plan"} : emplacements avec clôtures sur l'eau
 const EAU_MAX_PAR_ENCLOS := 6  # clôtures sur l'eau (ponton) admises au plus pour un enclos
 
 
