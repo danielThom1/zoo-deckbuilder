@@ -5267,7 +5267,7 @@ func _update_proposal_box(def: Dictionary, interior: Dictionary) -> void:
 	if interior.is_empty():
 		message = "Fermez d'abord l'enceinte du zoo avec son entrée : les animaux vivent à l'intérieur."
 	elif enclosure_proposal.is_empty() and ok.is_empty() and near.is_empty():
-		message = "Pas de place libre pour un enclos dans l'enceinte : agrandissez-la."
+		message = "Aucune place : il faut dans l'enceinte un rectangle libre d'au moins %d cases, plus ses clôtures autour (les enclos, chantiers et bâtiments bloquent ; murs et montagnes servent de bord). Agrandissez l'enceinte ou faites de la place." % int(def["taille"])
 	var ml := Composants.label(message)
 	ml.add_theme_font_override("font", UiTokens.police_corps(600))
 	ml.add_theme_font_size_override("font_size", 13)
@@ -6340,7 +6340,7 @@ func _montrer(cible: String) -> void:
 		numero = 2
 		for s in game.sites:
 			if s.def_id() == "entree":
-				pos = Vector2(s.pos) + Vector2(1, 0)
+				pos = Vector2(s.rect.position) + Vector2(1, 0)
 				break
 	repere_monde = {"pos": pos, "numero": numero, "fin": Time.get_ticks_msec() + 6000}
 	camera.position = (pos + Vector2(0.5, 0.5)) * TILE

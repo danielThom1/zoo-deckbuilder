@@ -2849,7 +2849,8 @@ func enclosure_site(def: Dictionary, around := Vector2i(-1, -1)) -> Dictionary:
 		return interior.has(p) and site_at(p) == null and not occupied.has(p) and not map.in_camp(p.x, p.y)
 	var ring_ok := func(p: Vector2i) -> bool:
 		if not ring_cache.has(p):
-			var wall := is_wall(p) and site_at(p).def_id() == "cloture"
+			# Le mur de l'enceinte et la montagne servent de côté, comme pour l'enceinte elle-même
+			var wall := (is_wall(p) and site_at(p).def_id() == "cloture") or is_mountain(p)
 			ring_cache[p] = wall or (interior.has(p) and not occupied.has(p) \
 				and (is_fence(p) or _is_fence_site(p) or placement_error("batiment", fence_def, p, false) == ""))
 		return ring_cache[p]
@@ -2879,13 +2880,15 @@ func enclosure_site(def: Dictionary, around := Vector2i(-1, -1)) -> Dictionary:
 				for yy in range(r.position.y, r.end.y):
 					for xx in range(r.position.x, r.end.x):
 						var p := Vector2i(xx, yy)
+						if is_mountain(p):
+							continue  # une montagne dans l'enclos : ni surface, ni motif, mais elle ne l'empêche pas
 						if not free.call(p):
 							ok = false
 							break
 						inner.append(p)
 					if not ok:
 						break
-				if not ok:
+				if not ok or inner.size() < need or not _d_un_seul_tenant(inner):
 					continue
 				var ring: Array[Vector2i] = []
 				var fresh: Array[Vector2i] = []
@@ -2899,7 +2902,7 @@ func enclosure_site(def: Dictionary, around := Vector2i(-1, -1)) -> Dictionary:
 							ok = false
 							break
 						ring.append(q)
-						if not is_wall(q):
+						if not is_wall(q) and not is_mountain(q):
 							fenced = true
 							if not is_fence(q) and not _is_fence_site(q):
 								fresh.append(q)
@@ -2927,6 +2930,25 @@ func enclosure_site(def: Dictionary, around := Vector2i(-1, -1)) -> Dictionary:
 						best["decor"] = decor
 						best["decor_tile"] = decor_tile
 	return best
+
+
+## Cases d'un seul tenant (voisins par les côtés) : une montagne au milieu d'un enclos ne doit pas le couper en deux.
+func _d_un_seul_tenant(cases: Array[Vector2i]) -> bool:
+	if cases.is_empty():
+		return false
+	var dans := {}
+	for c in cases:
+		dans[c] = true
+	var vu := {cases[0]: true}
+	var pile: Array[Vector2i] = [cases[0]]
+	while not pile.is_empty():
+		var c: Vector2i = pile.pop_back()
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var q: Vector2i = c + d
+			if dans.has(q) and not vu.has(q):
+				vu[q] = true
+				pile.append(q)
+	return vu.size() == cases.size()
 
 
 ## Coût d'un enclos trouvé par enclosure_site : segments de clôture neufs et aménagement requis.

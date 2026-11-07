@@ -28,6 +28,7 @@ var fenetre_journal: Control
 var journal_corps: HBoxContainer
 var fiche: GameState.Card = null  # collaborateur montré à l'étape Équipe
 var fiche_action := ""  # "" , "ameliorer" ou "licencier"
+var amelioration_nuit := {}  # dernière amélioration achetée : {"card", "nom", "jour"}, signalée sur la fiche
 var toast_boite: PanelContainer
 
 
@@ -1119,8 +1120,10 @@ func _panneau_fiche() -> Control:
 	# Traits et améliorations
 	for tr in game.trait_defs(fiche):
 		c.add_child(_ligne_trait(tr))
-	for u in fiche.upgrade_names:
-		c.add_child(_replie(_corps("★ %s" % u, 12, 600, UiTokens.SARCELLE_FONCE)))
+	for k in fiche.upgrade_names.size():
+		var u: String = fiche.upgrade_names[k]
+		var nouvelle: bool = amelioration_nuit.get("card") == fiche and int(amelioration_nuit.get("jour", -1)) == game.day 			and k == fiche.upgrade_names.size() - 1 and u == str(amelioration_nuit.get("nom", ""))
+		c.add_child(_replie(_corps("★ %s%s" % [u, "  · nouvelle, cette nuit" if nouvelle else ""], 12, 800 if nouvelle else 600, UiTokens.SARCELLE_FONCE)))
 	# Montée de niveau : gratuite
 	for lc in game.level_choices:
 		if lc["card"] == fiche:
@@ -1152,6 +1155,7 @@ func _panneau_fiche() -> Control:
 	if err_up == "":
 		up = Composants.bouton("Améliorer · %d" % cout_up, "BoutonSecondaire")
 		up.custom_minimum_size.y = 42
+		up.tooltip_text = "Ajoute une amélioration au choix (★). Le niveau ne change pas : il monte avec l'expérience."
 		up.pressed.connect(func():
 			fiche_action = "" if fiche_action == "ameliorer" else "ameliorer"
 			rafraichir())
@@ -1159,9 +1163,11 @@ func _panneau_fiche() -> Control:
 		up.text = "Améliorer · %s" % up.text
 	c.add_child(up)
 	if fiche_action == "ameliorer" and err_up == "":
+		c.add_child(_cond("UNE AMÉLIORATION AU CHOIX · LE NIVEAU NE CHANGE PAS", 12))
 		for opt in game.upgrade_options(fiche):
 			c.add_child(_bouton_option(opt, "%d" % cout_up, func():
 				m._cmd("apply_upgrade", [fiche, opt])
+				amelioration_nuit = {"card": fiche, "nom": str(opt["nom"]), "jour": game.day}
 				fiche_action = ""))
 	# Licencier : le DRH offre le licenciement ; sinon, c'est payant
 	if game.drh_available > 0:
