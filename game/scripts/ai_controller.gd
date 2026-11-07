@@ -1670,6 +1670,12 @@ func _zoo_score(r: Rect2i, camp_c: Vector2, fit: Array) -> float:
 	return camp_c.distance_to(Vector2(r.get_center())) + water * 3.0 + bad * 2.0 - bonus
 
 
+## Case d'eau libre où une clôture d'enclos peut se monter (ponton).
+func _sur_eau(t: Vector2i) -> bool:
+	var m := g.map
+	return m.in_bounds(t.x, t.y) and not m.road[m.idx(t.x, t.y)] and not m.in_camp(t.x, t.y) and m.get_t(t.x, t.y) == GameMap.EAU
+
+
 func _land(t: Vector2i) -> bool:
 	var m := g.map
 	if not m.in_bounds(t.x, t.y) or m.road[m.idx(t.x, t.y)] or m.in_camp(t.x, t.y):
@@ -1756,12 +1762,20 @@ func _plan_enclosure(def: Dictionary) -> Dictionary:
 		_plan_cache_key = key
 		_plan_cache.clear()
 	if not _plan_cache.has(def["id"]):
-		_plan_cache[def["id"]] = _compute_plan(def)
+		var plan := _compute_plan(def)
+		if plan.is_empty():
+			# Sur la terre ferme, aucune place : on accepte quelques clôtures sur l'eau. Pas d'emblée : chaque emplacement
+			# admis demande un calcul d'aménagements coûteux, et les parties allaient 2,6 fois moins vite.
+			plan = _compute_plan(def, Rect2i(), Rect2i(), true)
+		_plan_cache[def["id"]] = plan
 	return _plan_cache[def["id"]]
 
 
 ## park et scan : parc supposé et zone à explorer, pour juger un agrandissement avant de le construire.
-func _compute_plan(def: Dictionary, park := Rect2i(), scan := Rect2i()) -> Dictionary:
+const EAU_MAX_PAR_ENCLOS := 6  # clôtures sur l'eau (ponton) admises au plus pour un enclos
+
+
+func _compute_plan(def: Dictionary, park := Rect2i(), scan := Rect2i(), avec_eau := false) -> Dictionary:
 	var suppose := park.size != Vector2i.ZERO
 	if not suppose:
 		park = zoo_rect
@@ -1802,6 +1816,7 @@ func _compute_plan(def: Dictionary, park := Rect2i(), scan := Rect2i()) -> Dicti
 				var interior := outer.grow(-1)
 				var ok := true
 				var shared := 0
+				var eau := 0
 				for t in _ring(outer):
 					if walls.has(t):
 						shared += 2  # le mur de l'enceinte sert de côté : aucune clôture à construire
@@ -1809,7 +1824,15 @@ func _compute_plan(def: Dictionary, park := Rect2i(), scan := Rect2i()) -> Dicti
 					if fence_tiles.has(t):
 						shared += 1  # clôture commune avec un enclos voisin
 						continue
-					if reserved.has(t) or not _land(t) or g.site_at(t) != null:
+					if reserved.has(t) or g.site_at(t) != null:
+						ok = false
+						break
+					if not _land(t):
+						# Une clôture d'enclos peut se monter sur l'eau (ponton), comme le joueur le fait. Sans cela, un parc
+						# plein d'eau n'avait aucune place : l'IA n'achetait aucun contrat de la partie.
+						if avec_eau and _sur_eau(t) and eau < EAU_MAX_PAR_ENCLOS:
+							eau += 1
+							continue
 						ok = false
 						break
 				if not ok:
@@ -1825,7 +1848,7 @@ func _compute_plan(def: Dictionary, park := Rect2i(), scan := Rect2i()) -> Dicti
 					continue
 				# Moins d'aménagements, clôtures partagées et enclos tassés contre les murs : on garde de la place.
 				var wall_dist := maxi(0, mini(mini(x - park.position.x, y - park.position.y), mini(park.end.x - outer.end.x, park.end.y - outer.end.y)))
-				var cost: float = _conv_cost(conv) * 2.0 - shared * 0.6 + wall_dist * 0.4
+				var cost: float = _conv_cost(conv) * 2.0 - shared * 0.6 + wall_dist * 0.4 + eau * 1.5
 				if cost < best_cost:
 					best_cost = cost
 					best = {"def": def, "interior": interior, "ring": _ring(outer), "conv": conv}
@@ -3070,7 +3093,7 @@ func _best_site_for(w: GameState.Worker) -> GameState.Site:
 			continue
 		var cap := 1 if s.rect.get_area() == 1 else 3
 		var n := _builders(s)
-		if n >= cap or g.work_tiles(s).is_empty():
+		if n >= cap or g.work_tiles(s).is_empty() or not _atteignable(s):
 			continue
 		var eff := g.efficiency(w.card, s.type_travail())
 		if strat["specialisation"] and eff < 0.9 and _builders(s) > 0:
@@ -3084,6 +3107,17 @@ func _best_site_for(w: GameState.Worker) -> GameState.Site:
 			best_score = score
 			best = s
 	return best
+
+
+## Un chantier dont une case de travail est atteignable depuis le camp (ponts finis compris). Un pont posé au milieu de
+## l'eau, avant celui qui y mène, n'en a aucune : tous les bâtisseurs le choisissaient, l'ordre échouait, ils restaient
+## inactifs et recommençaient à chaque réflexion. Plus aucune pierre récoltée, l'enceinte jamais fermée, aucun contrat.
+func _atteignable(s: GameState.Site) -> bool:
+	var reach: PackedByteArray = _cached("atteignables", func(): return MapGenerator.reachable(g.map))
+	for t in g.work_tiles(s):
+		if g.map.in_bounds(t.x, t.y) and reach[t.y * g.map.w + t.x] == 1:
+			return true
+	return false
 
 
 func _gather(w: GameState.Worker) -> void:

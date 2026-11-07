@@ -207,7 +207,22 @@ func _init() -> void:
 	var gk := _fresh_day(data, 12345)
 	gk.sans_enceinte = true  # ces tests d'enclos se passent hors de toute enceinte
 	check(gk.market_workers.size() == 5 and gk.market_contracts.size() == 5, "marché ouvert : 5 ouvriers, 5 contrats")
-	check(gk.market_contracts.any(func(d): return d["palier"] == "T3") and gk.market_contracts.any(func(d): return d["palier"] == "T2"), "dès le jour 1 : au moins un rare et un peu commun au marché")
+	var gk_ids := {}
+	for d in gk.market_contracts:
+		gk_ids[d["id"]] = true
+	check(gk_ids.size() == 5, "marché : 5 espèces différentes")
+	# Une espèce par partie : achetée, elle ne revient plus, même après plusieurs renouvellements
+	var gk_pris: Dictionary = gk.market_contracts[0]
+	gk.market_contracts.erase(gk_pris)
+	gk.contracts.append(gk_pris)
+	var gk_revenu := false
+	for gk_k in 30:
+		gk.mt._refresh_market(gk.mt.day, false)
+		gk_revenu = gk_revenu or gk.market_contracts.has(gk_pris)
+		gk.market_contracts.pop_back()
+	gk.mt._refresh_market(gk.mt.day, false)
+	gk.contracts.erase(gk_pris)
+	check(not gk_revenu and gk.market_contracts.size() == 5, "espèce achetée : ne revient jamais au marché")
 	gk.stock["bois"] = 20.0
 	gk.stock["pierre"] = 10.0
 	var house := gk.place("batiment", gk.building_def("maison"), gk.map.camp.position + Vector2i(3, 0))

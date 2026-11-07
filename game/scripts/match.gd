@@ -602,27 +602,24 @@ func _refresh_market(for_day: int, rotate: bool) -> void:
 		market_workers.append(make_card(pick_weighted(m["categories"])))
 	while market_actions.size() < int(m.get("actions", 0)):
 		market_actions.append(make_action(pick(data["workers"]["cartes_action"])))
-	var in_market := {}
+	# Un seul contrat par espèce dans la partie : une espèce à l'étalage, ou qu'un joueur détient (contrat, réservation,
+	# animal), ne peut pas sortir. Les places libres sont tirées au hasard parmi les autres, sans préférence de rareté.
+	var pris := {}
 	for d in market_contracts:
-		in_market[d["id"]] = true
+		pris[d["id"]] = true
+	for p in players:
+		for d in p.contracts:
+			pris[d["id"]] = true
+		for r in p.pending_installs:
+			pris[r["def"]["id"]] = true
+		for a in p.animals:
+			pris[a.def["id"]] = true
 	var paliers: Dictionary = data["animals"]["paliers"]
 	var eligible: Array = data["animals"]["animaux"].filter(func(d):
-		return int(paliers[d["palier"]]["jour_min"]) <= for_day and not in_market.has(d["id"]))
+		return int(paliers[d["palier"]]["jour_min"]) <= for_day and not pris.has(d["id"]))
 	shuffle(eligible)
-	# Toujours au moins un rare et un peu commun à l'étalage, pour choisir une direction dès le début ; sinon surtout du commun.
 	while market_contracts.size() < int(m["contrats"]) and not eligible.is_empty():
-		var wanted := "T1"
-		if not market_contracts.any(func(d): return d["palier"] == "T3"):
-			wanted = "T3"
-		elif not market_contracts.any(func(d): return d["palier"] == "T2"):
-			wanted = "T2"
-		var k := eligible.size() - 1
-		for j in eligible.size():
-			if eligible[j]["palier"] == wanted:
-				k = j
-				break
-		market_contracts.append(eligible[k])
-		eligible.remove_at(k)
+		market_contracts.append(eligible.pop_back())
 	bump()
 
 

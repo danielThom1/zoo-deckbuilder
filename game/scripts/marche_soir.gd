@@ -229,7 +229,7 @@ func _ecran_contrats() -> void:
 	var ht := HBoxContainer.new()
 	ht.add_theme_constant_override("separation", 12)
 	ht.add_child(_cond("CONTRATS D'ANIMAUX · 1 PAR FILIALE", 15))
-	var note := _corps("Un contrat pris n'est remplacé que demain.", 13, 600, UiTokens.TEXTE_2)
+	var note := _corps("Tirés au hasard, une seule fois par espèce. Un contrat pris n'est remplacé que demain.", 13, 600, UiTokens.TEXTE_2)
 	note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	ht.add_child(note)
 	if game.has_building("acquisitions"):
