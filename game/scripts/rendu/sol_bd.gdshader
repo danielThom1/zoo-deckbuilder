@@ -33,6 +33,14 @@ uniform bool ax_travail = false;
 uniform vec2 dir_ombre = vec2(0.45, 0.35);   // axe journée : direction des ombres (en cases), tourne avec le soleil
 uniform sampler2D usure : filter_linear, repeat_disable;   // axe travail : R = herbe usée (2 texels par case)
 const vec3 TERRE_BATTUE = vec3(0.835, 0.765, 0.565);   // #D5C390
+// 3e lot : sables, eaux, massifs, prairies, forêts (visiteurs : main.gd)
+uniform bool ax_sables = false;
+uniform bool ax_eaux = false;
+uniform bool ax_massifs = false;
+uniform bool ax_prairies = false;
+uniform bool ax_forets = false;
+uniform bool ax_visiteurs = false;
+uniform vec2 camp_centre = vec2(-100.0);
 
 const vec3 ENCRE = vec3(0.078, 0.125, 0.169);          // #14202B
 const vec3 HERBE = vec3(0.549, 0.761, 0.353);          // #8CC25A
@@ -106,7 +114,7 @@ void fragment() {
 	float lod = ax_lod ? mix(0.55, 1.0, pres) : 1.0;
 	float lod_roche = ax_lod ? mix(0.75, 1.0, pres) : 1.0;
 	// Proximité de l'eau (berges, plages, herbe humide)
-	float pres_eau = (ax_geographie || ax_matieres) ? max(autour(masque_a, 0, p, 0.9), autour(masque_a, 0, p, 1.8) * 0.7) : 0.0;
+	float pres_eau = (ax_geographie || ax_matieres || ax_sables) ? max(autour(masque_a, 0, p, 0.9), autour(masque_a, 0, p, 1.8) * 0.7) : 0.0;
 
 	// ---------- prairie : trois tons en taches, liseré discret, détails dessinés
 	float t1 = n1(p * 0.06 + 3.1); float t2 = n1(p * 0.06 + 7.7);
@@ -142,6 +150,30 @@ void fragment() {
 		c = mix(c, ENCRE, (smoothstep(0.1, 0.15, d) - smoothstep(0.16, 0.2, d)) * step(1.0 - pre_fleurs * 0.45, r) * 0.5 * smoothstep(40.0, 80.0, ppc));
 	}
 
+	// ---------- prairies : fauchée autour du camp, trèfles et pâquerettes par zones
+	if (ax_prairies) {
+		float dc = length(p - camp_centre) + (n1(p * 0.3 + 9.0) - 0.5) * 1.4;
+		float fauche = 1.0 - smoothstep(4.0, 6.0, dc);
+		float bande = smoothstep(0.45, 0.55, abs(fract((p.x + p.y) * 0.7) - 0.5) * 2.0);
+		c = mix(c, mix(HERBE_CLAIRE, HERBE * 0.97, bande), fauche * 0.6);
+		float zone_t = smoothstep(0.58, 0.66, n1(p * 0.05 + 31.0)) * (1.0 - fauche) * smoothstep(30.0, 60.0, ppc);
+		vec2 g = p * 5.0; vec2 id = floor(g);
+		vec2 o = g - id - 0.5 - (vec2(h21(id + 2.0), h21(id + 5.0)) - 0.5) * 0.4;
+		float tr = 1.0;
+		for (int i = 0; i < 3; i++) {
+			float a = 6.283 * float(i) / 3.0 + h21(id) * 6.0;
+			tr = min(tr, length(o - 0.085 * vec2(cos(a), sin(a))));
+		}
+		c = mix(c, HERBE_HUMIDE * 0.9, (1.0 - smoothstep(0.065, 0.09, tr)) * step(0.5, h21(id + 8.0)) * zone_t);
+		float zone_p = smoothstep(0.6, 0.68, n1(p * 0.04 + 47.0)) * (1.0 - fauche);
+		vec2 g2 = p * 3.6; vec2 id2 = floor(g2);
+		vec2 o2 = g2 - id2 - 0.5 - (vec2(h21(id2 + 1.0), h21(id2 + 4.0)) - 0.5) * 0.5;
+		float sp = step(0.6, h21(id2 + 3.0)) * zone_p * smoothstep(36.0, 66.0, ppc);
+		float dp = length(o2);
+		c = mix(c, vec3(0.98, 0.97, 0.93), (1.0 - smoothstep(0.075, 0.1, dp)) * sp);
+		c = mix(c, vec3(1.0, 0.8, 0.25), (1.0 - smoothstep(0.03, 0.045, dp)) * sp);
+	}
+
 	// ---------- chemins de traverse : l'herbe s'use là où les collaborateurs passent souvent
 	if (ax_travail) {
 		float us = texture(usure, p / taille_carte).r;
@@ -161,6 +193,28 @@ void fragment() {
 		// rides du vent
 		float ride = sin(p.y * 7.0 + p.x * 1.3 + n1(p * 0.3) * 6.0);
 		cs = mix(cs, SABLE_MOUILLE, smoothstep(0.93, 0.99, ride) * 0.18 * pres);
+	}
+	if (ax_sables) {
+		// dunes : longues crêtes douces (vent du nord-ouest), versant sous le vent ombré, dans les grandes étendues
+		float large = smoothstep(0.55, 0.85, autour(masque_a, 3, p, 0.7));
+		vec2 q = p + vec2(n1(p * 0.035 + 3.0), n1(p * 0.035 + 8.0)) * 2.2;
+		float u = dot(q, vec2(0.8, 0.6)) * 0.6;
+		float f = fract(u);
+		cs = mix(cs, SABLE_MOUILLE, smoothstep(0.0, 0.03, f) * (1.0 - smoothstep(0.03, 0.5, f)) * 0.5 * large);
+		cs = mix(cs, SABLE_CLAIR, smoothstep(0.6, 0.98, f) * 0.45 * large);
+		float wu = max(fwidth(u), 1e-4);
+		float crete = 1.0 - smoothstep(k * 0.3, k * 0.3 + 1.0, min(f, 1.0 - f) / wu);
+		cs = mix(cs, SABLE_MOUILLE * 0.75, crete * 0.55 * large * smoothstep(0.35, 0.5, n1(p * 0.12 + 2.0)));
+		// sable caillouteux : petits galets semés par zones
+		float zone = smoothstep(0.6, 0.68, n1(p * 0.07 + 40.0)) * (1.0 - large) * smoothstep(30.0, 60.0, ppc);
+		vec2 g = p * 5.5; vec2 id = floor(g);
+		float d = length((g - id - 0.5 - (vec2(h21(id + 6.0), h21(id + 9.0)) - 0.5) * 0.5) * vec2(1.0, 1.35));
+		float sel = step(0.55, h21(id + 13.0)) * zone;
+		cs = mix(cs, mix(vec3(0.78, 0.74, 0.66), vec3(0.66, 0.62, 0.55), h21(id + 2.0)), (1.0 - smoothstep(0.1, 0.13, d)) * sel);
+		cs = mix(cs, ENCRE, (smoothstep(0.1, 0.13, d) - smoothstep(0.15, 0.18, d)) * sel * 0.7);
+		// laisse de rivage : ligne pointillée de débris un peu en retrait de l'eau
+		float laisse = encre(pres_eau + 0.13, 0.9) * step(0.45, n1(p * 1.6 + 4.0));
+		cs = mix(cs, BERGE * 0.85, laisse * 0.55 * smoothstep(30.0, 60.0, ppc));
 	}
 	if (ax_geographie) {
 		// plage : sable mouillé du côté de l'eau ; ailleurs, halo de prairie sèche autour du sable
@@ -228,6 +282,12 @@ void fragment() {
 		ce = mix(ce, EAU_2, step(0.38, prof + (n1(ps * 0.3) - 0.5) * 0.1));
 		ce = mix(ce, EAU_3, step(0.7, prof + (n1(ps * 0.3) - 0.5) * 0.1));
 	}
+	vec4 info_eau = texture(masque_c, ps / taille_carte);
+	if (ax_eaux) {
+		// mares : eau verte et trouble ; lacs : inchangés (plus clairs par contraste)
+		vec3 vert = mix(vec3(0.47, 0.70, 0.55), vec3(0.32, 0.56, 0.46), smoothstep(0.08, 0.4, prof));
+		ce = mix(ce, vert, info_eau.g * 0.8);
+	}
 	vec4 de = detail(tex_eau, ps + vec2(temps_eau * 0.05, 0.0));
 	de.a *= ax_lod ? mix(0.5, 1.0, pres) : 1.0;
 	ce = sur(ce, de);
@@ -261,6 +321,17 @@ void fragment() {
 		ce = mix(ce, vec3(0.98, 0.78, 0.86), fleur);
 	} else {
 		ecume = encre(vsurf, k * 2.6) * step(0.45, n1(ps * 0.9 + vec2(temps_eau * 0.02)));
+	}
+	if (ax_eaux) {
+		// courant dans les bras étroits : traits clairs qui filent dans le sens du bras
+		float cour = max(info_eau.b, info_eau.a);
+		vec2 dirc = info_eau.b > info_eau.a ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+		vec2 perp = vec2(-dirc.y, dirc.x);
+		vec2 cg = vec2(dot(ps, dirc) * 1.3 - temps_eau * 0.45, dot(ps, perp) * 4.0 + n1(ps * 0.5) * 1.5);
+		vec2 cid = floor(cg);
+		float seg = fract(cg.x + h21(vec2(cid.y, 3.0)) * 7.0);
+		float filet = (1.0 - smoothstep(0.05, 0.11, abs(fract(cg.y) - 0.5))) * step(0.5, seg) * (1.0 - step(0.82, seg)) * step(0.45, h21(vec2(cid.y, 1.0)));
+		ce = mix(ce, vec3(0.93, 0.98, 1.0), filet * smoothstep(0.3, 0.7, cour) * 0.65 * smoothstep(0.03, 0.08, prof));
 	}
 	ce = mix(ce, vec3(1.0), ecume * 0.85);
 	vec3 cb = mix(BERGE, BERGE * 0.82, step(0.5, fract(p.x * 3.0 + n1(p * 0.5) * 2.0)) * 0.5);
@@ -312,6 +383,20 @@ void fragment() {
 		cfa = mix(cfa, ENCRE, strate * 0.25 * pres);
 		cfa *= mix(0.92, 1.08, smoothstep(0.3, 0.7, n1(vec2(p.x * 0.8, 3.0))));
 	}
+	float col_c = floor(p.x * 2.2);
+	float x_c = fract(p.x * 2.2);
+	float sel_c = step(0.5, h21(vec2(col_c, 9.0)));
+	if (ax_massifs) {
+		// cascade : là où la falaise tombe dans l'eau, filets d'eau verticaux qui descendent
+		float eau_dessous = brut(masque_a, 0, vec2(p.x, floor(p.y + 0.6) + 0.5));
+		float cas = face * step(0.5, eau_dessous) * sel_c * (1.0 - smoothstep(0.22, 0.3, abs(x_c - 0.5)));
+		float voie = floor(x_c * 6.0);
+		float filet_c = step(0.45, fract(p.y * 3.0 - temps_eau * 1.8 + h21(vec2(col_c, voie)) * 5.0));
+		vec3 cc2 = mix(vec3(0.62, 0.84, 0.95), vec3(0.97, 0.99, 1.0), filet_c * step(0.35, fract(x_c * 6.0)));
+		cfa = mix(cfa, cc2, cas);
+		float bordc = smoothstep(0.2, 0.23, abs(x_c - 0.5)) - smoothstep(0.27, 0.3, abs(x_c - 0.5));
+		cfa = mix(cfa, ENCRE, cas * bordc * 0.7);
+	}
 	vec3 cto = sur(MONT_DESSUS, detail(tex_roche, ax_matieres ? p * 0.8 + vec2(1.9, 0.4) : p) * vec4(1.0, 1.0, 1.0, lod_roche));
 	if (ax_relief) {
 		// arête éclairée côté nord-ouest, plateau un peu plus sombre côté sud-est
@@ -320,11 +405,27 @@ void fragment() {
 		float cote_sombre = dedans(vtop) * (1.0 - dedans(champ(masque_b, 0, p + vec2(0.0, h) + vec2(0.3, 0.3), 0.3)));
 		cto = mix(cto, cto * 0.84, cote_sombre * 0.7);
 	}
+	if (ax_massifs) {
+		// mousse sur le versant nord du plateau, lichens jaunes semés
+		float nord = dedans(vtop) * (1.0 - dedans(champ(masque_b, 0, p + vec2(0.0, h) - vec2(0.0, 0.5), 0.3)));
+		cto = mix(cto, vec3(0.52, 0.63, 0.40), nord * smoothstep(0.42, 0.58, n1(p * 0.5 + 17.0)) * 0.7);
+		vec2 gl = p * 6.0; vec2 il = floor(gl);
+		float dl = length(gl - il - 0.5);
+		cto = mix(cto, vec3(0.86, 0.72, 0.35), (1.0 - smoothstep(0.08, 0.14, dl)) * step(0.93, h21(il + 21.0)) * smoothstep(40.0, 80.0, ppc) * 0.75);
+	}
 	c = mix(c, cfa, face);
 	c = mix(c, cto, dedans(vtop));
 	c = mix(c, ENCRE, encre(vtop, k_relief * 1.4));
 	float vbas = champ(masque_b, 0, p, 0.3);
 	c = mix(c, ENCRE, encre(vbas, k_relief * 1.4) * face);
+
+	if (ax_massifs) {
+		// écume au pied des cascades
+		float sous = step(0.5, brut(masque_b, 0, p - vec2(0.0, 0.5))) * (1.0 - face) * in_e * dedans(vsurf);
+		float ec = sous * sel_c * (1.0 - smoothstep(0.25, 0.5, abs(x_c - 0.5))) * smoothstep(0.42, 0.58, n1(p * 2.2 + vec2(0.0, -temps_eau * 0.35)));
+		ec *= 1.0 - smoothstep(0.0, 0.45, fract(p.y - 0.5));
+		c = mix(c, vec3(1.0), ec * 0.85);
+	}
 
 	// ---------- vie : ombres de nuages qui glissent
 	if (ax_vie) {

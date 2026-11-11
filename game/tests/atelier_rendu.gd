@@ -89,6 +89,27 @@ func _init() -> void:
 		for i in 48:
 			regler.call(0.0)
 			await process_frame
+	if args.has("visiteurs"):
+		# figurants pour juger le dessin des visiteurs (jeu en pause : rien n'est simulé)
+		main._set_speed(0.0)
+		var g = main.game
+		var fin := Vector2(g.map.camp.get_center())
+		for st in g.sites:
+			if st.done and st.def_id() == "entree":
+				fin = Vector2(st.rect.position) + Vector2(st.rect.size) * 0.5
+		var rz := RandomNumberGenerator.new()
+		rz.seed = 5
+		g.in_zoo.clear()
+		for i in int(args["visiteurs"]):
+			g.in_zoo.append({"pos": fin + Vector2(rz.randf_range(-3.0, 3.5), rz.randf_range(-5.5, -1.5))})
+		# et quelques-uns sur la route, près de l'entrée
+		var routes: Array = []
+		for y in g.map.h:
+			for x in g.map.w:
+				if g.map.road[g.map.idx(x, y)] and Vector2(x, y).distance_to(fin) < 7.0:
+					routes.append(Vector2(x + 0.5, y + 0.5))
+		for i in mini(8, routes.size()):
+			g.in_zoo.append({"pos": routes[rz.randi() % routes.size()] + Vector2(rz.randf_range(-0.25, 0.25), rz.randf_range(-0.2, 0.2))})
 	var n := int(args.get("images", "0"))
 	if n > 0:
 		var dossier := str(args.get("dossier", "user://atelier"))
@@ -103,5 +124,5 @@ func _init() -> void:
 		await process_frame
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png(args.get("sortie", "user://atelier.png"))
-	print("atelier : ", choix)
+	print("atelier : ", choix, " ; visiteurs route ", main.game.road_visitors.size(), " file ", main.game.visitor_queue, " zoo ", main.game.in_zoo.size(), " jour ", main.game.day if "day" in main.game else -1)
 	quit()

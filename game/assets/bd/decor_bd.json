@@ -923,6 +923,330 @@
     73,
     76
    ]
+  },
+  "aiguille_1": {
+   "fichier": "res://assets/bd/decor/aiguille_1.png",
+   "groupe": "montagne",
+   "pied": [
+    55,
+    156
+   ],
+   "taille": [
+    110,
+    160
+   ]
+  },
+  "aiguille_2": {
+   "fichier": "res://assets/bd/decor/aiguille_2.png",
+   "groupe": "montagne",
+   "pied": [
+    55,
+    156
+   ],
+   "taille": [
+    110,
+    160
+   ]
+  },
+  "aiguille_3": {
+   "fichier": "res://assets/bd/decor/aiguille_3.png",
+   "groupe": "montagne",
+   "pied": [
+    55,
+    156
+   ],
+   "taille": [
+    110,
+    160
+   ]
+  },
+  "dome_1": {
+   "fichier": "res://assets/bd/decor/dome_1.png",
+   "groupe": "montagne",
+   "pied": [
+    75,
+    95
+   ],
+   "taille": [
+    150,
+    100
+   ]
+  },
+  "dome_2": {
+   "fichier": "res://assets/bd/decor/dome_2.png",
+   "groupe": "montagne",
+   "pied": [
+    75,
+    95
+   ],
+   "taille": [
+    150,
+    100
+   ]
+  },
+  "dome_3": {
+   "fichier": "res://assets/bd/decor/dome_3.png",
+   "groupe": "montagne",
+   "pied": [
+    75,
+    95
+   ],
+   "taille": [
+    150,
+    100
+   ]
+  },
+  "grotte_1": {
+   "fichier": "res://assets/bd/decor/grotte_1.png",
+   "groupe": "montagne",
+   "pied": [
+    26,
+    41
+   ],
+   "taille": [
+    52,
+    44
+   ]
+  },
+  "rocher_eau_1": {
+   "fichier": "res://assets/bd/decor/rocher_eau_1.png",
+   "groupe": "berge",
+   "pied": [
+    29,
+    31
+   ],
+   "taille": [
+    58,
+    40
+   ]
+  },
+  "traces_1": {
+   "fichier": "res://assets/bd/decor/traces_1.png",
+   "groupe": "sol",
+   "pied": [
+    30,
+    20
+   ],
+   "taille": [
+    60,
+    40
+   ]
+  },
+  "taupiniere_1": {
+   "fichier": "res://assets/bd/decor/taupiniere_1.png",
+   "groupe": "objet",
+   "pied": [
+    15,
+    14
+   ],
+   "taille": [
+    30,
+    18
+   ]
+  },
+  "tronc_couche_1": {
+   "fichier": "res://assets/bd/decor/tronc_couche_1.png",
+   "groupe": "objet",
+   "pied": [
+    38,
+    22
+   ],
+   "taille": [
+    84,
+    30
+   ]
+  },
+  "muret_h_1": {
+   "fichier": "res://assets/bd/decor/muret_h_1.png",
+   "groupe": "objet",
+   "pied": [
+    62,
+    26
+   ],
+   "taille": [
+    124,
+    30
+   ]
+  },
+  "muret_v_1": {
+   "fichier": "res://assets/bd/decor/muret_v_1.png",
+   "groupe": "objet",
+   "pied": [
+    14,
+    124
+   ],
+   "taille": [
+    28,
+    128
+   ]
+  },
+  "grotte_2": {
+   "fichier": "res://assets/bd/decor/grotte_2.png",
+   "groupe": "montagne",
+   "pied": [
+    26,
+    41
+   ],
+   "taille": [
+    52,
+    44
+   ]
+  },
+  "rocher_eau_2": {
+   "fichier": "res://assets/bd/decor/rocher_eau_2.png",
+   "groupe": "berge",
+   "pied": [
+    29,
+    31
+   ],
+   "taille": [
+    58,
+    40
+   ]
+  },
+  "traces_2": {
+   "fichier": "res://assets/bd/decor/traces_2.png",
+   "groupe": "sol",
+   "pied": [
+    30,
+    20
+   ],
+   "taille": [
+    60,
+    40
+   ]
+  },
+  "taupiniere_2": {
+   "fichier": "res://assets/bd/decor/taupiniere_2.png",
+   "groupe": "objet",
+   "pied": [
+    15,
+    14
+   ],
+   "taille": [
+    30,
+    18
+   ]
+  },
+  "tronc_couche_2": {
+   "fichier": "res://assets/bd/decor/tronc_couche_2.png",
+   "groupe": "objet",
+   "pied": [
+    38,
+    22
+   ],
+   "taille": [
+    84,
+    30
+   ]
+  },
+  "muret_h_2": {
+   "fichier": "res://assets/bd/decor/muret_h_2.png",
+   "groupe": "objet",
+   "pied": [
+    62,
+    26
+   ],
+   "taille": [
+    124,
+    30
+   ]
+  },
+  "muret_v_2": {
+   "fichier": "res://assets/bd/decor/muret_v_2.png",
+   "groupe": "objet",
+   "pied": [
+    14,
+    124
+   ],
+   "taille": [
+    28,
+    128
+   ]
+  },
+  "galets_1": {
+   "fichier": "res://assets/bd/decor/galets_1.png",
+   "groupe": "objet",
+   "pied": [
+    23,
+    20
+   ],
+   "taille": [
+    46,
+    26
+   ]
+  },
+  "champignons_1": {
+   "fichier": "res://assets/bd/decor/champignons_1.png",
+   "groupe": "objet",
+   "pied": [
+    15,
+    21
+   ],
+   "taille": [
+    30,
+    24
+   ]
+  },
+  "galets_2": {
+   "fichier": "res://assets/bd/decor/galets_2.png",
+   "groupe": "objet",
+   "pied": [
+    23,
+    20
+   ],
+   "taille": [
+    46,
+    26
+   ]
+  },
+  "champignons_2": {
+   "fichier": "res://assets/bd/decor/champignons_2.png",
+   "groupe": "objet",
+   "pied": [
+    15,
+    21
+   ],
+   "taille": [
+    30,
+    24
+   ]
+  },
+  "galets_3": {
+   "fichier": "res://assets/bd/decor/galets_3.png",
+   "groupe": "objet",
+   "pied": [
+    23,
+    20
+   ],
+   "taille": [
+    46,
+    26
+   ]
+  },
+  "champignons_3": {
+   "fichier": "res://assets/bd/decor/champignons_3.png",
+   "groupe": "objet",
+   "pied": [
+    15,
+    21
+   ],
+   "taille": [
+    30,
+    24
+   ]
+  },
+  "fourmiliere_1": {
+   "fichier": "res://assets/bd/decor/fourmiliere_1.png",
+   "groupe": "objet",
+   "pied": [
+    17,
+    22
+   ],
+   "taille": [
+    34,
+    26
+   ]
   }
  },
  "px_par_case": 120

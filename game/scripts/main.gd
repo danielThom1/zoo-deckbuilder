@@ -1612,6 +1612,9 @@ const TENUES_VISITEURS := [Color("C98E8E"), Color("8EA6C9"), Color("C9B98E"), Co
 
 
 func _draw_visitor(pos: Vector2, k: int) -> void:
+	if CarteBD.AXES.get("visiteurs", false) and not iso:
+		_draw_visiteur_bd(pos, k)
+		return
 	if iso:
 		SpritesBD.dessiner(self, SpritesBD.VISITEURS[k % SpritesBD.VISITEURS.size()], pos, TILE * (0.7 if k % 4 == 1 else 0.95))
 		return
@@ -1624,6 +1627,66 @@ func _draw_visitor(pos: Vector2, k: int) -> void:
 	draw_set_transform(Vector2.ZERO)
 	draw_rect(Rect2(p + Vector2(-1.1, -1.4) * sc, Vector2(2.2, 3.0) * sc), Color(col, 0.85))
 	draw_circle(p + Vector2(0, -2.2) * sc, 1.0 * sc, Color(0.93, 0.84, 0.74, 0.85))
+
+
+## Axe « visiteurs » (rendu) : petit personnage à l'encre, tenue sourde, jambes qui alternent.
+## Un sur quatre est un enfant (plus petit, parfois un ballon) ; certains ont un chapeau ou un sac à dos.
+const CHEVEUX := [Color("3B2A1E"), Color("6B4A2E"), Color("C9A15A"), Color("2A2A2E"), Color("8C5A3A"), Color("B8B2A8")]
+const PEAUX := [Color("F1D3B5"), Color("E2B48E"), Color("C68B62"), Color("9A6644")]
+const TENUES_BD := [Color("D98A7E"), Color("7FA3C9"), Color("D9C27E"), Color("A68CC4"), Color("7EC2A7"), Color("E0A46A"), Color("C9CFD6"), Color("8FB86A")]
+
+
+func _draw_visiteur_bd(pos: Vector2, k: int) -> void:
+	var enfant := k % 4 == 1
+	var sc := 0.72 if enfant else 1.0
+	var t := Time.get_ticks_msec() / 1000.0 + k * 0.37
+	var pas := sin(t * 9.0)
+	var p := pos + Vector2(0, -absf(pas) * 0.25)
+	var h := absi(hash(k * 7919 + 13))
+	var tenue: Color = TENUES_BD[h % TENUES_BD.size()]
+	var cheveux: Color = CHEVEUX[(h / 7) % CHEVEUX.size()]
+	var peau: Color = PEAUX[(h / 31) % PEAUX.size()]
+	var bas := tenue.darkened(0.45) if (h / 11) % 3 else Color("3E4A5C")
+	var z := camera.zoom.x if camera else 2.0
+	var ep := clampf(0.9 / z, 0.22, 0.5)   # environ 1 px à l'écran
+	var detail := z >= 1.6
+	var encre := Color(0.078, 0.125, 0.169, 0.9)
+	# ombre
+	draw_set_transform(pos + Vector2(0.2, 0.15), 0.0, Vector2(1.0, 0.42))
+	draw_circle(Vector2.ZERO, 1.5 * sc, Color(0, 0, 0, 0.16))
+	draw_set_transform(Vector2.ZERO)
+	# jambes
+	var hanche := p + Vector2(0, -1.0) * sc
+	for cote in [-1.0, 1.0]:
+		var pied := p + Vector2(cote * 0.45 + pas * cote * 0.35, -0.05) * sc
+		draw_line(hanche + Vector2(cote * 0.4, 0) * sc, pied, bas, 0.62 * sc)
+	# ballon d'enfant
+	if enfant and (h / 5) % 3 == 0:
+		var b := p + Vector2(1.6, -6.2) * sc + Vector2(sin(t * 1.3) * 0.25, 0)
+		draw_line(p + Vector2(0.9, -1.9) * sc, b + Vector2(0, 1.0), Color(encre, 0.6), ep * 0.8)
+		draw_circle(b, 1.0, [Color("E8574A"), Color("F2C640"), Color("5FA8E0")][(h / 3) % 3])
+		if detail:
+			draw_arc(b, 1.0, 0.0, TAU, 12, encre, ep, true)
+	# corps (buste arrondi)
+	var buste := PackedVector2Array([
+		p + Vector2(-1.05, -1.0) * sc, p + Vector2(-0.95, -3.0) * sc, p + Vector2(-0.45, -3.35) * sc,
+		p + Vector2(0.45, -3.35) * sc, p + Vector2(0.95, -3.0) * sc, p + Vector2(1.05, -1.0) * sc])
+	if (h / 13) % 5 == 0 and not enfant:   # sac à dos
+		draw_rect(Rect2(p + Vector2(0.75, -3.0) * sc, Vector2(0.75, 1.4) * sc), tenue.darkened(0.3))
+	draw_colored_polygon(buste, tenue)
+	if detail:
+		var contour := buste.duplicate()
+		contour.append(buste[0])
+		draw_polyline(contour, encre, ep, true)
+	# tête et cheveux
+	var tete := p + Vector2(0, -4.15) * sc
+	draw_circle(tete, 0.85 * sc, peau)
+	draw_arc(tete, 0.62 * sc, PI * 1.05, PI * 1.95, 8, cheveux, 0.55 * sc)
+	if detail:
+		draw_arc(tete, 0.85 * sc, 0.0, TAU, 14, encre, ep, true)
+	if (h / 17) % 6 == 0:   # chapeau de soleil
+		draw_line(tete + Vector2(-1.15, -0.45) * sc, tete + Vector2(1.15, -0.45) * sc, Color("E9D7A8"), 0.4 * sc)
+		draw_rect(Rect2(tete + Vector2(-0.55, -1.2) * sc, Vector2(1.1, 0.75) * sc), Color("E9D7A8"))
 
 
 func _progress(r: Rect2, ratio: float) -> void:

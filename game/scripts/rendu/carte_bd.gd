@@ -29,6 +29,13 @@ static var AXES := {
 	"journee": true,     # lumière selon l'heure (aube dorée, soir orangé), ombres qui tournent, feux et fenêtres le soir
 	"travail": true,     # copeaux, éclats, poussière, fumées, arbres qui tremblent, chemins de traverse qui s'usent
 	"faune": true,       # oiseaux (et envols quand on abat un arbre), papillons, libellules, poissons
+	# 3e lot (11/11/2026)
+	"sables": true,      # dunes à crêtes, sable caillouteux, laisse de rivage, galets et traces d'animaux
+	"eaux": true,        # mares vertes et lacs clairs, courant dans les bras étroits, roseaux en touffes, rochers émergés
+	"massifs": true,     # familles de pics par massif (aiguilles, dômes), mousse au nord, cascades, grottes
+	"prairies": true,    # herbes hautes par zones, trèfles et pâquerettes, taupinières, prairie fauchée au camp, murets
+	"forets": true,      # bosquets de bouleaux, conifères près des massifs, troncs couchés, champignons, clairières
+	"visiteurs": true,   # visiteurs redessinés : petits personnages à l'encre, discrets
 }
 const DOSSIER_TEX := "res://assets/bd/textures/"
 
@@ -100,6 +107,7 @@ func construire(m: GameMap, taille_case: float, graine_decor := 0) -> void:
 		mat.set_shader_parameter("tex_" + n, load(DOSSIER_TEX + n + "_details.png"))
 	for ax in AXES:
 		mat.set_shader_parameter("ax_" + ax, AXES[ax])
+	mat.set_shader_parameter("camp_centre", Vector2(m.camp.get_center()) + Vector2(0.5, 0.5) if m.camp.size != Vector2i.ZERO else Vector2(-100, -100))
 	usure.resize(m.w * 2 * m.h * 2)
 	usure.fill(0.0)
 	img_usure = Image.create_from_data(m.w * 2, m.h * 2, false, Image.FORMAT_RF, usure.to_byte_array())
@@ -131,6 +139,7 @@ func construire(m: GameMap, taille_case: float, graine_decor := 0) -> void:
 func occuper(cases_bati: Dictionary, cases_pavees: Dictionary) -> void:
 	if decor:
 		decor.masquer(cases_bati)
+		decor.definir_interieur(cases_pavees)
 	if routes:
 		routes.definir_interieur(cases_pavees)
 
@@ -230,7 +239,57 @@ func _calculer_profondeur() -> void:
 	for y in h:
 		for x in w:
 			var d := dist[y * w + x]
-			img_c.set_pixel(x, y, Color(clampf((d - 0.5) / 4.0, 0.0, 1.0) if d > 0 else 0.0, 0, 0, 1))
+			img_c.set_pixel(x, y, Color(clampf((d - 0.5) / 4.0, 0.0, 1.0) if d > 0 else 0.0, 0, 0, 0))
+	_calculer_eaux()
+
+
+## Axe « eaux » : G = petite mare (eau plus verte), B = bras étroit orienté est-ouest, A = bras étroit nord-sud.
+func _calculer_eaux() -> void:
+	var w := map.w
+	var h := map.h
+	var comp := PackedInt32Array()
+	comp.resize(w * h)
+	comp.fill(-1)
+	var tailles: Array[int] = []
+	for y0 in h:
+		for x0 in w:
+			if map.get_t(x0, y0) != GameMap.EAU or comp[y0 * w + x0] >= 0:
+				continue
+			var id := tailles.size()
+			var file: Array[Vector2i] = [Vector2i(x0, y0)]
+			comp[y0 * w + x0] = id
+			var k := 0
+			while k < file.size():
+				var q := file[k]
+				k += 1
+				for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+					var r: Vector2i = q + d
+					if r.x >= 0 and r.y >= 0 and r.x < w and r.y < h and comp[r.y * w + r.x] < 0 and map.get_t(r.x, r.y) == GameMap.EAU:
+						comp[r.y * w + r.x] = id
+						file.append(r)
+			tailles.append(file.size())
+	for y in h:
+		for x in w:
+			var c := img_c.get_pixel(x, y)
+			c.g = 0.0
+			c.b = 0.0
+			c.a = 0.0
+			if map.get_t(x, y) == GameMap.EAU:
+				c.g = 1.0 if tailles[comp[y * w + x]] <= 14 else 0.0
+				var lh := _course(x, y, 1, 0) + _course(x, y, -1, 0) + 1
+				var lv := _course(x, y, 0, 1) + _course(x, y, 0, -1) + 1
+				if lv <= 3 and lh >= 5:
+					c.b = 1.0
+				elif lh <= 3 and lv >= 5:
+					c.a = 1.0
+			img_c.set_pixel(x, y, c)
+
+
+func _course(x: int, y: int, dx: int, dy: int) -> int:
+	var n := 0
+	while n < 8 and map.in_bounds(x + dx * (n + 1), y + dy * (n + 1)) and map.get_t(x + dx * (n + 1), y + dy * (n + 1)) == GameMap.EAU:
+		n += 1
+	return n
 
 
 func _bruit() -> ImageTexture:

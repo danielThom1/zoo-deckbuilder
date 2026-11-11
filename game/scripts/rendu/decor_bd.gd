@@ -51,6 +51,8 @@ func construire(m: GameMap, taille_case: float, g := 0) -> void:
 
 
 func rafraichir(cases: Array) -> void:
+	_massifs.clear()
+	_taille_massif.clear()
 	for p in cases:
 		var q := Vector2i(p)
 		if not map.in_bounds(q.x, q.y):
@@ -72,6 +74,23 @@ func masquer(cases: Dictionary) -> void:
 			changees.append(k)
 	masquees = cases.duplicate()
 	if not changees.is_empty():
+		rafraichir(changees)
+
+
+## Intérieur de l'enceinte du zoo : pas d'herbes folles, de taupinières ni de murets (3e lot).
+var interieur := {}
+
+
+func definir_interieur(cases: Dictionary) -> void:
+	var changees := []
+	for k in interieur:
+		if not cases.has(k):
+			changees.append(k)
+	for k in cases:
+		if not interieur.has(k):
+			changees.append(k)
+	interieur = cases.duplicate()
+	if not changees.is_empty() and CarteBD.AXES.get("prairies", false):
 		rafraichir(changees)
 
 
@@ -170,8 +189,8 @@ func _montagne_isolee(x: int, y: int) -> bool:
 	return map.get_t(x, y) == GameMap.MONTAGNE and _voisins(x, y, GameMap.MONTAGNE) <= 1
 
 
-func _pic_isole(c: Vector2i, base: Vector2, r: RandomNumberGenerator) -> void:
-	_poser(c, _choisir(r, {"pic": 1.0}), base + Vector2(r.randf_range(-0.12, 0.12), 0.32), r.randf_range(0.85, 1.0), r.randf() < 0.5)
+func _pic_isole(c: Vector2i, base: Vector2, r: RandomNumberGenerator, x := 0, y := 0) -> void:
+	_poser_pic(c, _choisir(r, _melange_pics(x, y)), base + Vector2(r.randf_range(-0.12, 0.12), 0.32), r.randf_range(0.85, 1.0), r.randf() < 0.5)
 	_poser(c, _choisir(r, {"rocher": 1.0}), base + Vector2(0.3 if r.randf() < 0.5 else -0.3, 0.42), 0.7, r.randf() < 0.5)
 
 
@@ -187,9 +206,16 @@ func _peupler(x: int, y: int) -> void:
 	if map.road[i] or map.bridge[i] or map.in_camp(x, y) or masquees.has(Vector2i(x, y)):
 		return
 	var r := _rng(x, y)
-	if CarteBD.AXES.get("vegetation", false):
+	if CarteBD.AXES.get("forets", false) and map.get_t(x, y) == GameMap.FORET:
+		_peupler_foret(x, y, r)
+	elif CarteBD.AXES.get("vegetation", false):
 		_peupler_enrichi(x, y, r)
-		return
+	else:
+		_peupler_origine(x, y, r)
+	_ajouts(x, y)
+
+
+func _peupler_origine(x: int, y: int, r: RandomNumberGenerator) -> void:
 	var c := Vector2i(x, y)
 	var base := Vector2(x + 0.5, y + 0.5)
 	var j := func(a: float) -> Vector2: return Vector2(r.randf_range(-a, a), r.randf_range(-a, a))
@@ -204,9 +230,9 @@ func _peupler(x: int, y: int) -> void:
 				_poser(c, _choisir(r, ROCHE), base + j.call(0.3) + Vector2(0, 0.2), r.randf_range(0.8, 1.1), r.randf() < 0.5)
 		GameMap.MONTAGNE:
 			if _montagne_isolee(x, y):
-				_pic_isole(c, base, r)
+				_pic_isole(c, base, r, x, y)
 			elif (x + y * 2) % 3 != 1 and r.randf() < 0.7:
-				_poser(c, _choisir(r, {"pic": 1.0}), base + Vector2(r.randf_range(-0.2, 0.2), 0.55 - HAUTEUR_FALAISE), r.randf_range(0.7, 0.95), r.randf() < 0.5)
+				_poser_pic(c, _choisir(r, _melange_pics(x, y)), base + Vector2(r.randf_range(-0.2, 0.2), 0.55 - HAUTEUR_FALAISE), r.randf_range(0.7, 0.95), r.randf() < 0.5)
 			elif r.randf() < 0.8:
 				_poser(c, _choisir(r, {"rocher": 1.0}), base + j.call(0.3) + Vector2(0, 0.4 - HAUTEUR_FALAISE), 0.8)
 		GameMap.MINE_OR:
@@ -253,9 +279,9 @@ func _peupler_enrichi(x: int, y: int, r: RandomNumberGenerator) -> void:
 		GameMap.MONTAGNE:
 			# Massifs : placement d'origine, inchangé (le détail des roches prime)
 			if _montagne_isolee(x, y):
-				_pic_isole(c, base, r)
+				_pic_isole(c, base, r, x, y)
 			elif (x + y * 2) % 3 != 1 and r.randf() < 0.7:
-				_poser(c, _choisir(r, {"pic": 1.0}), base + Vector2(r.randf_range(-0.2, 0.2), 0.55 - HAUTEUR_FALAISE), r.randf_range(0.7, 0.95), r.randf() < 0.5)
+				_poser_pic(c, _choisir(r, _melange_pics(x, y)), base + Vector2(r.randf_range(-0.2, 0.2), 0.55 - HAUTEUR_FALAISE), r.randf_range(0.7, 0.95), r.randf() < 0.5)
 			elif r.randf() < 0.8:
 				_poser(c, _choisir(r, {"rocher": 1.0}), base + j.call(0.3) + Vector2(0, 0.4 - HAUTEUR_FALAISE), 0.8)
 		GameMap.MINE_OR:
@@ -281,6 +307,154 @@ func _peupler_enrichi(x: int, y: int, r: RandomNumberGenerator) -> void:
 		GameMap.EAU:
 			if r.randf() < 0.02:
 				_poser(c, _choisir(r, {"rocher": 1.0}), base + Vector2(0, 0.3), 0.65)
+
+
+# ------------------------------------------------------------------ 3e lot (11/11/2026)
+
+const CONIFERES := {"sapin": 3.0, "pin": 3.0, "feuillu_sombre": 1.2, "bouleau": 0.3}
+const BOULEAUX := {"bouleau": 4.0, "feuillu_hetre": 0.6}
+const FAMILLES_PICS := {"pic": 1.0, "aiguille": 1.3, "dome": 0.95}   # famille → facteur d'échelle
+var _massifs := {}        # case → identifiant du massif (case de référence)
+var _taille_massif := {}  # identifiant → nombre de cases
+
+
+## Axe « massifs » : chaque massif a son caractère (pics classiques, aiguilles ou dômes de granite).
+func _melange_pics(x: int, y: int) -> Dictionary:
+	if not CarteBD.AXES.get("massifs", false):
+		return {"pic": 1.0}
+	var id: Vector2i = _massif(x, y)
+	var h := absi(hash(Vector3i(id.x, id.y, graine + 51))) % 100
+	if h < 45:
+		return {"pic": 1.0}
+	if h < 75:
+		return {"aiguille": 1.0}
+	return {"dome": 1.0}
+
+
+func _massif(x: int, y: int) -> Vector2i:
+	var k := Vector2i(x, y)
+	if _massifs.has(k):
+		return _massifs[k]
+	var file: Array[Vector2i] = [k]
+	var vus := {k: true}
+	var i := 0
+	while i < file.size():
+		var q := file[i]
+		i += 1
+		for dy in range(-1, 2):
+			for dx in range(-1, 2):
+				var n := q + Vector2i(dx, dy)
+				if not vus.has(n) and map.in_bounds(n.x, n.y) and map.get_t(n.x, n.y) == GameMap.MONTAGNE:
+					vus[n] = true
+					file.append(n)
+	var ref := file[0]
+	for q in file:
+		if q.y < ref.y or (q.y == ref.y and q.x < ref.x):
+			ref = q
+	for q in file:
+		_massifs[q] = ref
+	_taille_massif[ref] = file.size()
+	return ref
+
+
+func _poser_pic(c: Vector2i, nom: String, pos: Vector2, echelle: float, miroir: bool) -> void:
+	var f := nom.get_slice("_", 0)
+	_poser(c, nom, pos, echelle * float(FAMILLES_PICS.get(f, 1.0)), miroir)
+
+
+## Axe « forêts » : bouleaux en bosquets, conifères près des massifs, clairières, bois mort et champignons.
+func _peupler_foret(x: int, y: int, r: RandomNumberGenerator) -> void:
+	var c := Vector2i(x, y)
+	var base := Vector2(x + 0.5, y + 0.5)
+	var j := func(a: float) -> Vector2: return Vector2(r.randf_range(-a, a), r.randf_range(-a, a))
+	var v := _voisins(x, y, GameMap.FORET)
+	var bord := v <= 5
+	var melange: Dictionary = FORET_VERTE
+	if _pres_de(x, y, GameMap.MONTAGNE, 2) and _bloc(x, y, 3, 37) < 0.7:
+		melange = CONIFERES
+	elif _bloc(x, y, 4, 23) < 0.13:
+		melange = BOULEAUX
+	elif _bloc(x, y, 5, 1) < 0.14:
+		melange = BOSQUET_AUTOMNE
+	if v == 8 and _bloc(x, y, 3, 29) < 0.11:
+		# clairière : un arbre, des fougères, du bois mort
+		_poser(c, _choisir(r, melange), base + Vector2(r.randf_range(-0.3, 0.3), -0.1), r.randf_range(0.8, 1.0), r.randf() < 0.5)
+		_poser(c, _choisir(r, {"fougere": 1.0}), base + Vector2(-0.25, 0.3) + j.call(0.1), 0.75, r.randf() < 0.5)
+		_poser(c, _choisir(r, {"tronc_couche": 1.0, "souche": 1.0}), base + Vector2(0.2, 0.35) + j.call(0.1), 0.85, r.randf() < 0.5)
+		return
+	var n := 2 if (bord or r.randf() < 0.6) else 3
+	for k in n:
+		var o: Vector2 = Vector2(-0.22 + 0.44 * (k % 2), -0.2 + 0.4 * float(k / 2)) + j.call(0.16)
+		var e := r.randf_range(0.72, 0.98) if bord else r.randf_range(1.0, 1.4)
+		_poser(c, _choisir(r, melange), base + o + Vector2(0, 0.25), e, r.randf() < 0.5)
+	if bord and r.randf() < 0.4:
+		_poser(c, _choisir(r, LISIERE), base + j.call(0.35) + Vector2(0, 0.4), r.randf_range(0.6, 0.85), r.randf() < 0.5)
+	if bord and r.randf() < 0.16:
+		_poser(c, _choisir(r, {"champignons": 1.0}), base + j.call(0.3) + Vector2(0, 0.42), r.randf_range(0.8, 1.0), r.randf() < 0.5)
+	elif not bord and r.randf() < 0.07:
+		_poser(c, _choisir(r, {"tronc_couche": 2.0, "souche": 1.0}), base + j.call(0.2) + Vector2(0, 0.45), r.randf_range(0.8, 0.95), r.randf() < 0.5)
+
+
+func _pres_de(x: int, y: int, t: int, rayon: int) -> bool:
+	for dy in range(-rayon, rayon + 1):
+		for dx in range(-rayon, rayon + 1):
+			if map.in_bounds(x + dx, y + dy) and map.get_t(x + dx, y + dy) == t:
+				return true
+	return false
+
+
+func _voisin(x: int, y: int, d: Vector2i, t: int) -> bool:
+	return map.in_bounds(x + d.x, y + d.y) and map.get_t(x + d.x, y + d.y) == t
+
+
+## Éléments ajoutés par les axes sables, eaux, massifs et prairies, avec leur propre tirage :
+## le placement d'origine (arbres, rochers, pics) n'est pas déplacé.
+func _ajouts(x: int, y: int) -> void:
+	var r := RandomNumberGenerator.new()
+	r.seed = hash(Vector4i(x, y, graine, 911))
+	var c := Vector2i(x, y)
+	var base := Vector2(x + 0.5, y + 0.5)
+	var j := func(a: float) -> Vector2: return Vector2(r.randf_range(-a, a), r.randf_range(-a, a))
+	var A := CarteBD.AXES
+	var t := map.get_t(x, y)
+	if A.get("sables", false) and t == GameMap.SABLE:
+		var caillouteux := _bloc(x, y, 4, 7) < 0.35
+		if r.randf() < (0.45 if caillouteux else 0.12):
+			_poser(c, _choisir(r, {"galets": 1.0}), base + j.call(0.3), r.randf_range(1.1, 1.4), r.randf() < 0.5)
+		if r.randf() < 0.07:
+			_poser(c, _choisir(r, {"traces": 1.0}), base + j.call(0.2) - Vector2(0, 0.3), 1.6, r.randf() < 0.5)
+	if A.get("eaux", false):
+		if (t == GameMap.PRAIRIE or t == GameMap.SABLE) and _bloc(x, y, 3, 11) < 0.45:
+			for d in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]:
+				if _voisin(x, y, d, GameMap.EAU) and not map.bridge[map.idx(x + d.x, y + d.y)]:
+					var bord := base + Vector2(d) * 0.36
+					for k in r.randi_range(2, 4):
+						_poser(c, _choisir(r, {"roseaux": 1.0}), bord + Vector2(d.y, d.x) * r.randf_range(-0.35, 0.35) + j.call(0.06), r.randf_range(0.7, 1.0), r.randf() < 0.5)
+					break
+		if t == GameMap.EAU and _voisins(x, y, GameMap.EAU) == 8 and r.randf() < 0.035:
+			_poser(c, _choisir(r, {"rocher_eau": 1.0}), base + Vector2(r.randf_range(-0.2, 0.2), 0.35), r.randf_range(0.8, 1.0), r.randf() < 0.5)
+	if A.get("massifs", false) and t == GameMap.MONTAGNE and not _montagne_isolee(x, y):
+		if not _voisin(x, y, Vector2i(0, 1), GameMap.MONTAGNE) and _voisins(x, y, GameMap.MONTAGNE) >= 4 and _bloc(x, y, 2, 31) < 0.3 and r.randf() < 0.5:
+			_poser(c, _choisir(r, {"grotte": 1.0}), base + Vector2(r.randf_range(-0.15, 0.15), 0.47), r.randf_range(0.85, 1.0), r.randf() < 0.5)
+	if A.get("prairies", false) and t == GameMap.PRAIRIE and not interieur.has(c):
+		if _bloc(x, y, 6, 13) < 0.28 and not _voisin_eau(x, y):
+			for k in r.randi_range(2, 3):
+				_poser(c, _choisir(r, {"herbes_hautes": 1.0}), base + j.call(0.38), r.randf_range(0.65, 0.9), r.randf() < 0.5)
+		elif _bloc(x, y, 5, 17) < 0.1 and r.randf() < 0.5:
+			for k in r.randi_range(1, 3):
+				_poser(c, _choisir(r, {"taupiniere": 1.0}), base + j.call(0.35), r.randf_range(0.8, 1.0), r.randf() < 0.5)
+		elif r.randf() < 0.012:
+			_poser(c, _choisir(r, {"fourmiliere": 1.0}), base + j.call(0.25), 0.9)
+		# murets de pierres sèches le long de la rocaille
+		if _bloc(x, y, 4, 19) < 0.35:
+			if _voisin(x, y, Vector2i(0, -1), GameMap.ROCHE):
+				_poser(c, _choisir(r, {"muret_h": 1.0}), base + Vector2(0, -0.36), 0.85)
+			if _voisin(x, y, Vector2i(0, 1), GameMap.ROCHE):
+				_poser(c, _choisir(r, {"muret_h": 1.0}), base + Vector2(0, 0.46), 0.85)
+			if _voisin(x, y, Vector2i(-1, 0), GameMap.ROCHE):
+				_poser(c, _choisir(r, {"muret_v": 1.0}), base + Vector2(-0.42, 0.5), 0.85)
+			if _voisin(x, y, Vector2i(1, 0), GameMap.ROCHE):
+				_poser(c, _choisir(r, {"muret_v": 1.0}), base + Vector2(0.42, 0.5), 0.85)
 
 
 ## Axe travail : les arbres (ou rochers) d'une case tremblent sous les coups d'un collaborateur.
