@@ -164,6 +164,17 @@ func _voisins(x: int, y: int, t: int) -> int:
 	return n
 
 
+## Case de montagne sans massif autour (au plus une voisine) : rendue comme une rocaille surmontée d'un pic,
+## sans plateau ni falaise (un plateau d'une case se réduisait à un anneau d'encre autour du pic).
+func _montagne_isolee(x: int, y: int) -> bool:
+	return map.get_t(x, y) == GameMap.MONTAGNE and _voisins(x, y, GameMap.MONTAGNE) <= 1
+
+
+func _pic_isole(c: Vector2i, base: Vector2, r: RandomNumberGenerator) -> void:
+	_poser(c, _choisir(r, {"pic": 1.0}), base + Vector2(r.randf_range(-0.12, 0.12), 0.32), r.randf_range(0.85, 1.0), r.randf() < 0.5)
+	_poser(c, _choisir(r, {"rocher": 1.0}), base + Vector2(0.3 if r.randf() < 0.5 else -0.3, 0.42), 0.7, r.randf() < 0.5)
+
+
 ## Tirage stable par bloc de cases (bosquets, groupes d'arbres) : même valeur pour tout le bloc.
 func _bloc(x: int, y: int, taille: int, sel: int) -> float:
 	var r := RandomNumberGenerator.new()
@@ -192,7 +203,9 @@ func _peupler(x: int, y: int) -> void:
 			for k in (1 if r.randf() < 0.6 else 2):
 				_poser(c, _choisir(r, ROCHE), base + j.call(0.3) + Vector2(0, 0.2), r.randf_range(0.8, 1.1), r.randf() < 0.5)
 		GameMap.MONTAGNE:
-			if (x + y * 2) % 3 != 1 and r.randf() < 0.7:
+			if _montagne_isolee(x, y):
+				_pic_isole(c, base, r)
+			elif (x + y * 2) % 3 != 1 and r.randf() < 0.7:
 				_poser(c, _choisir(r, {"pic": 1.0}), base + Vector2(r.randf_range(-0.2, 0.2), 0.55 - HAUTEUR_FALAISE), r.randf_range(0.7, 0.95), r.randf() < 0.5)
 			elif r.randf() < 0.8:
 				_poser(c, _choisir(r, {"rocher": 1.0}), base + j.call(0.3) + Vector2(0, 0.4 - HAUTEUR_FALAISE), 0.8)
@@ -239,7 +252,9 @@ func _peupler_enrichi(x: int, y: int, r: RandomNumberGenerator) -> void:
 				_poser(c, _choisir(r, {"buisson_sec": 2.0, "souche": 1.0}), base + j.call(0.3), r.randf_range(0.6, 0.85), r.randf() < 0.5)
 		GameMap.MONTAGNE:
 			# Massifs : placement d'origine, inchangé (le détail des roches prime)
-			if (x + y * 2) % 3 != 1 and r.randf() < 0.7:
+			if _montagne_isolee(x, y):
+				_pic_isole(c, base, r)
+			elif (x + y * 2) % 3 != 1 and r.randf() < 0.7:
 				_poser(c, _choisir(r, {"pic": 1.0}), base + Vector2(r.randf_range(-0.2, 0.2), 0.55 - HAUTEUR_FALAISE), r.randf_range(0.7, 0.95), r.randf() < 0.5)
 			elif r.randf() < 0.8:
 				_poser(c, _choisir(r, {"rocher": 1.0}), base + j.call(0.3) + Vector2(0, 0.4 - HAUTEUR_FALAISE), 0.8)

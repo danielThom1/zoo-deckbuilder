@@ -276,7 +276,8 @@ func _faune(delta: float, en_marche: bool) -> void:
 		o["ph"] += delta * o.get("bat", 9.0)
 		o["alt"] = minf(1.0, o["alt"] + delta * o.get("monte", 0.0))
 	var marge := vue.grow(200.0)
-	oiseaux = oiseaux.filter(func(o): return marge.has_point(o["p"]))
+	var dans_carte := _rect_carte()
+	oiseaux = oiseaux.filter(func(o): return marge.has_point(o["p"]) and dans_carte.has_point(o["p"]))
 	# Papillons et libellules : seulement quand on voit le détail
 	if zoom >= 2.2 and en_marche:
 		var n_pap := int(4 * minf(demo, 2.0))
@@ -312,9 +313,16 @@ func _faune(delta: float, en_marche: bool) -> void:
 
 
 func _vol(vue: Rect2) -> void:
+	# Les vols restent au-dessus de la carte : ils partent du bord de la vue, ou du bord de la carte s'il est visible
+	var carte_r := _rect_carte()
+	var zone := vue.intersection(carte_r)
+	if zone.size.x < 64.0 or zone.size.y < 64.0:
+		return
 	var gauche := _rng.randf() < 0.5
-	var y := _rng.randf_range(vue.position.y + vue.size.y * 0.15, vue.end.y - vue.size.y * 0.25)
-	var depart := Vector2(vue.position.x - 60.0 if gauche else vue.end.x + 60.0, y)
+	var y := _rng.randf_range(zone.position.y + zone.size.y * 0.15, zone.end.y - zone.size.y * 0.25)
+	var x0 := maxf(zone.position.x - 60.0, carte_r.position.x + 2.0)
+	var x1 := minf(zone.end.x + 60.0, carte_r.end.x - 2.0)
+	var depart := Vector2(x0 if gauche else x1, y)
 	var v := Vector2((1.0 if gauche else -1.0) * _rng.randf_range(38.0, 55.0), _rng.randf_range(-8.0, 8.0))
 	var n := _rng.randi_range(3, 6)
 	for i in n:
@@ -331,6 +339,18 @@ func _envol(p: Vector2, n: int) -> void:
 		var v := dir.rotated(_rng.randf_range(-0.5, 0.5)) * _rng.randf_range(20.0, 30.0)
 		oiseaux.append({"p": p + Vector2(_rng.randf_range(-4, 4), _rng.randf_range(-4, 4)), "v": v, "acc": v.normalized() * 30.0,
 			"ph": _rng.randf() * 6.0, "s": _rng.randf_range(2.6, 3.4), "alt": 0.0, "monte": 0.8, "bat": 16.0})
+
+
+## Rectangle de la carte, en pixels du monde.
+func _rect_carte() -> Rect2:
+	var g = m.game.map
+	return Rect2(Vector2.ZERO, Vector2(g.w, g.h) * T)
+
+
+## 1 à l'intérieur de la carte, 0 sur son bord : les oiseaux apparaissent et disparaissent en fondu, jamais hors carte.
+func _fondu_bord(p: Vector2, r: Rect2) -> float:
+	var d := minf(minf(p.x - r.position.x, r.end.x - p.x), minf(p.y - r.position.y, r.end.y - p.y))
+	return clampf(d / 40.0, 0.0, 1.0)
 
 
 func _vue() -> Rect2:
@@ -377,12 +397,16 @@ func _draw() -> void:
 			draw_arc(Vector2.ZERO, rad, 0.0, TAU, 24, Color(1, 1, 1, a), tr * 1.2, true)
 			draw_set_transform(Vector2.ZERO)
 	# ombres puis oiseaux
+	var carte_r := _rect_carte()
 	for o in oiseaux:
 		var off: Vector2 = Vector2(16.0, 30.0) * float(o["alt"])
-		if o["alt"] > 0.05:
-			_oiseau(o["p"] + off, o, Color(ENCRE, 0.16 * o["alt"]), tr * 1.6)
+		var a_o := _fondu_bord(o["p"], carte_r) * _fondu_bord(o["p"] + off, carte_r)
+		if o["alt"] > 0.05 and a_o > 0.0:
+			_oiseau(o["p"] + off, o, Color(ENCRE, 0.16 * o["alt"] * a_o), tr * 1.6)
 	for o in oiseaux:
-		_oiseau(o["p"], o, ENCRE, tr)
+		var a_o := _fondu_bord(o["p"], carte_r)
+		if a_o > 0.0:
+			_oiseau(o["p"], o, Color(ENCRE, a_o), tr)
 	if zoom < 2.2:
 		return
 	for b in papillons:

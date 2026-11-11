@@ -174,8 +174,22 @@ func _process(delta: float) -> void:
 	rafraichir(changees)
 
 
+## Même règle que DecorBD._montagne_isolee (une case de montagne avec au plus une voisine).
+func _montagne_isolee(x: int, y: int) -> bool:
+	if map.get_t(x, y) != GameMap.MONTAGNE:
+		return false
+	var n := 0
+	for dy in range(-1, 2):
+		for dx in range(-1, 2):
+			if (dx != 0 or dy != 0) and map.in_bounds(x + dx, y + dy) and map.get_t(x + dx, y + dy) == GameMap.MONTAGNE:
+				n += 1
+	return n <= 1
+
+
 func _ecrire_case(x: int, y: int) -> void:
 	var t := map.get_t(x, y)
+	if _montagne_isolee(x, y):
+		t = GameMap.ROCHE   # pic isolé : sol de rocaille, pas de plateau
 	var i := map.idx(x, y)
 	var pont := map.bridge[i] == 1
 	var route := map.road[i] != 0 and not pont
