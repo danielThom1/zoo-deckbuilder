@@ -14,6 +14,19 @@ extends Node2D
 ## Changer de joueur affiché : carte.construire(autre_map, TILE)
 
 const SHADER := preload("res://scripts/rendu/sol_bd.gdshader")
+
+## Axes d'enrichissement du rendu (11/11/2026). Chacun s'active séparément ; tous désactivés = rendu d'origine.
+## Comparaison : tests/atelier_rendu.gd (--axes=aucun | tout | contours,eau,…).
+static var AXES := {
+	"contours": true,    # trait épais réservé aux dénivellations, transitions à plat adoucies, épaisseur selon le zoom
+	"eau": true,         # dégradé de profondeur, écume continue, reflets animés, nénuphars
+	"geographie": true,  # plages et sable mouillé au bord de l'eau, prairie sèche ailleurs, éboulis, pierres affleurantes
+	"relief": true,      # lumière du nord-ouest : ombres portées des falaises et des forêts, strates, arêtes éclairées
+	"matieres": true,    # herbe à grande échelle (humide / sèche), champs de fleurs, roche en dalles, sable ridé
+	"vegetation": true,  # lisières, bosquets d'automne groupés, arbres isolés, saules, pics à l'échelle des massifs
+	"vie": true,         # ombres de nuages, arbres au vent
+	"lod": true,         # moins de micro-détails de loin, plus de près
+}
 const DOSSIER_TEX := "res://assets/bd/textures/"
 
 var map: GameMap
@@ -72,6 +85,8 @@ func construire(m: GameMap, taille_case: float, graine_decor := 0) -> void:
 	mat.set_shader_parameter("bruit", _bruit())
 	for n in ["herbe", "sable", "roche", "eau", "falaise"]:
 		mat.set_shader_parameter("tex_" + n, load(DOSSIER_TEX + n + "_details.png"))
+	for ax in AXES:
+		mat.set_shader_parameter("ax_" + ax, AXES[ax])
 	sol.material = mat
 	add_child(sol)
 

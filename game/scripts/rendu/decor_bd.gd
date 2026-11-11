@@ -12,7 +12,16 @@ const PRAIRIE_RARE := {"buisson": 3.0, "feuillu_chene": 0.6, "bouleau": 0.4, "fo
 const SABLE := {"herbes_hautes": 2.0, "buisson_sec": 1.0, "rocher": 0.6}
 const ROCHE := {"rocher": 4.0, "buisson_sec": 0.5}
 
+## Axe « végétation » : feuillus d'automne seulement en bosquets, lisières et arbres de prairie
+const FORET_VERTE := {"feuillu_chene": 3.0, "feuillu_hetre": 3.0, "feuillu_sombre": 2.5, "pin": 2.5, "sapin": 1.5, "bouleau": 1.0}
+const BOSQUET_AUTOMNE := {"feuillu_automne": 3.0, "feuillu_or": 2.5, "feuillu_chene": 1.5, "bouleau": 1.0}
+const LISIERE := {"buisson": 3.0, "fougere": 2.0, "bouleau": 0.8, "souche": 0.3}
+const ARBRES_PRAIRIE := {"feuillu_chene": 2.0, "feuillu_hetre": 1.5, "bouleau": 1.0}
+const FAMILLES_AU_VENT := ["feuillu", "pin", "sapin", "bouleau", "saule", "buisson", "fougere", "herbes", "roseaux", "acacia", "baobab"]
+const VENT := preload("res://scripts/rendu/vent_bd.gdshader")
+
 static var _cache := {}
+static var _mat_vent: ShaderMaterial
 
 var map: GameMap
 var tile := 16.0
@@ -123,6 +132,14 @@ func _poser(case_: Vector2i, nom: String, pos_cases: Vector2, echelle := 1.0, mi
 	s.scale = Vector2(k, k)
 	s.position = pos_cases * tile
 	s.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	if CarteBD.AXES.get("vie", false):
+		for f in FAMILLES_AU_VENT:
+			if nom.begins_with(f):
+				if _mat_vent == null:
+					_mat_vent = ShaderMaterial.new()
+					_mat_vent.shader = VENT
+				s.material = _mat_vent
+				break
 	add_child(s)
 	if not par_case.has(case_):
 		par_case[case_] = []
@@ -137,11 +154,31 @@ func _voisin_eau(x: int, y: int) -> bool:
 	return false
 
 
+## Nombre de voisins (8 directions) du même terrain.
+func _voisins(x: int, y: int, t: int) -> int:
+	var n := 0
+	for dy in range(-1, 2):
+		for dx in range(-1, 2):
+			if (dx != 0 or dy != 0) and map.in_bounds(x + dx, y + dy) and map.get_t(x + dx, y + dy) == t:
+				n += 1
+	return n
+
+
+## Tirage stable par bloc de cases (bosquets, groupes d'arbres) : même valeur pour tout le bloc.
+func _bloc(x: int, y: int, taille: int, sel: int) -> float:
+	var r := RandomNumberGenerator.new()
+	r.seed = hash(Vector4i(floori(float(x) / taille), floori(float(y) / taille), graine, sel))
+	return r.randf()
+
+
 func _peupler(x: int, y: int) -> void:
 	var i := map.idx(x, y)
 	if map.road[i] or map.bridge[i] or map.in_camp(x, y) or masquees.has(Vector2i(x, y)):
 		return
 	var r := _rng(x, y)
+	if CarteBD.AXES.get("vegetation", false):
+		_peupler_enrichi(x, y, r)
+		return
 	var c := Vector2i(x, y)
 	var base := Vector2(x + 0.5, y + 0.5)
 	var j := func(a: float) -> Vector2: return Vector2(r.randf_range(-a, a), r.randf_range(-a, a))
@@ -174,3 +211,61 @@ func _peupler(x: int, y: int) -> void:
 		GameMap.EAU:
 			if r.randf() < 0.025:
 				_poser(c, _choisir(r, {"rocher": 1.0}), base + Vector2(0, 0.3), 0.7)
+
+
+## Axe « végétation » (11/11/2026) : lisières, bosquets d'automne groupés, arbres de prairie et saules,
+## arbres plus petits au bord des forêts, pics à l'échelle du massif, rocaille moins tamponnée.
+func _peupler_enrichi(x: int, y: int, r: RandomNumberGenerator) -> void:
+	var c := Vector2i(x, y)
+	var base := Vector2(x + 0.5, y + 0.5)
+	var j := func(a: float) -> Vector2: return Vector2(r.randf_range(-a, a), r.randf_range(-a, a))
+	match map.get_t(x, y):
+		GameMap.FORET:
+			var v := _voisins(x, y, GameMap.FORET)
+			var bord := v <= 5
+			var melange: Dictionary = BOSQUET_AUTOMNE if _bloc(x, y, 5, 1) < 0.14 else FORET_VERTE
+			var n := 2 if (bord or r.randf() < 0.6) else 3
+			for k in n:
+				var o: Vector2 = Vector2(-0.22 + 0.44 * (k % 2), -0.2 + 0.4 * float(k / 2)) + j.call(0.16)
+				var e := r.randf_range(0.72, 0.98) if bord else r.randf_range(1.0, 1.4)
+				_poser(c, _choisir(r, melange), base + o + Vector2(0, 0.25), e, r.randf() < 0.5)
+			if bord and r.randf() < 0.45:
+				_poser(c, _choisir(r, LISIERE), base + j.call(0.35) + Vector2(0, 0.4), r.randf_range(0.6, 0.85), r.randf() < 0.5)
+		GameMap.ROCHE:
+			if r.randf() < 0.55:
+				_poser(c, _choisir(r, {"rocher": 1.0}), base + j.call(0.3) + Vector2(0, 0.2), r.randf_range(0.55, 1.0), r.randf() < 0.5)
+			if r.randf() < 0.18:
+				_poser(c, _choisir(r, {"buisson_sec": 2.0, "souche": 1.0}), base + j.call(0.3), r.randf_range(0.6, 0.85), r.randf() < 0.5)
+		GameMap.MONTAGNE:
+			var v := _voisins(x, y, GameMap.MONTAGNE)
+			if v >= 7 and r.randf() < 0.7:
+				_poser(c, _choisir(r, {"pic": 1.0}), base + Vector2(r.randf_range(-0.25, 0.25), 0.55 - HAUTEUR_FALAISE), r.randf_range(1.05, 1.35), r.randf() < 0.5)
+			elif v >= 3 and r.randf() < 0.65:
+				_poser(c, _choisir(r, {"pic": 1.0}), base + Vector2(r.randf_range(-0.2, 0.2), 0.55 - HAUTEUR_FALAISE), r.randf_range(0.75, 0.95), r.randf() < 0.5)
+			elif r.randf() < 0.45:
+				_poser(c, _choisir(r, {"pic": 1.0}), base + Vector2(r.randf_range(-0.15, 0.15), 0.55 - HAUTEUR_FALAISE), r.randf_range(0.6, 0.75), r.randf() < 0.5)
+			elif r.randf() < 0.6:
+				_poser(c, _choisir(r, {"rocher": 1.0}), base + j.call(0.3) + Vector2(0, 0.4 - HAUTEUR_FALAISE), r.randf_range(0.6, 0.9))
+		GameMap.MINE_OR:
+			_poser(c, _choisir(r, {"rocher_or": 1.0}), base + Vector2(-0.12, 0.35), 1.9)
+			_poser(c, _choisir(r, {"rocher_or": 1.0}), base + Vector2(0.32, 0.4), 1.1, true)
+		GameMap.SABLE:
+			var pres_eau := _voisin_eau(x, y)
+			if r.randf() < (0.15 if pres_eau else 0.3):
+				_poser(c, _choisir(r, {"herbes_hautes": 2.0, "buisson_sec": 1.0} if not pres_eau else {"herbes_hautes": 1.0}), base + j.call(0.3), r.randf_range(0.7, 1.0), r.randf() < 0.5)
+		GameMap.PRAIRIE:
+			var eau := _voisin_eau(x, y)
+			var foret := _voisins(x, y, GameMap.FORET)
+			if eau and r.randf() < 0.5:
+				_poser(c, _choisir(r, {"roseaux": 1.0}), base + j.call(0.3), r.randf_range(0.8, 1.1), r.randf() < 0.5)
+			elif eau and r.randf() < 0.08:
+				_poser(c, _choisir(r, {"saule": 1.0}), base + j.call(0.2) + Vector2(0, 0.2), r.randf_range(0.85, 1.1), r.randf() < 0.5)
+			elif foret > 0 and r.randf() < 0.32:
+				_poser(c, _choisir(r, LISIERE), base + j.call(0.3), r.randf_range(0.6, 0.85), r.randf() < 0.5)
+			elif _bloc(x, y, 4, 2) < 0.25 and r.randf() < 0.14:
+				_poser(c, _choisir(r, ARBRES_PRAIRIE), base + j.call(0.25) + Vector2(0, 0.2), r.randf_range(0.85, 1.15), r.randf() < 0.5)
+			elif r.randf() < 0.04:
+				_poser(c, _choisir(r, {"buisson": 3.0, "fougere": 1.0}), base + j.call(0.25), r.randf_range(0.7, 0.95), r.randf() < 0.5)
+		GameMap.EAU:
+			if r.randf() < 0.02:
+				_poser(c, _choisir(r, {"rocher": 1.0}), base + Vector2(0, 0.3), 0.65)
