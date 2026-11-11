@@ -340,6 +340,77 @@ def muret(sens, n, seed):
     return finir(im, f"muret_{sens}_{n}", "objet", (W // 2, H - 4))
 
 
+# ---------------------------------------------------------------- filon d'or (gisement libre) et pépites
+OR, OR_CLAIR, OR_SOMBRE = (0xF2, 0xC2, 0x30, 255), (0xFF, 0xE8, 0x8A, 255), (0xC0, 0x8A, 0x1C, 255)
+SCHISTE, SCHISTE_OMBRE, SCHISTE_TRAIT = (0x8F, 0x8A, 0x86, 255), (0x6E, 0x69, 0x66, 255), (0x55, 0x51, 0x4F, 255)
+
+
+def etoile(im, cx, cy, r, col=(255, 255, 255, 255)):
+    d = ImageDraw.Draw(im)
+    pts = []
+    for i in range(8):
+        a = math.pi / 4 * i
+        rr = r if i % 2 == 0 else r * 0.28
+        pts.append(((cx + math.cos(a) * rr) * S, (cy + math.sin(a) * rr) * S))
+    d.polygon(pts, fill=col)
+
+
+def veine(im, pts, larg):
+    ligne(im, pts, larg + 2.2, ENCRE)
+    ligne(im, pts, larg, OR)
+    ligne(im, [(x - 0.6, y - 0.8) for x, y in pts[: len(pts) // 2 + 1]], max(1.0, larg * 0.35), OR_CLAIR)
+
+
+def pepite(im, x, y, r):
+    pts = [(x - r, y), (x - r * 0.4, y - r * 0.8), (x + r * 0.6, y - r * 0.7), (x + r, y + r * 0.1), (x + r * 0.3, y + r * 0.7), (x - r * 0.6, y + r * 0.6)]
+    forme(im, pts, OR, trait=1.8)
+    forme(im, [(x - r * 0.5, y - r * 0.1), (x - r * 0.2, y - r * 0.5), (x + r * 0.2, y - r * 0.35)], OR_CLAIR, trait=0)
+
+
+def filon(n, seed):
+    """Affleurement sombre fendu de larges veines d'or, pépites au pied, pioche plantée : lisible sans icône."""
+    r = random.Random(seed)
+    W, H = 128, 100
+    im = toile(W, H)
+    base = H - 8
+    # halo de gravier doré au sol
+    ellipse(im, (8, base - 12, W - 8, base + 6), (0xD9, 0xB8, 0x6A, 150), trait=0)
+    # trois blocs de schiste sombre
+    blocs = [
+        [(18, base), (22, base - 30), (40, base - 44), (58, base - 40), (66, base - 18), (62, base)],
+        [(50, base), (56, base - 46), (74, base - 66), (92, base - 60), (104, base - 34), (108, base)],
+        [(86, base + 2), (90, base - 18), (104, base - 26), (118, base - 16), (120, base + 2)],
+    ]
+    if n == 2:
+        blocs[1] = [(48, base), (52, base - 40), (70, base - 58), (96, base - 54), (106, base - 28), (110, base)]
+    for b in blocs:
+        forme(im, b, SCHISTE)
+        cx = sum(x for x, _ in b) / len(b)
+        ombre = [p for p in b if p[0] >= cx] + [(cx + 2, b[0][1])]
+        hachures(im, ombre, SCHISTE_OMBRE, SCHISTE_TRAIT, pas=4.2)
+        ImageDraw.Draw(im).line(P(b + [b[0]]), fill=ENCRE, width=int(TRAIT * S), joint="curve")
+    # veines d'or larges et brisées
+    veine(im, [(28, base - 30), (38, base - 22), (46, base - 26), (58, base - 14)], 6.0)
+    veine(im, [(62, base - 50), (72, base - 40), (80, base - 44), (92, base - 30), (100, base - 26)], 7.0)
+    veine(im, [(70, base - 22), (84, base - 14), (96, base - 16)], 4.8)
+    veine(im, [(96, base - 14), (108, base - 10), (114, base - 14)], 3.6)
+    # pioche plantée
+    ligne(im, [(34, base - 6), (24, base - 52)], 3.4 + 2.2, ENCRE)
+    ligne(im, [(34, base - 6), (24, base - 52)], 3.4, (0xA0, 0x74, 0x44, 255))
+    tete = [(10, base - 46), (20, base - 56), (30, base - 58), (40, base - 52), (30, base - 53), (21, base - 50)]
+    forme(im, tete, (0xB8, 0xBE, 0xC4, 255), trait=2.6)
+    # pépites au pied
+    for x, y, rr in [(44, base + 1, 4.2), (76, base + 3, 5.0), (60, base + 4, 3.2), (100, base + 3, 3.6)]:
+        pepite(im, x, y, rr)
+    # éclats
+    for x, y, rr in [(80, base - 47, 6.5), (40, base - 29, 4.5), (97, base - 28, 4.0)]:
+        etoile(im, x, y, rr)
+    return finir(im, f"filon_or_{n}", "mine", (W // 2, base))
+
+
+for i in range(2):
+    ajoute(filon(i + 1, 130 + i))
+
 for i, s in enumerate([11, 12, 13]):
     ajoute(aiguille(i + 1, s))
 for i, s in enumerate([21, 22, 23]):

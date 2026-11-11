@@ -36,6 +36,7 @@ static var AXES := {
 	"prairies": true,    # herbes hautes par zones, trèfles et pâquerettes, taupinières, prairie fauchée au camp, murets
 	"forets": true,      # bosquets de bouleaux, conifères près des massifs, troncs couchés, champignons, clairières
 	"visiteurs": true,   # visiteurs redessinés : petits personnages à l'encre, discrets
+	"mines_or": true,    # gisement d'or dessiné (schiste, veines d'or, pépites, pioche, éclats) : plus d'icône
 }
 const DOSSIER_TEX := "res://assets/bd/textures/"
 

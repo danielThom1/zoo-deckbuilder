@@ -124,5 +124,6 @@ func _init() -> void:
 		await process_frame
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png(args.get("sortie", "user://atelier.png"))
+	print("or (relatif au camp) : ", main.game.map.golds.map(func(g): return Vector2(g) - Vector2(main.game.map.camp.get_center())))
 	print("atelier : ", choix, " ; visiteurs route ", main.game.road_visitors.size(), " file ", main.game.visitor_queue, " zoo ", main.game.in_zoo.size(), " jour ", main.game.day if "day" in main.game else -1)
 	quit()

@@ -40,6 +40,7 @@ uniform bool ax_massifs = false;
 uniform bool ax_prairies = false;
 uniform bool ax_forets = false;
 uniform bool ax_visiteurs = false;
+uniform bool ax_mines_or = false;
 uniform vec2 camp_centre = vec2(-100.0);
 
 const vec3 ENCRE = vec3(0.078, 0.125, 0.169);          // #14202B
@@ -244,6 +245,19 @@ void fragment() {
 		float caillou = (1.0 - smoothstep(0.09, 0.12, d)) * sel * bande;
 		c = mix(c, ROCHE_SOMBRE, caillou);
 		c = mix(c, ENCRE, (smoothstep(0.09, 0.12, d) - smoothstep(0.14, 0.17, d)) * sel * bande * 0.85);
+	}
+
+	if (ax_mines_or) {
+		// gisement d'or : gravier ocre et paillettes dorées autour du filon, visibles de loin
+		float gor = max(brut(masque_b, 1, p), autour(masque_b, 1, p, 0.85) * 1.7);
+		float halo = smoothstep(0.1, 0.4, gor + (n1(p * 0.6 + 3.0) - 0.5) * 0.18);
+		c = mix(c, vec3(0.91, 0.73, 0.33), halo * 0.85);
+		c = mix(c, ENCRE, encre(halo, k * 0.6) * 0.35);
+		vec2 g = p * 7.0; vec2 id = floor(g);
+		float d = length(g - id - 0.5 - (vec2(h21(id + 31.0), h21(id + 33.0)) - 0.5) * 0.5);
+		float pail = (1.0 - smoothstep(0.1, 0.16, d)) * step(0.55, h21(id + 35.0)) * halo;
+		c = mix(c, vec3(0.98, 0.80, 0.22), pail);
+		c = mix(c, ENCRE, (smoothstep(0.14, 0.17, d) - smoothstep(0.18, 0.21, d)) * step(0.55, h21(id + 35.0)) * halo * 0.6 * smoothstep(30.0, 60.0, ppc));
 	}
 
 	// ---------- sol de forêt (les arbres sont des sprites posés dessus)

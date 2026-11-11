@@ -1247,6 +1247,30 @@
     34,
     26
    ]
+  },
+  "filon_or_1": {
+   "fichier": "res://assets/bd/decor/filon_or_1.png",
+   "groupe": "mine",
+   "pied": [
+    64,
+    92
+   ],
+   "taille": [
+    128,
+    100
+   ]
+  },
+  "filon_or_2": {
+   "fichier": "res://assets/bd/decor/filon_or_2.png",
+   "groupe": "mine",
+   "pied": [
+    64,
+    92
+   ],
+   "taille": [
+    128,
+    100
+   ]
   }
  },
  "px_par_case": 120

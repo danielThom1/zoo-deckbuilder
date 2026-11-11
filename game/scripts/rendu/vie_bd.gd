@@ -376,6 +376,16 @@ func _eau_profonde(x: int, y: int) -> bool:
 	return true
 
 
+func _eclat(c: Vector2, r: float) -> void:
+	if r <= 0.05:
+		return
+	var pts := PackedVector2Array()
+	for i in 8:
+		var a := PI / 4.0 * i
+		pts.append(c + Vector2(cos(a), sin(a)) * (r if i % 2 == 0 else r * 0.25))
+	draw_colored_polygon(pts, Color(1, 1, 0.92, 0.95))
+
+
 func _draw() -> void:
 	var zoom: float = m.camera.zoom.x if m.camera else 1.0
 	var tr := 1.4 / zoom   # épaisseur du trait : constante à l'écran
@@ -396,6 +406,20 @@ func _draw() -> void:
 			draw_set_transform(p, 0.0, Vector2(1.0, 0.45))
 			draw_arc(Vector2.ZERO, rad, 0.0, TAU, 24, Color(1, 1, 1, a), tr * 1.2, true)
 			draw_set_transform(Vector2.ZERO)
+	# éclats sur les gisements d'or libres (axe mines_or)
+	if CarteBD.AXES.get("mines_or", false):
+		var t_s := Time.get_ticks_msec() / 1000.0
+		for g in m.game.map.golds:
+			if m.game.site_at(g) != null:
+				continue
+			var centre := (Vector2(g) + Vector2(0.5, 0.42)) * T
+			for i in 3:
+				var ph := fposmod(t_s * 0.5 + i * 0.37 + float(absi(hash(g)) % 97) / 97.0, 1.0)
+				if ph > 0.2:
+					continue
+				var k := sin(ph / 0.2 * PI)
+				var o: Vector2 = [Vector2(3.5, -12.0), Vector2(-5.5, -7.0), Vector2(6.5, -5.0)][i]
+				_eclat(centre + o, 3.2 * k)
 	# ombres puis oiseaux
 	var carte_r := _rect_carte()
 	for o in oiseaux:

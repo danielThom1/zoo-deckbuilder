@@ -237,8 +237,11 @@ func _peupler_origine(x: int, y: int, r: RandomNumberGenerator) -> void:
 				_poser(c, _choisir(r, {"rocher": 1.0}), base + j.call(0.3) + Vector2(0, 0.4 - HAUTEUR_FALAISE), 0.8)
 		GameMap.MINE_OR:
 			# Gisement d'or : gros rocher veiné bien visible, et un second plus petit à côté
-			_poser(c, _choisir(r, {"rocher_or": 1.0}), base + Vector2(-0.12, 0.35), 1.9)
-			_poser(c, _choisir(r, {"rocher_or": 1.0}), base + Vector2(0.32, 0.4), 1.1, true)
+			if CarteBD.AXES.get("mines_or", false):
+				_poser(c, _choisir(r, {"filon_or": 1.0}), base + Vector2(0.0, 0.45), 1.75, r.randf() < 0.5)
+			else:
+				_poser(c, _choisir(r, {"rocher_or": 1.0}), base + Vector2(-0.12, 0.35), 1.9)
+				_poser(c, _choisir(r, {"rocher_or": 1.0}), base + Vector2(0.32, 0.4), 1.1, true)
 		GameMap.SABLE:
 			if r.randf() < 0.35:
 				_poser(c, _choisir(r, SABLE), base + j.call(0.3), r.randf_range(0.8, 1.1), r.randf() < 0.5)
@@ -285,8 +288,11 @@ func _peupler_enrichi(x: int, y: int, r: RandomNumberGenerator) -> void:
 			elif r.randf() < 0.8:
 				_poser(c, _choisir(r, {"rocher": 1.0}), base + j.call(0.3) + Vector2(0, 0.4 - HAUTEUR_FALAISE), 0.8)
 		GameMap.MINE_OR:
-			_poser(c, _choisir(r, {"rocher_or": 1.0}), base + Vector2(-0.12, 0.35), 1.9)
-			_poser(c, _choisir(r, {"rocher_or": 1.0}), base + Vector2(0.32, 0.4), 1.1, true)
+			if CarteBD.AXES.get("mines_or", false):
+				_poser(c, _choisir(r, {"filon_or": 1.0}), base + Vector2(0.0, 0.45), 1.75, r.randf() < 0.5)
+			else:
+				_poser(c, _choisir(r, {"rocher_or": 1.0}), base + Vector2(-0.12, 0.35), 1.9)
+				_poser(c, _choisir(r, {"rocher_or": 1.0}), base + Vector2(0.32, 0.4), 1.1, true)
 		GameMap.SABLE:
 			var pres_eau := _voisin_eau(x, y)
 			if r.randf() < (0.15 if pres_eau else 0.3):

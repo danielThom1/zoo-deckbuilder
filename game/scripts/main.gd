@@ -800,7 +800,7 @@ func _dessiner_monde() -> void:
 		_draw_visitor(game.in_zoo[k]["pos"] * TILE, k + 7)
 	# Gisements d'or encore libres
 	for gold in m.golds:
-		if game.site_at(gold) == null:
+		if game.site_at(gold) == null and not CarteBD.AXES.get("mines_or", false):
 			_draw_pin((Vector2(gold) + Vector2(0.5, 0.3)) * TILE, "ressource_or", UiTokens.RESSOURCES["or"]["couleur"])
 
 	# Chemins des ouvriers sélectionnés
