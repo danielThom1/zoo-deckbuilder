@@ -55,9 +55,9 @@ const CATEGORIES := {
 # Ressources : pastille couleur + reflet, icône blanche ; « sprite » = dessin BD de la barre du haut
 const RESSOURCES := {
 	"argent": {"couleur": Color("3E9A48"), "reflet": Color("D6F0CC"), "nom": "Argent", "glyphe": "€", "icone": "ressource_argent", "sprite": "icone_billets"},  # billets verts : l'or garde ses pièces jaunes
-	"bois": {"couleur": Color("C8601A"), "reflet": Color("FFB070"), "nom": "Bois", "glyphe": "B", "icone": "ressource_bois", "sprite": "icone_bois"},
-	"pierre": {"couleur": Color("4A6A98"), "reflet": Color("A8C4E8"), "nom": "Pierre", "glyphe": "P", "icone": "ressource_pierre", "sprite": "icone_pierre"},
-	"or": {"couleur": Color("E8B000"), "reflet": Color("FFF09A"), "nom": "Or", "glyphe": "Or", "icone": "ressource_or", "sprite": "icone_or"},
+	"bois": {"couleur": Color("C8601A"), "reflet": Color("FFB070"), "nom": "Bois", "glyphe": "B", "icone": "ressource_bois", "sprite": "icone_rondins"},
+	"pierre": {"couleur": Color("4A6A98"), "reflet": Color("A8C4E8"), "nom": "Pierre", "glyphe": "P", "icone": "ressource_pierre", "sprite": "icone_pierres_taillees"},
+	"or": {"couleur": Color("E8B000"), "reflet": Color("FFF09A"), "nom": "Or", "glyphe": "Or", "icone": "ressource_or", "sprite": "icone_lingot"},
 	"influence": {"couleur": Color("C8307A"), "reflet": Color("FF9AC8"), "nom": "Influence (privée)", "glyphe": "I", "icone": "ressource_influence", "sprite": "mairie"},
 	"logement": {"couleur": Color("2A9A4A"), "reflet": Color("9AF0B0"), "nom": "Logement", "glyphe": "L", "icone": "ressource_logement", "sprite": "maison"},
 	"reputation": {"couleur": Color("7A3AC8"), "reflet": Color("D0A8FF"), "nom": "Réputation", "glyphe": "R", "icone": "ressource_reputation", "sprite": "icone_etoile"},

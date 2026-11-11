@@ -3051,7 +3051,9 @@ func _release_posts(bras: int) -> void:
 				w.task = {}
 				w.path.clear()
 				return
-	if g.proprete >= 50.0:
+	# Seulement un parc presque propre : sous ce seuil, on le reposterait au tour suivant (entretien posté sous 75 %),
+	# et le collaborateur faisait des centaines d'allers-retours entre le nettoyage et les chantiers.
+	if g.proprete >= 85.0:
 		for w in g.workers:
 			if w.task.get("type") == "clean":
 				w.task = {}

@@ -6994,5 +6994,41 @@
    84,
    44
   ]
+ },
+ "icone_rondins": {
+  "categorie": "objets",
+  "fichier": "res://assets/bd/sprites/objets/icone_rondins.png",
+  "pied": [
+   40,
+   44
+  ],
+  "taille": [
+   80,
+   44
+  ]
+ },
+ "icone_pierres_taillees": {
+  "categorie": "objets",
+  "fichier": "res://assets/bd/sprites/objets/icone_pierres_taillees.png",
+  "pied": [
+   40,
+   46
+  ],
+  "taille": [
+   80,
+   46
+  ]
+ },
+ "icone_lingot": {
+  "categorie": "objets",
+  "fichier": "res://assets/bd/sprites/objets/icone_lingot.png",
+  "pied": [
+   42,
+   40
+  ],
+  "taille": [
+   84,
+   40
+  ]
  }
 }
