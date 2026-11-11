@@ -149,6 +149,11 @@ func _refaire_droite() -> void:
 	if rival != null:
 		droite.add_child(_texte("Réputation %d · %d collaborateurs · publicité ×%s" % [rival.reputation(), rival.all_employees().size(), ("%.2f" % rival.publicity_mult()).replace(".", ",")]))
 		droite.add_child(_texte("Animaux repérés : %s" % (", ".join(vus_animaux.map(func(a): return a.def["nom"])) if not vus_animaux.is_empty() else "aucun pour l'instant")))
+		var voir := Composants.bouton("Diriger sur la carte du parc", "BoutonPrincipal")
+		voir.tooltip_text = "Voir le vrai parc du rival, sous brouillard : seulement ce que votre journaliste a vu"
+		voir.custom_minimum_size.y = 40
+		voir.pressed.connect(func(): main.reportage_carte(w, self))
+		droite.add_child(voir)
 		droite.add_child(Composants.titre_section("Article"))
 		var infos_article := "Visiteurs de ce rival ×%s pendant %d jours. Un article par jour." % [str(P["mult_article"]).replace(".", ","), int(P["jours_article"])]
 		var err_art := g.article_error(w)

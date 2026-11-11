@@ -106,6 +106,8 @@ var frame_count := 0
 # Interface
 var ui: Control
 var speed_buttons := {}
+var hand_taches_sig := 0  # tâches des collaborateurs au dernier dessin de la main
+var vue_reportage := {}  # Journaliste dirigé sur la vraie carte du rival : {"w", "moi", "fenetre", "bandeau", "brouillard"}
 var info_text: RichTextLabel
 var info_view: VBoxContainer  # fiche structurée du panneau de droite
 var info_subtitle: Label
@@ -1957,6 +1959,22 @@ func _zoom_at(factor: float, screen_pos: Vector2) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if mt == null:
 		return
+	# Reportage sur la carte du rival : un clic gauche dirige le Journaliste, Échap ramène au carnet
+	if not vue_reportage.is_empty():
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			var t := _screen_to_world(event.position) / TILE
+			var vu := game
+			game = mt.players[int(vue_reportage["moi"])]
+			_cmd("report_goto", [vue_reportage["w"], Vector2i(floori(t.x), floori(t.y))])
+			game = vu
+			return
+		if event is InputEventKey and event.pressed and event.physical_keycode == KEY_ESCAPE:
+			quitter_reportage_carte()
+			return
+		if event is InputEventMouseButton and event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE]:
+			pass  # zoom et déplacement de la vue restent possibles
+		elif event is InputEventKey:
+			return
 	if event is InputEventMouseButton and event.pressed:
 		match event.button_index:
 			MOUSE_BUTTON_WHEEL_UP:
@@ -2504,8 +2522,10 @@ func _process(delta: float) -> void:
 	queue_redraw()
 	_update_hud()
 	var sel_sig := selected.map(func(w): return w.get_instance_id() if w is Object else hash(w)).hash()
-	if sel_sig != hand_sel_sig and hand_version == game.version:
+	var sig_t := _signature_taches()
+	if (sel_sig != hand_sel_sig or sig_t != hand_taches_sig) and hand_version == game.version:
 		hand_sel_sig = sel_sig
+		hand_taches_sig = sig_t
 		_rebuild_hand()
 	if hand_version != game.version:
 		hand_version = game.version
@@ -3836,11 +3856,169 @@ func _rebuild_hand() -> void:
 				["⇢ Hors carte · Rappeler", UiTokens.ENCRE], _on_focus.bind(w))
 		else:
 			var sel := w != null and selected.has(w)
+			if w:
+				d["tache"] = _tache_affichee(w)
 			widget = Composants.badge_ouvrier(d, "selectionnee" if sel else "deployee", [["Localiser", "BoutonSecondaire", false, _on_focus.bind(w)]],
 				["● Sélectionné" if sel else "● Sur le terrain · Voir", UiTokens.SARCELLE_FONCE], _on_focus.bind(w))
 		widget.get_child(0).tooltip_text = _card_full_tooltip(card)
 		hand_box.add_child(widget)
 	_ajuster_main()
+
+
+## Journaliste : on regarde la vraie carte du rival, sous un brouillard qui ne laisse voir que ce qu'il a vu.
+func reportage_carte(w: GameState.Worker, fenetre: Control) -> void:
+	if w == null or w.reportage.is_empty():
+		return
+	var moi := game.index
+	var rival := int(w.reportage["cible"])
+	fenetre.visible = false
+	_view_player(rival)
+	var brouillard := BrouillardReportage.new()
+	brouillard.m = self
+	brouillard.g = mt.players[moi]
+	brouillard.w = w
+	brouillard.z_index = 60
+	add_child(brouillard)
+	var bandeau := PanelContainer.new()
+	bandeau.add_theme_stylebox_override("panel", UiTokens.panneau(UiTokens.FOND_FENETRE, 10, 2, 2, true))
+	bandeau.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	bandeau.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	bandeau.offset_top = UiTokens.H_BANDEAU + 10
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 14)
+	var marge := MarginContainer.new()
+	for c in [["left", 14], ["right", 10], ["top", 8], ["bottom", 8]]:
+		marge.add_theme_constant_override("margin_" + c[0], c[1])
+	marge.add_child(h)
+	bandeau.add_child(marge)
+	var l := Composants.label("Reportage chez %s · clic gauche : diriger %s · Échap : retour" % [str(mt.names[rival]), w.card.nom])
+	l.add_theme_font_size_override("font_size", 15)
+	l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	h.add_child(l)
+	var b := Composants.bouton("Revenir au carnet", "BoutonPrincipal")
+	b.pressed.connect(quitter_reportage_carte)
+	h.add_child(b)
+	ui.add_child(bandeau)
+	vue_reportage = {"w": w, "moi": moi, "fenetre": fenetre, "bandeau": bandeau, "brouillard": brouillard}
+	var pos: Vector2 = w.reportage["pos"]
+	camera.position = pos * TILE
+	camera.zoom = Vector2(2.2, 2.2)
+
+
+func quitter_reportage_carte() -> void:
+	if vue_reportage.is_empty():
+		return
+	var v := vue_reportage
+	vue_reportage = {}
+	for k in ["bandeau", "brouillard"]:
+		if is_instance_valid(v[k]):
+			v[k].queue_free()
+	_view_player(int(v["moi"]))
+	camera.position = Vector2(game.map.camp.get_center()) * TILE
+	if is_instance_valid(v["fenetre"]):
+		v["fenetre"].visible = true
+
+
+## Brouillard du reportage : noir là où le Journaliste n'est jamais passé, voilé là où il est passé (souvenir),
+## clair dans son champ de vision ; un repère sur sa position.
+class BrouillardReportage extends Node2D:
+	var m
+	var g: GameState
+	var w: GameState.Worker
+	var image: Image
+	var texture: ImageTexture
+	var t := 0.0
+
+	func _process(delta: float) -> void:
+		t -= delta
+		if w == null or not g.workers.has(w) or w.reportage.is_empty() or g.phase != "day":
+			m.quitter_reportage_carte.call_deferred()
+			return
+		if t <= 0.0:
+			t = 0.2
+			_maj()
+		queue_redraw()
+
+	func _maj() -> void:
+		var rival: GameState = g.mt.players[int(w.reportage["cible"])]
+		var mp := rival.map
+		if image == null:
+			image = Image.create(mp.w, mp.h, false, Image.FORMAT_RGBA8)
+		var vu: Dictionary = g.vus.get(int(w.reportage["cible"]), {})
+		var pos: Vector2 = w.reportage["pos"]
+		var rayon := float(g.data["buildings"]["presse"]["rayon_vue"])
+		var noir := Color(UiTokens.ENCRE, 0.97)
+		var voile := Color(UiTokens.ENCRE, 0.5)
+		for y in mp.h:
+			for x in mp.w:
+				var p := Vector2i(x, y)
+				var c := noir
+				if vu.has(p):
+					c = Color(0, 0, 0, 0) if (Vector2(p) + Vector2(0.5, 0.5)).distance_to(pos) <= rayon else voile
+				image.set_pixelv(p, c)
+		if texture == null:
+			texture = ImageTexture.create_from_image(image)
+		else:
+			texture.update(image)
+
+	func _draw() -> void:
+		if texture == null:
+			return
+		var T: float = m.TILE
+		draw_texture_rect(texture, Rect2(Vector2.ZERO, Vector2(texture.get_width(), texture.get_height()) * T), false)
+		# au-delà de la carte : noir aussi
+		var L := texture.get_width() * T
+		var H := texture.get_height() * T
+		var noir := Color(UiTokens.ENCRE, 0.97)
+		var loin := 100000.0
+		for r in [Rect2(-loin, -loin, loin, H + 2 * loin), Rect2(L, -loin, loin, H + 2 * loin), Rect2(0, -loin, L, loin), Rect2(0, H, L, loin)]:
+			draw_rect(r, noir)
+		var pos: Vector2 = w.reportage["pos"]
+		var rayon := float(g.data["buildings"]["presse"]["rayon_vue"])
+		draw_arc(pos * T, rayon * T, 0.0, TAU, 64, Color(1, 1, 1, 0.55), 2.0)
+		draw_circle(pos * T, T * 0.45, UiTokens.SELECTION)
+		draw_arc(pos * T, T * 0.45, 0.0, TAU, 24, UiTokens.ENCRE, 2.0)
+		var but: Vector2 = w.reportage["but"]
+		draw_line(pos * T, but * T, Color(1, 1, 1, 0.4), 1.5)
+
+
+## Pastille de la carte d'un collaborateur sur le terrain : icône et texte de sa tâche, ou inactif.
+func _tache_affichee(w: GameState.Worker) -> Dictionary:
+	var t := w.task
+	if t.is_empty():
+		return {"inactif": true, "texte": "Inactif : clic droit sur la carte pour lui donner un ordre"} if w.path.is_empty() else {"icone": "ordre_rappeler", "texte": "En chemin"}
+	match str(t.get("type", "")):
+		"extract":
+			var res := str(t.get("res", ""))
+			return {"icone": {"bois": "ordre_abattre", "or": "ressource_or"}.get(res, "ordre_extraire"), "texte": "Récolte : %s" % res}
+		"build":
+			var s: GameState.Site = t.get("site")
+			var am := s != null and s.kind == "amenagement"
+			return {"icone": "ordre_amenager" if am else "ordre_construire", "texte": "%s : %s" % ["Aménage" if am else "Construit", s.def["nom"] if s else ""]}
+		"feed":
+			return {"icone": "ressource_nourriture", "texte": "Nourrit les animaux"}
+		"clean":
+			return {"icone": "ordre_tenir_poste", "texte": "Nettoie le parc"}
+		"deposit":
+			return {"icone": "batiment_entrepot", "texte": "Dépose sa charge"}
+		"lobby":
+			return {"icone": "ordre_lobbying", "texte": "Lobbying"}
+		"station":
+			var kind := str(t.get("kind", ""))
+			var ic: String = {"ticket": "ressource_billetterie", "shop": "batiment_boutique", "snack": "ressource_nourriture", "kiosque": "ressource_reputation",
+				"intendance": "terrain_planter_foret", "care": "metier_soigneur", "trade": "metier_marchand", "agence": "ui_recruter"}.get(kind, "ordre_tenir_poste")
+			var tx: String = {"ticket": "Tient le guichet", "shop": "Tient la boutique", "snack": "Tient le snack", "kiosque": "Anime le kiosque",
+				"intendance": "Embellit le parc", "care": "Soigne un animal", "trade": "Négocie au marché", "agence": "Attend à l'agence"}.get(kind, "À son poste")
+			return {"icone": ic, "texte": tx}
+	return {"icone": "ordre_tenir_poste", "texte": "Occupé"}
+
+
+## Signature des tâches des collaborateurs sur le terrain : la main se redessine quand l'une change.
+func _signature_taches() -> int:
+	var parts := []
+	for w in game.workers:
+		parts.append([w.card.id, w.task.get("type", ""), w.task.get("kind", w.task.get("res", "")), w.task.is_empty() and w.path.is_empty()])
+	return hash(parts)
 
 
 ## Carte d'action au marché (format marché) : nom, effet, un bouton (acheter…).
@@ -4794,7 +4972,7 @@ func _update_hud() -> void:
 				end_views.add_child(vb)
 	var day_view := game.phase == "day" or (mt.game_over and end_dismissed)
 	for c in day_hud:
-		c.visible = day_view
+		c.visible = day_view and vue_reportage.is_empty()  # chez un rival, pas de main ni de ressources : ce sont les siennes
 	_appliquer_outils(day_view)
 	end_day_btn.visible = day_view and not spectator and not mt.game_over
 	status_label.visible = status_label.visible and day_view
@@ -6446,7 +6624,7 @@ func _appliquer_outils(day_view: bool) -> void:
 	var droit := mode in ["fiche", "zoo", "bourse", "pub"]
 	volet_droit.visible = day_view and droit
 	volet_construire.visible = day_view and mode == "construire"
-	zoo_widget.visible = day_view and not droit and mode != "construire"
+	zoo_widget.visible = day_view and not droit and mode != "construire" and vue_reportage.is_empty()
 	fiche_box.visible = mode in ["fiche", "zoo"]
 	if trade_card:
 		trade_card.visible = mode == "bourse"

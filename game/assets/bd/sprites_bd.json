@@ -6982,5 +6982,17 @@
    460,
    359
   ]
+ },
+ "icone_billets": {
+  "categorie": "objets",
+  "fichier": "res://assets/bd/sprites/objets/icone_billets.png",
+  "pied": [
+   42,
+   44
+  ],
+  "taille": [
+   84,
+   44
+  ]
  }
 }

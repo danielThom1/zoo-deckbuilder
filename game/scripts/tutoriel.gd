@@ -108,20 +108,18 @@ class Queue extends Control:
 
 # --- Préparation de la partie -----------------------------------------------------------------------------
 
-## Avant la construction de la carte : pas de draft, équipe imposée, terrain dégagé pour le parc, bois et rochers tout près.
+## Avant la construction de la carte : équipe créée d'avance (le draft est montré, puis complété par Hubert), terrain
+## dégagé pour le parc, bois et rochers tout près.
+static var cartes_equipe: Array = []
+
+
 static func preparer(partie: Match) -> void:
-	while partie.phase == "draft":
-		partie.pick_draft(partie.ai_choice())
 	for k in partie.names.size():
 		partie.names[k] = RIVAUX[k % RIVAUX.size()]
 	var g: GameState = partie.players[0]
-	var cartes: Array = []
+	cartes_equipe.clear()
 	for id in EQUIPE:
-		cartes.append(_carte(partie, id))
-	g.hand.clear()
-	g.discard.clear()
-	g.deck.assign(cartes)
-	_forcer_main(g, EQUIPE.slice(0, 4))
+		cartes_equipe.append(_carte(partie, id))
 	var k := g.map
 	var r := _rect_parc(k)
 	for y in range(r.position.y - 1, r.end.y + 3):
@@ -563,6 +561,40 @@ func dessiner_monde(canvas: CanvasItem, tuile: float) -> void:
 
 # --- Outils du scénario -----------------------------------------------------------------------------------------
 
+## Fin du draft : Hubert choisit le reste, puis l'équipe prévue pour la démonstration remplace celle tirée.
+func _finir_draft() -> void:
+	while mt.phase == "draft":
+		if mt.is_ai(mt.current_drafter()):
+			mt.pick_draft(mt.ai_choice())
+		else:
+			mt.pick_draft(mt.draft_pool[0])
+	game.hand.clear()
+	game.discard.clear()
+	game.deck.assign(cartes_equipe)
+	_forcer_main(game, EQUIPE.slice(0, 4))
+	_deployer_tout()
+	game.money = 8.0
+	_centrer(game.map.camp.get_center() + Vector2i(0, -5))
+
+
+## Au tour du joueur : la carte voulue prend la première place des candidats.
+func _injecter(metier: String) -> GameState.Card:
+	var c: GameState.Card = cartes_equipe[EQUIPE.find(metier)]
+	if mt.phase == "draft" and not mt.draft_pool.has(c) and not mt.draft_pool.is_empty():
+		mt.draft_pool[0] = c
+		mt.bump()
+		m.draft_root.rafraichir()
+	return c
+
+
+func _carte_draft(metier: String) -> Array:
+	var c: GameState.Card = cartes_equipe[EQUIPE.find(metier)]
+	var k := mt.draft_pool.find(c)
+	if k < 0 or not is_instance_valid(m.draft_root.rangee) or k >= m.draft_root.rangee.get_child_count():
+		return []
+	return [m.draft_root.rangee.get_child(k)]
+
+
 func _vitesse(s: float) -> void:
 	m.speed = s
 	for k in m.speed_buttons:
@@ -717,14 +749,28 @@ func _scenario() -> Array:
 	var nom_animal: String = espece["nom"]
 	var s := [
 		# --- Présentation ---
-		_dit("cadre", "Bienvenue chez [b]ZooLife™[/b], leader mondial du divertissement animalier responsable ! Vous entrez dans une grande famille. Une famille avec des objectifs trimestriels.", {"logos": ["zoolife"], "entree": func():
-			_deployer_tout()
-			game.money = 8.0}),
+		_dit("cadre", "Bienvenue chez [b]ZooLife™[/b], leader mondial du divertissement animalier responsable ! Vous entrez dans une grande famille. Une famille avec des objectifs trimestriels.", {"logos": ["zoolife"]}),
 		_dit("cadre", "Notre mission : bâtir ici un parc animalier. Trois mégacorporations rivales font la même chose au même moment. La [b]première à 120 de réputation[/b] rafle la concession. Les autres licencient.", {"logos": ["panzoo", "safari", "bioland"], "cible": func(): return m.race_labels.map(func(r): return r[0]), "position": "bas"}),
-		_dit("terrassier", "Excusez-moi… on a signé pour travailler dans un parc animalier. Il est où, le parc ?"),
+		# --- La carte et les objectifs, avant de recruter ---
+		_dit("cadre", "Avant de recruter qui que ce soit, la [b]vallée[/b]. Votre camp est au bout de la route d'Accès. Forêts pour le bois, rochers pour la pierre, lacs, montagnes, filons d'or : chaque partie a sa carte, la même pour vos rivaux. Seul votre talent fera la différence. Ou votre budget.", {"entree": func():
+			m.draft_root._voir_carte(true)
+			_centrer(game.map.camp.get_center() + Vector2i(0, -6)), "voile": false, "position": "bas"}),
+		_dit("cadre", "Et voici les [b]objectifs des actionnaires[/b] : trois par partie, +10 de réputation pour chacun rempli. Ils changent d'une partie à l'autre : lisez-les avant de choisir votre équipe. Un actionnaire ne s'explique pas, il s'attend.", {"cible": func(): return [m.draft_root.apercu] if is_instance_valid(m.draft_root.apercu) else [], "position": "bas"}),
+		# --- Le draft ---
+		_dit("cadre", "Maintenant, le [b]draft[/b] : la constitution de votre équipe. À chaque tour, quelques candidats se présentent ; chaque groupe en prend un, à tour de rôle, dans l'ordre affiché en haut, et le dernier repart chez lui. Huit tours, huit collaborateurs : votre équipe de départ.", {"entree": func(): m.draft_root._voir_carte(false), "cible": func(): return [m.draft_root.rangee], "position": "bas"}),
+		_dit("cadre", "Lisez chaque carte. Le [b]métier[/b] dit ce que le collaborateur fait mieux que les autres. Les [b]qualités[/b] (rond bleu) aident, les [b]défauts[/b] (carré orange) coûtent. Un Paresseux pas cher reste un Paresseux. Survolez une carte pour tout lire.", {"cible": func(): return [m.draft_root.rangee], "position": "bas", "survol": true}),
+		{"legende": "Les groupes rivaux choisissent…", "attendre": func(): return mt.phase != "draft" or not mt.is_ai(mt.current_drafter())},
+		_demande(func(): return "À vous. Prenez [b]%s[/b], un Bûcheron [b]Costaud[/b] : parfait pour couper du bois. Cliquez sur Choisir." % _injecter("bucheron").nom,
+			func(): return mt.phase != "draft" or not mt.drafted[0].is_empty(), func(): m._cmd("pick_draft", [_injecter("bucheron")]),
+			{"cible": func(): return _carte_draft("bucheron"), "position": "bas", "consigne": "Choisissez le Bûcheron"}),
+		_dit("cadre", "Excellent choix. Pour le reste du draft, je m'en occupe : ZooLife a déjà présélectionné vos profils. Le recrutement, c'est mon métier.", {"position": "bas"}),
+		_dit("terrassier", "Excusez-moi… on a signé pour travailler dans un parc animalier. Il est où, le parc ?", {"entree": _finir_draft}),
 		_dit("cadre", "Article 47, alinéa 12 de votre contrat : « Le salarié construit l'établissement qui l'emploie. » C'était écrit. En petit, certes, mais c'était écrit."),
 		_dit("bucheron", "Et les machines ? Les camions ? Le matériel ?"),
 		_dit("cadre", "Avec la hausse du prix de l'énergie, les machines ne sont plus au budget. Vous extrairez donc les ressources [b]vous-mêmes[/b], à la main. C'est bien plus respectueux de la planète : notre rapport RSE y consacre deux pages."),
+		# --- Le paquet de cartes ---
+		_dit("cadre", "Votre équipe forme un [b]paquet de cartes[/b]. Chaque matin, vous en [b]piochez quatre[/b] : c'est le code du travail, une invention satanique qui interdit de faire venir plus de quatre collaborateurs par jour. Sauf avec un camp amélioré : nous y viendrons.", {"cible": func(): return [m.hand_box, m.pile_label], "position": "haut"}),
+		_dit("cadre", "Un collaborateur mobilisé travaille toute la journée, puis part à la [b]défausse[/b]. Quand la pioche est vide, la défausse est mélangée et redevient la pioche. Recruter le soir ajoute des cartes, licencier en retire. Un bon paquet, c'est un paquet sans poids morts.", {"cible": func(): return [m.pile_label], "position": "haut"}),
 		# --- Ressources ---
 		_dit("cadre", "Le [b]bois[/b], d'abord. Il se coupe dans les forêts. Il sert aux bâtiments et aux clôtures des enclos.", {"cible": _jeton("bois")}),
 		_dit("cadre", "La [b]pierre[/b] se casse dans les rochers. Murs d'enceinte, routes, bâtiments : on en manque toujours, et vos dos aussi.", {"cible": _jeton("pierre")}),
@@ -775,13 +821,13 @@ func _scenario() -> Array:
 			_forcer_main(game, EQUIPE.slice(0, 4)), "cible": func(): return [m.hand_box], "position": "haut"}),
 		_dit("manoeuvre", "Payés le matin même ? Avant, c'était à la fin du mois.", {"cible": func(): return [m.hand_box], "position": "haut"}),
 		_dit("cadre", "Après diverses mésaventures antérieures : le parc de Dubaï, la grève de l'enclos à otaries, les bons d'achat à la boutique… Les collaborateurs exigent désormais d'être payés le matin. Quelle époque.", {"cible": func(): return [m.hand_box], "position": "haut"}),
-		_dit("cadre", "Regardez vos cartes. Chaque collaborateur a une [b]spécialité[/b], son métier, qui le rend meilleur à certaines tâches. Et souvent des [b]qualités[/b] (rond bleu) et des [b]défauts[/b] (carré orange). Survolez une carte pour tout lire. Choisissez bien : un défaut, ça se paie aussi.", {"cible": func(): return [m.hand_box], "position": "haut", "survol": true}),
+		_dit("cadre", "Votre main du jour : quatre cartes piochées dans votre paquet. Vous y retrouvez les métiers, qualités et défauts vus au draft : survolez une carte pour tout relire. Une pastille sur le portrait dit ce que fait chacun sur le terrain.", {"cible": func(): return [m.hand_box], "position": "haut", "survol": true}),
 		_dit("terrassier", "Et vous, monsieur de la Marge, c'est quoi vos qualités et vos défauts ?", {"cible": func(): return [m.hand_box], "position": "haut"}),
 		_dit("cadre", "Ma qualité ? Ma capacité d'écoute. Mon défaut ? Le perfectionnisme. Sujet suivant.", {"cible": func(): return [m.hand_box], "position": "haut"}),
 		_demande("Mobilisez vos quatre collaborateurs, carte par carte ou avec le bouton [b]Tout mobiliser[/b].",
 			func(): return game.hand.all(func(c): return c.deployed), _deployer_tout,
 			{"cible": func(): return [m.hand_box, m.deploy_all_btn], "libre": false, "position": "haut", "consigne": "Mobilisez les 4 collaborateurs"}),
-		_dit("cadre", "Quatre, c'est peu ? C'est la capacité du camp. Améliorez-le pour piocher [b]une carte de plus chaque matin[/b] : [b]Camp niveau 2[/b], puis [b]Camp niveau 3[/b]. Certains en font leur priorité absolue. Moi, je préfère le ratio bras / salaire.", {"entree": func(): _onglet("Bâtiments"), "cible": _batiments(["camp_n2", "camp_n3"]), "position": "bas"}),
+		_dit("cadre", "Quatre, c'est peu ? C'est le code du travail. Améliorez le camp pour piocher [b]une carte de plus chaque matin[/b] : [b]Camp niveau 2[/b], puis [b]Camp niveau 3[/b]. Certains en font leur priorité absolue. Moi, je préfère le ratio bras / salaire.", {"entree": func(): _onglet("Bâtiments"), "cible": _batiments(["camp_n2", "camp_n3"]), "position": "bas"}),
 		# --- Quelques jours plus tard ---
 		_dit("cadre", "Sautons quelques jours de récolte et quelques doléances syndicales.", {"entree": func(): pass}),
 		{"legende": "▸▸ Quelques jours plus tard…", "attendre": func(): return horloge > 1.2, "entree": _quelques_jours},
@@ -827,9 +873,11 @@ func _scenario() -> Array:
 		_dit("cadre", "Le [b]Snack[/b] : les visiteurs restent plus longtemps. Un visiteur qui reste est un visiteur qui compte.", {"cible": _batiments(["snack"])}),
 		_dit("cadre", "Le [b]Kiosque d'animation[/b] attire du monde et donne des spectacles, surtout si un Animateur le tient. Oui, un collaborateur qui chante, c'est au tarif normal.", {"cible": _batiments(["kiosque"])}),
 		_dit("cadre", "Le [b]Local d'entretien[/b] : un parc sale fait fuir les visiteurs et rend les bêtes malades. Un Agent d'entretien y fait des miracles, pour un salaire qui n'en est pas un.", {"cible": _batiments(["entretien"])}),
+		_dit("cadre", "L'[b]Intendance du parc[/b] : un collaborateur y fabrique des décorations, bancs, fontaines, massifs. Chacune rapporte de la réputation toutes les nuits. Un Intendant de parc va bien plus vite. Le beau, ça paie, à condition d'être rentable.", {"cible": _batiments(["intendance"])}),
+		_dit("cadre", "Trois services de ressources humaines, onglet Bâtiments. L'[b]Agence d'intérim[/b] échange, une fois par jour, un collaborateur sur le terrain contre une carte de votre paquet. Le [b]Cabinet de recrutement[/b] remplace un candidat du marché du soir. Et le [b]Bureau des acquisitions[/b] vous fait acheter, une fois par jour, un contrat du marché à moitié prix, en plus de celui du soir.", {"entree": func(): _onglet("Bâtiments"), "cible": _batiments(["agence", "cabinet", "acquisitions"]), "position": "bas"}),
 		_dit("cadre", "Certaines espèces rares exigent un aménagement dans leur enclos : [b]Grand arbre, Rocher d'observation, Bassin profond, Abri chauffé[/b]. Le contrat vous l'indique. Lisez vos contrats. Je dis ça pour vous.", {"cible": _batiments(["grand_arbre", "rocher_obs", "bassin_profond", "abri_chaud"])}),
 		_dit("cadre", "Les animaux ne font pas tout. Le Kiosque tenu et les souvenirs vendus rapportent de la réputation. Un collaborateur qui atteint le [b]niveau 6[/b] devient légendaire : +5. Il réclamera une augmentation : refusez.", {"cible": func(): return [m.res_chips["reputation"]["racine"]]}),
-		_dit("cadre", "Les [b]labels[/b] s'achètent en or à la Bourse, zoo ouvert. Le double du prix sans Marchand mobilisé. Oui, la réputation s'achète. Vous pensiez quoi ?", {"cible": func(): return [_bourse()], "position": "bas"}),
+		_dit("cadre", "Les [b]labels[/b] s'achètent en or à la Bourse, zoo ouvert. Le double du prix sans Marchand mobilisé. Oui, la réputation s'achète. Vous pensiez quoi ? La Bourse ouvre aussi la nuit, depuis le conseil. Et s'il manque du bois ou de la pierre pour un bâtiment, le jeu vous propose de l'acheter.", {"cible": func(): return [_bourse()], "position": "bas"}),
 		_dit("cadre", "Reste l'[b]influence[/b]. Envoyez un collaborateur à la [b]Mairie[/b], au bout de la route d'Accès : c'est le lobbying. L'influence décide de qui achète en premier le soir et de qui choisit le bonus du lendemain.", {"entree": func(): _centrer(game.map.exit_tile + Vector2i(0, -4)), "voile": false, "monde": func(): return [game.map.exit_tile], "position": "haut"}),
 		_dit("cadre", "Et chaque nuit, le premier en influence gagne [b]+3 de réputation[/b], le deuxième +1. On appelle ça le prestige politique. Nous, on appelle ça un mardi.", {"monde": func(): return [game.map.exit_tile], "position": "haut"}),
 		_dit("manoeuvre", "Et notre période d'essai, elle est validée ?", {"entree": func(): _centrer(parc.get_center())}),

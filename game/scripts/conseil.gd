@@ -292,7 +292,7 @@ func _rendre_jetons(stage: String) -> void:
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 14)
 	cadre.add_child(h)
-	h.add_child(_jeton("icone_pieces", str(floori(game.money))))
+	h.add_child(_jeton("icone_billets", str(floori(game.money))))
 	if stage == "contrats":
 		h.add_child(_jeton("icone_or", str(floori(game.stock["or"])), UiTokens.OR_TEXTE))
 	if stage in ["contrats", "ouvriers"]:

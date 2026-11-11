@@ -119,7 +119,7 @@ func _section_jetons(parent: Control) -> void:
 	var r := HBoxContainer.new()
 	r.add_theme_constant_override("separation", 12)
 	s.add_child(r)
-	for e in [["icone_pieces", "Argent", "57", UiTokens.ENCRE, "+14"], ["icone_pierre", "Pierre", "3", UiTokens.ENCRE, "−8"], ["icone_or", "Or", "4", UiTokens.OR_TEXTE, ""]]:
+	for e in [["icone_billets", "Argent", "57", UiTokens.ENCRE, "+14"], ["icone_pierre", "Pierre", "3", UiTokens.ENCRE, "−8"], ["icone_or", "Or", "4", UiTokens.OR_TEXTE, ""]]:
 		var j := Composants.jeton_dock(e[0], e[1], e[3])
 		j["valeur"].text = e[2]
 		j["delta"].text = e[4]

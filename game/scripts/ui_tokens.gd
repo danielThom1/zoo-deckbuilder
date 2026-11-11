@@ -54,7 +54,7 @@ const CATEGORIES := {
 
 # Ressources : pastille couleur + reflet, icône blanche ; « sprite » = dessin BD de la barre du haut
 const RESSOURCES := {
-	"argent": {"couleur": Color("A8ADB2"), "reflet": Color("EEF0F2"), "nom": "Argent", "glyphe": "€", "icone": "ressource_argent", "sprite": "icone_pieces"},
+	"argent": {"couleur": Color("3E9A48"), "reflet": Color("D6F0CC"), "nom": "Argent", "glyphe": "€", "icone": "ressource_argent", "sprite": "icone_billets"},  # billets verts : l'or garde ses pièces jaunes
 	"bois": {"couleur": Color("C8601A"), "reflet": Color("FFB070"), "nom": "Bois", "glyphe": "B", "icone": "ressource_bois", "sprite": "icone_bois"},
 	"pierre": {"couleur": Color("4A6A98"), "reflet": Color("A8C4E8"), "nom": "Pierre", "glyphe": "P", "icone": "ressource_pierre", "sprite": "icone_pierre"},
 	"or": {"couleur": Color("E8B000"), "reflet": Color("FFF09A"), "nom": "Or", "glyphe": "Or", "icone": "ressource_or", "sprite": "icone_or"},

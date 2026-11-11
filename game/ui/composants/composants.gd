@@ -573,6 +573,35 @@ static func badge_ouvrier(d: Dictionary, etat := "normale", boutons: Array = [],
 		placer(photo, pr, Vector2(26, 2), Vector2(76, 100))
 		if etat == "deployee" or etat == "non_abordable":
 			desaturer(pr, 0.5, 0.9)
+	# Tâche en cours (pastille ronde sur le portrait) : icône de la tâche sur fond sarcelle, « zzz » orange si inactif
+	if d.has("tache"):
+		var t: Dictionary = d["tache"]
+		var pa := Panel.new()
+		var spa := StyleBoxFlat.new()
+		spa.bg_color = UiTokens.ORANGE if t.get("inactif", false) else UiTokens.SARCELLE
+		spa.border_color = UiTokens.ENCRE
+		spa.set_border_width_all(2)
+		spa.set_corner_radius_all(15)
+		pa.add_theme_stylebox_override("panel", spa)
+		pa.tooltip_text = str(t.get("texte", ""))
+		pa.mouse_filter = Control.MOUSE_FILTER_PASS
+		placer(carte, pa, Vector2(BADGE.x - 36, 58), Vector2(30, 30))
+		if t.get("inactif", false):
+			var z := label("zzz", "")
+			z.add_theme_font_override("font", UiTokens.police_mono(600))
+			z.add_theme_font_size_override("font_size", 11)
+			z.add_theme_color_override("font_color", Color.WHITE)
+			z.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			z.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			z.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			placer(pa, z, Vector2.ZERO, Vector2(30, 30))
+		elif UiTokens.icone(str(t["icone"])) != null:
+			var ic := TextureRect.new()
+			ic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			ic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			ic.texture = UiTokens.icone(str(t["icone"]))
+			ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			placer(pa, ic, Vector2(6, 6), Vector2(18, 18))
 	# catégorie (texte + forme) et niveau
 	var chip_cat := PanelContainer.new()
 	chip_cat.add_theme_stylebox_override("panel", UiTokens.chip(UiTokens.PAPIER, 8, 1))
