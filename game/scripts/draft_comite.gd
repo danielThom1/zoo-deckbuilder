@@ -14,6 +14,7 @@ var apercu: PanelContainer  # « Voir la carte » : objectifs en encart, la cart
 func _init(principal) -> void:
 	super(principal)
 	color = Color(UiTokens.ENCRE, 0.55)
+	offset_top = UiTokens.H_BANDEAU  # la barre du haut reste cliquable : menu (abandonner), réglages, aide
 
 
 func _ready() -> void:

@@ -2849,6 +2849,9 @@ func _va_construire(w: GameState.Worker, site: GameState.Site) -> bool:
 	if roles.get(w.card.id, "chantier") == "recolte" and attente_chantier < ATTENTE_CHANTIER_MAX * 2.0:
 		return false
 	var trajet := w.pos.distance_to(Vector2(site.rect.get_center())) / maxf(0.1, g.speed(w.card))
+	# Fin de journée : pas de traversée de la carte pour arriver au chantier quand la journée s'achève
+	if g.time + trajet + 10.0 > g.day_length and trajet > 6.0:
+		return false
 	if trajet <= 6.0 or attente_chantier >= ATTENTE_CHANTIER_MAX:
 		return true
 	var pose := 0.0
@@ -3128,9 +3131,24 @@ func _best_site_for(w: GameState.Worker) -> GameState.Site:
 		var eff := g.efficiency(w.card, s.type_travail())
 		if strat["specialisation"] and eff < 0.9 and _builders(s) > 0:
 			continue  # spécialisation : les chantiers aux bons ouvriers, les autres récoltent
+		# Inutile d'y aller si ceux qui y sont déjà l'auront fini avant notre arrivée
+		if n > 0:
+			var rythme := 0.0
+			for o in g.workers:
+				if o.task.get("site") == s:
+					rythme += g.efficiency(o.card, s.type_travail())
+			var trajet_s := w.pos.distance_to(Vector2(s.rect.get_center())) / maxf(0.1, g.speed(w.card))
+			if (s.travail() - s.work) / maxf(0.1, rythme) < trajet_s:
+				continue
 		# Le Formateur rejoint un chantier déjà occupé : c'est là qu'il fait progresser les autres.
 		var foule := -6.0 if w.card.metier["id"] == "formateur" else 6.0
 		var score := w.pos.distance_to(Vector2(s.rect.get_center())) - (25.0 if strat["specialisation"] else 8.0) * eff + foule * n
+		# Rabat-joie : −20 % aux autres à 3 cases. Il travaille à l'écart, et les autres s'écartent de lui.
+		var autour := g.workers.filter(func(o): return o != w and o.pos.distance_to(Vector2(s.rect.get_center())) <= 3.5)
+		if w.card.traits.has("rabat_joie"):
+			score += 12.0 * autour.size()
+		elif autour.any(func(o): return o.card.traits.has("rabat_joie")):
+			score += 12.0
 		if s.kind == "amenagement":
 			score -= 40.0  # un aménageur va d'abord là où lui seul peut travailler
 		elif s.def.get("effet", {}).has("decor"):

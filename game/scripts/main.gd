@@ -5637,9 +5637,25 @@ func _update_proposal_box(def: Dictionary, interior: Dictionary) -> void:
 		cost = game.enclosure_cost(enclosure_proposal)
 		possible = game.can_afford(cost) and (enclosure_proposal["new"].size() > 0 or enclosure_proposal.has("decor"))
 	var valider: Button
+	# Bois ou pierre manquants, et l'argent suffit : on les achète à la Bourse et on valide dans la foulée
+	var achat := {}
+	if not possible and not enclosure_proposal.is_empty() and (enclosure_proposal["new"].size() > 0 or enclosure_proposal.has("decor")):
+		achat = _achat_manquant(cost)
 	if possible and game.phase == "day":
 		valider = Composants.bouton("Valider · Entrée", "BoutonPrincipal")
 		valider.pressed.connect(_valider_pose)
+	elif not achat.is_empty() and game.phase == "day":
+		var quoi: Array[String] = []
+		for k in ["bois", "pierre"]:
+			if achat.has(k):
+				quoi.append("%d %s" % [achat[k], k])
+		valider = Composants.bouton("Acheter %s (%d) et valider" % [" + ".join(quoi), int(achat["prix"])], "BoutonPrincipal")
+		valider.tooltip_text = "Le bois et la pierre qui manquent sont achetés à la Bourse au cours du moment, puis l'enclos est posé."
+		valider.pressed.connect(func():
+			for k in ["bois", "pierre"]:
+				if achat.has(k):
+					_cmd("buy_material", [k, int(achat[k])])
+			_valider_pose())
 	else:
 		var raison := "Aucun emplacement"
 		if not enclosure_proposal.is_empty() and not game.can_afford(cost):

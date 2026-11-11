@@ -18,7 +18,7 @@ const ESPECE := "bison_amerique"
 const EQUIPE := ["bucheron", "terrassier", "manoeuvre", "paysagiste", "guichetier", "charpentier", "macon", "animalier"]
 const PARC := Vector2i(10, 8)
 const ARGENT_VISE := 25
-const TRAITS_EXEMPLE := {"bucheron": ["costaud"], "terrassier": ["distrait"], "manoeuvre": ["rapide", "gourmand"]}
+const TRAITS_EXEMPLE := {"bucheron": ["costaud"], "terrassier": ["distrait"], "manoeuvre": ["rapide", "gourmand"], "paysagiste": ["paresseux"]}
 
 var m  # main.gd
 var mt: Match
@@ -228,11 +228,11 @@ func _construire_bulle() -> void:
 	ps.bg_color = UiTokens.ENTETE
 	ps.border_color = UiTokens.ENCRE
 	ps.set_border_width_all(4)
-	ps.set_corner_radius_all(66)
+	ps.set_corner_radius_all(54)
 	portrait_cadre.add_theme_stylebox_override("panel", ps)
 	portrait_cadre.clip_children = CanvasItem.CLIP_CHILDREN_AND_DRAW
-	portrait_cadre.custom_minimum_size = Vector2(132, 132)
-	portrait_cadre.size = Vector2(132, 132)
+	portrait_cadre.custom_minimum_size = Vector2(108, 108)
+	portrait_cadre.size = Vector2(108, 108)
 	add_child(portrait_cadre)
 	portrait_image = TextureRect.new()
 	portrait_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -270,8 +270,8 @@ func _construire_bulle() -> void:
 	texte.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	texte.add_theme_font_override("normal_font", UiTokens.police_corps(500))
 	texte.add_theme_font_override("bold_font", UiTokens.police_corps(800))
-	texte.add_theme_font_size_override("normal_font_size", 19)
-	texte.add_theme_font_size_override("bold_font_size", 19)
+	texte.add_theme_font_size_override("normal_font_size", 16)
+	texte.add_theme_font_size_override("bold_font_size", 16)
 	texte.add_theme_color_override("default_color", UiTokens.ENCRE)
 	v.add_child(texte)
 	var bas := HBoxContainer.new()
@@ -432,12 +432,12 @@ func _montrer_bulle(phrase: String) -> void:
 	texte.text = phrase
 	texte.visible_ratio = 1.0 if auto else 0.0
 	var vue := get_viewport_rect().size
-	var large := 800.0
+	var large := 640.0
 	bulle.custom_minimum_size = Vector2(large, 0)
 	# Entre le panneau Construire et le panneau du zoo, le portrait compris
 	var x := 330.0 if a_droite else (vue.x - large) / 2.0 + 60.0
 	bulle.position.x = x
-	portrait_cadre.position.x = x + large + 28.0 if a_droite else x - 160.0
+	portrait_cadre.position.x = x + large + 24.0 if a_droite else x - 130.0
 
 
 ## Place le portrait dans le disque, la tête au centre : les visages ne sont pas au milieu de leur image.
@@ -455,9 +455,9 @@ func _cadrer_portrait(tex: Texture2D) -> void:
 				n += 1.0
 				if sommet < 0:
 					sommet = y
-	var echelle := (172.0 if etape.get("qui", "cadre") == "cadre" else 150.0) / haut
+	var echelle := (141.0 if etape.get("qui", "cadre") == "cadre" else 123.0) / haut
 	portrait_image.size = Vector2(img.get_width(), haut) * echelle
-	portrait_image.position = Vector2(66.0 - somme / maxf(n, 1.0) * echelle, 8.0 - maxi(sommet, 0) * echelle)
+	portrait_image.position = Vector2(54.0 - somme / maxf(n, 1.0) * echelle, 7.0 - maxi(sommet, 0) * echelle)
 
 
 func _carte_de(metier: String) -> GameState.Card:
@@ -593,6 +593,15 @@ func _carte_draft(metier: String) -> Array:
 	if k < 0 or not is_instance_valid(m.draft_root.rangee) or k >= m.draft_root.rangee.get_child_count():
 		return []
 	return [m.draft_root.rangee.get_child(k)]
+
+
+## La carte de la main de ce métier, à l'écran.
+func _badge_main(metier: String) -> Array:
+	var c := _carte_de(metier)
+	var k := game.hand.find(c)
+	if k < 0 or k >= m.hand_box.get_child_count():
+		return [m.hand_box]
+	return [m.hand_box.get_child(k)]
 
 
 func _vitesse(s: float) -> void:
@@ -771,6 +780,8 @@ func _scenario() -> Array:
 		# --- Le paquet de cartes ---
 		_dit("cadre", "Votre équipe forme un [b]paquet de cartes[/b]. Chaque matin, vous en [b]piochez quatre[/b] : c'est le code du travail, une invention satanique qui interdit de faire venir plus de quatre collaborateurs par jour. Sauf avec un camp amélioré : nous y viendrons.", {"cible": func(): return [m.hand_box, m.pile_label], "position": "haut"}),
 		_dit("cadre", "Un collaborateur mobilisé travaille toute la journée, puis part à la [b]défausse[/b]. Quand la pioche est vide, la défausse est mélangée et redevient la pioche. Recruter le soir ajoute des cartes, licencier en retire. Un bon paquet, c'est un paquet sans poids morts.", {"cible": func(): return [m.pile_label], "position": "haut"}),
+		_dit("cadre", func(): return "Vous voyez %s, par exemple ? [b]Paresseux[/b]. À votre place, je saisirais la première occasion pour nous en débarrasser." % _carte_de("paysagiste").nom,
+			{"cible": func(): return _badge_main("paysagiste"), "position": "haut", "tete": "moqueur"}),
 		# --- Ressources ---
 		_dit("cadre", "Le [b]bois[/b], d'abord. Il se coupe dans les forêts. Il sert aux bâtiments et aux clôtures des enclos.", {"cible": _jeton("bois")}),
 		_dit("cadre", "La [b]pierre[/b] se casse dans les rochers. Murs d'enceinte, routes, bâtiments : on en manque toujours, et vos dos aussi.", {"cible": _jeton("pierre")}),

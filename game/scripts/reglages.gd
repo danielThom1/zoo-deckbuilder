@@ -3,7 +3,22 @@ extends Control
 ## Réglages du joueur (résolution, plein écran, volumes), gardés dans user://reglages.cfg. Fenêtre ouvrable du menu et en jeu.
 
 const FICHIER := "user://reglages.cfg"
-const RESOLUTIONS: Array[Vector2i] = [Vector2i(1280, 720), Vector2i(1366, 768), Vector2i(1600, 900), Vector2i(1920, 1080), Vector2i(2560, 1440)]
+const RESOLUTIONS: Array[Vector2i] = [Vector2i(1024, 768), Vector2i(1280, 720), Vector2i(1280, 800), Vector2i(1280, 1024), Vector2i(1366, 768),
+	Vector2i(1440, 900), Vector2i(1536, 864), Vector2i(1600, 900), Vector2i(1680, 1050), Vector2i(1920, 1080), Vector2i(1920, 1200),
+	Vector2i(2560, 1080), Vector2i(2560, 1440), Vector2i(2560, 1600), Vector2i(3440, 1440), Vector2i(3840, 2160)]
+
+
+## Les résolutions proposées : la liste, plus celle de l'écran s'il n'y figure pas, sans dépasser l'écran.
+static func resolutions() -> Array[Vector2i]:
+	var ecran := DisplayServer.screen_get_size()
+	var out: Array[Vector2i] = []
+	for r in RESOLUTIONS:
+		if ecran.x <= 0 or (r.x <= ecran.x and r.y <= ecran.y):
+			out.append(r)
+	if ecran.x > 0 and not out.has(ecran):
+		out.append(ecran)
+	out.sort_custom(func(a, b): return a.x * a.y < b.x * b.y)
+	return out
 
 static var valeurs := {"musique": 0.6, "effets": 0.8, "largeur": 1600, "hauteur": 900, "plein_ecran": false}
 static var _charge := false
@@ -66,13 +81,14 @@ func _ready() -> void:
 	v.add_child(_titre("Résolution"))
 	var liste := OptionButton.new()
 	var actuelle := Vector2i(int(valeurs["largeur"]), int(valeurs["hauteur"]))
-	for i in RESOLUTIONS.size():
-		liste.add_item("%d × %d" % [RESOLUTIONS[i].x, RESOLUTIONS[i].y])
-		if RESOLUTIONS[i] == actuelle:
+	var choix := resolutions()
+	for i in choix.size():
+		liste.add_item("%d × %d%s" % [choix[i].x, choix[i].y, " (écran)" if choix[i] == DisplayServer.screen_get_size() else ""])
+		if choix[i] == actuelle:
 			liste.select(i)
 	liste.item_selected.connect(func(i: int):
-		valeurs["largeur"] = RESOLUTIONS[i].x
-		valeurs["hauteur"] = RESOLUTIONS[i].y
+		valeurs["largeur"] = choix[i].x
+		valeurs["hauteur"] = choix[i].y
 		sauver()
 		appliquer_fenetre())
 	v.add_child(liste)

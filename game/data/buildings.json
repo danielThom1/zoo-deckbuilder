@@ -27,7 +27,7 @@
     "_note": "Unités par minute à efficacité 1.0, avant temps de transport. Un collaborateur porte 5 unités (porteur : +2 par amélioration), puis va déposer au Camp ou à l'Entrepôt le plus proche.",
     "bois": 7.5,
     "pierre": 5,
-    "or": 2.0,
+    "or": 1.8,
     "capacite_portage": 5
   },
 
@@ -72,7 +72,7 @@
     { "id": "entretien",  "nom": "Local d'entretien",    "taille": [2, 2], "travail": 52,  "type_travail": "construire_bois",  "cout": { "bois": 8, "pierre": 2 }, "effet": { "entretien": true }, "dans_enceinte": true, "_note_effet": "Clic droit avec un collaborateur : il nettoie le parc en circulant dans l'enceinte. Agent d'entretien ×2." },
     { "id": "snack",      "nom": "Snack",                "taille": [2, 2], "travail": 90, "type_travail": "construire_bois",  "cout": { "bois": 10, "pierre": 4, "argent": 10 }, "effet": { "duree_visite_mult": 1.5, "depense_visiteur": 1 }, "dans_enceinte": true, "_note_effet": "Tenu par un collaborateur (clic droit) : les visiteurs qui entrent restent 50 % plus longtemps et dépensent 1 d'argent de plus." },
     { "id": "kiosque",    "nom": "Kiosque d'animation",  "taille": [2, 2], "travail": 105, "type_travail": "construire_pierre", "cout": { "bois": 6, "pierre": 10, "argent": 15 }, "effet": { "attractivite": 3 }, "dans_enceinte": true, "_note_effet": "Tenu par un collaborateur (clic droit) : +3 d'attractivité × son efficacité « animer » (Animateur : +6)." },
-    { "id": "acquisitions", "nom": "Bureau des acquisitions", "taille": [2, 2], "travail": 140, "type_travail": "construire_pierre", "cout": { "bois": 12, "pierre": 12, "argent": 30 }, "effet": { "achat_jour": 0.5 }, "unique": true, "_note_effet": "En journée, une fois par jour : achète un contrat du marché à moitié prix (argent et or), depuis le panneau du marché. Il s'ajoute au contrat de la nuit, et le marché est aussitôt complété." },
+    { "id": "acquisitions", "nom": "Bureau des acquisitions", "taille": [2, 2], "travail": 140, "type_travail": "construire_pierre", "cout": { "bois": 12, "pierre": 22, "argent": 40 }, "effet": { "achat_jour": 0.5 }, "unique": true, "_note_effet": "En journée, une fois par jour : achète un contrat du marché à moitié prix (argent et or), depuis le panneau du marché. Il s'ajoute au contrat de la nuit, et le marché est aussitôt complété." },
     { "id": "intendance", "nom": "Intendance du parc", "taille": [2, 2], "travail": 90, "type_travail": "construire_bois", "cout": { "bois": 10, "pierre": 6, "argent": 5 }, "effet": { "intendance": true }, "dans_enceinte": true, "_note_effet": "Un collaborateur y travaille à embellir le parc : bancs, massifs, fontaines apparaissent sur la carte et rapportent de la réputation chaque nuit. Un Intendant va 2,5 fois plus vite." },
     { "id": "grand_arbre", "nom": "Grand arbre",          "taille": [1, 1], "travail": 19, "type_travail": "construire_bois",  "cout": { "bois": 8 },             "effet": { "decor": true }, "_note_effet": "Aménagement d'enclos : à placer dans un enclos (clôturé ou en chantier), hors du motif. Exigé par la Girafe, l'Ours, le Jaguar, le Panda roux, le Gorille." },
     { "id": "rocher_obs",  "nom": "Rocher d'observation", "taille": [1, 1], "travail": 22, "type_travail": "construire_pierre", "cout": { "pierre": 8 },           "effet": { "decor": true }, "_note_effet": "Aménagement d'enclos exigé par le Lion, le Loup, le Lynx, le Phoque, l'Aigle royal, la Panthère des neiges." },
@@ -181,7 +181,7 @@
       { "id": "peu_communs", "type": "palier", "palier": "T2", "n": 2, "texte": "2 animaux peu communs" },
       { "id": "especes", "type": "especes", "n": 5, "texte": "5 espèces installées" },
       { "id": "parc", "type": "parc", "n": 350, "texte": "Enceinte de 350 cases" },
-      { "id": "visiteurs", "type": "visiteurs", "n": 120, "texte": "120 visiteurs en une journée" },
+      { "id": "visiteurs", "type": "visiteurs", "n": 150, "texte": "150 visiteurs en une journée" },
       { "id": "veterans", "type": "niveau", "niveau": 5, "n": 2, "texte": "2 collaborateurs au niveau 5" },
       { "id": "cadres", "type": "cadres", "n": 3, "texte": "3 cadres dans l'équipe" },
       { "id": "effectif", "type": "effectif", "n": 11, "texte": "11 collaborateurs" },

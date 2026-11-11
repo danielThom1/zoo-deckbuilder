@@ -1360,6 +1360,8 @@ func _init() -> void:
 	print("Bureau des acquisitions :")
 	var aq_g := _fresh_day(data, 5151)
 	aq_g.money = 500.0
+	aq_g.stock["bois"] = 100.0
+	aq_g.stock["pierre"] = 100.0
 	var aq_def: Dictionary = aq_g.market_contracts[0]
 	check(aq_g.achat_jour_error(aq_def) != "", "sans le Bureau : pas d'achat de contrat en journée")
 	var aq_c := aq_g.map.camp.get_center()

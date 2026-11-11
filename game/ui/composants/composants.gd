@@ -585,7 +585,7 @@ static func badge_ouvrier(d: Dictionary, etat := "normale", boutons: Array = [],
 		pa.add_theme_stylebox_override("panel", spa)
 		pa.tooltip_text = str(t.get("texte", ""))
 		pa.mouse_filter = Control.MOUSE_FILTER_PASS
-		placer(carte, pa, Vector2(BADGE.x - 36, 58), Vector2(30, 30))
+		placer(carte, pa, Vector2(6, 58), Vector2(30, 30))
 		if t.get("inactif", false):
 			var z := label("zzz", "")
 			z.add_theme_font_override("font", UiTokens.police_mono(600))
