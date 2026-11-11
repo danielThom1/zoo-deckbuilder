@@ -40,3 +40,16 @@ Constat de départ : un joueur humain gagne vers le jour 9 ou 10 (une fois au jo
 | **E. Règles de fin de partie** : s'appuyer davantage sur `_rendements` (Bureau des acquisitions plus tôt, campagnes, Portes ouvertes au bon moment). | Quelques points par partie. | Faible |
 
 Recommandation : **A puis B**, qui s'attaquent à la cause principale (démarrage lent), puis **C**. Mesurer chaque étape avec `tests/mesure_ia.gd` (jour d'ouverture, part de marche) et une étude courte.
+
+## Suite du 11/11 : B, C et D codés, mesurés sur 6 parties
+
+| Piste | Ce qui est fait | Mesure |
+|---|---|---|
+| **B. Ouverture éclair** | Réglage `eclair` : premier enclos posé en même temps que les murs (`_wants_enclos` passe avant l'enceinte tant qu'il n'y a pas d'animal), ni mine ni camp amélioré avant l'ouverture. Stratégie écrite « Ouverture éclair » (petit parc, agrandi ensuite) dans l'étude, la finale et `balance_sim` ; gène `eclair` et taille `petit` dans l'évolution ; une étude reprise reçoit un génome éclair. | Ouverture aux jours 2 à 4 (contre 5 à 7), mais 1 victoire sur 6 avec un petit parc, 2 sur 6 avec un parc moyen ou évolutif : **après l'ouverture, l'IA grandit trop lentement**. L'étude dira quelles combinaisons en tirent parti. |
+| **C. Entrepôt anticipé** | `_depot_anticipe` : dès le jour 1, l'endroit où bois et pierre abondent ensemble (distance moyenne aux 8 cases de bois et 5 de roche les plus proches, comparée à celle du camp), posé si le gain dépasse 5 cases par aller. Les récolteurs vont désormais aux cases les plus proches **d'un dépôt** (camp ou entrepôt), plus du seul camp : avant, un entrepôt éloigné ne servait presque pas. | Entrepôt au jour 1 pour toutes les IA. Part de marche inchangée (33 %). |
+| **D. Plan de journée** | Réglage `plan_jour` : les chantiers, rangés par priorité, sont distribués en files aux bâtisseurs (celui qui peut arriver le plus tôt), refaits quand les chantiers ou l'équipe changent. | Aucun effet mesurable (fin au jour 12,5 avec, 12,3 sans). Désactivé par défaut, essayé par l'étude sur la moitié des génomes. |
+
+Ce que la mesure a appris en chemin (`tests/mesure_ia.gd`, marche par tâche) :
+- **La marche ne vient pas d'où on croyait.** Nourrissage 30 à 40 % de la marche, chantiers 26 %, récolte 22 à 30 %, entretien 7 %. Le nourrisseur part dès qu'un animal a mangé une fraction de ration et marche toute la journée ; c'est un collaborateur posté qui ne ferait rien d'autre, donc peu de travail perdu.
+- **Les chantiers abandonnés en cours sont rares** : 16 par partie (la mesure précédente comptait aussi les chantiers terminés).
+- **Le vrai écart avec un joueur est stratégique**, pas dans les gestes : même en ouvrant au jour 2, l'IA ne gagne pas plus vite. À examiner ensuite : rythme d'achat des contrats après l'ouverture (un par nuit au plus, `contrats_en_attente_max`), agrandissement, choix des sources de réputation.

@@ -7,6 +7,7 @@ extends SceneTree
 
 const STRATEGIES := [
 	{"nom": "Équilibrée"},
+	{"nom": "Ouverture éclair", "eclair": true, "taille_zoo": "petit"},
 	{"nom": "Marché", "marche": true},
 	{"nom": "Rush or", "rush_or": true},
 	{"nom": "Spécialisation", "specialisation": true},

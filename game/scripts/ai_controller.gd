@@ -48,6 +48,8 @@ const DEFAULT_STRATEGY := {
 	"type_cible": "",  # type d'animal imposé (herbivore, predateur, aquatique, aerien)
 	"continent_cible": "",  # continent imposé (sinon « affinite » le choisit selon le marché)
 	"score_simple": false,  # ancienne évaluation des contrats (réputation / prix), pour comparer
+	"eclair": false,
+	"plan_jour": false,  # les chantiers sont distribués en files aux bâtisseurs (priorité, puis le plus tôt arrivé) ; sans effet mesuré le 11/11, laissé à l'étude  # ouverture éclair : premier enclos bâti en même temps que les murs, ni mine ni camp avant l'ouverture
 }
 
 const ZOO_SIZES := {"petit": Vector2i(12, 10), "moyen": Vector2i(16, 13), "grand": Vector2i(22, 16)}
@@ -76,7 +78,13 @@ var reserved := {}  # cases réservées par le plan du zoo (murs, boutique, int�
 var route_mine_plan: Array[Vector2i] = []  # tracé de la route de la mine, gardé une fois choisi
 var fence_tiles := {}  # clôtures d'enclos prévues : elles peuvent être partagées entre enclos voisins
 var conv_defs := {}  # "Prairie>Eau" -> définition d'aménagement
-var resource_tiles := {}  # "bois" / "pierre" -> cases triées par distance au camp
+var resource_tiles := {}  # "bois" / "pierre" -> cases triées par distance au dépôt le plus proche (camp ou entrepôt)
+var _depots_indexes := -1  # nombre de dépôts lors du dernier classement des cases de ressource
+var depot_anticipe_jour := -1  # dernier jour où l'entrepôt anticipé a été cherché (recherche coûteuse)
+var depot_anticipe := Vector2i(-1, -1)
+var programme := {}  # plan de journée : carte -> chantiers à faire dans l'ordre (voir _faire_programme)
+var _programme_cle: Array = []
+var _programme_fin := 0.0  # le programme est refait au plus tard à cette heure
 var lobby_today := 0
 var _plan_cache := {}  # id d'espèce -> plan d'enclos, valable tant que l'état du joueur ne change pas
 var _plan_cache_key := ""
@@ -587,6 +595,8 @@ func update(dt: float) -> void:
 	if think_clock > 0.0:
 		return
 	think_clock = THINK_EVERY
+	if g.depots().size() != _depots_indexes:
+		_index_resources()  # un entrepôt vient d'ouvrir : les récolteurs vont aux cases qui l'entourent
 	_repartir()
 	_buy_materials()
 	_place_wants()
@@ -1756,7 +1766,16 @@ func _rect_tiles(r: Rect2i) -> Array[Vector2i]:
 func _index_resources() -> void:
 	var m := g.map
 	var reach := MapGenerator.reachable(m)
-	var c: Vector2i = m.camp.get_center()
+	var depots := g.depots()
+	_depots_indexes = depots.size()
+	var centres: Array[Vector2i] = []
+	for r in depots:
+		centres.append(r.get_center())
+	var dist := func(t: Vector2i) -> int:
+		var d := 1 << 30
+		for c in centres:
+			d = mini(d, (t - c).length_squared())
+		return d
 	for res in ["bois", "pierre"]:
 		var ter := GameMap.FORET if res == "bois" else GameMap.ROCHE
 		var tiles: Array[Vector2i] = []
@@ -1766,8 +1785,10 @@ func _index_resources() -> void:
 				if m.tiles[i] == ter and reach[i]:
 					tiles.append(Vector2i(x, y))
 				i += 1
-		tiles.sort_custom(func(a: Vector2i, b: Vector2i): return (a - c).length_squared() < (b - c).length_squared())
-		resource_tiles[res] = tiles.slice(0, 120)
+		# Clé calculée une fois par case : trier avec la distance recalculée à chaque comparaison coûtait cher.
+		var cles: Array = tiles.map(func(t): return [dist.call(t), t])
+		cles.sort_custom(func(a, b): return a[0] < b[0])
+		resource_tiles[res] = cles.slice(0, 120).map(func(e): return e[1])
 
 
 # --- Plan des enclos ---------------------------------------------------------
@@ -2239,6 +2260,8 @@ func _wants() -> Array:
 			out.append(["batiment", g.building_def("maison"), spot])
 	# 1 bis. Entrepôt rentable : les récolteurs perdent trop de temps en allers-retours jusqu'au dépôt le plus proche.
 	var dspot := _depot_wanted()
+	if dspot.x < 0:
+		dspot = _depot_anticipe()
 	if dspot.x >= 0:
 		out.append(["batiment", g.building_def("entrepot"), dspot])
 	# 1 quater. Améliorations du camp (stratégies « Camp amélioré » et « Grand camp ») : +1 carte en main par niveau.
@@ -2248,7 +2271,7 @@ func _wants() -> Array:
 		# Zoo ouvert, trois ouvriers sur quatre tiennent des postes : il faut des bras en plus avant tout le reste.
 		if _opt("camp") and g.zoo_status()["open"]:
 			camp_max = maxi(camp_max, 2 if g.has_building("camp_n2") and (g.animals.size() >= 3 or not _objectif_ouvert("camp").is_empty()) else 1)
-		if lvl - 1 > camp_max or day < 2:
+		if lvl - 1 > camp_max or day < 2 or (strat["eclair"] and not g.zoo_status()["open"]):
 			break
 		var cid := "camp_n%d" % lvl
 		if lvl == 3 and strat["adaptatif"] and not g.zoo_status()["open"]:
@@ -2297,6 +2320,10 @@ func _wants() -> Array:
 		var cspot := _spot_near_camp(g.building_def("comptoir"))
 		if cspot.x >= 0:
 			out.append(["batiment", g.building_def("comptoir"), cspot])
+	# Ouverture éclair : le premier enclos se bâtit pendant que l'enceinte se ferme, l'animal arrive le jour où elle est close.
+	var enclos_d_abord: bool = strat["eclair"] and g.animals.is_empty()
+	if enclos_d_abord:
+		_wants_enclos(out)
 	# 2. Enceinte et entrée.
 	if entrance.x >= 0 and g.site_at(entrance) == null:
 		out.append(["batiment", g.building_def("entree"), entrance])
@@ -2326,29 +2353,8 @@ func _wants() -> Array:
 		if not pending:
 			_finish_expansion()
 	# 3. Enclos des contrats en attente (aménagements puis clôtures).
-	_ensure_plans()
-	# Un enclos à la fois, le plus avancé d'abord : deux enclos à moitié faits n'accueillent aucun animal.
-	var en_cours := plans.duplicate()
-	en_cours.sort_custom(func(a, b): return _plan_left(a) < _plan_left(b))
-	for p in en_cours:
-		for c in p["conv"]:
-			# Étape suivante vers le terrain visé (une transformation en deux étapes passe par la Prairie)
-			var step = _conversion_step(GameMap.TERRAINS[g.map.get_t(c[0].x, c[0].y)], c[1])
-			if g.site_at(c[0]) == null and step != null:
-				out.append(["amenagement", step, c[0]])
-		var walls := _usable_walls()
-		for t in p["ring"]:
-			if g.site_at(t) == null and not walls.has(t):
-				out.append(["batiment", g.building_def("enclos"), t])
-		var ring_left := _ring_left(p)
-		var decor: String = p["def"].get("decor", "")
-		if ring_left == 0 and decor != "" and not _has_decor(decor, p["interior"]):
-			var dt := _decor_tile(p["def"], p["interior"])
-			if dt.x >= 0:
-				out.append(["batiment", g.building_def(decor), dt])
-		# Des aménagements sans Paysagiste au travail aujourd'hui ne bloquent pas l'enclos suivant.
-		if ring_left > 0 or (_plan_left(p) > 0 and g.workers.any(func(w): return g.can_landscape(w.card))):
-			break
+	if not enclos_d_abord:
+		_wants_enclos(out)
 	# 3 bis. Cuisine dès le premier animal (zoo ouvert : il faut livrer les rations), puis local d'entretien
 	# quand le parc commence à se salir.
 	for b in [["cuisine", not g.animals.is_empty()], ["entretien", g.proprete < 85.0]]:
@@ -2398,12 +2404,39 @@ func _wants() -> Array:
 	if strat["boutique"] and not g.animals.is_empty() and g.site_at(shop_rect.position) == null:
 		out.append(["batiment", g.building_def("boutique"), shop_rect.position])
 	# 5. Mine d'or si l'IA vise les gros contrats.
-	if strat["mine"] and day >= 4 and float(strat["preference_palier"]) >= 1.0 and not g.mine_built 		and (not _opt("mine_apres") or g.zoo_status()["open"]) \
+	if strat["mine"] and day >= 4 and float(strat["preference_palier"]) >= 1.0 and not g.mine_built 		and (not (_opt("mine_apres") or strat["eclair"]) or g.zoo_status()["open"]) \
 		and not g.sites.any(func(s): return s.def_id() == "mine"):
 		var spot := _mine_spot()
 		if spot.x >= 0:
 			out.append(["batiment", g.building_def("mine"), spot])
 	return out
+
+
+## Aménagements, clôtures et décor des enclos prévus.
+func _wants_enclos(out: Array) -> void:
+	_ensure_plans()
+	# Un enclos à la fois, le plus avancé d'abord : deux enclos à moitié faits n'accueillent aucun animal.
+	var en_cours := plans.duplicate()
+	en_cours.sort_custom(func(a, b): return _plan_left(a) < _plan_left(b))
+	for p in en_cours:
+		for c in p["conv"]:
+			# Étape suivante vers le terrain visé (une transformation en deux étapes passe par la Prairie)
+			var step = _conversion_step(GameMap.TERRAINS[g.map.get_t(c[0].x, c[0].y)], c[1])
+			if g.site_at(c[0]) == null and step != null:
+				out.append(["amenagement", step, c[0]])
+		var walls := _usable_walls()
+		for t in p["ring"]:
+			if g.site_at(t) == null and not walls.has(t):
+				out.append(["batiment", g.building_def("enclos"), t])
+		var ring_left := _ring_left(p)
+		var decor: String = p["def"].get("decor", "")
+		if ring_left == 0 and decor != "" and not _has_decor(decor, p["interior"]):
+			var dt := _decor_tile(p["def"], p["interior"])
+			if dt.x >= 0:
+				out.append(["batiment", g.building_def(decor), dt])
+		# Des aménagements sans Paysagiste au travail aujourd'hui ne bloquent pas l'enclos suivant.
+		if ring_left > 0 or (_plan_left(p) > 0 and g.workers.any(func(w): return g.can_landscape(w.card))):
+			break
 
 
 func _camp_upgraded() -> bool:
@@ -2628,6 +2661,73 @@ func _depot_wanted() -> Vector2i:
 		return Vector2i(-1, -1)
 	var c := Vector2i((mid / n).round())
 	return _spot_near(c, g.building_def("entrepot"), 1)
+
+
+## Entrepôt anticipé, comme le fait un joueur au jour 1 : posé là où bois et pierre abondent ensemble, pour que les
+## récolteurs fassent des trajets courts pendant toute la partie (et pas seulement quand les cases proches du camp sont rasées).
+## Gain estimé : distance moyenne aux 8 cases de bois et 5 cases de roche les plus proches, depuis le camp puis depuis le lieu.
+const DEPOT_GAIN_MIN := 5.0  # cases gagnées par aller simple, bois et pierre additionnés
+const DEPOT_RAYON := 26  # recherche autour du camp
+
+
+func _depot_anticipe() -> Vector2i:
+	if g.day > 4 or _days_left() < 6.0 or g.sites.any(func(s): return s.def_id() == "entrepot"):
+		return Vector2i(-1, -1)
+	if depot_anticipe_jour != g.day:
+		depot_anticipe_jour = g.day
+		depot_anticipe = _chercher_depot_anticipe()
+	if depot_anticipe.x < 0:
+		return depot_anticipe
+	# Le parc a pu être choisi depuis : la place doit rester libre et hors du parc.
+	var spot := _spot_near(depot_anticipe, g.building_def("entrepot"), 0)
+	return spot if spot.x >= 0 and Vector2(spot).distance_to(Vector2(depot_anticipe)) <= 3.0 else Vector2i(-1, -1)
+
+
+func _chercher_depot_anticipe() -> Vector2i:
+	var m := g.map
+	var c: Vector2i = m.camp.get_center()
+	var listes := {}
+	for res in ["bois", "pierre"]:
+		var ter := GameMap.FORET if res == "bois" else GameMap.ROCHE
+		var l: Array[Vector2i] = []
+		# Toutes les cases du type dans le rayon de recherche (pas seulement les 120 indexées près des dépôts).
+		for y in range(maxi(0, c.y - DEPOT_RAYON - 6), mini(m.h, c.y + DEPOT_RAYON + 7)):
+			for x in range(maxi(0, c.x - DEPOT_RAYON - 6), mini(m.w, c.x + DEPOT_RAYON + 7)):
+				if m.get_t(x, y) == ter:
+					l.append(Vector2i(x, y))
+		listes[res] = l
+	var besoin := {"bois": 8, "pierre": 5}
+	var moyenne := func(o: Vector2i, res: String) -> float:
+		var ds: Array[float] = []
+		for t in listes[res]:
+			var d := Vector2(o).distance_to(Vector2(t))
+			if d < 14.0:
+				ds.append(d)
+		if ds.size() < besoin[res]:
+			return 14.0
+		ds.sort()
+		var tot := 0.0
+		for k in besoin[res]:
+			tot += ds[k]
+		return tot / besoin[res]
+	var depuis_camp := {"bois": moyenne.call(c, "bois"), "pierre": moyenne.call(c, "pierre")}
+	var best := Vector2i(-1, -1)
+	var best_gain := DEPOT_GAIN_MIN
+	var parc := _park_area()
+	for y in range(c.y - DEPOT_RAYON, c.y + DEPOT_RAYON + 1, 3):
+		for x in range(c.x - DEPOT_RAYON, c.x + DEPOT_RAYON + 1, 3):
+			var o := Vector2i(x, y)
+			if not m.in_bounds(x, y) or parc.has_point(o) or Vector2(o).distance_to(Vector2(c)) < 6.0:
+				continue
+			var gain := 0.0
+			for res in ["bois", "pierre"]:
+				gain += maxf(0.0, depuis_camp[res] - moyenne.call(o, res))
+			# Un peu plus loin du camp coûte le premier trajet des bâtisseurs : départage seulement.
+			gain -= Vector2(o).distance_to(Vector2(c)) * 0.05
+			if gain > best_gain:
+				best_gain = gain
+				best = o
+	return best
 
 
 func _far_resource() -> Vector2i:
@@ -3118,7 +3218,94 @@ func _builders(s: GameState.Site) -> int:
 	return g.workers.filter(func(o): return o.task.get("site") == s).size()
 
 
+## Plan de journée. Au lieu de choisir, à chaque fois qu'il est libre, le chantier le plus proche, chaque bâtisseur
+## reçoit une file : les chantiers sont pris par ordre de priorité et confiés à celui qui peut y arriver le plus tôt
+## (position, puis travail déjà prévu pour lui). Une suite de murs revient ainsi au même bâtisseur, de proche en proche,
+## et les chantiers urgents ne restent pas derrière un chantier voisin moins utile. Refait quand les chantiers ou
+## l'équipe changent, et au moins toutes les minutes.
+const PROGRAMME_DUREE := 60.0
+
+
+func _priorite_chantier(s: GameState.Site) -> int:
+	if s.kind == "amenagement":
+		return 0
+	if s.def.get("effet", {}).has("decor"):
+		return 1
+	if s.def_id() in ["entree", "cloture", "enclos", "cuisine"]:
+		return 2
+	return 3
+
+
+func _faire_programme() -> void:
+	var ouverts: Array = g.sites.filter(func(s): return not s.done)
+	var batisseurs: Array = _bras_libres().filter(func(w): return roles.get(w.card.id, "chantier") == "chantier")
+	var cle := [g.day, ouverts.size(), batisseurs.size()]
+	if cle == _programme_cle and g.time < _programme_fin:
+		return
+	_programme_cle = cle
+	_programme_fin = g.time + PROGRAMME_DUREE
+	programme.clear()
+	if batisseurs.is_empty():
+		return
+	var rang := {}
+	for k in ouverts.size():
+		rang[ouverts[k]] = k
+	ouverts = ouverts.filter(func(s): return not g.work_tiles(s).is_empty() and _atteignable(s))
+	ouverts.sort_custom(func(a, b):
+		var pa := _priorite_chantier(a)
+		var pb := _priorite_chantier(b)
+		return pa < pb if pa != pb else rang[a] < rang[b])
+	# Où et quand chaque bâtisseur sera libre (un ouvrier déjà sur un chantier le finit d'abord).
+	var libre := {}
+	var lieu := {}
+	for w in batisseurs:
+		programme[w.card.id] = []
+		var ici: Vector2 = w.pos
+		var t := 0.0
+		var en_cours: GameState.Site = w.task.get("site")
+		if en_cours != null and not en_cours.done:
+			t = maxf(0.0, en_cours.travail() - en_cours.work) / maxf(0.1, g.efficiency(w.card, en_cours.type_travail()) * maxi(1, _builders(en_cours)))
+			ici = Vector2(en_cours.rect.get_center())
+		libre[w] = t
+		lieu[w] = ici
+	for s in ouverts:
+		if batisseurs.any(func(w): return w.task.get("site") == s):
+			continue  # déjà quelqu'un dessus
+		var cible := Vector2(s.rect.get_center())
+		var meilleur: GameState.Worker = null
+		var arrivee := INF
+		for w in batisseurs:
+			if s.kind == "amenagement" and not g.can_landscape(w.card):
+				continue
+			var a: float = libre[w] + lieu[w].distance_to(cible) / maxf(0.1, g.speed(w.card))
+			if a < arrivee:
+				arrivee = a
+				meilleur = w
+		if meilleur == null:
+			continue
+		programme[meilleur.card.id].append(s)
+		libre[meilleur] = arrivee + maxf(0.0, s.travail() - s.work) / maxf(0.1, g.efficiency(meilleur.card, s.type_travail()))
+		lieu[meilleur] = cible
+
+
+## Prochain chantier de la file du bâtisseur, ou null (file vide : il choisit seul, comme avant).
+func _chantier_programme(w: GameState.Worker) -> GameState.Site:
+	if not strat["plan_jour"]:
+		return null
+	_faire_programme()
+	var file: Array = programme.get(w.card.id, [])
+	while not file.is_empty():
+		var s: GameState.Site = file[0]
+		if g.sites.has(s) and not s.done and _builders(s) < (1 if s.rect.get_area() == 1 else 3):
+			return s
+		file.pop_front()
+	return null
+
+
 func _best_site_for(w: GameState.Worker) -> GameState.Site:
+	var prevu := _chantier_programme(w)
+	if prevu != null:
+		return prevu
 	var best: GameState.Site = null
 	var best_score := INF
 	for s in g.sites:

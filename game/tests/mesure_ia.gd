@@ -27,15 +27,27 @@ func _init() -> void:
 	var strats: Array = niveaux["niveaux"]["difficile"]["strategies"]
 	for gs in str(a.get("graines", "1")).split(","):
 		var gi := int(gs)
-		var m := Match.new(data, 7000 + gi * 13, 4, -1, [strats[0], strats[1 % strats.size()], strats[2 % strats.size()], strats[3 % strats.size()]])
+		var quatre: Array = [strats[0], strats[1 % strats.size()], strats[2 % strats.size()], strats[3 % strats.size()]]
+		# --eclair : les joueurs 0 et 1 jouent l'ouverture éclair, contre deux IA difficiles.
+		if a.has("eclair"):
+			for j in 2:
+				quatre[j] = {"nom": "Ouverture éclair", "eclair": true, "taille_zoo": str(a.get("taille", "petit")) if j == 0 else str(a.get("taille2", "petit"))}
+		# --plan : plan de journée pour tout le monde (désactivé par défaut)
+		if a.has("plan"):
+			quatre = quatre.map(func(x): return x.merged({"plan_jour": true}, true))
+		var m := Match.new(data, 7000 + gi * 13, 4, -1, quatre)
 		m.advance_ai_draft()
 		var etat := {"inactif": 0.0, "marche": 0.0, "travail": 0.0, "dehors": 0.0}
 		var changements := 0
 		var allers_retours := 0
 		var abandons := 0  # tâche de chantier quittée alors que le chantier n'était pas fini
+		var abandons_par := {}  # nouvelle tâche de celui qui quitte un chantier inachevé
+		var chantier_de := {}  # carte -> chantier en cours
 		var hist := {}  # carte -> [clé précédente, clé d'avant, temps]
 		var ouverture := [-1, -1, -1, -1]
 		var premier := [-1, -1, -1, -1]
+		var entrepot := [-1, -1, -1, -1]  # jour du premier entrepôt posé
+		var marche_par := {}  # type de tâche -> secondes de marche
 		var exemples := {}
 		while not m.game_over:
 			if m.phase == "day":
@@ -46,6 +58,8 @@ func _init() -> void:
 						ouverture[i] = m.day
 					if premier[i] < 0 and g.animals.any(func(x): return x.arrived):
 						premier[i] = m.day
+					if entrepot[i] < 0 and g.sites.any(func(s): return s.def_id() == "entrepot"):
+						entrepot[i] = m.day
 					for w in g.workers:
 						if w.offmap:
 							etat["dehors"] += 1.0
@@ -53,6 +67,10 @@ func _init() -> void:
 							etat["inactif"] += 1.0
 						elif not w.path.is_empty():
 							etat["marche"] += 1.0
+							var tt := str(w.task.get("type", "?"))
+							if tt == "extract":
+								tt += "_" + str(w.task.get("phase", ""))
+							marche_par[tt] = int(marche_par.get(tt, 0)) + 1
 						else:
 							etat["travail"] += 1.0
 						var k := _cle(w)
@@ -63,14 +81,19 @@ func _init() -> void:
 								allers_retours += 1
 								var cle_ex := "%s <-> %s" % [h[0].get_slice(":", 0), k.get_slice(":", 0)]
 								exemples[cle_ex] = int(exemples.get(cle_ex, 0)) + 1
-							if str(h[0]).begins_with("build:"):
+							var ancien: GameState.Site = chantier_de.get(w.card.id)
+							if ancien != null and g.sites.has(ancien) and not ancien.done:
 								abandons += 1
+								var nt := k.get_slice(":", 0)
+								abandons_par[nt] = int(abandons_par.get(nt, 0)) + 1
+							chantier_de[w.card.id] = w.task.get("site") if k.begins_with("build:") else null
 							hist[w.card.id] = [k, h[0], m.time]
 			else:
 				m.start_next_day()
 		var tot: float = etat.values().reduce(func(x, y): return x + y, 0.0)
-		print("PARTIE %d jour %d gagnant %d | marche %d %% travail %d %% inactif %d %% dehors %d %% | changements %d, allers-retours <60 s %d, chantiers quittés %d | ouverture %s, premier animal %s | rep %s | %s" % [
+		print("PARTIE %d jour %d gagnant %d | marche %d %% travail %d %% inactif %d %% dehors %d %% | changements %d, allers-retours <60 s %d, chantiers quittés %d %s | ouverture %s, premier animal %s, entrepôt %s | rep %s | marche %s | %s" % [
 			gi, m.day, m.winner, roundi(100 * etat["marche"] / tot), roundi(100 * etat["travail"] / tot), roundi(100 * etat["inactif"] / tot), roundi(100 * etat["dehors"] / tot),
-			changements, allers_retours, abandons, str(ouverture), str(premier), str(m.players.map(func(p): return int(p.rep_points))), str(exemples)])
+			changements, allers_retours, abandons, str(abandons_par), str(ouverture), str(premier), str(entrepot), str(m.players.map(func(p): return int(p.rep_points))),
+			str(marche_par.keys().map(func(k): return "%s %d %%" % [k, roundi(100.0 * marche_par[k] / maxf(1.0, etat["marche"]))])), str(exemples)])
 		m.dispose()
 	quit()

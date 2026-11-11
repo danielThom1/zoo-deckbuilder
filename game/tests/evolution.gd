@@ -28,10 +28,12 @@ const ECHECS_MAX := 3  # générations en erreur d'affilée avant de passer à l
 const ATTENTE_MAX_MS := 600000  # sans nouveau résultat pendant 10 min, les processus bloqués sont arrêtés
 const PART_FINALE := 0.1  # part des parties gardée pour la phase finale
 const EXPLORATION := 0.25  # part de choix au hasard (améliorations, cartes) pour que tout soit essayé
-const BOOLS := ["marche", "rush_or", "formation", "cartes", "spectacle", "affinite", "boutique", "mine", "specialisation", "fast_expand", "route_mine", "adaptatif", "agrandir", "meme_type", "intendance"]
+const BOOLS := ["marche", "rush_or", "formation", "cartes", "spectacle", "affinite", "boutique", "mine", "specialisation", "fast_expand", "route_mine", "adaptatif", "agrandir", "meme_type", "intendance", "eclair", "plan_jour"]
 const TYPES := ["herbivore", "predateur", "aquatique", "aerien"]
 const CONTINENTS := ["Afrique", "Amerique", "Asie", "Europe"]
-const TAILLES := ["moyen", "grand", "evolutif"]
+## Ouverture éclair : petit parc agrandi ensuite, premier enclos en même temps que les murs.
+const SEMENCE_ECLAIR := {"eclair": true, "taille_zoo": "petit", "rush_or": false, "fast_expand": false}
+const TAILLES := ["petit", "moyen", "grand", "evolutif"]
 ## Plages des réglages numériques : [min, max, entier ?]
 const NUMS := {
 	"reserve": [0.0, 40.0, false], "preference_palier": [0.3, 3.0, false], "contrats_en_attente_max": [1, 4, true],
@@ -39,7 +41,7 @@ const NUMS := {
 }
 const POIDS := ["poids_metiers", "poids_traits", "poids_animaux", "poids_cartes", "poids_ameliorations"]
 const STRATEGIES := [
-	{"nom": "Équilibrée"}, {"nom": "Marché", "marche": true}, {"nom": "Rush or", "rush_or": true},
+	{"nom": "Équilibrée"}, {"nom": "Ouverture éclair", "eclair": true, "taille_zoo": "petit"}, {"nom": "Marché", "marche": true}, {"nom": "Rush or", "rush_or": true},
 	{"nom": "Rush or + route", "rush_or": true, "route_mine": true}, {"nom": "Fast expand", "fast_expand": true, "camp": 1},
 	{"nom": "Spécialisation", "specialisation": true}, {"nom": "Formateur", "formation": true}, {"nom": "Cartes", "cartes": true},
 	{"nom": "Parc évolutif", "taille_zoo": "evolutif"}, {"nom": "Affinités", "affinite": true},
@@ -196,6 +198,11 @@ func _init() -> void:
 		pop = etat["pop"].map(func(g): return _completer(g))
 		history = etat["history"]
 		cumuls = etat["cumuls"]
+		# Une étude reprise d'avant l'ouverture éclair : un génome éclair remplace le dernier, pour qu'elle soit jugée.
+		if not pop.any(func(x): return x.get("eclair", false)) and pop.size() > cumuls.size():
+			var ec := _random_genome()
+			ec.merge(SEMENCE_ECLAIR, true)
+			pop[pop.size() - 1] = ec
 	var order: Array = []
 	var scores: Array = []
 	var pop_notee: Array = pop  # la population à laquelle correspondent order et scores
@@ -262,7 +269,7 @@ func _initial_population(n: int) -> Array:
 	# On part des stratégies écrites à la main, puis des génomes au hasard.
 	var depart := [{}, {"rush_or": true}, {"camp": 1}, {"preference_palier": 0.4, "contrats_en_attente_max": 3},
 		{"formation": true, "camp": 1}, {"spectacle": true}, {"lobbyistes_max": 2}, {"cartes": true}, {"fast_expand": true, "camp": 1}, {"rush_or": true, "route_mine": true},
-		{"meme_type": true}, {"affinite": true}]
+		{"meme_type": true}, {"affinite": true}, SEMENCE_ECLAIR]
 	for s in depart:
 		if pop.size() < n:
 			var g := _random_genome()
@@ -280,7 +287,7 @@ func _random_genome() -> Dictionary:
 		var r: Array = NUMS[k]
 		g[k] = rng.randi_range(int(r[0]), int(r[1])) if r[2] else rng.randf_range(float(r[0]), float(r[1]))
 	for b in BOOLS:
-		g[b] = rng.randf() < (0.8 if b in ["boutique", "mine", "adaptatif", "agrandir", "intendance"] else (0.05 if b == "specialisation" else 0.2))
+		g[b] = rng.randf() < (0.8 if b in ["boutique", "mine", "adaptatif", "agrandir", "intendance"] else (0.5 if b == "plan_jour" else (0.05 if b == "specialisation" else 0.2)))
 	g["type_cible"] = TYPES[rng.randi_range(0, TYPES.size() - 1)] if rng.randf() < 0.15 else ""
 	g["continent_cible"] = CONTINENTS[rng.randi_range(0, CONTINENTS.size() - 1)] if rng.randf() < 0.15 else ""
 	for f in POIDS:
@@ -634,6 +641,10 @@ func _mean(a: Array) -> float:
 
 ## Un génome d'une étude précédente : les réglages et préférences apparus depuis prennent leur valeur neutre.
 func _completer(g: Dictionary) -> Dictionary:
+	if not g.has("eclair"):
+		g["eclair"] = false  # réglage ajouté après coup : la stratégie reste ce qu'elle était
+	if not g.has("plan_jour"):
+		g["plan_jour"] = false
 	var neuf := _random_genome()
 	for k in neuf:
 		if not g.has(k):
