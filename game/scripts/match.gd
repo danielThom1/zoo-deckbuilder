@@ -46,6 +46,8 @@ var offres := {}  # espèce -> nuits passées au marché (étude)
 var cartes_motifs := {}  # calculs de l'IA partagés entre les joueurs : voir AIController._pattern_fit_maps
 var journal: Array = []  # replay : [pas, joueur (-1 : décision), nom, arguments codés], voir Replay
 var pas := 0  # pas de temps joués depuis le début
+var pas_matin := 0  # pas et taille du journal au dernier matin : la journée en cours se rejoue depuis la sauvegarde
+var journal_matin := 0
 var params_replay := {}
 var replay_possible := true  # faux après une reprise de sauvegarde, au tutoriel et dans les captures
 var autosave := false  # partie d'un joueur humain : sauvegarde automatique chaque matin
@@ -76,6 +78,8 @@ func _init(game_data: Dictionary, map_seed: int, nb_players := 4, human := 0, st
 			ais.append(AIController.new(self, players[i], strat))
 			ia_count += 1
 			names.append("IA %d" % ia_count if str(strat.get("nom", "")) == "" else "IA %d (%s)" % [ia_count, strat["nom"]])
+	# Objectifs tirés avant le draft : on peut les lire, avec la carte, avant de choisir ses collaborateurs.
+	_tirer_objectifs()
 	_setup_draft()
 
 
@@ -302,6 +306,8 @@ func _finish_draft() -> void:
 	for p in players:
 		p.say("Draft terminé : votre deck compte %d collaborateurs." % p.deck.size())
 		p._start_day_player()
+	pas_matin = pas
+	journal_matin = journal.size()
 	if autosave:
 		Sauvegarde.ecrire(self)
 	for ai in ais:
@@ -549,6 +555,8 @@ func start_next_day() -> void:
 	if current_event.is_empty():
 		for p in players:
 			p.annonce("matin")
+	pas_matin = pas
+	journal_matin = journal.size()
 	if autosave:
 		Sauvegarde.ecrire(self)
 	for ai in ais:

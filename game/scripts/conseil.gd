@@ -340,6 +340,10 @@ func _rendre_colonne() -> void:
 	voir.tooltip_text = "Masque le conseil pour regarder votre terrain (enclos, motifs) avant de décider"
 	voir.pressed.connect(func(): m.night_peek = true)
 	colonne.add_child(voir)
+	var bourse := _bouton_colonne("Bourse des ressources")
+	bourse.tooltip_text = "Vendre ou acheter bois, pierre et or avant vos achats de la nuit"
+	bourse.pressed.connect(m.ouvrir_bourse)
+	colonne.add_child(bourse)
 	var journal := _bouton_colonne("Classement · Objectifs · Journal")
 	journal.pressed.connect(func():
 		_rendre_journal()

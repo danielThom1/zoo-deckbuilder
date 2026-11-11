@@ -4,6 +4,7 @@ extends RefCounted
 ## ouvrier sur le terrain ni visiteur, donc aucune tâche à restituer ; « Continuer » reprend au début de ce jour.
 
 const CHEMIN := "user://sauvegarde.txt"
+const CHEMIN_JOURNEE := "user://sauvegarde_journee.txt"  # ordres donnés depuis le matin, au retour au menu
 const VERSION := 1
 
 
@@ -20,6 +21,7 @@ static func resume() -> Dictionary:
 static func effacer() -> void:
 	if existe():
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(CHEMIN))
+	effacer_journee()
 
 
 static func _lire() -> Dictionary:
@@ -76,11 +78,64 @@ static func ecrire(m: Match) -> void:
 			"roster_kiosque": ai.roster_kiosque, "epargne": ai.epargne, "agence_voulue": ai.agence_voulue, "cabinet_voulu": ai.cabinet_voulu})
 	var d := {"version": VERSION, "seed": m.seed_value, "joueurs": joueurs, "ias": ias, "match": {"objectifs": m.objectifs, "day": m.day, "next_card_id": m.next_card_id, "perso_bag": m.perso_bag,
 		"names": Array(m.names), "market_workers": _cartes(m.market_workers), "market_contracts": m.market_contracts, "market_actions": _cartes(m.market_actions),
-		"current_event": m.current_event, "history": m.history, "rng": m.rng.state}}
+		"current_event": m.current_event, "history": m.history, "rng": m.rng.state, "pas": m.pas}}
 	var f := FileAccess.open(CHEMIN, FileAccess.WRITE)
 	if f:
 		f.store_string(var_to_str(d))
 		f.close()
+	effacer_journee()  # un nouveau matin : la journée précédente n'a plus à être rejouée
+
+
+## Retour au menu en cours de journée : les ordres donnés depuis le matin. « Continuer » repart de la photo du matin
+## et les rejoue en accéléré (la partie est déterministe), jusqu'au pas où le joueur s'était arrêté.
+static func ecrire_journee(m: Match) -> void:
+	var d := {"seed": m.seed_value, "day": m.day, "pas_matin": m.pas_matin, "pas": m.pas, "ordres": m.journal.slice(m.journal_matin)}
+	var f := FileAccess.open(CHEMIN_JOURNEE, FileAccess.WRITE)
+	if f:
+		f.store_string(var_to_str(d))
+		f.close()
+
+
+static func lire_journee() -> Dictionary:
+	if not FileAccess.file_exists(CHEMIN_JOURNEE):
+		return {}
+	var v = str_to_var(FileAccess.get_file_as_string(CHEMIN_JOURNEE))
+	return v if v is Dictionary else {}
+
+
+static func effacer_journee() -> void:
+	if FileAccess.file_exists(CHEMIN_JOURNEE):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(CHEMIN_JOURNEE))
+
+
+## Après reprendre() : rejoue la journée enregistrée au retour au menu, s'il y en a une pour ce matin-là.
+static func rattraper_journee(m: Match) -> bool:
+	var j := lire_journee()
+	if j.is_empty() or int(j["day"]) != m.day or int(j["seed"]) != m.seed_value or int(j["pas_matin"]) != m.pas:
+		return false
+	var r := Replay.new()
+	r.journal = j["ordres"]
+	m.journal = r.journal.duplicate()  # un nouveau retour au menu ce jour-là enregistrera toute la journée
+	m.journal_matin = 0
+	var cible := int(j["pas"])
+	var garde := 0
+	while not m.game_over and garde < 500000:
+		garde += 1
+		if m.phase == "day":
+			if m.pas >= cible and r.prochain >= r.journal.size():
+				break
+			r.ordres_du_pas(m)
+			if m.phase == "day" and not m.game_over:
+				m.tick(GameState.TICK)
+		else:
+			if r.prochain >= r.journal.size():
+				break
+			r.coup_suivant(m)
+			if r.diverge:
+				break
+	for p in m.players:
+		p.annonces.clear()
+	return true
 
 
 ## Recrée la partie au matin sauvegardé. Les IA n'ont pas encore joué ce matin : l'appelant lance reprendre().
@@ -103,6 +158,8 @@ static func charger(data: Dictionary) -> Match:
 	m.current_event = w["current_event"]
 	m.history = w["history"]
 	m.rng.state = w["rng"]
+	m.pas = int(w.get("pas", 0))
+	m.pas_matin = m.pas
 	m.phase = "day"
 	m.time = 0.0
 	m.draft_pool.clear()

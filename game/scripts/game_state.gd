@@ -402,7 +402,8 @@ func resource_mult(card: Card) -> float:
 ## Trait Peureux : un enclos de prédateur à 2 cases ou moins.
 func near_predator(t: Vector2i) -> bool:
 	for a in animals:
-		if a.def.get("special", "") == "predateur" and a.tiles.any(func(p): return maxi(absi(p.x - t.x), absi(p.y - t.y)) <= 2):
+		# Seulement un prédateur arrivé : un enclos réservé ou vide ne fait peur à personne
+		if a.arrived and a.def.get("special", "") == "predateur" and a.tiles.any(func(p): return maxi(absi(p.x - t.x), absi(p.y - t.y)) <= 2):
 			return true
 	return false
 
@@ -804,7 +805,17 @@ func order(targets: Array, target: Vector2i, enqueue := false) -> void:
 			continue
 		var animal := animal_at(target)
 		if animal and job == "soigneur":
-			_station(w, "care", animal, target)
+			# Animal dans l'eau (carpe koï, phoque…) : le Soigneur s'installe au bord. Avant, il ne trouvait pas de chemin,
+			# restait inactif et recommençait sans fin (l'IA perdait ainsi un collaborateur toute la journée).
+			var poste := target
+			if not map.passable(target.x, target.y):
+				var bords: Array = animal.tiles.filter(func(t): return map.passable(t.x, t.y))
+				if bords.is_empty():
+					bords = _bord_praticable(animal.tiles)
+				if not bords.is_empty():
+					bords.sort_custom(func(p, q): return w.pos.distance_squared_to(Vector2(p)) < w.pos.distance_squared_to(Vector2(q)))
+					poste = bords[0]
+			_station(w, "care", animal, poste)
 			continue
 		if (map.in_camp(target.x, target.y) or in_depot(target)) and w.carry > 0.0:
 			# Clic droit sur le camp ou un entrepôt : l'ouvrier y dépose sa charge.
@@ -3280,6 +3291,10 @@ func _feed_next(w: Worker) -> void:
 		return
 	var tiles: Array = a.tiles.filter(func(t): return map.passable(t.x, t.y))
 	if tiles.is_empty():
+		# Enclos tout en eau (carpes koï, phoques…) : on nourrit depuis le bord, ponton ou rive. Avant, le nourrisseur
+		# repartait à la cuisine sans rien livrer, et l'animal, affamé, finissait malade.
+		tiles = _bord_praticable(a.tiles)
+	if tiles.is_empty():
 		task["phase"] = "to_kitchen"
 		_set_path(w, task["site"].rect.position)
 		return
@@ -3287,6 +3302,21 @@ func _feed_next(w: Worker) -> void:
 	task["phase"] = "deliver"
 	task["animal"] = a
 	_set_path(w, tiles[0])
+
+
+## Cases praticables qui touchent ces cases (côtés et coins), hors de la liste elle-même.
+func _bord_praticable(cases: Array) -> Array:
+	var dans := {}
+	for t in cases:
+		dans[t] = true
+	var bord := {}
+	for t in cases:
+		for dy in [-1, 0, 1]:
+			for dx in [-1, 0, 1]:
+				var q: Vector2i = t + Vector2i(dx, dy)
+				if not dans.has(q) and map.in_bounds(q.x, q.y) and map.passable(q.x, q.y):
+					bord[q] = true
+	return bord.keys()
 
 
 ## Réputation accumulée : gagnée chaque nuit selon le nombre moyen de visiteurs présents dans le zoo.
@@ -3435,7 +3465,7 @@ func buy_price(res: String) -> float:
 
 func buy_material(res: String, qty: int) -> bool:
 	var cost := ceilf(buy_price(res) * qty)
-	if phase != "day" or qty <= 0 or not res in ["bois", "pierre"] or money < cost:
+	if not phase in ["day", "night"] or qty <= 0 or not res in ["bois", "pierre"] or money < cost:
 		return false
 	money -= cost
 	stock[res] += qty
@@ -3447,7 +3477,7 @@ func buy_material(res: String, qty: int) -> bool:
 ## Vend une quantité choisie d'une ressource (panneau Marché).
 func sell_amount(res: String, qty: int) -> bool:
 	var units := mini(qty, floori(stock[res] + 0.0001))
-	if phase != "day" or units <= 0:
+	if not phase in ["day", "night"] or units <= 0:
 		return false
 	var gain := floorf(units * sell_price(res))
 	stock[res] -= units

@@ -596,6 +596,8 @@ func _init() -> void:
 	b_fauve.def = b_pred
 	b_fauve.tiles.assign([Vector2i(10, 10)])
 	b_g.animals.append(b_fauve)
+	check(not b_g.near_predator(Vector2i(12, 11)), "Peureux : un prédateur pas encore arrivé ne fait pas peur")
+	b_fauve.arrived = true
 	check(b_g.near_predator(Vector2i(12, 11)) and not b_g.near_predator(Vector2i(13, 10)), "Peureux : un prédateur à 2 cases ou moins")
 	b_g.animals.erase(b_fauve)
 	# Améliorations de métier et seconde spécialité

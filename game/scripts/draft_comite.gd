@@ -7,6 +7,8 @@ var sur: Label
 var tour: HBoxContainer
 var rangee: HBoxContainer
 var recap: GridContainer
+var fenetre: PanelContainer
+var apercu: PanelContainer  # « Voir la carte » : objectifs en encart, la carte libre derrière
 
 
 func _init(principal) -> void:
@@ -23,6 +25,7 @@ func _ready() -> void:
 	p.offset_top = -420
 	p.offset_bottom = 420
 	add_child(p)
+	fenetre = p
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 0)
 	p.add_child(v)
@@ -54,6 +57,11 @@ func _ready() -> void:
 	tour.add_theme_constant_override("separation", 6)
 	tour.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(tour)
+	var voir := Composants.bouton("Carte et objectifs", "BoutonSecondaire")
+	voir.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	voir.tooltip_text = "Regarder la carte et les objectifs des actionnaires avant de choisir"
+	voir.pressed.connect(_voir_carte.bind(true))
+	h.add_child(voir)
 	var marge := MarginContainer.new()
 	for c in [["left", 18], ["right", 18], ["top", 14], ["bottom", 14]]:
 		marge.add_theme_constant_override("margin_" + c[0], c[1])
@@ -73,6 +81,43 @@ func _ready() -> void:
 	recap.add_theme_constant_override("h_separation", 24)
 	recap.add_theme_constant_override("v_separation", 4)
 	corps.add_child(recap)
+
+
+## La carte (vraie, déplaçable et zoomable) et les objectifs des actionnaires, le temps de préparer son plan.
+func _voir_carte(oui: bool) -> void:
+	fenetre.visible = not oui
+	color = Color(UiTokens.ENCRE, 0.0 if oui else 0.55)
+	mouse_filter = Control.MOUSE_FILTER_IGNORE if oui else Control.MOUSE_FILTER_STOP
+	if apercu:
+		apercu.queue_free()
+		apercu = null
+	if not oui:
+		return
+	apercu = PanelContainer.new()
+	apercu.add_theme_stylebox_override("panel", UiTokens.panneau(UiTokens.FOND_FENETRE, 12, 2, 2, true))
+	apercu.position = Vector2(16, 16)
+	apercu.custom_minimum_size.x = 380
+	add_child(apercu)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 6)
+	var marge := MarginContainer.new()
+	for c in [["left", 14], ["right", 14], ["top", 12], ["bottom", 12]]:
+		marge.add_theme_constant_override("margin_" + c[0], c[1])
+	marge.add_child(v)
+	apercu.add_child(marge)
+	v.add_child(_mono("AVANT LE DRAFT · LA CARTE EST LIBRE", 12, 500, UiTokens.TEXTE_2))
+	v.add_child(_cond("Objectifs des actionnaires", 22))
+	var pts := int(m.game.data["buildings"]["objectifs"]["reputation"])
+	for o in m.mt.objectifs:
+		var l := _corps("◆ %s · +%d réputation" % [str(o["texte"]), pts], 14, 600)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		v.add_child(l)
+	var aide := _corps("Molette : zoom. Clic droit maintenu, molette enfoncée ou ZQSD : déplacer la vue. Votre camp est au bout de la route d'accès.", 12, 600, UiTokens.TEXTE_2)
+	aide.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(aide)
+	var retour := Composants.bouton("Revenir au draft", "BoutonPrincipal")
+	retour.pressed.connect(_voir_carte.bind(false))
+	v.add_child(retour)
 
 
 func rafraichir() -> void:
@@ -103,9 +148,12 @@ func rafraichir() -> void:
 		ph.add_child(_corps("%s%s" % [_nom_court(i), " ✓" if k < pos else ""], 13, 800 if k == pos else 600, UiTokens.ENCRE if k >= pos else UiTokens.ENCRE_DOUX))
 		tour.add_child(pc)
 	_clear(rangee)
+	# Les cartes se partagent la largeur de la fenêtre (1280 − marges) : à 5 cartes, 290 px chacune débordaient à droite.
+	var n: int = maxi(1, mt.draft_pool.size())
+	var largeur: float = minf(290.0, (1280.0 - 36.0 - 14.0 * (n - 1)) / n)
 	for card in mt.draft_pool:
 		var b := _grand_badge(card, false, 140)
-		b.custom_minimum_size.x = 290
+		b.custom_minimum_size.x = largeur
 		b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		rangee.add_child(b)
 	_clear(recap)

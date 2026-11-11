@@ -2978,8 +2978,9 @@ func _staff_posts() -> void:
 		if _reserve_amenagement(w) and (w.task.get("type") in ["feed", "clean"] or w.task.get("kind") in ["ticket", "shop", "snack", "kiosque", "intendance", "care"]):
 			w.task = {}
 			w.path.clear()
-	# Zoo fermé (aucun animal arrivé) : personne au guichet ni à la boutique, ils retournent aux chantiers.
-	if not g.zoo_status()["open"]:
+	# Zoo fermé (aucun animal arrivé), ou plus aucun animal montrable (tous malades ou affamés : 0 d'attractivité, donc
+	# aucun visiteur) : personne au guichet ni à la boutique, ils retournent aux chantiers.
+	if not g.zoo_status()["open"] or g.attractiveness() <= 0:
 		for w in g.workers:
 			if w.task.get("kind") in ["ticket", "shop", "snack", "kiosque"]:
 				w.task = {}
@@ -2987,11 +2988,13 @@ func _staff_posts() -> void:
 	if g.animals.filter(func(a): return a.arrived).is_empty() and g.contracts.is_empty():
 		return
 	# Guichet et boutique seulement zoo ouvert : avant, personne ne vient, et ces ouvriers manqueraient aux chantiers.
-	var open: bool = g.zoo_status()["open"]
+	var open: bool = g.zoo_status()["open"] and g.attractiveness() > 0
 	# Guichet et cuisine d'abord. Les autres postes laissent des bras aux chantiers : sinon, zoo ouvert, plus rien ne se construit.
 	var bras := _builders_needed()
 	# Fin de partie : un service bâti parce qu'il est rentable doit être tenu, quitte à laisser moins de bras aux chantiers.
-	var bras_services := bras / 2 if _fin_de_partie() else bras
+	# Au moins un bâtisseur s'il reste un chantier : avec 1 bâtisseur prévu, la moitié arrondie donnait 0, et un Grand
+	# arbre de 19 de travail restait des jours sans personne (l'animal réservé n'arrivait jamais).
+	var bras_services := (maxi(1, bras / 2) if bras > 0 else 0) if _fin_de_partie() else bras
 	_release_posts(bras_services)
 	for s in g.sites:
 		if s.done and s.def_id() == "entree" and open:
@@ -3130,6 +3133,8 @@ func _best_site_for(w: GameState.Worker) -> GameState.Site:
 		var score := w.pos.distance_to(Vector2(s.rect.get_center())) - (25.0 if strat["specialisation"] else 8.0) * eff + foule * n
 		if s.kind == "amenagement":
 			score -= 40.0  # un aménageur va d'abord là où lui seul peut travailler
+		elif s.def.get("effet", {}).has("decor"):
+			score -= 30.0  # l'aménagement d'enclos (grand arbre, rocher…) fait venir l'animal réservé : avant le Snack ou les clôtures
 		if score < best_score:
 			best_score = score
 			best = s

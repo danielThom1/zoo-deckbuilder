@@ -87,6 +87,10 @@ var drag_add := false
 var drag_sites := false  # Ctrl + glisser : bâtiments et chantiers seulement
 var last_click := {"at": 0, "tile": Vector2i(-99, -99)}  # double-clic sur un tracé
 var panning := false
+var droit_depart: Variant = null  # clic droit maintenu sur la carte : un glissement saisit la carte, un simple clic donne l'ordre
+var droit_glisse := false
+var droit_maj := false
+const VITESSES_TOUCHES := {KEY_1: 1.0, KEY_2: 2.0, KEY_3: 4.0, KEY_4: 8.0, KEY_5: 16.0, KEY_KP_1: 1.0, KEY_KP_2: 2.0, KEY_KP_3: 4.0, KEY_KP_4: 8.0, KEY_KP_5: 16.0}
 var speed := 1.0
 var acc := 0.0
 var info_clock := 0.0
@@ -487,6 +491,8 @@ func _start(watch: bool) -> void:
 		tuto_layer.add_child(tutoriel)
 	if charge:
 		Sauvegarde.reprendre(mt)
+		if Sauvegarde.rattraper_journee(mt):
+			game.say("Partie reprise là où vous l'aviez laissée.")
 		_set_speed(0.0)
 	if (args.has("autodraft") or spectator) and replay == null:
 		while mt.phase == "draft":
@@ -1334,8 +1340,8 @@ func _draw_affiche() -> void:
 
 func _draw_gate(r: Rect2, vertical := false) -> void:
 	if vertical:
-		# entrée tournée (verticale) : le portique vu de côté, posé sur la case du bas
-		SpritesBD.dessiner_largeur(self, "entree2", Vector2(r.get_center().x, r.end.y), r.size.x * 1.7)
+		# entrée tournée (verticale) : le portique vu de côté couvre ses deux cases, sinon le mur paraît ouvert au-dessus
+		SpritesBD.dessiner_largeur(self, "entree2", Vector2(r.get_center().x, r.end.y + r.size.x * 0.1), r.size.y * 1.25)
 		return
 	SpritesBD.dessiner_largeur(self, "entree", Vector2(r.get_center().x, r.end.y), maxf(r.size.x, r.size.y) * 1.15)
 	return
@@ -1969,13 +1975,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			MOUSE_BUTTON_MIDDLE:
 				panning = true
 			MOUSE_BUTTON_RIGHT:
-				if not build_choice.is_empty():
-					_set_build({})
-					return
-				var targets := selected.filter(func(w): return game.workers.has(w))
-				if not targets.is_empty():
-					var t := _screen_to_world(event.position) / TILE
-					_cmd("order", [targets, Vector2i(floori(t.x), floori(t.y)), event.shift_pressed])
+				# L'ordre part au relâchement, si la souris n'a pas glissé (sinon : la carte a été saisie et déplacée)
+				droit_depart = event.position
+				droit_glisse = false
+				droit_maj = event.shift_pressed
 	elif event is InputEventKey and event.pressed and not event.echo:
 		match event.physical_keycode:
 			KEY_ESCAPE:
@@ -1999,14 +2002,6 @@ func _unhandled_input(event: InputEvent) -> void:
 						_unit_order(ordre)
 					else:
 						_on_focus(selected[0])
-			KEY_SPACE:
-				_set_speed(1.0 if speed == 0.0 else 0.0)
-			KEY_1:
-				_set_speed(1.0)
-			KEY_2:
-				_set_speed(2.0)
-			KEY_3:
-				_set_speed(4.0)
 
 
 # Les relâchements et mouvements sont suivis partout, même au-dessus de l'interface.
@@ -2020,11 +2015,27 @@ func _input(event: InputEvent) -> void:
 			_valider_pose()
 		get_viewport().set_input_as_handled()
 		return
+	# Espace : pause ; 1 à 5 : vitesses. Ici plutôt que dans _unhandled_input : le bouton qui a le focus prenait Espace.
+	if event is InputEventKey and event.pressed and not event.echo and not (get_viewport().gui_get_focus_owner() is LineEdit) 		and (event.physical_keycode == KEY_SPACE or VITESSES_TOUCHES.has(event.physical_keycode)) and mt.phase == "day" and not mt.game_over:
+		if event.physical_keycode == KEY_SPACE:
+			_set_speed(1.0 if speed == 0.0 else 0.0)
+		else:
+			_set_speed(VITESSES_TOUCHES[event.physical_keycode])
+		get_viewport().set_input_as_handled()
+		return
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_R 		and not build_choice.is_empty() and not (get_viewport().gui_get_focus_owner() is LineEdit):
 		_rotate_build()
 		get_viewport().set_input_as_handled()
 		return
 	if event is InputEventMouseMotion:
+		if droit_depart != null:
+			if not droit_glisse and (event.position - Vector2(droit_depart)).length() > 6.0:
+				droit_glisse = true
+			if droit_glisse:
+				if iso:
+					camera.position -= iso.delta_monde(event.relative)
+				else:
+					camera.position -= event.relative / camera.zoom
 		if drag_start != null:
 			drag_end = event.position
 		if panning:
@@ -2041,7 +2052,14 @@ func _input(event: InputEvent) -> void:
 			if t != last_paint:
 				_try_place(t, false)
 	elif event is InputEventMouseButton and not event.pressed:
-		if event.button_index == MOUSE_BUTTON_MIDDLE:
+		if event.button_index == MOUSE_BUTTON_RIGHT and droit_depart != null:
+			var depart: Vector2 = droit_depart
+			var glisse := droit_glisse
+			droit_depart = null
+			droit_glisse = false
+			if not glisse:
+				_clic_droit(depart, droit_maj)
+		elif event.button_index == MOUSE_BUTTON_MIDDLE:
 			panning = false
 			if iso:
 				iso.aligner()
@@ -2049,6 +2067,17 @@ func _input(event: InputEvent) -> void:
 			painting = false
 			if drag_start != null:
 				_finish_selection()
+
+
+## Clic droit sans glisser : annule la pose en cours, sinon envoie les collaborateurs sélectionnés.
+func _clic_droit(pos: Vector2, maj: bool) -> void:
+	if not build_choice.is_empty():
+		_set_build({})
+		return
+	var targets := selected.filter(func(w): return game.workers.has(w))
+	if not targets.is_empty():
+		var t := _screen_to_world(pos) / TILE
+		_cmd("order", [targets, Vector2i(floori(t.x), floori(t.y)), maj])
 
 
 # --- Construction ------------------------------------------------------------
@@ -2134,12 +2163,114 @@ func _try_place(t: Vector2i, first_click: bool) -> void:
 	var err := game.placement_error(kind, def, origin)
 	if err != "":
 		if first_click:
+			# Seuls le bois ou la pierre manquent, et l'argent suffit : on propose de les acheter à la Bourse
+			if err.begins_with("Pas assez de ressources") and game.placement_error(kind, def, origin, false) == "":
+				var achat := _achat_manquant(game.cout_chantier(def))
+				if not achat.is_empty():
+					_proposer_achat(kind, def, origin, achat)
+					return
 			game.say(err)
 		return
 	var s: Variant = _cmd("place", [kind, def, origin])
 	if (s or reseau) and not _is_paint_build() and not Input.is_key_pressed(KEY_SHIFT):
 		_set_build({})
 		selected_site = s
+
+
+## Bois et pierre à acheter pour payer ce coût, et leur prix : {"bois": n, "pierre": n, "prix": argent}. Vide si autre
+## chose manque (or, argent) ou si l'argent ne suffit pas, achat et part en argent du chantier compris.
+func _achat_manquant(cout: Dictionary) -> Dictionary:
+	var achat := {}
+	var prix := 0.0
+	for k in cout:
+		var manque := float(cout[k]) - (game.money if k == "argent" else float(game.stock.get(k, 0.0)))
+		if manque <= 0.0001:
+			continue
+		if not k in ["bois", "pierre"]:
+			return {}
+		var n := ceili(manque - 0.0001)
+		achat[k] = n
+		prix += ceilf(game.buy_price(k) * n)
+	if achat.is_empty() or game.money < prix + float(cout.get("argent", 0.0)):
+		return {}
+	achat["prix"] = int(prix)
+	return achat
+
+
+## Matériaux manquants : achat à la Bourse au cours du moment, puis pose, si le joueur accepte.
+func _proposer_achat(kind: String, def: Dictionary, origin: Vector2i, achat: Dictionary) -> void:
+	var manque: Array[String] = []
+	for k in ["bois", "pierre"]:
+		if achat.has(k):
+			manque.append("%d %s" % [achat[k], k])
+	var f := Composants.fenetre(Vector2(560, 0), "Matériaux manquants", "Acheter ce qui manque ?")
+	var racine: Control = f["racine"]
+	var texte := Composants.label("%s : il manque %s. La Bourse les vend %d argent au cours du moment (vous avez %d)." % [def["nom"], " et ".join(manque), int(achat["prix"]), int(game.money)])
+	texte.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	texte.add_theme_font_size_override("font_size", 15)
+	f["corps"].add_child(texte)
+	f["pied_boite"].visible = true
+	var non := Composants.bouton("Annuler", "BoutonSecondaire")
+	non.pressed.connect(racine.queue_free)
+	f["pied"].add_child(non)
+	var esp := Control.new()
+	esp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	f["pied"].add_child(esp)
+	var oui := Composants.bouton("Acheter (%d) et construire" % int(achat["prix"]), "BoutonPrincipal")
+	oui.pressed.connect(func():
+		racine.queue_free()
+		for k in ["bois", "pierre"]:
+			if achat.has(k):
+				_cmd("buy_material", [k, int(achat[k])])
+		var s: Variant = _cmd("place", [kind, def, origin])
+		if (s or reseau) and not _is_paint_build():
+			_set_build({})
+			selected_site = s)
+	f["pied"].add_child(oui)
+	ui.add_child(racine)
+	oui.grab_focus()
+
+
+## La Bourse des ressources dans une fenêtre, utilisable aussi la nuit (depuis le conseil).
+func ouvrir_bourse() -> void:
+	var f := Composants.fenetre(Vector2(640, 0), "Bourse des ressources", "Vendre ou acheter")
+	var racine: Control = f["racine"]
+	var x := Composants.bouton("Fermer", "BoutonSecondaire")
+	x.pressed.connect(racine.queue_free)
+	f["droite"].add_child(x)
+	var corps: VBoxContainer = f["corps"]
+	var remplir := func(_self: Callable) -> void:
+		for c in corps.get_children():
+			c.queue_free()
+		var note := Composants.label("Argent : %d · vente à %d %% du cours%s" % [int(game.money), roundi(game.sell_rate() * 100), "" if game.sell_rate() >= 1.0 else " (sans Marchand mobilisé)"])
+		note.add_theme_font_size_override("font_size", 14)
+		corps.add_child(note)
+		for res in ["bois", "pierre", "or"]:
+			var h := HBoxContainer.new()
+			h.add_theme_constant_override("separation", 10)
+			var nom := Composants.label("%s · stock %d" % [res.capitalize(), floori(game.stock[res])])
+			nom.custom_minimum_size.x = 170
+			nom.add_theme_font_size_override("font_size", 15)
+			h.add_child(nom)
+			var spin := SpinBox.new()
+			spin.min_value = 1
+			spin.max_value = 99
+			spin.value = 5
+			h.add_child(spin)
+			var vend := Composants.bouton(("Vendre (%.1f l'unité)" % game.sell_price(res)).replace(".", ","), "BoutonSecondaire")
+			vend.pressed.connect(func():
+				_cmd("sell_amount", [res, int(spin.value)])
+				_self.call(_self))
+			h.add_child(vend)
+			if res != "or":
+				var ach := Composants.bouton(("Acheter (%.1f l'unité)" % game.buy_price(res)).replace(".", ","), "BoutonSecondaire")
+				ach.pressed.connect(func():
+					_cmd("buy_material", [res, int(spin.value)])
+					_self.call(_self))
+				h.add_child(ach)
+			corps.add_child(h)
+	remplir.call(remplir)
+	ui.add_child(racine)
 
 
 ## Position à l'écran d'un ouvrier : [position, distance parcourue à cette image, en marche ?].
@@ -2859,14 +2990,21 @@ func _build_ui() -> void:
 			vb.pressed.connect(_view_player.bind(i))
 			view_buttons.append(vb)
 	for s in ([1.0, 2.0, 4.0, 8.0, 16.0] if reseau else [0.0, 1.0, 2.0, 4.0, 8.0, 16.0]):
-		var b: Button = bouton_bandeau.call("II" if s == 0.0 else "×%d" % int(s), 44 if s >= 16.0 else 40)
+		var b: Button = bouton_bandeau.call("", 42)
 		b.toggle_mode = true
-		b.tooltip_text = "Pause (Espace)" if s == 0.0 else "Vitesse ×%d" % int(s)
+		var touche: int = {1.0: 1, 2.0: 2, 4.0: 3, 8.0: 4, 16.0: 5}.get(s, 0)
+		b.tooltip_text = "Pause · touche Espace" if s == 0.0 else ("Vitesse normale ×1 · touche 1" if s == 1.0 else "Vitesse ×%d · touche %d" % [int(s), touche])
+		var ic := IconeVitesse.new()
+		ic.vitesse = s
+		ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		ic.set_anchors_preset(Control.PRESET_FULL_RECT)
+		b.add_child(ic)
+		b.toggled.connect(func(_on): ic.queue_redraw())
 		b.pressed.connect(_set_speed.bind(s))
 		speed_buttons[s] = b
 	# Le marché du soir est tiré le matin : consultable en journée depuis la colonne d'outils (bouton « Marché »).
 	var help: Button = bouton_bandeau.call("?", 40)
-	help.tooltip_text = "Clic gauche : sélectionner (glisser pour plusieurs)\nClic droit : déplacer, extraire, construire, tenir un poste, lobbying (case Accès) · Maj + clic droit : enchaîner un ordre après la tâche en cours\nCtrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter un bâtiment · double-clic : tout un tracé de clôture, mur ou route · Suppr : démolir\nBâtir (colonne de droite) : placer un bâtiment (glisser pour routes et clôtures, R pour tourner l'entrée), Échap pour arrêter\nMolette : zoom · ZQSD : vue · Espace : pause"
+	help.tooltip_text = "Clic gauche : sélectionner (glisser pour plusieurs)\nClic droit : déplacer, extraire, construire, tenir un poste, lobbying (case Accès) · Maj + clic droit : enchaîner un ordre après la tâche en cours\nCtrl + glisser : sélectionner les bâtiments seulement · Maj + clic : ajouter un bâtiment · double-clic : tout un tracé de clôture, mur ou route · Suppr : démolir\nBâtir (colonne de droite) : placer un bâtiment (glisser pour routes et clôtures, R pour tourner l'entrée), Échap pour arrêter\nMolette : zoom · ZQSD, clic droit maintenu et glissé ou molette enfoncée : déplacer la vue · Espace : pause · 1 à 5 : vitesse"
 	help.pressed.connect(func(): ui.add_child(Aide.new(game.data)))
 	help.visible = not spectator
 	var reg_btn: Button = bouton_bandeau.call("", 40)
@@ -2879,7 +3017,7 @@ func _build_ui() -> void:
 	reg_btn.visible = not spectator
 	var quit_btn: Button = bouton_bandeau.call("≡", 44)
 	menu_btn = quit_btn
-	quit_btn.tooltip_text = "Retour au menu. La partie est sauvegardée chaque matin : « Continuer » reprendra au début de cette journée."
+	quit_btn.tooltip_text = "Retour au menu. La partie est sauvegardée : « Continuer » la reprendra là où vous l'avez laissée."
 	quit_btn.pressed.connect(func(): _restart("menu"))
 
 	# Panneau d'information à droite : bandeau sarcelle + fiche en cartes (zoo, ouvrier, chantier, animal)
@@ -5576,12 +5714,12 @@ func _update_trade() -> void:
 		# Moins que la quantité choisie en stock : on affiche ce qui sera vraiment vendu, et pour combien
 		var gain := floori(units * game.sell_price(res))
 		row[1].text = "Vendre +%d" % gain if units >= qty else "Vendre %d · +%d" % [units, gain]
-		row[1].disabled = game.phase != "day" or units <= 0
+		row[1].disabled = not game.phase in ["day", "night"] or units <= 0
 		row[1].tooltip_text = "Vend %d %s (stock %d) à %.1f l'unité" % [units, res, floori(game.stock[res]), game.sell_price(res)]
 		if res != "or":
 			var cost := ceili(game.buy_price(res) * qty)
 			row[2].text = "Acheter −%d" % cost
-			row[2].disabled = game.phase != "day" or game.money < cost
+			row[2].disabled = not game.phase in ["day", "night"] or game.money < cost
 			row[2].tooltip_text = "Achète %d %s à %.1f l'unité (double du prix de revente, moins la remise d'un Marchand au Marché)" % [qty, res, game.buy_price(res)]
 
 
@@ -6006,6 +6144,9 @@ func _visitors_total(i: int) -> int:
 
 
 func _restart(mode: String) -> void:
+	# Retour au menu en solo : on garde la journée en cours, « Continuer » y reviendra
+	if mode == "menu" and mt and mt.autosave and not mt.game_over and mt.phase in ["day", "night"]:
+		Sauvegarde.ecrire_journee(mt)
 	relance = mode
 	relance_niveau = str(args.get("niveau", ""))
 	get_tree().reload_current_scene()
@@ -6534,3 +6675,28 @@ func _draw_horloge() -> void:
 		plein.set_border_width_all(2)
 		plein.set_corner_radius_all(7)
 		medallion.draw_style_box(plein, Rect2(r.position, Vector2(maxf(14.0, r.size.x * frac), r.size.y)))
+
+## Icône d'un bouton de vitesse : pause, puis 1, 2, 3 triangles, 3 triangles et une barre, un éclair.
+class IconeVitesse extends Control:
+	var vitesse := 1.0
+
+	func _draw() -> void:
+		var b := get_parent() as BaseButton
+		var col: Color = UiTokens.ENCRE if b and b.button_pressed else UiTokens.PAPIER
+		var c := size / 2.0
+		var h := 12.0
+		if vitesse == 0.0:
+			draw_rect(Rect2(c + Vector2(-5, -h / 2), Vector2(3.5, h)), col)
+			draw_rect(Rect2(c + Vector2(1.5, -h / 2), Vector2(3.5, h)), col)
+			return
+		if vitesse >= 16.0:
+			draw_colored_polygon(PackedVector2Array([c + Vector2(2, -8), c + Vector2(-5, 1), c + Vector2(-0.5, 1), c + Vector2(-2, 8), c + Vector2(5, -1.5), c + Vector2(0.5, -1.5)]), col)
+			return
+		var n: int = {1.0: 1, 2.0: 2, 4.0: 3, 8.0: 3}.get(vitesse, 1)
+		var w := 7.0
+		var x0: float = c.x - (n * w + (2.5 if vitesse == 8.0 else 0.0)) / 2.0
+		for k in n:
+			var x: float = x0 + k * w
+			draw_colored_polygon(PackedVector2Array([Vector2(x, c.y - h / 2), Vector2(x + w + 1.5, c.y), Vector2(x, c.y + h / 2)]), col)
+		if vitesse == 8.0:
+			draw_rect(Rect2(Vector2(x0 + n * w + 1.0, c.y - h / 2), Vector2(2.5, h)), col)
