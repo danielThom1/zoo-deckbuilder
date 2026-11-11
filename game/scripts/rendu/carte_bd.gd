@@ -26,6 +26,9 @@ static var AXES := {
 	"vegetation": true,  # lisières, bosquets d'automne groupés, arbres isolés, saules, pics à l'échelle des massifs
 	"vie": true,         # ombres de nuages, arbres au vent
 	"lod": true,         # moins de micro-détails de loin, plus de près
+	"journee": true,     # lumière selon l'heure (aube dorée, soir orangé), ombres qui tournent, feux et fenêtres le soir
+	"travail": true,     # copeaux, éclats, poussière, fumées, arbres qui tremblent, chemins de traverse qui s'usent
+	"faune": true,       # oiseaux (et envols quand on abat un arbre), papillons, libellules, poissons
 }
 const DOSSIER_TEX := "res://assets/bd/textures/"
 
@@ -45,6 +48,16 @@ var _tiles_vus := PackedInt32Array()
 var _routes_vues := PackedByteArray()
 var _ponts_vus := PackedByteArray()
 var _temps := 0.0
+var vie: VieBD                 # axes journée, travail et faune (posé par main.gd, au-dessus des unités)
+var lumiere: CanvasModulate    # axe journée : teinte de la carte selon l'heure
+var heure := 0.35              # 0 = 06:00, 1 = 18:00 (réglée par main.gd chaque image)
+var heure_forcee := -1.0       # atelier : heure imposée
+var img_usure: Image           # axe travail : herbe usée, 2 texels par case
+var usure := PackedFloat32Array()
+var tex_usure: ImageTexture
+const TEINTES_JOURNEE := [   # [heure, couleur]
+	[0.0, Color(1.0, 0.86, 0.74)], [0.12, Color(1.0, 0.95, 0.86)], [0.3, Color(1, 1, 1)],
+	[0.7, Color(1, 1, 1)], [0.84, Color(1.0, 0.93, 0.82)], [0.94, Color(1.0, 0.84, 0.68)], [1.0, Color(0.93, 0.76, 0.66)]]
 
 
 func _init() -> void:
@@ -87,7 +100,16 @@ func construire(m: GameMap, taille_case: float, graine_decor := 0) -> void:
 		mat.set_shader_parameter("tex_" + n, load(DOSSIER_TEX + n + "_details.png"))
 	for ax in AXES:
 		mat.set_shader_parameter("ax_" + ax, AXES[ax])
+	usure.resize(m.w * 2 * m.h * 2)
+	usure.fill(0.0)
+	img_usure = Image.create_from_data(m.w * 2, m.h * 2, false, Image.FORMAT_RF, usure.to_byte_array())
+	tex_usure = ImageTexture.create_from_image(img_usure)
+	mat.set_shader_parameter("usure", tex_usure)
 	sol.material = mat
+	if AXES["journee"]:
+		lumiere = CanvasModulate.new()
+		lumiere.name = "Lumiere"
+		add_child(lumiere)
 	add_child(sol)
 
 	routes = RoutesBD.new()
@@ -137,6 +159,8 @@ func _process(delta: float) -> void:
 		return
 	_temps += delta
 	(sol.material as ShaderMaterial).set_shader_parameter("temps_eau", _temps)
+	if AXES["journee"]:
+		_regler_journee(heure_forcee if heure_forcee >= 0.0 else heure)
 	# Surveillance : les tableaux natifs se comparent très vite.
 	if map.tiles == _tiles_vus and map.road == _routes_vues and map.bridge == _ponts_vus:
 		return
@@ -204,3 +228,45 @@ func _bruit() -> ImageTexture:
 	var img := n.get_seamless_image(256, 256)
 	img.convert(Image.FORMAT_RGBA8)
 	return ImageTexture.create_from_image(img)
+
+
+## Axe journée : teinte globale (CanvasModulate) et ombres qui suivent le soleil, d'est en ouest.
+func _regler_journee(h: float) -> void:
+	h = clampf(h, 0.0, 1.0)
+	var c: Color = TEINTES_JOURNEE[0][1]
+	for i in range(1, TEINTES_JOURNEE.size()):
+		if h <= TEINTES_JOURNEE[i][0]:
+			var a: Array = TEINTES_JOURNEE[i - 1]
+			var b: Array = TEINTES_JOURNEE[i]
+			c = (a[1] as Color).lerp(b[1], (h - a[0]) / (b[0] - a[0]))
+			break
+	if lumiere:
+		lumiere.color = c
+	# Soleil à l'est le matin : ombres vers l'ouest ; à l'ouest le soir : ombres vers l'est, plus longues
+	var longueur := 1.0 + 0.9 * absf(h - 0.5) * 2.0
+	var dir := Vector2(lerpf(-0.55, 0.65, h), 0.32) * longueur
+	(sol.material as ShaderMaterial).set_shader_parameter("dir_ombre", dir)
+
+
+## Axe travail : herbe usée (valeurs 0..1, 2 texels par case). Appelé par VieBD.
+func usure_ajouter(pos_cases: Vector2, quantite: float) -> void:
+	if img_usure == null:
+		return
+	var w := map.w * 2
+	var x := int(pos_cases.x * 2.0)
+	var y := int(pos_cases.y * 2.0)
+	if x < 0 or y < 0 or x >= w or y >= map.h * 2:
+		return
+	usure[y * w + x] = minf(1.0, usure[y * w + x] + quantite)
+
+
+func usure_attenuer(facteur: float) -> void:
+	for i in usure.size():
+		if usure[i] > 0.0:
+			usure[i] *= facteur
+
+
+func usure_publier() -> void:
+	if img_usure:
+		img_usure.set_data(map.w * 2, map.h * 2, false, Image.FORMAT_RF, usure.to_byte_array())
+		tex_usure.update(img_usure)

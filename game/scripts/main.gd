@@ -57,6 +57,7 @@ var font_noms: Font  # noms sur la carte : Bangers, lettrage de BD
 var camera: Camera2D
 var terrain_sprite: Sprite2D
 var carte: CarteBD  # rendu BD de la carte : sol, routes, décor (scripts/rendu/)
+var vie: VieBD      # vie de la carte : lumière du soir, travail visible, faune (au-dessus des unités)
 var _occupation_version := -1
 var terrain_img: Image
 var depth_img: Image
@@ -633,6 +634,11 @@ func _build_terrain() -> void:
 	add_child(carte)
 	move_child(carte, 0)
 	carte.construire(game.map, TILE, game.seed_value)
+	if vie:
+		vie.queue_free()
+	vie = VieBD.new(self, carte)
+	vie.name = "Vie"
+	add_child(vie)
 	_occupation_version = -1
 
 
@@ -2482,6 +2488,8 @@ func _process(delta: float) -> void:
 	# Chaque nouvelle journée commence en pause : on prépare ses ordres, puis on lance le temps.
 	_sons_de_la_partie()
 	_sons_du_monde(delta)
+	if carte and game.phase == "day":
+		carte.heure = clampf(game.time / game.day_length, 0.0, 1.0)
 	# Les bulles d'Hubert sont sur un calque au-dessus de l'interface : elles s'effacent devant les fenêtres.
 	if hubert:
 		hubert.get_parent().visible = mt.phase != "night" and not market_root.visible and build_choice.get("kind") != "animal" and not draft_root.visible and not (pile_root != null and pile_root.visible) and not ((picker_root != null and picker_root.visible) \
@@ -2833,6 +2841,8 @@ func _auto_play() -> void:
 	var sim := float(args.get("sim", "0"))
 	for i in int(sim / GameState.TICK):
 		game.tick(GameState.TICK)
+		if vie:
+			vie.observer(GameState.TICK)
 	if args.has("autozoo"):
 		var c := game.map.camp.position
 		game.debug_build_zoo(Vector2i(c.x - 12, c.y - 12))

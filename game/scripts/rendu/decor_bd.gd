@@ -232,20 +232,17 @@ func _peupler_enrichi(x: int, y: int, r: RandomNumberGenerator) -> void:
 			if bord and r.randf() < 0.45:
 				_poser(c, _choisir(r, LISIERE), base + j.call(0.35) + Vector2(0, 0.4), r.randf_range(0.6, 0.85), r.randf() < 0.5)
 		GameMap.ROCHE:
-			if r.randf() < 0.55:
-				_poser(c, _choisir(r, {"rocher": 1.0}), base + j.call(0.3) + Vector2(0, 0.2), r.randf_range(0.55, 1.0), r.randf() < 0.5)
-			if r.randf() < 0.18:
+			# Rochers d'origine (densité inchangée : 1 ou 2 par case), plus parfois un buisson sec ou une souche
+			for k in (1 if r.randf() < 0.6 else 2):
+				_poser(c, _choisir(r, ROCHE), base + j.call(0.3) + Vector2(0, 0.2), r.randf_range(0.8, 1.1), r.randf() < 0.5)
+			if r.randf() < 0.12:
 				_poser(c, _choisir(r, {"buisson_sec": 2.0, "souche": 1.0}), base + j.call(0.3), r.randf_range(0.6, 0.85), r.randf() < 0.5)
 		GameMap.MONTAGNE:
-			var v := _voisins(x, y, GameMap.MONTAGNE)
-			if v >= 7 and r.randf() < 0.7:
-				_poser(c, _choisir(r, {"pic": 1.0}), base + Vector2(r.randf_range(-0.25, 0.25), 0.55 - HAUTEUR_FALAISE), r.randf_range(1.05, 1.35), r.randf() < 0.5)
-			elif v >= 3 and r.randf() < 0.65:
-				_poser(c, _choisir(r, {"pic": 1.0}), base + Vector2(r.randf_range(-0.2, 0.2), 0.55 - HAUTEUR_FALAISE), r.randf_range(0.75, 0.95), r.randf() < 0.5)
-			elif r.randf() < 0.45:
-				_poser(c, _choisir(r, {"pic": 1.0}), base + Vector2(r.randf_range(-0.15, 0.15), 0.55 - HAUTEUR_FALAISE), r.randf_range(0.6, 0.75), r.randf() < 0.5)
-			elif r.randf() < 0.6:
-				_poser(c, _choisir(r, {"rocher": 1.0}), base + j.call(0.3) + Vector2(0, 0.4 - HAUTEUR_FALAISE), r.randf_range(0.6, 0.9))
+			# Massifs : placement d'origine, inchangé (le détail des roches prime)
+			if (x + y * 2) % 3 != 1 and r.randf() < 0.7:
+				_poser(c, _choisir(r, {"pic": 1.0}), base + Vector2(r.randf_range(-0.2, 0.2), 0.55 - HAUTEUR_FALAISE), r.randf_range(0.7, 0.95), r.randf() < 0.5)
+			elif r.randf() < 0.8:
+				_poser(c, _choisir(r, {"rocher": 1.0}), base + j.call(0.3) + Vector2(0, 0.4 - HAUTEUR_FALAISE), 0.8)
 		GameMap.MINE_OR:
 			_poser(c, _choisir(r, {"rocher_or": 1.0}), base + Vector2(-0.12, 0.35), 1.9)
 			_poser(c, _choisir(r, {"rocher_or": 1.0}), base + Vector2(0.32, 0.4), 1.1, true)
@@ -269,3 +266,19 @@ func _peupler_enrichi(x: int, y: int, r: RandomNumberGenerator) -> void:
 		GameMap.EAU:
 			if r.randf() < 0.02:
 				_poser(c, _choisir(r, {"rocher": 1.0}), base + Vector2(0, 0.3), 0.65)
+
+
+## Axe travail : les arbres (ou rochers) d'une case tremblent sous les coups d'un collaborateur.
+func secouer(case_: Vector2i, force := 1.0) -> void:
+	for n in par_case.get(case_, []):
+		var s := n as Sprite2D
+		if s == null or s.has_meta("secoue"):
+			continue
+		s.set_meta("secoue", true)
+		var tw := s.create_tween()
+		var a := 0.06 * force
+		tw.tween_property(s, "rotation", a, 0.05)
+		tw.tween_property(s, "rotation", -a * 0.7, 0.08)
+		tw.tween_property(s, "rotation", a * 0.35, 0.07)
+		tw.tween_property(s, "rotation", 0.0, 0.08)
+		tw.tween_callback(func(): s.remove_meta("secoue"))

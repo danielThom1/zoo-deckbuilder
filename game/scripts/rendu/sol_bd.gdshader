@@ -28,6 +28,11 @@ uniform bool ax_matieres = false;
 uniform bool ax_vegetation = false;
 uniform bool ax_vie = false;
 uniform bool ax_lod = false;
+uniform bool ax_journee = false;
+uniform bool ax_travail = false;
+uniform vec2 dir_ombre = vec2(0.45, 0.35);   // axe journée : direction des ombres (en cases), tourne avec le soleil
+uniform sampler2D usure : filter_linear, repeat_disable;   // axe travail : R = herbe usée (2 texels par case)
+const vec3 TERRE_BATTUE = vec3(0.835, 0.765, 0.565);   // #D5C390
 
 const vec3 ENCRE = vec3(0.078, 0.125, 0.169);          // #14202B
 const vec3 HERBE = vec3(0.549, 0.761, 0.353);          // #8CC25A
@@ -137,6 +142,16 @@ void fragment() {
 		c = mix(c, ENCRE, (smoothstep(0.1, 0.15, d) - smoothstep(0.16, 0.2, d)) * step(1.0 - pre_fleurs * 0.45, r) * 0.5 * smoothstep(40.0, 80.0, ppc));
 	}
 
+	// ---------- chemins de traverse : l'herbe s'use là où les collaborateurs passent souvent
+	if (ax_travail) {
+		float us = texture(usure, p / taille_carte).r;
+		float bord = (n1(p * 0.35 + 6.0) - 0.5) * 0.25;
+		float u1 = smoothstep(0.18, 0.4, us + bord);
+		float u2 = smoothstep(0.45, 0.75, us + bord);
+		c = mix(c, mix(HERBE_SECHE, c, 0.35), u1 * 0.8);
+		c = mix(c, TERRE_BATTUE, u2 * 0.9);
+	}
+
 	// ---------- sable
 	float vs = champ(masque_a, 3, p, 0.5) + touffe;
 	vec3 cs = mix(SABLE, SABLE_CLAIR, smoothstep(0.75, 0.95, vs));
@@ -183,7 +198,8 @@ void fragment() {
 	c = mix(c, cf, dedans(vf)); c = mix(c, ENCRE, encre(vf, k_plat) * 0.7 * (ax_contours ? 0.6 : 1.0));
 	if (ax_relief) {
 		// ombre de la forêt vers le sud-est (lumière du nord-ouest)
-		float om = dedans(champ(masque_a, 1, p - vec2(0.22, 0.32), 0.55)) * (1.0 - dedans(vf));
+		vec2 d_for = ax_journee ? dir_ombre * 0.62 : vec2(0.22, 0.32);
+		float om = dedans(champ(masque_a, 1, p - d_for, 0.55)) * (1.0 - dedans(vf));
 		c = mix(c, c * 0.84, om * 0.6);
 	}
 
@@ -277,7 +293,7 @@ void fragment() {
 	}
 	if (ax_relief) {
 		// ombre portée du massif vers le sud-est, sur tout ce qui l'entoure
-		float om = dedans(champ(masque_b, 0, p - vec2(0.45, 0.35), 0.3));
+		float om = dedans(champ(masque_b, 0, p - (ax_journee ? dir_ombre : vec2(0.45, 0.35)), 0.3));
 		c = mix(c, c * 0.7, om * 0.8 * (1.0 - dedans(champ(masque_b, 0, p, 0.3))));
 	}
 	float vtop = champ(masque_b, 0, p + vec2(0.0, h), 0.3);
