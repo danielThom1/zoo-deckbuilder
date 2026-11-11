@@ -2164,7 +2164,18 @@ func _clic_droit(pos: Vector2, maj: bool) -> void:
 	var targets := selected.filter(func(w): return game.workers.has(w))
 	if not targets.is_empty():
 		var t := _screen_to_world(pos) / TILE
-		_cmd("order", [targets, Vector2i(floori(t.x), floori(t.y)), maj])
+		_cmd("order", [targets, _vers_mairie(Vector2i(floori(t.x), floori(t.y))), maj])
+
+
+## La mairie, dessinée au bout de la route d'Accès (_draw_town_hall), vaut la case d'accès : un clic droit dessus
+## envoie au lobbying, comme la route juste au-dessus.
+func _sur_mairie(t: Vector2i) -> bool:
+	var ex := game.map.exit_tile
+	return t.y > ex.y and t.y <= ex.y + 4 and absi(t.x - ex.x) <= 1
+
+
+func _vers_mairie(t: Vector2i) -> Vector2i:
+	return game.map.exit_tile if _sur_mairie(t) else t
 
 
 # --- Construction ------------------------------------------------------------
@@ -4990,6 +5001,8 @@ func _update_hud() -> void:
 				status += " : clic droit pour embellir le parc (un Intendant va 2,5 fois plus vite)"
 		else:
 			status = "Chantier %s : %d / %d — clic droit pour y travailler" % [site.def["nom"], int(site.work), int(site.travail())]
+	elif game.phase == "day" and _sur_mairie(hover):
+		status = "Mairie : clic droit pour envoyer à l'extérieur (lobbying et campagnes de publicité)"
 	elif m.in_bounds(hover.x, hover.y) and game.phase == "day":
 		if hover == m.exit_tile:
 			status = "Accès route : clic droit pour envoyer à l'extérieur (lobbying et campagnes de publicité)"
