@@ -334,6 +334,12 @@ func _show_menu() -> void:
 static func strategies_du_niveau(niveau: String) -> Array:
 	if niveau == "":
 		return []
+	# « etude » : les 4 meilleures stratégies de la dernière étude (data/ia_evolution.json, écrit à chaque génération),
+	# jouées avec le code actuel. Pour regarder la dernière version de l'IA (développement).
+	if niveau == "etude" and FileAccess.file_exists("res://data/ia_evolution.json"):
+		var ev = JSON.parse_string(FileAccess.get_file_as_string("res://data/ia_evolution.json"))
+		if ev is Dictionary and not ev.get("strategies", []).is_empty():
+			return ev["strategies"]
 	var chemin := "res://data/ia_niveaux.json"
 	if FileAccess.file_exists(chemin):
 		var lu = JSON.parse_string(FileAccess.get_file_as_string(chemin))

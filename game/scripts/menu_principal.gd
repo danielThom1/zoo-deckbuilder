@@ -216,8 +216,14 @@ func _construire() -> void:
 		dev.add_child(b_3d)
 		var b_regarder := Button.new()
 		b_regarder.text = "Dév. : regarder des IA jouer"
+		b_regarder.tooltip_text = "Quatre IA du niveau choisi (Facile, Moyen, Difficile), avec le code actuel"
 		b_regarder.pressed.connect(func(): lancer.emit(true, graine, 4, niveau))
 		dev.add_child(b_regarder)
+		var b_etude := Button.new()
+		b_etude.text = "Dév. : IA de la dernière étude"
+		b_etude.tooltip_text = "Les 4 meilleures stratégies de la dernière étude (data/ia_evolution.json), avec le code actuel, sur la carte choisie"
+		b_etude.pressed.connect(func(): lancer.emit(true, graine, 4, "etude"))
+		dev.add_child(b_etude)
 		if FileAccess.file_exists(Replay.chemin_etude()):
 			var b_record := Button.new()
 			b_record.text = "Dév. : partie la plus courte"
