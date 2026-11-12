@@ -49,7 +49,8 @@ const DEFAULT_STRATEGY := {
 	"continent_cible": "",  # continent imposé (sinon « affinite » le choisit selon le marché)
 	"score_simple": false,  # ancienne évaluation des contrats (réputation / prix), pour comparer
 	"eclair": false,
-	"plan_jour": false,  # les chantiers sont distribués en files aux bâtisseurs (priorité, puis le plus tôt arrivé) ; sans effet mesuré le 11/11, laissé à l'étude  # ouverture éclair : premier enclos bâti en même temps que les murs, ni mine ni camp avant l'ouverture
+	"plan_jour": false,
+	"plafond_chantiers": false,  # bâtisseurs limités à ce qu'il faut pour finir les chantiers posés en 90 s (sans effet mesuré le 12/11, laissé à l'étude)  # les chantiers sont distribués en files aux bâtisseurs (priorité, puis le plus tôt arrivé) ; sans effet mesuré le 11/11, laissé à l'étude  # ouverture éclair : premier enclos bâti en même temps que les murs, ni mine ni camp avant l'ouverture
 }
 
 const ZOO_SIZES := {"petit": Vector2i(12, 10), "moyen": Vector2i(16, 13), "grand": Vector2i(22, 16)}
@@ -2900,6 +2901,7 @@ func _repartir() -> void:
 			continue
 		par_type[s.type_travail()] = float(par_type.get(s.type_travail(), 0.0)) + reste
 		travail += reste
+	var pose := travail  # travail des chantiers déjà posés (et payés) : le seul qu'on peut faire tout de suite
 	var futur := (float(needs["bois"]) + float(needs["pierre"])) * TRAVAIL_PAR_MATERIAU
 	par_type["construire_pierre"] = float(par_type.get("construire_pierre", 0.0)) + futur
 	travail += futur
@@ -2938,8 +2940,34 @@ func _repartir() -> void:
 		if duree < meilleur_t - 0.001:
 			meilleur_t = duree
 			meilleur_k = k
+	# Pas plus de bâtisseurs qu'il n'en faut pour finir les chantiers posés en HORIZON_CHANTIERS secondes, trajet
+	# compris : le travail « futur » attend des matériaux, et un bâtisseur de trop marche jusqu'au chantier, le trouve
+	# fini, puis repart récolter (relevé du 12/11 : les 5 collaborateurs au chantier le matin, puis tous à la pierre).
+	if strat["plafond_chantiers"]:
+		var k_pose := forces
+		var debit := 0.0
+		for i in fiches.size():
+			if debit * HORIZON_CHANTIERS >= pose + amenager:
+				break
+			var w: GameState.Worker = fiches[i]["w"]
+			var trajet := _trajet_chantiers(w)
+			debit += float(fiches[i]["cons"]) * maxf(0.0, HORIZON_CHANTIERS - trajet) / HORIZON_CHANTIERS
+			k_pose = maxi(k_pose, i + 1)
+		meilleur_k = mini(meilleur_k, maxi(k_pose, mini(1, fiches.size()) if pose + amenager > 0.0 else 0))
 	for i in fiches.size():
 		roles[fiches[i]["w"].card.id] = "chantier" if i < meilleur_k else "recolte"
+
+
+const HORIZON_CHANTIERS := 90.0
+
+
+## Secondes de marche jusqu'au chantier ouvert le plus proche.
+func _trajet_chantiers(w: GameState.Worker) -> float:
+	var d := INF
+	for s in g.sites:
+		if not s.done:
+			d = minf(d, w.pos.distance_to(Vector2(s.rect.get_center())))
+	return 0.0 if d == INF else d / maxf(0.1, g.speed(w.card))
 
 
 ## Le déplacement vaut-il le coup ? Un récolteur reste à sa récolte ; un bâtisseur ne traverse pas la carte pour dix secondes de travail.

@@ -1384,14 +1384,31 @@ func _draw_affiche() -> void:
 	var af := _lieu_affiche()
 	if af.x < 0:
 		return
-	var bas := (Vector2(af) + Vector2(AFFICHE_CASES / 2.0, 1.0)) * TILE - Vector2(large / 2.0, 1.0)
-	var panneau := Rect2(bas - Vector2(large, 24.0), Vector2(large, 18.0))
-	for x in [panneau.position.x + 5.0, panneau.end.x - 5.0]:
-		draw_line(Vector2(x, panneau.end.y), Vector2(x, bas.y), UiTokens.ENCRE, 2.0)
-	draw_rect(panneau, UiTokens.BOUTON_HAUT)
+	# Affiche ZooLife (design B du 12/11) : poteaux métalliques, panneau crème, bandeau orange au logo, ampoules.
+	large = maxf(large, 62.0)
+	var bas := (Vector2(af) + Vector2(AFFICHE_CASES / 2.0, 1.0)) * TILE - Vector2(0, 1.0)
+	var panneau := Rect2(bas - Vector2(large / 2.0, 34.0), Vector2(large, 24.0))
+	var orange := Color("E87A34")
+	var metal := Color("5A6068")
+	draw_rect(Rect2(Vector2(panneau.position.x + 4.0, bas.y - 1.5), Vector2(large - 8.0, 3.0)), Color(0, 0, 0, 0.18))
+	for x in [panneau.position.x + large * 0.25, panneau.end.x - large * 0.25]:
+		draw_rect(Rect2(Vector2(x - 1.3, panneau.end.y), Vector2(2.6, bas.y - panneau.end.y)), metal)
+		draw_rect(Rect2(Vector2(x - 1.3, panneau.end.y), Vector2(2.6, bas.y - panneau.end.y)), UiTokens.ENCRE, false, 0.8)
+	draw_rect(panneau, Color("FAF4E2"))
+	var bandeau := Rect2(panneau.position, Vector2(large, 7.5))
+	draw_rect(bandeau, orange)
+	draw_line(Vector2(panneau.position.x, bandeau.end.y), Vector2(panneau.end.x, bandeau.end.y), UiTokens.ENCRE, 1.0)
 	draw_rect(panneau, UiTokens.ENCRE, false, 1.5)
-	_ecrire(panneau.position + Vector2(0, 7.5), l1, HORIZONTAL_ALIGNMENT_CENTER, large, 6, UiTokens.ENCRE)
-	_ecrire(panneau.position + Vector2(0, 14.5), l2, HORIZONTAL_ALIGNMENT_CENTER, large, 6, UiTokens.ENCRE)
+	_ecrire(panneau.position + Vector2(3.0, 6.0), "ZOOLIFE™", HORIZONTAL_ALIGNMENT_LEFT, large, 6, Color.WHITE, 0, Color.BLACK, font_noms)
+	_ecrire(panneau.position + Vector2(-3.0, 5.6), "Le savoir-faire", HORIZONTAL_ALIGNMENT_RIGHT, large, 4, Color("FFF0DC"))
+	_ecrire(panneau.position + Vector2(0, 14.0), l1, HORIZONTAL_ALIGNMENT_CENTER, large, 6, UiTokens.ENCRE)
+	_ecrire(panneau.position + Vector2(0, 20.5), l2, HORIZONTAL_ALIGNMENT_CENTER, large, 6, UiTokens.ENCRE)
+	# ampoules au-dessus du bandeau
+	var n := int(large / 10.0)
+	for k in n:
+		var p := Vector2(panneau.position.x + (k + 0.5) * large / n, panneau.position.y - 1.2)
+		draw_circle(p, 1.4, Color("FFD65A"))
+		draw_arc(p, 1.4, 0.0, TAU, 10, UiTokens.ENCRE, 0.5)
 
 
 func _draw_gate(r: Rect2, vertical := false) -> void:
@@ -2436,7 +2453,9 @@ func _position_affichee(w: GameState.Worker) -> Array:
 		e[0] = e[3]
 		e[1] = w.pos
 		e[2] = now
-	var duree: float = GameState.TICK / maxf(speed, 1.0)
+	# Un replay d'étude avance par pas d'une seconde de jeu (replay.dt) : le glissement dure tout le pas, sinon le
+	# personnage bondit puis reste figé jusqu'au pas suivant.
+	var duree: float = (replay.dt if replay else GameState.TICK) / maxf(speed, 1.0)
 	var avant: Vector2 = e[3]
 	e[3] = Vector2(e[0]).lerp(e[1], clampf((now - float(e[2])) / duree, 0.0, 1.0))
 	return [e[3], avant.distance_to(e[3]), now - float(e[2]) < duree * 1.8]

@@ -752,7 +752,8 @@ func order(targets: Array, target: Vector2i, enqueue := false) -> void:
 	var site := site_at(target)
 	for w: Worker in targets:
 		_bring_back(w)
-		w.pause_left = 0.0
+		# La pause du Paresseux n'est pas coupée par un nouvel ordre (avant, recliquer annulait le défaut) : il partira
+		# à la fin de sa pause.
 		if target == map.exit_tile:
 			annonce("lobbying", {"nom": w.card.nom})
 			w.task = {"type": "lobby", "phase": "to_exit"}

@@ -33,6 +33,12 @@ func _init() -> void:
 			for j in 2:
 				quatre[j] = {"nom": "Ouverture éclair", "eclair": true, "taille_zoo": str(a.get("taille", "petit")) if j == 0 else str(a.get("taille2", "petit"))}
 		# --plan : plan de journée pour tout le monde (désactivé par défaut)
+		# --mixte=reglage : les joueurs 0 et 2 jouent avec ce réglage à true, 1 et 3 avec la valeur par défaut (duel)
+		if a.has("mixte"):
+			for j in [0, 2]:
+				quatre[j] = quatre[j].merged({str(a["mixte"]): true}, true)
+		if a.has("plafond"):
+			quatre = quatre.map(func(x): return x.merged({"plafond_chantiers": true}, true))
 		if a.has("plan"):
 			quatre = quatre.map(func(x): return x.merged({"plan_jour": true}, true))
 		var m := Match.new(data, 7000 + gi * 13, 4, -1, quatre)
