@@ -395,7 +395,7 @@ func _init() -> void:
 	gv.stock["or"] = 2.0
 	var m0 := gv.money
 	gv.sell_stock()
-	check(is_equal_approx(gv.money - m0, 6.0) and is_equal_approx(gv.stock["or"], 2.0), "sans Marchand : moitié prix (+%d), l'or est gardé" % int(gv.money - m0))
+	check(is_equal_approx(gv.money - m0, 6.5) and is_equal_approx(gv.stock["or"], 2.0), "sans Marchand : moitié prix (+%.1f, sans arrondi), l'or est gardé" % (gv.money - m0))
 
 	print("Nouvelles règles :")
 	var gf := _fresh_day(data, 77)

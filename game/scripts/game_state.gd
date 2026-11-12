@@ -3573,12 +3573,17 @@ func sell_stock(keep := {}, resources: Array = ["bois", "pierre"]) -> void:
 		return
 	var rate := sell_rate()
 	var gain := 0.0
+	var vendu := 0.0
 	for res in resources:
 		var units := floorf(maxf(0.0, stock[res] - float(keep.get(res, 0.0))))
 		gain += units * sell_price(res)
 		stock[res] -= units
-	money += floorf(gain)
-	say("Stock vendu : +%d%s" % [floori(gain), "" if rate >= 1.0 else " (sans Marchand : taux réduit)"])
+		vendu += units
+	if vendu <= 0.0:
+		return
+	# Le gain n'est plus arrondi à l'entier inférieur : 1 bois vendu 0,25 sans Marchand disparaissait pour 0.
+	money += gain
+	say("Stock vendu : +%s%s" % [("%.1f" % gain).replace(".", ",").trim_suffix(",0"), "" if rate >= 1.0 else " (sans Marchand : taux réduit)"])
 	version += 1
 
 

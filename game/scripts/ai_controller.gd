@@ -266,9 +266,16 @@ func on_day_start() -> void:
 	if _sans_animal() and zoo_rect.size != Vector2i.ZERO and _walls_progress() >= 0.6:
 		var prix_animal := _prix_premier_animal()
 		a_garder = prix_animal * 1.1 if prix_animal != INF else 0.0
+	# Une mine construite : un collaborateur de plus à l'or rapporte bien plus que son salaire et que sa journée cédée
+	# (environ 9 or par jour, vendus le soir) ; ce revenu compte dans ce qu'il faut garder pour le premier animal.
+	var mineurs := 0
 	while k < attente.size():
 		var c: GameState.Card = attente[k]
-		if g.money - g.salary(c) >= (0.0 if g.workers.size() < BRAS_MINIMUM_SANS_ANIMAL else a_garder):
+		var revenu_or := _revenu_or_du_jour(c) if mineurs < _places_a_la_mine() else 0.0
+		if g.money - g.salary(c) + revenu_or >= (0.0 if g.workers.size() < BRAS_MINIMUM_SANS_ANIMAL else a_garder):
+			if revenu_or > 0.0:
+				mineurs += 1
+				a_garder = maxf(0.0, a_garder - revenu_or)
 			g.deploy(c)
 			attente.remove_at(k)
 		elif attente.size() - 1 > k and g.money + g.ceder_gain() >= g.salary(c):
@@ -283,6 +290,28 @@ func on_day_start() -> void:
 		if c.is_action() and c.action["id"] == "formation_express":
 			g.play_action(c)
 	think_clock = 0.0
+
+
+## Argent que rapportera l'or extrait aujourd'hui par cette carte (vendu le soir), à 60 % du rendement pour les trajets.
+func _revenu_or_du_jour(c: GameState.Card) -> float:
+	if not g.mine_built or c.traits.has("col_blanc") or not _or_voulu():
+		return 0.0
+	var par_minute := float(g.data["buildings"]["extraction"]["or"]) * g.efficiency(c, "extraire_or")
+	return par_minute * g.day_length / 60.0 * 0.6 * g.sell_price("or")
+
+
+## L'or est-il récolté pour être vendu ? Stratégies or, ou premier animal à payer sans en avoir les moyens.
+func _or_voulu() -> bool:
+	if strat["mine_prioritaire"] or strat["rush_or"]:
+		return true
+	if not _sans_animal():
+		return false
+	var prix := _prix_premier_animal()
+	return prix != INF and g.money < prix * 1.1
+
+
+func _places_a_la_mine() -> int:
+	return g.map.golds.filter(func(gold): return g.mine_ready(gold)).size() * 2
 
 
 ## Valeur d'une carte pour la journée : un aménageur passe en tête quand un enclos n'attend que lui.
@@ -375,26 +404,41 @@ func _floor_achats() -> float:
 
 ## Intérêt d'une carte d'action pour cette IA (0 : inutile pour l'instant).
 func _action_value(c: GameState.Card) -> float:
-	return _base_action_value(c) + float(strat.get("poids_cartes", {}).get(c.action["id"], 0.0))
+	# poids appris par l'étude (de -2 à 2) : en argent, ±10 au plus
+	return _base_action_value(c) + 5.0 * float(strat.get("poids_cartes", {}).get(c.action["id"], 0.0))
+
+
+## Gain estimé d'une carte d'action, en argent (comparé à son prix par _night_buy_action). Une journée de collaborateur
+## vaut JOURNEE_COLLABORATEUR : à peu près ce qu'il récolte ou construit dans la journée, revendu ou évité à l'achat.
+const JOURNEE_COLLABORATEUR := 12.0
 
 
 func _base_action_value(c: GameState.Card) -> float:
+	var salaires := g.all_employees().map(func(x): return float(g.salary(x)))
+	var salaire_moyen: float = salaires.reduce(func(a, b): return a + b, 0.0) / maxf(1.0, salaires.size())
+	var en_reserve := g.deck.size() + g.discard.size()
 	match c.action["id"]:
 		"heures_sup":
-			return 3.0
+			return 0.4 * g.hand_size() * JOURNEE_COLLABORATEUR
 		"portes_ouvertes":
-			return 3.0 if g.zoo_status()["open"] else 0.0
+			if not g.zoo_status()["open"]:
+				return 0.0
+			var Z: Dictionary = g.data["buildings"]["zoo"]
+			return 0.5 * g.attractiveness() * float(Z["visiteurs_par_point_attractivite"]) * float(Z["billet"])
 		"livraison":
-			return 2.0 if _walls_progress() < 1.0 or not plans.is_empty() else 0.5
+			var valeur := 30.0 * g.buy_price("bois") + 25.0 * g.buy_price("pierre")
+			return valeur if _walls_progress() < 1.0 or not plans.is_empty() else valeur * 0.3
 		"prime":
-			return 2.0
-		"recrutement", "formation_express":
-			return 1.0
+			return 4.0 * salaire_moyen + (JOURNEE_COLLABORATEUR - salaire_moyen if en_reserve >= 1 else 0.0)
+		"recrutement":
+			return 2.0 * (JOURNEE_COLLABORATEUR - salaire_moyen) if en_reserve >= 2 else 0.0
+		"formation_express":
+			return 1.5 * g.all_employees().size()
 		"promotion":
-			return 1.5
+			return 8.0
 		"licenciement":
 			var cards := g.all_employees()
-			return 1.5 if not g.animals.is_empty() and cards.size() > EQUIPE_MINIMALE and cards.any(func(c): return card_value(c) < 0.5) else 0.0
+			return 6.0 if not g.animals.is_empty() and cards.size() > EQUIPE_MINIMALE and cards.any(func(c): return card_value(c) < 0.5) else 0.0
 	return 0.0
 
 
@@ -1240,17 +1284,20 @@ func _night_buy_action() -> void:
 		var pick: GameState.Card = null
 		for c in mt.market_actions:
 			if g.action_error(c) == "" and g.money - g.action_price(c) >= _floor_achats() \
-				and (pick == null or _action_value(c) > _action_value(pick)):
+				and (pick == null or _action_value(c) - g.action_price(c) > _action_value(pick) - g.action_price(pick)):
 				pick = c
 		if pick and g.buy_action(pick):
 			mt.log.append("%s achète la carte %s." % [mt.names[g.index], pick.action["nom"]])
 		return
+	# Une carte rentable (gain estimé au-dessus de son prix) s'achète dès que la réserve le permet : avant, il fallait
+	# 20 d'argent en plus de la réserve, et Recrutement express, rentable presque toujours, était noté 1.
 	if g.action_cards().size() < 4 and zoo_rect.size != Vector2i.ZERO:
 		var best_a: GameState.Card = null
 		for c in mt.market_actions:
-			if g.action_error(c) != "" or g.money - g.action_price(c) < _floor_achats() + float(strat["reserve"]) + 20.0:
+			if g.action_error(c) != "" or g.money - g.action_price(c) < _floor_achats() + float(strat["reserve"]):
 				continue
-			if _action_value(c) > 0.0 and (best_a == null or _action_value(c) > _action_value(best_a)):
+			var net := _action_value(c) - g.action_price(c)
+			if net > 0.0 and (best_a == null or net > _action_value(best_a) - g.action_price(best_a)):
 				best_a = c
 		if best_a and g.buy_action(best_a):
 			mt.log.append("%s achète la carte %s." % [mt.names[g.index], best_a.action["nom"]])
@@ -2319,7 +2366,8 @@ func _wants() -> Array:
 		if mspot.x >= 0:
 			out.append(["batiment", g.building_def("mine"), mspot])
 	# 1 sexies. Route de la mine.
-	if strat["route_mine"] and g.mine_built and g.zoo_status()["open"]:
+	# Route de la mine : inutile quand un entrepôt est à côté de la mine (les mineurs y déposent sans passer par la route).
+	if strat["route_mine"] and g.mine_built and g.zoo_status()["open"] and not _depot_pres_de_la_mine():
 		var nr := 0
 		for t in _mine_road():
 			if nr >= 12:
@@ -2442,7 +2490,9 @@ func _wants_enclos(out: Array) -> void:
 				out.append(["batiment", g.building_def("enclos"), t])
 		var ring_left := _ring_left(p)
 		var decor: String = p["def"].get("decor", "")
-		if ring_left == 0 and decor != "" and not _has_decor(decor, p["interior"]):
+		# L'aménagement requis (rocher, grand arbre, bassin…) se pose avec les clôtures : avant, il attendait la dernière
+		# clôture et retardait l'arrivée de l'animal d'autant (relevé du 12/11, Aigle royal).
+		if decor != "" and not _has_decor(decor, p["interior"]):
 			var dt := _decor_tile(p["def"], p["interior"])
 			if dt.x >= 0:
 				out.append(["batiment", g.building_def(decor), dt])
@@ -2460,6 +2510,15 @@ func _camp_upgraded() -> bool:
 ## manque aux murs. Le tracé retenu est gardé tant qu'il reste constructible : recalculé à chaque réflexion, il changeait
 ## de diagonale et laissait des bouts de route parallèles (une « échelle » de 50 cases ou plus).
 const ROUTE_MINE_MAX := 16
+
+
+func _depot_pres_de_la_mine() -> bool:
+	for s in g.sites:
+		if s.def_id() == "mine":
+			for r in g.depots():
+				if r != g.map.camp and Vector2(r.get_center()).distance_to(Vector2(s.rect.get_center())) <= 6.0:
+					return true
+	return false
 
 
 func _mine_road() -> Array[Vector2i]:
@@ -3403,7 +3462,7 @@ func _atteignable(s: GameState.Site) -> bool:
 func _gather(w: GameState.Worker) -> void:
 	var needs := _needs()
 	var res := ""
-	if needs["or"] > g.stock["or"] or ((strat["mine_prioritaire"] or strat["rush_or"]) and g.mine_built):
+	if needs["or"] > g.stock["or"] or (_or_voulu() and g.mine_built):
 		for gold in g.map.golds:
 			# L'or finance le zoo, il ne le remplace pas : 2 mineurs tant que l'enceinte n'est pas finie.
 			var cap := 3 if strat["mine_prioritaire"] and _walls_progress() >= 1.0 else 2
@@ -3436,15 +3495,21 @@ func _gather(w: GameState.Worker) -> void:
 	var tiles: Array = resource_tiles.get(res, []).filter(func(t): return g.site_at(t) == null and not reserved.has(t) and g.map.extractible(t.x, t.y) == res)
 	if tiles.is_empty():
 		return
-	# La case la moins occupée parmi les plus proches du camp.
+	# Parmi les cases proches d'un dépôt, celle qui est aussi proche du collaborateur et peu occupée : un bâtisseur qui
+	# attend des matériaux près de l'enceinte récolte à côté au lieu de traverser la carte (relevé du 12/11, Fatou).
 	var best: Vector2i = tiles[0]
-	var best_n := 99
-	for t in tiles.slice(0, 10):
+	var best_s := INF
+	var depots := g.depots()
+	for t in tiles.slice(0, 30):
 		var n := g.workers.filter(func(o): return o.task.get("target") == t).size()
 		if w.card.metier["id"] == "formateur":
 			n = -n  # il récolte près des autres
-		if n < best_n:
-			best_n = n
+		var d_depot := INF
+		for r in depots:
+			d_depot = minf(d_depot, Vector2(r.get_center()).distance_to(Vector2(t)))
+		var score := d_depot + 0.5 * w.pos.distance_to(Vector2(t)) + 4.0 * n
+		if score < best_s:
+			best_s = score
 			best = t
 	g.order([w], best)
 
