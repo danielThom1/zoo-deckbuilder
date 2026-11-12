@@ -50,7 +50,8 @@ const DEFAULT_STRATEGY := {
 	"score_simple": false,  # ancienne évaluation des contrats (réputation / prix), pour comparer
 	"eclair": false,
 	"plan_jour": false,
-	"plafond_chantiers": false,  # bâtisseurs limités à ce qu'il faut pour finir les chantiers posés en 90 s (sans effet mesuré le 12/11, laissé à l'étude)  # les chantiers sont distribués en files aux bâtisseurs (priorité, puis le plus tôt arrivé) ; sans effet mesuré le 11/11, laissé à l'étude  # ouverture éclair : premier enclos bâti en même temps que les murs, ni mine ni camp avant l'ouverture
+	"plafond_chantiers": false,
+	"plancher_cession": false,  # garde moins d'argent : une carte cédée le matin paie un salaire (essai du 12/11)  # bâtisseurs limités à ce qu'il faut pour finir les chantiers posés en 90 s (sans effet mesuré le 12/11, laissé à l'étude)  # les chantiers sont distribués en files aux bâtisseurs (priorité, puis le plus tôt arrivé) ; sans effet mesuré le 11/11, laissé à l'étude  # ouverture éclair : premier enclos bâti en même temps que les murs, ni mine ni camp avant l'ouverture
 }
 
 const ZOO_SIZES := {"petit": Vector2i(12, 10), "moyen": Vector2i(16, 13), "grand": Vector2i(22, 16)}
@@ -561,6 +562,10 @@ func _cash_floor() -> float:
 	if g.food_due():
 		for a in g.animals:
 			food += g.food_cost(a.def)
+	# plancher_cession : une carte cédée le matin rapporte regles.carte_cedee (4) ; les salaires de la meilleure main
+	# n'ont pas besoin d'être tous mis de côté (réglage d'étude, essai du 12/11).
+	if strat["plancher_cession"]:
+		return maxf(4.0, _wage_floor() - float(g.data["workers"]["regles"]["carte_cedee"])) + food
 	return maxf(8.0, _wage_floor()) + food
 
 
@@ -2262,7 +2267,7 @@ func _wants() -> Array:
 			out.append(["batiment", g.building_def("maison"), spot])
 	# 1 bis. Entrepôt rentable : les récolteurs perdent trop de temps en allers-retours jusqu'au dépôt le plus proche.
 	var dspot := _depot_wanted()
-	if dspot.x < 0:
+	if dspot.x < 0 and not strat["rush_or"]:
 		dspot = _depot_anticipe()
 	if dspot.x >= 0:
 		out.append(["batiment", g.building_def("entrepot"), dspot])
@@ -2286,6 +2291,11 @@ func _wants() -> Array:
 	if strat["rush_or"]:
 		var rush := _rush_wants()
 		out.append_array(rush)
+		# Rush or : la mine d'abord, puis l'entrepôt anticipé s'il reste de quoi le payer (avant, il passait devant et
+		# prenait le bois et la pierre de départ : la mine attendait le jour 2).
+		var dspot_rush := _depot_anticipe() if _depot_wanted().x < 0 else Vector2i(-1, -1)
+		if dspot_rush.x >= 0:
+			out.append(["batiment", g.building_def("entrepot"), dspot_rush])
 		if not _rush_ready() and day < 6:
 			return out
 	if zoo_rect.size == Vector2i.ZERO:
@@ -2670,6 +2680,7 @@ func _depot_wanted() -> Vector2i:
 ## Gain estimé : distance moyenne aux 8 cases de bois et 5 cases de roche les plus proches, depuis le camp puis depuis le lieu.
 const DEPOT_GAIN_MIN := 5.0  # cases gagnées par aller simple, bois et pierre additionnés
 const DEPOT_RAYON := 26  # recherche autour du camp
+const DEPOT_ELOIGNEMENT := 0.4  # cases de gain perdues par case d'éloignement du camp au-delà de 8
 
 
 func _depot_anticipe() -> Vector2i:
@@ -2724,8 +2735,9 @@ func _chercher_depot_anticipe() -> Vector2i:
 			var gain := 0.0
 			for res in ["bois", "pierre"]:
 				gain += maxf(0.0, depuis_camp[res] - moyenne.call(o, res))
-			# Un peu plus loin du camp coûte le premier trajet des bâtisseurs : départage seulement.
-			gain -= Vector2(o).distance_to(Vector2(c)) * 0.05
+			# Chaque matin, tout le monde part du camp, et les chantiers sont près du parc : au-delà de 8 cases du camp,
+			# chaque case d'éloignement coûte (avant, 0,05 par case seulement : entrepôts posés à 13 cases et plus).
+			gain -= maxf(0.0, Vector2(o).distance_to(Vector2(c)) - 8.0) * DEPOT_ELOIGNEMENT
 			if gain > best_gain:
 				best_gain = gain
 				best = o

@@ -33,9 +33,19 @@ func _init() -> void:
 			for j in 2:
 				quatre[j] = {"nom": "Ouverture éclair", "eclair": true, "taille_zoo": str(a.get("taille", "petit")) if j == 0 else str(a.get("taille2", "petit"))}
 		# --plan : plan de journée pour tout le monde (désactivé par défaut)
-		# --mixte=reglage : les joueurs 0 et 2 jouent avec ce réglage à true, 1 et 3 avec la valeur par défaut (duel)
+		# --mixte=reglage : les joueurs 0 et 2 jouent avec ce réglage à true, 1 et 3 avec la valeur par défaut (duel) ; --impair : l'inverse
+		# --niveaux2=chemin : les joueurs 1 et 3 prennent les stratégies difficiles d'un autre ia_niveaux.json (duel)
+		if a.has("niveaux2"):
+			var autres: Array = JSON.parse_string(FileAccess.get_file_as_string(str(a["niveaux2"])))["niveaux"]["difficile"]["strategies"]
+			quatre[1] = autres[1 % autres.size()]
+			quatre[3] = autres[3 % autres.size()]
+			if a.has("inverse"):
+				quatre[0] = autres[0]
+				quatre[2] = autres[2 % autres.size()]
+				quatre[1] = strats[1 % strats.size()]
+				quatre[3] = strats[3 % strats.size()]
 		if a.has("mixte"):
-			for j in [0, 2]:
+			for j in ([1, 3] if a.has("impair") else [0, 2]):
 				quatre[j] = quatre[j].merged({str(a["mixte"]): true}, true)
 		if a.has("plafond"):
 			quatre = quatre.map(func(x): return x.merged({"plafond_chantiers": true}, true))

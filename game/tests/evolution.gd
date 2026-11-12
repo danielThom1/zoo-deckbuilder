@@ -28,7 +28,7 @@ const ECHECS_MAX := 3  # générations en erreur d'affilée avant de passer à l
 const ATTENTE_MAX_MS := 600000  # sans nouveau résultat pendant 10 min, les processus bloqués sont arrêtés
 const PART_FINALE := 0.1  # part des parties gardée pour la phase finale
 const EXPLORATION := 0.25  # part de choix au hasard (améliorations, cartes) pour que tout soit essayé
-const BOOLS := ["marche", "rush_or", "formation", "cartes", "spectacle", "affinite", "boutique", "mine", "specialisation", "fast_expand", "route_mine", "adaptatif", "agrandir", "meme_type", "intendance", "eclair", "plan_jour", "plafond_chantiers"]
+const BOOLS := ["marche", "rush_or", "formation", "cartes", "spectacle", "affinite", "boutique", "mine", "specialisation", "fast_expand", "route_mine", "adaptatif", "agrandir", "meme_type", "intendance", "eclair", "plan_jour", "plafond_chantiers", "plancher_cession"]
 const TYPES := ["herbivore", "predateur", "aquatique", "aerien"]
 const CONTINENTS := ["Afrique", "Amerique", "Asie", "Europe"]
 ## Ouverture éclair : petit parc agrandi ensuite, premier enclos en même temps que les murs.
@@ -287,7 +287,7 @@ func _random_genome() -> Dictionary:
 		var r: Array = NUMS[k]
 		g[k] = rng.randi_range(int(r[0]), int(r[1])) if r[2] else rng.randf_range(float(r[0]), float(r[1]))
 	for b in BOOLS:
-		g[b] = rng.randf() < (0.8 if b in ["boutique", "mine", "adaptatif", "agrandir", "intendance"] else (0.5 if b in ["plan_jour", "plafond_chantiers"] else (0.05 if b == "specialisation" else 0.2)))
+		g[b] = rng.randf() < (0.8 if b in ["boutique", "mine", "adaptatif", "agrandir", "intendance"] else (0.5 if b in ["plan_jour", "plafond_chantiers", "plancher_cession"] else (0.05 if b == "specialisation" else 0.2)))
 	g["type_cible"] = TYPES[rng.randi_range(0, TYPES.size() - 1)] if rng.randf() < 0.15 else ""
 	g["continent_cible"] = CONTINENTS[rng.randi_range(0, CONTINENTS.size() - 1)] if rng.randf() < 0.15 else ""
 	for f in POIDS:
@@ -647,6 +647,8 @@ func _completer(g: Dictionary) -> Dictionary:
 		g["plan_jour"] = false
 	if not g.has("plafond_chantiers"):
 		g["plafond_chantiers"] = false
+	if not g.has("plancher_cession"):
+		g["plancher_cession"] = false
 	var neuf := _random_genome()
 	for k in neuf:
 		if not g.has(k):
