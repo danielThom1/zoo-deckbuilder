@@ -1307,7 +1307,7 @@ func _work_traits(w: Worker, dt: float) -> void:
 		return
 	w.minute_clock -= 60.0
 	if w.card.traits.has("paresseux"):
-		w.pause_left = 25.0
+		w.pause_left = 15.0
 		say("%s fait une pause (%s)." % [w.card.nom, agree(w.card, "paresseux", "paresseuse")])
 	if w.card.traits.has("distrait") and rng.randf() < 0.4:
 		w.task = {}

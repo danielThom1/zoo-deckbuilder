@@ -217,7 +217,7 @@ static func _place_gold(map: GameMap, rng: RandomNumberGenerator) -> void:
 
 # --- Réserve naturelle : motifs garantis -----------------------------------------------------------------
 
-const RAYON_MOTIFS := 30.0  # les motifs sont cherchés, puis gravés, à cette distance du camp au plus
+const ECART_MOTIFS := 7.0  # distance minimale entre deux motifs gravés : ils se répartissent sur toute la carte
 
 
 ## Les 8 orientations d'un motif (même calcul que GameState.pattern_variants), cellules [x, y, terrain].
@@ -261,11 +261,11 @@ static func _case_libre(map: GameMap, x: int, y: int) -> bool:
 	return not map.start_zone.has_point(Vector2i(x, y)) and map.road[i] == 0 and map.tiles[i] != GameMap.MONTAGNE and map.tiles[i] != GameMap.MINE_OR
 
 
-static func _motif_present(map: GameMap, variantes: Array, c: Vector2) -> bool:
-	var r := int(RAYON_MOTIFS)
+## Le motif existe-t-il quelque part sur la carte (hors zone de départ, routes, or, montagnes) ?
+static func _motif_present(map: GameMap, variantes: Array, _c := Vector2.ZERO) -> bool:
 	for v in variantes:
-		for ay in range(int(c.y) - r, int(c.y) + 1):
-			for ax in range(int(c.x) - r, int(c.x) + r + 1):
+		for ay in map.h:
+			for ax in map.w:
 				var ok := true
 				for cell in v:
 					var x: int = ax + cell[0]
@@ -285,11 +285,13 @@ static func _nb_atteignables(map: GameMap) -> int:
 	return n
 
 
-## Grave le motif des espèces absentes, des plus grands aux plus petits, sans couper le reste de la carte du camp
+## Grave le motif des espèces absentes de toute la carte, des plus grands aux plus petits, à des endroits tirés au
+## hasard sur toute la carte et écartés les uns des autres (ECART_MOTIFS), sans couper le reste de la carte du camp
 ## (un motif d'eau qui isolerait une zone est annulé et tenté ailleurs).
 static func _graver_motifs(map: GameMap, rng: RandomNumberGenerator, especes: Array) -> void:
 	var c := Vector2(map.camp.get_center())
 	var graves := {}
+	var centres: Array[Vector2] = []
 	var liste := especes.duplicate()
 	liste.sort_custom(func(a, b): return a["motif"].size() > b["motif"].size() or (a["motif"].size() == b["motif"].size() and str(a["id"]) < str(b["id"])))
 	for def in liste:
@@ -302,11 +304,11 @@ static func _graver_motifs(map: GameMap, rng: RandomNumberGenerator, especes: Ar
 		for cell in v:
 			w = maxi(w, cell[0] + 1)
 			h = maxi(h, cell[1] + 1)
-		for essai in 600:
-			var ax := rng.randi_range(int(c.x - RAYON_MOTIFS), int(c.x + RAYON_MOTIFS) - w)
-			var ay := rng.randi_range(int(c.y - RAYON_MOTIFS), int(c.y) - h)
-			var d := Vector2(ax + w / 2.0, ay + h / 2.0).distance_to(c)
-			if d < 7.0 or d > RAYON_MOTIFS:
+		for essai in 800:
+			var ax := rng.randi_range(1, map.w - w - 1)
+			var ay := rng.randi_range(1, map.h - h - 1)
+			var centre := Vector2(ax + w / 2.0, ay + h / 2.0)
+			if centre.distance_to(c) < 7.0 or (essai < 600 and centres.any(func(o): return o.distance_to(centre) < ECART_MOTIFS)):
 				continue
 			var place := true
 			for y in range(ay - 1, ay + h + 1):
@@ -330,4 +332,5 @@ static func _graver_motifs(map: GameMap, rng: RandomNumberGenerator, especes: Ar
 			for y in range(ay - 1, ay + h + 1):
 				for x in range(ax - 1, ax + w + 1):
 					graves[Vector2i(x, y)] = true
+			centres.append(centre)
 			break

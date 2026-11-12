@@ -23,7 +23,7 @@ func _init() -> void:
 		for def in m.data["animals"]["animaux"]:
 			if not MapGenerator._motif_present(g.map, MapGenerator._variantes(def["motif"]), c):
 				manquants.append(def["id"])
-		_ok(manquants.is_empty(), "réserve %d : tous les motifs près du camp (manquants : %s), carte en %d ms" % [graine, str(manquants), Time.get_ticks_msec() - t0])
+		_ok(manquants.is_empty(), "réserve %d : tous les motifs sur la carte (manquants : %s), carte en %d ms" % [graine, str(manquants), Time.get_ticks_msec() - t0])
 		_ok(not m.data["workers"]["metiers"].any(func(x): return x["id"] in ["terrassier", "paysagiste"]), "réserve %d : ni Terrassier ni Paysagiste" % graine)
 		_ok(m.data["buildings"]["amenagements"].is_empty() and data["buildings"]["amenagements"].size() > 0, "réserve %d : aucun aménagement (données d'origine intactes)" % graine)
 		_ok(str(m.ais[0].strat["taille_zoo"]) == "grand", "réserve %d : IA en grand parc" % graine)

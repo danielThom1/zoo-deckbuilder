@@ -16,6 +16,8 @@ var depart := -1
 var triche_faite := false
 var empreintes_vues := 0
 var capture_compte := 0
+var voir_jour := -1
+var voir_etape := ""
 
 
 func _init(principal: Node) -> void:
@@ -106,7 +108,23 @@ func _journee(mt: Match, g: GameState) -> void:
 
 
 func _nuit(mt: Match, g: GameState) -> void:
+	# --mp-voir : pendant le tour d'un adversaire au marché, « Voir mon zoo » ; la vue doit rester ouverte pendant
+	# qu'il achète, jusqu'à notre tour (capture --mp-voir=fichier.png, avec affichage).
+	if m.args.has("mp-voir") and mt.market_stage():
+		if mt.current_buyer() != g.index and not m.night_peek and voir_jour != mt.day:
+			voir_jour = mt.day
+			voir_etape = "%s/%d" % [mt.night_stage, mt.current_buyer()]
+			m.night_peek = true
+			print("MP|voir|ouvert pendant le tour du joueur %d (%s)" % [mt.current_buyer(), mt.night_stage])
+		elif m.night_peek and voir_jour == mt.day and "%s/%d" % [mt.night_stage, mt.current_buyer()] != voir_etape:
+			print("MP|voir|toujours ouvert après le coup adverse : %s (vue %s, conseil masqué %s)" % [str(m.night_peek), str(m.night_return.visible), str(not m.night_root.visible)])
+			if str(m.args["mp-voir"]).ends_with(".png"):
+				get_viewport().get_texture().get_image().save_png(m.args["mp-voir"])
+			m.night_peek = false
+			voir_etape = ""
 	if mt.market_stage():
+		if m.night_peek:
+			return
 		if mt.current_buyer() == g.index:
 			if mt.night_stage == "contrats" and not mt.market_contracts.is_empty() and g.contract_error(mt.market_contracts[0]) == "":
 				m._cmd("buy_contract", [mt.market_contracts[0]])

@@ -87,7 +87,7 @@
   "traits_negatifs": [
     { "id": "lent",          "nom": "Lent", "nom_f": "Lente",          "effet": { "vitesse": 0.7 } },
     { "id": "maladroit",     "nom": "Maladroit", "nom_f": "Maladroite",     "effet": { "construire": 0.65 } },
-    { "id": "paresseux",     "nom": "Paresseux", "nom_f": "Paresseuse",     "effet": {}, "texte": "S'arrête 25 s toutes les 60 s de travail" },
+    { "id": "paresseux",     "nom": "Paresseux", "nom_f": "Paresseuse",     "effet": {}, "texte": "S'arrête 15 s toutes les 60 s de travail" },
     { "id": "gourmand",      "nom": "Gourmand", "nom_f": "Gourmande",      "effet": { "salaire": 2 } },
     { "id": "rabat_joie",    "nom": "Rabat-joie",    "effet": {}, "aura": { "rayon": 3, "bonus": -0.20 }, "texte": "−20 % de productivité aux autres collaborateurs dans un rayon de 3 cases" },
     { "id": "col_blanc",     "nom": "Col blanc",     "effet": {}, "categories": ["cadre"], "texte": "Refuse tout travail manuel" },

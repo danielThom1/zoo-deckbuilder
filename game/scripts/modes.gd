@@ -4,7 +4,7 @@ class_name ModesPartie
 ## la sauvegarde. Les données d'origine (GameData) ne sont jamais modifiées.
 ##   course : la partie habituelle (premier à l'objectif de réputation).
 ##   nature : réserve naturelle. Ni Terrassier ni Paysagiste, aucun aménagement de terrain ; la carte contient au
-##            moins une fois le motif de chaque espèce, près du camp ; enclos plus grands, IA en grand parc.
+##            moins une fois le motif de chaque espèce, réparti sur toute la carte ; enclos plus grands, IA en grand parc.
 ##   cozy   : gestion libre. Seul, sans fin ni course, plus d'argent au départ, pas de maladie ; carnet des visiteurs
 ##            chaque soir et naissances chez les animaux heureux.
 

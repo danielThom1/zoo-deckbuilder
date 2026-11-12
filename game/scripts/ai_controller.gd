@@ -3418,7 +3418,10 @@ func _gather(w: GameState.Worker) -> void:
 		res = "bois" if wb >= wp else "pierre"
 	# Pas de récolte sous un bâtiment (un ordre sur l'entrée poste l'ouvrier au guichet, zoo fermé compris) ni dans
 	# un enclos prévu (une forêt coupée n'est plus une forêt, et le motif de l'animal disparaît).
-	var tiles: Array = resource_tiles.get(res, []).filter(func(t): return g.site_at(t) == null and not reserved.has(t))
+	# Les cases sont indexées le matin : une forêt rasée ou une roche épuisée dans la journée n'a plus rien à récolter.
+	# Avant, elle restait la « moins occupée » (personne n'y travaille) : l'ouvrier y était envoyé, l'ordre ne donnait
+	# aucune tâche, et il restait inactif jusqu'au soir (relevé du 12/11, Emma au jour 4).
+	var tiles: Array = resource_tiles.get(res, []).filter(func(t): return g.site_at(t) == null and not reserved.has(t) and g.map.extractible(t.x, t.y) == res)
 	if tiles.is_empty():
 		return
 	# La case la moins occupée parmi les plus proches du camp.
