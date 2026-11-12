@@ -37,7 +37,7 @@ const TAILLES := ["petit", "moyen", "grand", "evolutif"]
 ## Plages des réglages numériques : [min, max, entier ?]
 const NUMS := {
 	"reserve": [0.0, 40.0, false], "preference_palier": [0.3, 3.0, false], "contrats_en_attente_max": [1, 4, true],
-	"lobbyistes_max": [0, 3, true], "maisons_max": [1, 8, true], "camp": [0, 2, true], "palier_min": [1, 2, true],
+	"lobbyistes_max": [0, 1, true], "maisons_max": [1, 8, true], "camp": [0, 2, true], "palier_min": [1, 2, true],
 }
 const POIDS := ["poids_metiers", "poids_traits", "poids_animaux", "poids_cartes", "poids_ameliorations"]
 const STRATEGIES := [

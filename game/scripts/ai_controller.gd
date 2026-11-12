@@ -57,6 +57,7 @@ const ZOO_SIZES := {"petit": Vector2i(12, 10), "moyen": Vector2i(16, 13), "grand
 
 const DIRS4: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 const THINK_EVERY := 2.0
+const LOBBY_MAX := 1  # collaborateurs (hors Lobbyistes) envoyés au lobbying par jour, au plus : l'étude du 12/11 en envoyait 3
 const REPARTIR_TOUTES_LES := 30.0
 const TRAVAIL_PAR_MATERIAU := 5.0  # ordre de grandeur : clôture 4 pour 1 pierre, entrée 90 pour 12 matériaux
 const ATTENTE_CHANTIER_MAX := 40.0
@@ -2830,7 +2831,7 @@ func _assign(w: GameState.Worker) -> void:
 		and (not g.campaign.is_empty() or not _campaign_wanted().is_empty()):
 		g.order([w], g.map.exit_tile)
 		return
-	if lobby_today < int(strat["lobbyistes_max"]) and not w.unpaid and g.money > _cash_floor() + float(strat["reserve"]) and not _reserve_amenagement(w):
+	if lobby_today < mini(int(strat["lobbyistes_max"]), LOBBY_MAX) and not w.unpaid and g.money > _cash_floor() + float(strat["reserve"]) and not _reserve_amenagement(w):
 		lobby_today += 1
 		g.order([w], g.map.exit_tile)
 		return
