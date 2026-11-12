@@ -1275,7 +1275,7 @@ func _rendre_journal() -> void:
 		journal_corps.add_child(sc)
 		cols.append(col)
 	# Classement
-	cols[0].add_child(_cond("RÉPUTATION · VICTOIRE À %d" % game.objective(), 16))
+	cols[0].add_child(_cond("RÉPUTATION" if mt.mode == "cozy" else "RÉPUTATION · VICTOIRE À %d" % game.objective(), 16))
 	var ordre := range(mt.players.size())
 	ordre.sort_custom(func(a, b): return mt.players[a].reputation() > mt.players[b].reputation())
 	for k in ordre.size():

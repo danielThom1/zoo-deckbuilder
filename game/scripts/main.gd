@@ -232,6 +232,8 @@ static var replay_demande: Replay = null  # replay à lancer après le rechargem
 var replay: Replay = null  # partie rejouée (vue spectateur)
 var replay_verifie := false
 static var relance_niveau := ""  # « Rejouer » garde le niveau des IA choisi
+static var relance_mode := ""  # … et le mode de partie
+static var relance_joueurs := ""
 
 
 func _ready() -> void:
@@ -254,6 +256,9 @@ func _ready() -> void:
 		args.erase("seed")
 		if relance_niveau != "" and mode != "menu":
 			args["niveau"] = relance_niveau
+		if relance_mode != "" and mode != "menu":
+			args["mode"] = relance_mode
+			args["joueurs"] = relance_joueurs
 		if mode == "menu":
 			_show_menu()
 		else:
@@ -315,7 +320,10 @@ func _show_menu() -> void:
 	menu.lancer.connect(func(watch: bool, graine: int, adversaires: int, niveau: String):
 		args["seed"] = str(graine)
 		args["niveau"] = niveau
-		args["joueurs"] = str(4 if watch else adversaires + 1)
+		args["mode"] = MenuPrincipal.mode_partie
+		MenuPrincipal.mode_partie = "course"
+		# gestion libre : seul, sans rivaux
+		args["joueurs"] = str(4 if watch else (1 if args["mode"] == "cozy" else adversaires + 1))
 		layer.queue_free()
 		_start(watch))
 
@@ -443,7 +451,7 @@ func _start(watch: bool) -> void:
 		mt = replay.creer_partie(GameData.load_all())
 		_avertir_replay()
 	else:
-		mt = charge if charge else Match.new(GameData.load_all(), map_seed, nb, -1 if spectator else local, strategies, autres_humains)
+		mt = charge if charge else Match.new(GameData.load_all(), map_seed, nb, -1 if spectator else local, strategies, autres_humains, str(args.get("mode", "course")))
 	mt.replay_possible = charge == null and reseau == null and not args.has("tutoriel") and not args.has("autoplay") and not args.has("autodraft")
 	if args.has("demo-fin"):
 		mt.replay_possible = true
@@ -692,6 +700,12 @@ func _update_occupation() -> void:
 		for t in a.tiles:
 			if game.site_at(t) == null and not a.park:
 				pass
+	# la pancarte des slogans : son coin de prairie reste nu (pas d'herbes hautes ni d'arbre devant)
+	var af := _lieu_affiche()
+	if af.x >= 0:
+		for dy in 2:
+			for dx in AFFICHE_CASES:
+				bati[af + Vector2i(dx, -dy)] = true
 	var pave := {}
 	for t in game.zoo_status()["interior"]:
 		pave[t] = true
@@ -1326,6 +1340,37 @@ func _draw_vitrine() -> void:
 
 
 ## Affiche d'entreprise près de la mairie : le slogan change chaque jour.
+## Pancarte des slogans : sur le terrain, au bord bas de la carte, sur le premier coin de prairie ou de sable libre
+## (AFFICHE_CASES cases sur 2) à gauche de la route d'Accès, puis à droite. (-1, -1) s'il n'y en a pas ou si un chantier l'occupe.
+const AFFICHE_CASES := 6
+var _affiche_lieu := Vector2i(-2, -2)
+
+
+func _lieu_affiche() -> Vector2i:
+	var m := game.map
+	if _affiche_lieu.x == -2:
+		_affiche_lieu = Vector2i(-1, -1)
+		var y := m.h - 1
+		for d in range(3, m.w):
+			for x0 in [m.exit_tile.x - d - AFFICHE_CASES + 1, m.exit_tile.x + d]:
+				if _affiche_lieu.x >= 0 or x0 < 0 or x0 + AFFICHE_CASES - 1 >= m.w:
+					continue
+				var libre := true
+				for dy in 2:
+					for dx in AFFICHE_CASES:
+						var t := Vector2i(x0 + dx, y - dy)
+						var ter := m.get_t(t.x, t.y)
+						if m.road[m.idx(t.x, t.y)] or m.in_camp(t.x, t.y) or not ter in [GameMap.PRAIRIE, GameMap.SABLE]:
+							libre = false
+				if libre:
+					_affiche_lieu = Vector2i(x0, y)
+	if _affiche_lieu.x >= 0:
+		for dx in AFFICHE_CASES:
+			if game.site_at(_affiche_lieu + Vector2i(dx, 0)) != null or game.site_at(_affiche_lieu + Vector2i(dx, -1)) != null:
+				return Vector2i(-1, -1)
+	return _affiche_lieu
+
+
 func _draw_affiche() -> void:
 	if spectator or mt.phase == "draft":
 		return
@@ -1336,7 +1381,10 @@ func _draw_affiche() -> void:
 	var l1 := " ".join(mots.slice(0, coupe))
 	var l2 := " ".join(mots.slice(coupe))
 	var large := maxf(font.get_string_size(l1, HORIZONTAL_ALIGNMENT_LEFT, -1, 6).x, font.get_string_size(l2, HORIZONTAL_ALIGNMENT_LEFT, -1, 6).x) + 10.0
-	var bas := (Vector2(game.map.exit_tile) + Vector2(0.0, 1.0)) * TILE + Vector2(-TILE * 2.5, TILE * 1.5)
+	var af := _lieu_affiche()
+	if af.x < 0:
+		return
+	var bas := (Vector2(af) + Vector2(AFFICHE_CASES / 2.0, 1.0)) * TILE - Vector2(large / 2.0, 1.0)
 	var panneau := Rect2(bas - Vector2(large, 24.0), Vector2(large, 18.0))
 	for x in [panneau.position.x + 5.0, panneau.end.x - 5.0]:
 		draw_line(Vector2(x, panneau.end.y), Vector2(x, bas.y), UiTokens.ENCRE, 2.0)
@@ -1555,7 +1603,11 @@ func _draw_animal(a: GameState.Animal, index: int, now: float) -> void:
 		var tex: bool = not esp.is_empty() and SpritesBD.existe(esp[0])
 		var big := int(a.def["taille"]) >= 7
 		var count := (1 if big else 2) + (1 if a.tiles.size() >= 24 else 0) if tex else mini(2 + a.tiles.size() / 12, 3)
+		# gestion libre : les petits déambulent aussi, plus petits (après les adultes)
+		var adultes := count
+		count += a.petits
 		for k in count:
+			var echelle := 1.0 if k < adultes else 0.55
 			var clock := now / 6.0 + k * 0.37 + index * 0.21
 			var slot := int(clock)
 			var f := smoothstep(0.55, 1.0, clock - slot)
@@ -1569,7 +1621,7 @@ func _draw_animal(a: GameState.Animal, index: int, now: float) -> void:
 				var bob := absf(sin(clock * TAU * 3.0)) * 0.8 if f > 0.0 and f < 1.0 else 0.0
 				var moving := f > 0.0 and f < 1.0
 				var frame := SpritesBD.image_animal(esp, int(now * 6.0) + k if moving else 0)
-				SpritesBD.dessiner(self, frame, pos + Vector2(0, TILE * 0.35 - bob), TILE * float(esp[1]) * 1.15, dir < 0.0)
+				SpritesBD.dessiner(self, frame, pos + Vector2(0, TILE * 0.35 - bob), TILE * float(esp[1]) * 1.15 * echelle, dir < 0.0)
 				continue
 			draw_set_transform(pos + Vector2(1, 2.5), 0.0, Vector2(1.5, 0.6))
 			draw_circle(Vector2.ZERO, 3.0, Color(0, 0, 0, 0.25))
@@ -1585,6 +1637,8 @@ func _draw_animal(a: GameState.Animal, index: int, now: float) -> void:
 		_draw_moon(center + Vector2(0, -14))
 		return
 	var txt: String = a.def["nom"]
+	if a.petits > 0:
+		txt += " et %s" % ("son petit" if a.petits == 1 else "ses %d petits" % a.petits)
 	if a.sick:
 		txt += " (malade !)"
 		_draw_pin(center + Vector2(9, -4), "ui_invalide", UiTokens.DEFAUT, 0.8)
@@ -3006,7 +3060,7 @@ func _build_ui() -> void:
 	st_c.content_margin_left = 12
 	st_c.content_margin_right = 12
 	course.add_theme_stylebox_override("panel", st_c)
-	var cl := Composants.label("COURSE À %d" % game.objective(), "")
+	var cl := Composants.label({"cozy": "GESTION LIBRE", "nature": "RÉSERVE · COURSE À %d" % game.objective()}.get(mt.mode, "COURSE À %d" % game.objective()), "")
 	cl.add_theme_font_override("font", UiTokens.police_titre())
 	cl.add_theme_font_size_override("font_size", 14)
 	cl.add_theme_color_override("font_color", UiTokens.ENCRE)
@@ -4430,6 +4484,8 @@ func _fiche_zoo(fiche: Array) -> void:
 		fiche.append(["ligne", "ressource_visiteurs", UiTokens.QUALITE, "Demande estimée", "≈ %d / jour" % roundi(z["demand_day"])])
 		fiche.append(["ligne", "metier_vendeur_souvenirs", UiTokens.SARCELLE, "Guichet", "%d / min" % roundi(z["guichet_min"])])
 		fiche.append(["bouton", "Pourquoi ce nombre de visiteurs ?", _open_visiteurs])
+		if not game.carnet.is_empty():
+			fiche.append(["bouton", "Livre d'or des visiteurs", _open_carnet])
 		fiche.append(["carte", "AUJOURD'HUI", "ressource_argent", UiTokens.RESSOURCES["argent"]["couleur"]])
 		fiche.append(["chiffres", [["%d" % z["admitted"], "entrés", "ui_valide", UiTokens.QUALITE], ["%d" % z["lost"], "repartis", "ui_invalide", UiTokens.ORANGE]]])
 		fiche.append(["ligne", "ressource_billetterie", UiTokens.RESSOURCES["argent"]["couleur"], "Billets", "%d" % z["tickets"]])
@@ -6030,6 +6086,35 @@ func _update_publicity() -> void:
 
 ## rows : [carte, texte du bouton, erreur ("" si possible), action]. En journée, la partie est en pause pendant le choix.
 ## Explique le nombre de visiteurs : d'où vient l'attractivité, la demande, puis ce qui la freine aujourd'hui.
+## Gestion libre : le livre d'or, les mots des visiteurs des derniers jours (GameState._ecrire_carnet).
+func _open_carnet() -> void:
+	var L: Array[String] = []
+	var jour := -1
+	for k in range(game.carnet.size() - 1, maxi(-1, game.carnet.size() - 25), -1):
+		var e: Dictionary = game.carnet[k]
+		if int(e["jour"]) != jour:
+			jour = int(e["jour"])
+			L.append("
+[b]Jour %d[/b]" % jour)
+		L.append("%s  « %s »
+	  [i]%s[/i]" % ["★".repeat(int(e["note"])) + "☆".repeat(5 - int(e["note"])), e["texte"], e["nom"]])
+	_open_picker("LIVRE D'OR DES VISITEURS", "", [])
+	var t := RichTextLabel.new()
+	t.bbcode_enabled = true
+	t.fit_content = true
+	t.scroll_active = false
+	t.custom_minimum_size = Vector2(580, 0)
+	t.add_theme_font_size_override("normal_font_size", 15)
+	t.add_theme_font_size_override("bold_font_size", 15)
+	t.add_theme_font_size_override("italics_font_size", 13)
+	t.add_theme_color_override("default_color", UiTokens.ENCRE)
+	t.text = "
+".join(L).strip_edges()
+	picker_box.add_child(t)
+	picker_box.move_child(t, picker_box.get_child_count() - 2)
+	picker_box.get_child(picker_box.get_child_count() - 1).text = "Fermer"
+
+
 func _open_visiteurs() -> void:
 	var z := game.zoo_live()
 	var Z: Dictionary = game.data["buildings"]["zoo"]
@@ -6429,6 +6514,8 @@ func _restart(mode: String) -> void:
 		Sauvegarde.ecrire_journee(mt)
 	relance = mode
 	relance_niveau = str(args.get("niveau", ""))
+	relance_mode = str(args.get("mode", ""))
+	relance_joueurs = str(mt.players.size()) if mt else ""
 	get_tree().reload_current_scene()
 
 

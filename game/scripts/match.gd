@@ -49,16 +49,18 @@ var pas := 0  # pas de temps joués depuis le début
 var pas_matin := 0  # pas et taille du journal au dernier matin : la journée en cours se rejoue depuis la sauvegarde
 var journal_matin := 0
 var params_replay := {}
+var mode := "course"  # course, nature ou cozy (ModesPartie)
 var replay_possible := true  # faux après une reprise de sauvegarde, au tutoriel et dans les captures
 var autosave := false  # partie d'un joueur humain : sauvegarde automatique chaque matin
 var history: Array = []  # statistiques par jour et par joueur (simulations)
 
 
 ## human = index du joueur humain, ou -1 pour une partie entièrement jouée par des IA.
-func _init(game_data: Dictionary, map_seed: int, nb_players := 4, human := 0, strategies: Array = [], autres_humains: Array = []) -> void:
-	data = game_data
+func _init(game_data: Dictionary, map_seed: int, nb_players := 4, human := 0, strategies: Array = [], autres_humains: Array = [], mode_partie := "course") -> void:
+	mode = mode_partie if mode_partie != "" else "course"
+	data = ModesPartie.appliquer(game_data, mode)
 	seed_value = map_seed
-	params_replay = {"graine": map_seed, "nb": nb_players, "humain": human, "strategies": strategies.duplicate(true), "autres": autres_humains.duplicate()}
+	params_replay = {"graine": map_seed, "nb": nb_players, "humain": human, "strategies": strategies.duplicate(true), "autres": autres_humains.duplicate(), "mode": mode}
 	rng.seed = map_seed ^ 0x5bd1e995
 	day_length = float(data["buildings"]["partie"]["duree_jour_s"])
 	for t in data["workers"]["traits_positifs"]:
@@ -74,7 +76,7 @@ func _init(game_data: Dictionary, map_seed: int, nb_players := 4, human := 0, st
 			ais.append(null)
 			names.append("Vous")
 		else:
-			var strat: Dictionary = strategies[i] if i < strategies.size() and strategies[i] != null else {}
+			var strat: Dictionary = ModesPartie.strategie(strategies[i] if i < strategies.size() and strategies[i] != null else {}, mode)
 			ais.append(AIController.new(self, players[i], strat))
 			ia_count += 1
 			names.append("IA %d" % ia_count if str(strat.get("nom", "")) == "" else "IA %d (%s)" % [ia_count, strat["nom"]])

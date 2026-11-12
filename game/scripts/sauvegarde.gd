@@ -65,7 +65,8 @@ static func ecrire(m: Match) -> void:
 			"sites": p.sites.map(func(s): return {"id": s.id, "kind": s.kind, "def": s.def, "rect": s.rect, "work": s.work, "done": s.done, "paid": s.paid, "savings": s.savings}),
 			"contracts": p.contracts, "pending": p.pending_installs, "day_bonus": p.day_bonus, "night_bonus": p.night_bonus,
 			"animals": p.animals.map(func(a): return {"def": a.def, "tiles": Array(a.tiles), "pattern": Array(a.pattern_tiles), "arrived": a.arrived, "fed": a.fed, "food": a.food,
-				"key": a.key, "park": a.park, "sick": a.sick, "heal": a.heal, "sick_nights": a.sick_nights, "starved": a.starved}),
+				"key": a.key, "park": a.park, "sick": a.sick, "heal": a.heal, "sick_nights": a.sick_nights, "starved": a.starved, "petits": a.petits}),
+			"carnet": p.carnet,
 			"objectifs_faits": p.objectifs_faits, "record_visiteurs": p.record_visiteurs, "presse_jours": p.presse_jours, "vus": p.vus,
 			"rep": p.rep_points, "labels": p.labels_owned, "sources": p.rep_sources, "proprete": p.proprete, "rng": p.rng.state, "embellissement": p.embellissement,
 			"decorations": p.decorations.map(func(d): return [d["t"].x, d["t"].y, d["id"]]),
@@ -76,7 +77,7 @@ static func ecrire(m: Match) -> void:
 			"shop_rect": ai.shop_rect, "plans": ai.plans, "reserved": ai.reserved, "fence_tiles": ai.fence_tiles,
 			"agrandissements": ai.agrandissements, "agrandis": ai.agrandis, "agrandi_jour": ai.agrandi_jour, "agrandir_refus": ai.agrandir_refus,
 			"roster_kiosque": ai.roster_kiosque, "epargne": ai.epargne, "agence_voulue": ai.agence_voulue, "cabinet_voulu": ai.cabinet_voulu})
-	var d := {"version": VERSION, "seed": m.seed_value, "joueurs": joueurs, "ias": ias, "match": {"objectifs": m.objectifs, "day": m.day, "next_card_id": m.next_card_id, "perso_bag": m.perso_bag,
+	var d := {"version": VERSION, "seed": m.seed_value, "mode": m.mode, "joueurs": joueurs, "ias": ias, "match": {"objectifs": m.objectifs, "day": m.day, "next_card_id": m.next_card_id, "perso_bag": m.perso_bag,
 		"names": Array(m.names), "market_workers": _cartes(m.market_workers), "market_contracts": m.market_contracts, "market_actions": _cartes(m.market_actions),
 		"current_event": m.current_event, "history": m.history, "rng": m.rng.state, "pas": m.pas}}
 	var f := FileAccess.open(CHEMIN, FileAccess.WRITE)
@@ -145,7 +146,7 @@ static func charger(data: Dictionary) -> Match:
 		return null
 	var human: int = d["ias"].find(null)
 	var strategies: Array = d["ias"].map(func(a): return null if a == null else a["strat"])
-	var m := Match.new(data, d["seed"], d["joueurs"].size(), human, strategies)
+	var m := Match.new(data, d["seed"], d["joueurs"].size(), human, strategies, [], str(d.get("mode", "course")))
 	var w: Dictionary = d["match"]
 	m.objectifs = w.get("objectifs", [])
 	m.day = w["day"]
@@ -213,6 +214,7 @@ static func charger(data: Dictionary) -> Match:
 			p.sites.append(s)
 			for t in p._tiles(s.rect):
 				p.occupancy[t] = s
+		p.carnet = j.get("carnet", [])
 		p.animals.clear()
 		for ad in j["animals"]:
 			var a := GameState.Animal.new()
@@ -228,6 +230,7 @@ static func charger(data: Dictionary) -> Match:
 			a.heal = ad["heal"]
 			a.sick_nights = ad["sick_nights"]
 			a.starved = ad["starved"]
+			a.petits = int(ad.get("petits", 0))
 			p.animals.append(a)
 		p.version += 1
 		var ia = d["ias"][i]

@@ -451,17 +451,7 @@ func _ajouts(x: int, y: int) -> void:
 				_poser(c, _choisir(r, {"taupiniere": 1.0}), base + j.call(0.35), r.randf_range(0.8, 1.0), r.randf() < 0.5)
 		elif r.randf() < 0.012:
 			_poser(c, _choisir(r, {"fourmiliere": 1.0}), base + j.call(0.25), 0.9)
-		# murets de pierres sèches le long de la rocaille
-		if _bloc(x, y, 4, 19) < 0.35:
-			if _voisin(x, y, Vector2i(0, -1), GameMap.ROCHE):
-				_poser(c, _choisir(r, {"muret_h": 1.0}), base + Vector2(0, -0.36), 0.85)
-			if _voisin(x, y, Vector2i(0, 1), GameMap.ROCHE):
-				_poser(c, _choisir(r, {"muret_h": 1.0}), base + Vector2(0, 0.46), 0.85)
-			if _voisin(x, y, Vector2i(-1, 0), GameMap.ROCHE):
-				_poser(c, _choisir(r, {"muret_v": 1.0}), base + Vector2(-0.42, 0.5), 0.85)
-			if _voisin(x, y, Vector2i(1, 0), GameMap.ROCHE):
-				_poser(c, _choisir(r, {"muret_v": 1.0}), base + Vector2(0.42, 0.5), 0.85)
-
+		# (murets de pierres sèches retirés le 12/11 : peu naturels le long de la rocaille)
 
 ## Axe travail : les arbres (ou rochers) d'une case tremblent sous les coups d'un collaborateur.
 func secouer(case_: Vector2i, force := 1.0) -> void:

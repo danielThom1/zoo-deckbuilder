@@ -34,6 +34,7 @@ const TERRAIN := {
 
 const PX := 8  # pixels par case dans l'image de fond
 
+static var mode_partie := "course"  # course, nature ou cozy (ModesPartie), lu par main au lancement
 static var iso_demande := false  # essai de la vue isométrique, lancé depuis le menu
 static var vue3d_demandee := false  # essai de la vue 3D, lancé depuis le menu
 var graine := 0
@@ -145,6 +146,12 @@ func _construire() -> void:
 	var sauvee := Sauvegarde.resume()
 	if not sauvee.is_empty():
 		ligne.call("Continuer", "Jour %d · %d joueurs" % [sauvee["jour"], sauvee["joueurs"]], func(): continuer.emit())
+	ligne.call("Réserve naturelle", "sans aménagement · vous + %d IA" % adversaires, func():
+		mode_partie = "nature"
+		lancer.emit(false, graine, adversaires, niveau))
+	ligne.call("Gestion libre", "seul, sans fin · livre d'or, naissances", func():
+		mode_partie = "cozy"
+		lancer.emit(false, graine, 0, niveau))
 	ligne.call("Multijoueur", "2 à 4 joueurs", func(): multijoueur.emit())
 	ligne.call("Tutoriel", "avec Hubert", func(): tutoriel.emit())
 	ligne.call("Règles et glossaire", "", func(): add_child(Aide.new(donnees)))

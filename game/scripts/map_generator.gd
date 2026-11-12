@@ -53,6 +53,9 @@ static func generate(b: Dictionary, map_seed: int) -> GameMap:
 	_connect_regions(map)
 	for i in int(carte.get("mines_or", 1)):
 		_place_gold(map, rng)
+	# Réserve naturelle (ModesPartie) : chaque motif d'espèce existe au moins une fois près du camp.
+	if carte.has("motifs_garantis"):
+		_graver_motifs(map, rng, carte["motifs_garantis"])
 	for y in h:
 		for x in w:
 			map.reset_resource(x, y)
@@ -210,3 +213,121 @@ static func _place_gold(map: GameMap, rng: RandomNumberGenerator) -> void:
 	var g: int = pool[rng.randi_range(0, pool.size() - 1)]
 	map.tiles[g] = GameMap.MINE_OR
 	map.golds.append(Vector2i(g % map.w, g / map.w))
+
+
+# --- Réserve naturelle : motifs garantis -----------------------------------------------------------------
+
+const RAYON_MOTIFS := 30.0  # les motifs sont cherchés, puis gravés, à cette distance du camp au plus
+
+
+## Les 8 orientations d'un motif (même calcul que GameState.pattern_variants), cellules [x, y, terrain].
+static func _variantes(motif: Array) -> Array:
+	var seen := {}
+	var out := []
+	for mirror in [false, true]:
+		for rot in 4:
+			var cells := []
+			for c in motif:
+				var x := int(c[0])
+				var y := int(c[1])
+				if mirror:
+					x = -x
+				for r in rot:
+					var tmp := x
+					x = -y
+					y = tmp
+				cells.append([x, y, GameMap.TERRAINS.find(str(c[2]))])
+			var mx := 999
+			var my := 999
+			for c in cells:
+				mx = mini(mx, c[0])
+				my = mini(my, c[1])
+			for c in cells:
+				c[0] -= mx
+				c[1] -= my
+			var key := str(cells)
+			if not seen.has(key):
+				seen[key] = true
+				out.append(cells)
+	return out
+
+
+## Case où un motif peut se trouver ou être gravé : dans la carte, hors de la zone de départ, des routes et des
+## gisements d'or, pas sur une montagne (les massifs restent intacts).
+static func _case_libre(map: GameMap, x: int, y: int) -> bool:
+	if x < 0 or y < 0 or x >= map.w or y >= map.h:
+		return false
+	var i := map.idx(x, y)
+	return not map.start_zone.has_point(Vector2i(x, y)) and map.road[i] == 0 and map.tiles[i] != GameMap.MONTAGNE and map.tiles[i] != GameMap.MINE_OR
+
+
+static func _motif_present(map: GameMap, variantes: Array, c: Vector2) -> bool:
+	var r := int(RAYON_MOTIFS)
+	for v in variantes:
+		for ay in range(int(c.y) - r, int(c.y) + 1):
+			for ax in range(int(c.x) - r, int(c.x) + r + 1):
+				var ok := true
+				for cell in v:
+					var x: int = ax + cell[0]
+					var y: int = ay + cell[1]
+					if not _case_libre(map, x, y) or map.tiles[map.idx(x, y)] != cell[2]:
+						ok = false
+						break
+				if ok:
+					return true
+	return false
+
+
+static func _nb_atteignables(map: GameMap) -> int:
+	var n := 0
+	for v in reachable(map):
+		n += v
+	return n
+
+
+## Grave le motif des espèces absentes, des plus grands aux plus petits, sans couper le reste de la carte du camp
+## (un motif d'eau qui isolerait une zone est annulé et tenté ailleurs).
+static func _graver_motifs(map: GameMap, rng: RandomNumberGenerator, especes: Array) -> void:
+	var c := Vector2(map.camp.get_center())
+	var graves := {}
+	var liste := especes.duplicate()
+	liste.sort_custom(func(a, b): return a["motif"].size() > b["motif"].size() or (a["motif"].size() == b["motif"].size() and str(a["id"]) < str(b["id"])))
+	for def in liste:
+		var variantes := _variantes(def["motif"])
+		if _motif_present(map, variantes, c):
+			continue
+		var v: Array = variantes[rng.randi() % variantes.size()]
+		var w := 0
+		var h := 0
+		for cell in v:
+			w = maxi(w, cell[0] + 1)
+			h = maxi(h, cell[1] + 1)
+		for essai in 600:
+			var ax := rng.randi_range(int(c.x - RAYON_MOTIFS), int(c.x + RAYON_MOTIFS) - w)
+			var ay := rng.randi_range(int(c.y - RAYON_MOTIFS), int(c.y) - h)
+			var d := Vector2(ax + w / 2.0, ay + h / 2.0).distance_to(c)
+			if d < 7.0 or d > RAYON_MOTIFS:
+				continue
+			var place := true
+			for y in range(ay - 1, ay + h + 1):
+				for x in range(ax - 1, ax + w + 1):
+					if not _case_libre(map, x, y) or graves.has(Vector2i(x, y)):
+						place = false
+			if not place:
+				continue
+			var avant := _nb_atteignables(map)
+			var anciens := {}
+			for cell in v:
+				var t := Vector2i(ax + cell[0], ay + cell[1])
+				anciens[t] = map.tiles[map.idx(t.x, t.y)]
+				map.set_t(t.x, t.y, cell[2])
+			var eau := v.filter(func(cell): return cell[2] == GameMap.EAU).size()
+			# Les cases d'eau gravées sortent du compte ; au-delà, une zone a été coupée du camp.
+			if _nb_atteignables(map) < avant - eau:
+				for t in anciens:
+					map.set_t(t.x, t.y, anciens[t])
+				continue
+			for y in range(ay - 1, ay + h + 1):
+				for x in range(ax - 1, ax + w + 1):
+					graves[Vector2i(x, y)] = true
+			break

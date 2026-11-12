@@ -82,6 +82,7 @@ class Animal:
 	var heal := 0.0  # soins reçus (points de travail du Soigneur)
 	var sick_nights := 0  # nuits passées malade : il guérit seul au bout de maladie.guerison_nuits
 	var starved := false  # a eu faim aujourd'hui (risque de maladie accru la nuit)
+	var petits := 0  # gestion libre : petits nés dans l'enclos (zoo.naissances), chacun ajoute une part de l'attractivité
 
 
 var mt: Match
@@ -1779,6 +1780,8 @@ func _end_day_player() -> void:
 			a.food = food_capacity(a.def)  # il arrive avec une journée de rations
 			arrivals.append(a.def["nom"])
 	var income := _close_zoo_day()  # les recettes ont été encaissées pendant la journée
+	_naissances()  # avant les maladies : elles remettent à zéro la faim de la journée
+	_ecrire_carnet(income)
 	var fallen_ill := _roll_diseases()
 	version += 1  # invalide le cache de l'enceinte (nouveaux animaux)
 	for w in workers:
@@ -3058,6 +3061,81 @@ func _roll_diseases() -> Array[String]:
 	return out
 
 
+## Gestion libre : un animal heureux (nourri toute la journée, en bonne santé, parc propre, zoo ouvert) peut avoir
+## un petit la nuit, jusqu'à zoo.naissances.max. Tirage sur le hasard de la partie : fidèle aux replays.
+func _naissances() -> void:
+	if not data["buildings"]["zoo"].has("naissances"):
+		return
+	var N: Dictionary = data["buildings"]["zoo"]["naissances"]
+	if not zoo_status()["open"] or proprete < float(N["proprete_min"]):
+		return
+	for a in animals:
+		if not a.arrived or a.sick or a.starved or not a.fed or a.petits >= int(N["max"]):
+			continue
+		if rng.randf() < float(N["proba"]):
+			a.petits += 1
+			carnet_naissances.append(a.def["nom"])
+			say("Naissance ! %s a eu un petit. Les visiteurs vont adorer." % a.def["nom"])
+
+
+## Gestion libre : le carnet des visiteurs. Chaque soir, quelques visiteurs écrivent un mot selon ce qu'ils ont vu.
+## Hasard à part (graine, jour, joueur) : le carnet ne change rien à la partie.
+var carnet: Array = []  # {jour, nom, texte, note (1 à 5)}, les plus récents à la fin
+var carnet_naissances: Array[String] = []  # naissances de la nuit, citées dans le carnet du lendemain
+const CARNET_MAX := 60
+const CARNET_NOMS := ["Léa, 8 ans", "M. et Mme Roux", "Karim", "Une maman pressée", "Jules", "Mamie Odette", "Inès et ses copines", "Thomas, prof de SVT",
+	"Un photographe amateur", "Nadia", "La classe de CM1 de Mme Petit", "Hugo, 5 ans et demi", "Un touriste japonais", "Paulette", "Samuel", "Chloé et Max",
+	"Un groupe de retraités", "Yanis", "Une famille de six", "Margot", "Un ornithologue", "Bastien", "Zoé (elle a tout dessiné)", "M. Lambert, sceptique"]
+
+
+func _ecrire_carnet(income: Dictionary) -> void:
+	if not data["buildings"]["partie"].get("carnet", false):
+		return
+	var r := RandomNumberGenerator.new()
+	r.seed = hash([seed_value, mt.day if mt else 0, index, "carnet"])
+	var vus: Array = animals.filter(func(a): return a.arrived)
+	var visiteurs := int(income.get("visitors", 0))
+	var mots: Array = []
+	if not zoo_status()["open"] or visiteurs <= 0:
+		if not vus.is_empty() or mt == null or mt.day % 2 == 0:
+			mots.append([3, "Passé devant la grille : c'était fermé. On reviendra quand ça ouvre !"])
+	else:
+		if not vus.is_empty():
+			var a: Animal = vus[r.randi() % vus.size()]
+			mots.append([5, ["Le %s, c'était le meilleur moment de la journée !", "On est restés une heure devant le %s.", "Mon fils ne parle plus que du %s.", "Le %s nous a regardés droit dans les yeux. Magique."][r.randi() % 4] % a.def["nom"].to_lower()])
+		for nom in carnet_naissances:
+			mots.append([5, "On a vu le bébé %s ! Trop mignon. Merci de nous avoir laissés le voir." % nom.to_lower()])
+		if proprete < 50.0:
+			mots.append([2, "Des papiers partout. Un coup de balai ne serait pas du luxe."])
+		elif proprete > 85.0 and r.randf() < 0.5:
+			mots.append([5, "Un parc impeccable, on voit que le personnel est aux petits soins."])
+		var affames := animals.filter(func(x): return x.arrived and not x.fed)
+		if not affames.is_empty():
+			mots.append([1, "Le %s avait l'air d'avoir faim… c'est normal ?" % affames[0].def["nom"].to_lower()])
+		if not has_building("snack") and r.randf() < 0.5:
+			mots.append([3, "Rien à manger sur place. On a fini nos sandwichs à 10 h."])
+		if has_building("kiosque") and r.randf() < 0.6:
+			mots.append([5, "Le spectacle du kiosque : les enfants ont adoré."])
+		if has_building("boutique") and r.randf() < 0.4:
+			mots.append([4, "Peluche achetée à la boutique. Elle dort déjà dans son lit."])
+		if decorations.size() >= 3 and r.randf() < 0.5:
+			mots.append([4, "Les fontaines et les massifs, c'est joli. On s'est posés sur un banc."])
+		if vus.size() <= 2 and r.randf() < 0.6:
+			mots.append([3, "Joli début, mais on a vite fait le tour. Vivement les prochains pensionnaires !"])
+		if vus.size() >= 6 and r.randf() < 0.5:
+			mots.append([5, "Une vraie journée en famille, on n'a pas tout vu. On revient !"])
+	carnet_naissances.clear()
+	for k in range(mots.size() - 1, 0, -1):  # mélange avec le hasard du carnet, pas celui de la partie
+		var j := r.randi_range(0, k)
+		var tmp = mots[k]
+		mots[k] = mots[j]
+		mots[j] = tmp
+	for m in mots.slice(0, 4):
+		carnet.append({"jour": mt.day if mt else 0, "nom": CARNET_NOMS[r.randi() % CARNET_NOMS.size()], "texte": m[1], "note": m[0]})
+	while carnet.size() > CARNET_MAX:
+		carnet.pop_front()
+
+
 func food_due() -> bool:
 	return zoo_status()["open"] and not visitor_path().is_empty()
 
@@ -3334,6 +3412,8 @@ func attractiveness(only = null) -> int:
 		if not a.arrived or not a.fed or a.sick:
 			continue
 		species[a.def["id"]] = a.def
+		if a.petits > 0 and Z.has("naissances"):
+			extra += roundi(float(a.def["reputation"]) * float(Z["naissances"]["part_attractivite"]) * a.petits)
 		if cared_today.has(a):
 			extra += int(Z["bonus_soigneur"])
 	var total := extra + (kiosque_bonus() + int(action_fx.get("attractivite", 0)) if not species.is_empty() else 0)

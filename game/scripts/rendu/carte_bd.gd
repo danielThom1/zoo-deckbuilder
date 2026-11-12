@@ -33,7 +33,7 @@ static var AXES := {
 	"sables": true,      # dunes à crêtes, sable caillouteux, laisse de rivage, galets et traces d'animaux
 	"eaux": true,        # mares vertes et lacs clairs, courant dans les bras étroits, roseaux en touffes, rochers émergés
 	"massifs": true,     # familles de pics par massif (aiguilles, dômes), mousse au nord, cascades, grottes
-	"prairies": true,    # herbes hautes par zones, trèfles et pâquerettes, taupinières, prairie fauchée au camp, murets
+	"prairies": true,    # herbes hautes par zones, trèfles et pâquerettes, taupinières, prairie fauchée au camp
 	"forets": true,      # bosquets de bouleaux, conifères près des massifs, troncs couchés, champignons, clairières
 	"visiteurs": true,   # visiteurs redessinés : petits personnages à l'encre, discrets
 	"mines_or": true,    # gisement d'or dessiné (schiste, veines d'or, pépites, pioche, éclats) : plus d'icône
