@@ -30,7 +30,8 @@ func actif() -> bool:
 
 
 ## Une requête JSON ; renvoie {"code", "corps"} (corps lu en JSON, ou null).
-func _requete(chemin: String, corps: Variant, jeton := "") -> Dictionary:
+func _requete(chemin: String, corps: Variant, jeton := "", essai := 0) -> Dictionary:
+	await get_tree().process_frame  # une image longue (calcul bloquant) déclencherait le délai d'attente d'emblée
 	var h := HTTPRequest.new()
 	h.timeout = DELAI
 	add_child(h)
@@ -43,6 +44,10 @@ func _requete(chemin: String, corps: Variant, jeton := "") -> Dictionary:
 		return {"code": 0, "corps": null}
 	var r: Array = await h.request_completed
 	h.queue_free()
+	if int(r[0]) == HTTPRequest.RESULT_TIMEOUT and essai == 0:
+		return await _requete(chemin, corps, jeton, 1)
+	if int(r[0]) != HTTPRequest.RESULT_SUCCESS:
+		push_warning("Classement : requête %s échouée (résultat %d)" % [chemin, int(r[0])])
 	var texte := (r[3] as PackedByteArray).get_string_from_utf8()
 	return {"code": int(r[1]) if int(r[0]) == HTTPRequest.RESULT_SUCCESS else 0, "corps": JSON.parse_string(texte) if texte != "" else null}
 
