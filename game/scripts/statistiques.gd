@@ -290,7 +290,7 @@ func _defis(v: VBoxContainer) -> void:
 	for d in Defis.liste():
 		var s: Dictionary = donnees["defis"].get(d["id"], {})
 		lignes.append([d["nom"], Defis.libelle_mode(d["mode"]), int(s.get("parties", 0)),
-			roundi(float(s["meilleur"])) if not s.is_empty() else "—", "classement en ligne à venir"])
+			roundi(float(s["meilleur"])) if not s.is_empty() else "—", "voir la fenêtre Défis"])
 	_tableau(v, ["DÉFI", "MODE", "PARTIES", "MEILLEUR SCORE", "CLASSEMENT"], lignes, [260, 170, 80, 130, 240])
 
 

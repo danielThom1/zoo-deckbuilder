@@ -47,6 +47,67 @@ static func depuis_partie(mt: Match, joueur: int) -> Replay:
 	return r
 
 
+## Replay d'une partie en dictionnaire JSON (envoyé avec un score de défi) ; depuis_dict fait l'inverse.
+static func vers_dict(r: Replay) -> Dictionary:
+	return {"graine": r.graine, "nb": r.nb, "humain": r.humain, "autres": r.autres, "strategies": r.strategies, "mode": r.mode,
+		"defi": r.defi, "noms": r.noms, "journal": _vers_json(r.journal), "voir": r.voir, "empreinte": str(r.empreinte), "version": Reseau.version_jeu()}
+
+
+static func depuis_dict(d: Dictionary) -> Replay:
+	var r := Replay.new()
+	r.graine = int(d["graine"])
+	r.nb = int(d["nb"])
+	r.humain = int(d["humain"])
+	r.autres = d["autres"]
+	r.strategies = d["strategies"]
+	r.mode = str(d.get("mode", "course"))
+	r.defi = str(d.get("defi", ""))
+	r.noms = d.get("noms", [])
+	r.journal = _depuis_json(d["journal"])
+	r.voir = int(d.get("voir", 0))
+	r.empreinte = int(str(d.get("empreinte", "0")))  # en texte : un entier de 64 bits ne survit pas au JSON
+	r.version = str(d.get("version", ""))
+	return r
+
+
+## Le JSON ne connaît ni les cases (Vector2i) ni les entiers : les cases sont notées {"_v": [x, y]}, un décimal rond
+## {"_r": x}, et les autres nombres ronds relus redeviennent des entiers (un ordre attend parfois un int).
+static func _vers_json(v: Variant) -> Variant:
+	if v is float and v == floorf(v):
+		return {"_r": v}
+	if v is Vector2i:
+		return {"_v": [v.x, v.y]}
+	if v is Vector2:
+		return {"_f": [v.x, v.y]}
+	if v is Array:
+		return v.map(func(x): return _vers_json(x))
+	if v is Dictionary:
+		var d := {}
+		for k in v:
+			d[k] = _vers_json(v[k])
+		return d
+	return v
+
+
+static func _depuis_json(v: Variant) -> Variant:
+	if v is float and v == floorf(v) and absf(v) < 1e15:
+		return int(v)
+	if v is Array:
+		return v.map(func(x): return _depuis_json(x))
+	if v is Dictionary:
+		if v.has("_v") and v.size() == 1:
+			return Vector2i(int(v["_v"][0]), int(v["_v"][1]))
+		if v.has("_r") and v.size() == 1:
+			return float(v["_r"])
+		if v.has("_f") and v.size() == 1:
+			return Vector2(float(v["_f"][0]), float(v["_f"][1]))
+		var d := {}
+		for k in v:
+			d[k] = _depuis_json(v[k])
+		return d
+	return v
+
+
 static func chemin_etude() -> String:
 	return ProjectSettings.globalize_path("res://").path_join(FICHIER_ETUDE)
 

@@ -317,6 +317,10 @@ func _show_menu() -> void:
 		menu.ouvrir_defis()
 	if Statistiques.pseudo() == "" and not args.has("shot"):
 		menu.add_child(FenetrePseudo.new())
+	menu.revoir_defi.connect(func(d: Dictionary):
+		replay = Replay.depuis_dict(d)
+		layer.queue_free()
+		_start(true))
 	menu.defi.connect(func(id: String):
 		args.erase("seed")
 		args["defi"] = id
@@ -2789,6 +2793,23 @@ func _avertir_replay() -> void:
 
 
 ## Fin de partie : revoir toute la partie d'un rival, depuis le premier jour.
+## Fin d'un défi : le score part au classement en ligne avec le replay ; le rang s'affiche sur le rapport de fin.
+func _envoyer_score() -> void:
+	var c := Classement.new()
+	add_child(c)
+	if not c.actif():
+		c.queue_free()
+		return
+	bilan_fin["en_ligne"] = "Envoi du score au classement…"
+	if end_root:
+		end_root.rafraichir()
+	var r: Dictionary = await c.soumettre(mt, game.index)
+	bilan_fin["en_ligne"] = ("Classement en ligne : " + Classement.texte_rang(r) + ".") if not r.is_empty() else c.erreur
+	c.queue_free()
+	if end_root:
+		end_root.rafraichir()
+
+
 func _voir_replay(i: int) -> void:
 	replay_demande = replay if replay else Replay.depuis_partie(mt, i)
 	replay_demande.voir = i
@@ -5167,6 +5188,8 @@ func _update_hud() -> void:
 		# Statistiques du joueur (pas pour un replay, le tutoriel, les IA entre elles ni les captures)
 		if not spectator and replay == null and not args.has("tutoriel") and not args.has("shot"):
 			bilan_fin = Statistiques.enregistrer(mt, game.index)
+			if mt.defi != "" and Statistiques.pseudo() != "":
+				_envoyer_score.call_deferred()
 		if hubert:
 			hubert.taire()
 			hubert.grande_en_bas = true

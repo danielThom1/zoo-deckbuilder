@@ -162,6 +162,8 @@ func _entete(gagne: bool, spectateur: bool) -> Control:
 		elif not b.is_empty():
 			ligne += " Votre record : %d." % roundi(float(b["ancien"]))
 		t.add_child(_replie(_corps(ligne, 15, 700, UiTokens.SARCELLE_FONCE)))
+	if m.bilan_fin.has("en_ligne"):
+		t.add_child(_replie(_corps(str(m.bilan_fin["en_ligne"]), 14, 600, UiTokens.SARCELLE_FONCE)))
 	if not m.bilan_fin.get("succes", []).is_empty():
 		t.add_child(_replie(_corps("Succès débloqué : %s." % ", ".join(m.bilan_fin["succes"]), 14, 600, UiTokens.SARCELLE_FONCE)))
 	h.add_child(t)

@@ -42,7 +42,7 @@ func _humain_du_matin(mt: Match) -> void:
 
 
 func _partie_avec_humain(graine: int) -> void:
-	var strat := [null, {"camp": 1}, {"rush_or": true}, {"camp": 2}]
+	var strat: Array = JSON.parse_string(JSON.stringify([null, {"camp": 1}, {"rush_or": true}, {"camp": 2}]))  # comme lues d'un fichier
 	var mt := Match.new(data, graine, 4, 0, strat)
 	while not mt.game_over:
 		match mt.phase:
@@ -89,7 +89,8 @@ func _partie_avec_humain(graine: int) -> void:
 					mt.noter("pas_ia")
 					mt.step_night()
 	print("  partie jouée : jour %d, %d ordres au journal, réputations %s" % [mt.day, mt.journal.size(), str(mt.players.map(func(p): return int(p.rep_points)))])
-	var r := Replay.depuis_partie(mt, 1)
+	# Passé par le JSON, comme le replay envoyé avec un score de défi
+	var r := Replay.depuis_dict(JSON.parse_string(JSON.stringify(Replay.vers_dict(Replay.depuis_partie(mt, 1)))))
 	var m2 := r.creer_partie(GameData.load_all())
 	var garde := 0
 	while not m2.game_over and garde < 2000000:

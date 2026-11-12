@@ -6,6 +6,7 @@ extends Control
 
 signal lancer(spectateur: bool, graine: int, adversaires: int, niveau: String)
 signal defi(id: String)  # un défi choisi dans FenetreDefis
+signal revoir_defi(replay: Dictionary)  # replay du vainqueur de la semaine passée
 signal continuer
 signal tutoriel
 signal multijoueur
@@ -246,6 +247,7 @@ func _construire() -> void:
 func ouvrir_defis() -> void:
 	var f := FenetreDefis.new()
 	f.jouer.connect(func(id: String): defi.emit(id))
+	f.revoir.connect(func(r: Dictionary): revoir_defi.emit(r))
 	add_child(f)
 
 
