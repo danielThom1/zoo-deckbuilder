@@ -312,7 +312,7 @@ func _show_menu() -> void:
 	if args.has("reglages"):
 		menu.add_child(Reglages.new())
 	if args.has("statistiques"):
-		menu.add_child(Statistiques.new())
+		menu.ouvrir_statistiques()
 	if args.has("defis"):
 		menu.ouvrir_defis()
 	if Statistiques.pseudo() == "" and not args.has("shot"):
