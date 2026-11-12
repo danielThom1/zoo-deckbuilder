@@ -24,6 +24,7 @@ var empreinte := 0  # état final attendu (journal)
 var attendu := {}  # étude : gagnant, jour et réputation attendus
 var version := ""
 var mode := "course"
+var defi := ""
 var prochain := 0
 var diverge := false
 
@@ -38,6 +39,7 @@ static func depuis_partie(mt: Match, joueur: int) -> Replay:
 	r.autres = P["autres"]
 	r.strategies = P["strategies"]
 	r.mode = str(P.get("mode", "course"))
+	r.defi = str(P.get("defi", ""))
 	r.noms = mt.names.duplicate()
 	r.journal = mt.journal
 	r.voir = joueur
@@ -94,7 +96,7 @@ static func lire_etude(chemin := "") -> Replay:
 func creer_partie(data: Dictionary) -> Match:
 	prochain = 0
 	diverge = false
-	var mt := Match.new(data, graine, nb, humain, strategies.duplicate(true), autres, mode)
+	var mt := Match.new(data, graine, nb, humain, strategies.duplicate(true), autres, mode, defi)
 	if not noms.is_empty():
 		mt.names.assign(noms)
 	return mt

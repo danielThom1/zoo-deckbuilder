@@ -241,8 +241,8 @@ func _init() -> void:
 	check(gk.buy_contract(zebre) and gk.contracts.has(zebre), "contrat Zèbre acheté")
 	var second: Dictionary = gk.market_contracts[0]
 	var base_price := int(second["cout"].get("argent", 0))
-	var expected := roundi(base_price * (1.0 + 0.15 * 1) * 1.5)
-	check(absi(int(gk.contract_cost(second).get("argent", 0)) - expected) <= 1, "2e contrat : prix x1,15 (1 animal) x1,5 (2e de la nuit) = %d (base %d)" % [expected, base_price])
+	var expected := roundi(base_price * (1.0 + 0.15 * 1) * 1.5 * (1.0 - gk.remise_relance()))
+	check(absi(int(gk.contract_cost(second).get("argent", 0)) - expected) <= 1, "2e contrat : prix x1,15 (1 animal) x1,5 (2e de la nuit) = %d (base %d, obtenu %d, %s, relance %.2f)" % [expected, base_price, int(gk.contract_cost(second).get("argent", 0)), second["id"], gk.remise_relance()])
 	check(gk.contract_error(second) != "", "un seul contrat par tour : le tour est passé")
 	check(gk.mt.night_taken.filter(func(t): return t["joueur"] == gk.index).size() == 1, "achats de la nuit visibles de tous")
 	gk.contracts.erase(second)

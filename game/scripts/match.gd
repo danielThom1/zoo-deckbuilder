@@ -7,6 +7,15 @@ var data: Dictionary
 var perso_bag: Array = []  # personnages pas encore tirés (data/personnages.json), remélangés une fois tous sortis
 var seed_value := 0
 var rng := RandomNumberGenerator.new()
+# Tirages séparés (12/11) : à graine égale, le marché propose les mêmes collaborateurs, cartes et espèces dans le même
+# ordre, quoi que fassent les joueurs (mode défi). Les files sont tirées une fois pour toutes au début de la partie.
+var rng_marche := RandomNumberGenerator.new()  # carte retirée de chaque rangée au renouvellement
+var file_ouvriers: Array = []  # collaborateurs à venir au marché, dans l'ordre
+var i_ouvriers := 0
+var file_actions: Array = []  # cartes d'action à venir (définitions)
+var i_actions := 0
+var file_contrats: Array = []  # espèces pas encore sorties au marché, dans l'ordre de sortie
+const TAILLE_FILES := 160
 var players: Array[GameState] = []
 var ais: Array = []  # AIController, ou null pour le joueur humain
 var names: Array[String] = []
@@ -50,18 +59,23 @@ var pas_matin := 0  # pas et taille du journal au dernier matin : la journée en
 var journal_matin := 0
 var params_replay := {}
 var mode := "course"  # course, nature ou cozy (ModesPartie)
+var defi := ""  # identifiant du défi joué (Defis), vide sinon
 var replay_possible := true  # faux après une reprise de sauvegarde, au tutoriel et dans les captures
 var autosave := false  # partie d'un joueur humain : sauvegarde automatique chaque matin
 var history: Array = []  # statistiques par jour et par joueur (simulations)
 
 
 ## human = index du joueur humain, ou -1 pour une partie entièrement jouée par des IA.
-func _init(game_data: Dictionary, map_seed: int, nb_players := 4, human := 0, strategies: Array = [], autres_humains: Array = [], mode_partie := "course") -> void:
+func _init(game_data: Dictionary, map_seed: int, nb_players := 4, human := 0, strategies: Array = [], autres_humains: Array = [], mode_partie := "course", defi_id := "") -> void:
 	mode = mode_partie if mode_partie != "" else "course"
+	defi = defi_id
 	data = ModesPartie.appliquer(game_data, mode)
+	if defi != "":
+		data = Defis.appliquer(data)
 	seed_value = map_seed
-	params_replay = {"graine": map_seed, "nb": nb_players, "humain": human, "strategies": strategies.duplicate(true), "autres": autres_humains.duplicate(), "mode": mode}
+	params_replay = {"graine": map_seed, "nb": nb_players, "humain": human, "strategies": strategies.duplicate(true), "autres": autres_humains.duplicate(), "mode": mode, "defi": defi}
 	rng.seed = map_seed ^ 0x5bd1e995
+	rng_marche.seed = hash([map_seed, "marche"])
 	day_length = float(data["buildings"]["partie"]["duree_jour_s"])
 	for t in data["workers"]["traits_positifs"]:
 		positive_ids[t["id"]] = true
@@ -83,6 +97,7 @@ func _init(game_data: Dictionary, map_seed: int, nb_players := 4, human := 0, st
 	# Objectifs tirés avant le draft : on peut les lire, avec la carte, avant de choisir ses collaborateurs.
 	_tirer_objectifs()
 	_setup_draft()
+	_tirer_files()
 
 
 ## Note un ordre ou une décision pour le replay, avant de l'exécuter.
@@ -105,20 +120,21 @@ func objective() -> int:
 
 # --- Hasard et cartes --------------------------------------------------------
 
-func pick(list: Array) -> Variant:
-	return list[rng.randi_range(0, list.size() - 1)]
+func pick(list: Array, r: RandomNumberGenerator = null) -> Variant:
+	return list[(r if r else rng).randi_range(0, list.size() - 1)]
 
 
-func shuffle(a: Array) -> void:
+func shuffle(a: Array, r: RandomNumberGenerator = null) -> void:
+	var g := r if r else rng
 	for i in range(a.size() - 1, 0, -1):
-		var j := rng.randi_range(0, i)
+		var j := g.randi_range(0, i)
 		var tmp = a[i]
 		a[i] = a[j]
 		a[j] = tmp
 
 
-func pick_weighted(dist: Dictionary) -> String:
-	var r := rng.randf()
+func pick_weighted(dist: Dictionary, g: RandomNumberGenerator = null) -> String:
+	var r := (g if g else rng).randf()
 	for k in dist:
 		r -= float(dist[k])
 		if r < 0.0:
@@ -132,34 +148,35 @@ func is_positive(trait_id: String) -> bool:
 
 ## `faiblesse` (0 à 1, premiers tours du draft) : un défaut de plus et une qualité de moins, avec les
 ## probabilités de generation_draft > defauts_debut multipliées par elle.
-func make_card(categorie: String, faiblesse := 0.0) -> GameState.Card:
+func make_card(categorie: String, faiblesse := 0.0, r: RandomNumberGenerator = null) -> GameState.Card:
+	var g := r if r else rng
 	var W: Dictionary = data["workers"]
 	var card := GameState.Card.new()
 	card.id = next_card_id
 	next_card_id += 1
-	var perso := _next_perso()
+	var perso := _next_perso(g)
 	card.nom = perso["nom"]
 	card.perso = perso["id"]
-	card.metier = pick(W["metiers"].filter(func(m): return m["categorie"] == categorie))
+	card.metier = pick(W["metiers"].filter(func(m): return m["categorie"] == categorie), g)
 	var gen: Dictionary = W["generation_traits"]
-	var n_pos := int(pick_weighted(gen["nb_positifs"]))
-	var n_neg := int(pick_weighted(gen["nb_negatifs"]))
+	var n_pos := int(pick_weighted(gen["nb_positifs"], g))
+	var n_neg := int(pick_weighted(gen["nb_negatifs"], g))
 	if faiblesse > 0.0:
 		var D: Dictionary = W["generation_draft"].get("defauts_debut", {})
-		if rng.randf() < faiblesse * float(D.get("negatif_en_plus", 0.0)):
+		if g.randf() < faiblesse * float(D.get("negatif_en_plus", 0.0)):
 			n_neg += 1
-		if n_pos > 0 and rng.randf() < faiblesse * float(D.get("positif_en_moins", 0.0)):
+		if n_pos > 0 and g.randf() < faiblesse * float(D.get("positif_en_moins", 0.0)):
 			n_pos -= 1
-	_draw_traits(card, W["traits_positifs"], n_pos, gen["exclusions"])
-	_draw_traits(card, W["traits_negatifs"], n_neg, gen["exclusions"])
+	_draw_traits(card, W["traits_positifs"], n_pos, gen["exclusions"], g)
+	_draw_traits(card, W["traits_negatifs"], n_neg, gen["exclusions"], g)
 	return card
 
 
 ## Personnage d'une nouvelle carte : tous sortent une fois avant qu'un même visage revienne.
-func _next_perso() -> Dictionary:
+func _next_perso(g: RandomNumberGenerator = null) -> Dictionary:
 	if perso_bag.is_empty():
 		perso_bag = data["personnages"]["personnages"].duplicate()
-		shuffle(perso_bag)
+		shuffle(perso_bag, g)
 	return perso_bag.pop_back()
 
 
@@ -174,14 +191,14 @@ func make_action(def: Dictionary) -> GameState.Card:
 
 
 ## Tire des traits en respectant les exclusions et les catégories autorisées (Col blanc : cadres uniquement).
-func _draw_traits(card: GameState.Card, pool: Array, count: int, exclusions: Array) -> void:
+func _draw_traits(card: GameState.Card, pool: Array, count: int, exclusions: Array, g: RandomNumberGenerator = null) -> void:
 	var cat: String = card.metier["categorie"]
 	for i in count:
 		var options: Array = pool.filter(func(t):
 			return not card.traits.has(t["id"]) and not _excluded(t["id"], card.traits, exclusions) \
 				and (not t.has("categories") or t["categories"].has(cat)))
 		if not options.is_empty():
-			card.traits.append(pick(options)["id"])
+			card.traits.append(pick(options, g)["id"])
 
 
 func _excluded(id: String, chosen: Array[String], exclusions: Array) -> bool:
@@ -189,6 +206,42 @@ func _excluded(id: String, chosen: Array[String], exclusions: Array) -> bool:
 		if (pair[0] == id and chosen.has(pair[1])) or (pair[1] == id and chosen.has(pair[0])):
 			return true
 	return false
+
+
+## Files du marché, tirées après la réserve du draft avec leur propre flux : la n-ième carte qui sort au marché est la
+## même dans toutes les parties de même graine (et de même mode), quels que soient les achats.
+func _tirer_files() -> void:
+	var g := RandomNumberGenerator.new()
+	g.seed = hash([seed_value, "files"])
+	var m: Dictionary = data["buildings"]["marche"]
+	for k in TAILLE_FILES:
+		file_ouvriers.append(make_card(pick_weighted(m["categories"], g), 0.0, g))
+	if not data["workers"]["cartes_action"].is_empty():
+		for k in TAILLE_FILES:
+			file_actions.append(pick(data["workers"]["cartes_action"], g))
+	file_contrats = data["animals"]["animaux"].map(func(d): return d["id"])
+	shuffle(file_contrats, g)
+
+
+func _ouvrier_suivant() -> GameState.Card:
+	if i_ouvriers < file_ouvriers.size():
+		i_ouvriers += 1
+		return file_ouvriers[i_ouvriers - 1]
+	return make_card(pick_weighted(data["buildings"]["marche"]["categories"], rng_marche), 0.0, rng_marche)
+
+
+func _action_suivante() -> GameState.Card:
+	if i_actions < file_actions.size():
+		i_actions += 1
+		return make_action(file_actions[i_actions - 1])
+	return make_action(pick(data["workers"]["cartes_action"], rng_marche))
+
+
+func _espece(id: String) -> Dictionary:
+	for d in data["animals"]["animaux"]:
+		if d["id"] == id:
+			return d
+	return {}
 
 
 # --- Draft par tours ---------------------------------------------------------
@@ -571,12 +624,20 @@ func start_next_day() -> void:
 func _draw_event() -> void:
 	current_event = {}
 	var E: Dictionary = data["events"]
-	if day >= 2 and rng.randf() < float(E["proba_evenement"]):
+	var g := _flux_du_jour("evenement")
+	if day >= 2 and g.randf() < float(E["proba_evenement"]):
 		# Pas d'épidémie tant que personne n'a d'animal.
 		var possibles: Array = E["evenements"]
 		if not players.any(func(p): return p.animals.any(func(a): return a.arrived)):
 			possibles = possibles.filter(func(e): return not e["effets"].get("epidemie", false))
-		current_event = pick(possibles)
+		current_event = pick(possibles, g)
+
+
+## Hasard propre à un jour : même tirage pour toutes les parties de même graine, quoi qu'il se soit passé avant.
+func _flux_du_jour(nom: String) -> RandomNumberGenerator:
+	var g := RandomNumberGenerator.new()
+	g.seed = hash([seed_value, day, nom])
+	return g
 
 
 ## Effets immédiats de l'événement, après le début de journée de chaque joueur.
@@ -592,7 +653,7 @@ func _apply_event() -> void:
 		if fx.get("epidemie", false):
 			var arrived := p.animals.filter(func(a): return a.arrived)
 			if not arrived.is_empty():
-				var victim = pick(arrived)
+				var victim = pick(arrived, p.rng)
 				victim.sick = true
 				victim.heal = 0.0
 		# Une épidémie ne concerne que ceux qui ont des animaux.
@@ -605,13 +666,13 @@ func _refresh_market(for_day: int, rotate: bool) -> void:
 	var m: Dictionary = data["buildings"]["marche"]
 	if rotate:
 		if not market_workers.is_empty():
-			market_workers.remove_at(rng.randi_range(0, market_workers.size() - 1))
+			market_workers.remove_at(rng_marche.randi_range(0, market_workers.size() - 1))
 		if not market_actions.is_empty():
-			market_actions.remove_at(rng.randi_range(0, market_actions.size() - 1))
+			market_actions.remove_at(rng_marche.randi_range(0, market_actions.size() - 1))
 	while market_workers.size() < int(m["ouvriers"]):
-		market_workers.append(make_card(pick_weighted(m["categories"])))
+		market_workers.append(_ouvrier_suivant())
 	while market_actions.size() < int(m.get("actions", 0)):
-		market_actions.append(make_action(pick(data["workers"]["cartes_action"])))
+		market_actions.append(_action_suivante())
 	# Un seul contrat par espèce dans la partie : une espèce à l'étalage, ou qu'un joueur détient (contrat, réservation,
 	# animal), ne peut pas sortir. Les places libres sont tirées au hasard parmi les autres, sans préférence de rareté.
 	var pris := {}
@@ -624,12 +685,18 @@ func _refresh_market(for_day: int, rotate: bool) -> void:
 			pris[r["def"]["id"]] = true
 		for a in p.animals:
 			pris[a.def["id"]] = true
+	# Les espèces sortent dans l'ordre de file_contrats (la première permise ce jour-là).
 	var paliers: Dictionary = data["animals"]["paliers"]
-	var eligible: Array = data["animals"]["animaux"].filter(func(d):
-		return int(paliers[d["palier"]]["jour_min"]) <= for_day and not pris.has(d["id"]))
-	shuffle(eligible)
-	while market_contracts.size() < int(m["contrats"]) and not eligible.is_empty():
-		market_contracts.append(eligible.pop_back())
+	var k := 0
+	while market_contracts.size() < int(m["contrats"]) and k < file_contrats.size():
+		var d := _espece(file_contrats[k])
+		if d.is_empty() or pris.has(d["id"]):
+			file_contrats.remove_at(k)
+		elif int(paliers[d["palier"]]["jour_min"]) <= for_day:
+			market_contracts.append(d)
+			file_contrats.remove_at(k)
+		else:
+			k += 1
 	bump()
 
 

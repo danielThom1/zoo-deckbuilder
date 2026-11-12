@@ -5,6 +5,7 @@ extends Control
 ## Ne dépend que de GameData, MapGenerator, GameMap et des polices de UiTokens.
 
 signal lancer(spectateur: bool, graine: int, adversaires: int, niveau: String)
+signal defi(id: String)  # un défi choisi dans FenetreDefis
 signal continuer
 signal tutoriel
 signal multijoueur
@@ -152,9 +153,11 @@ func _construire() -> void:
 	ligne.call("Gestion libre", "seul, sans fin · livre d'or, naissances", func():
 		mode_partie = "cozy"
 		lancer.emit(false, graine, 0, niveau))
+	ligne.call("Défis", "même partie pour tous · %d jours" % int(Defis.donnees()["jours"]), ouvrir_defis)
 	ligne.call("Multijoueur", "2 à 4 joueurs", func(): multijoueur.emit())
 	ligne.call("Tutoriel", "avec Hubert", func(): tutoriel.emit())
 	ligne.call("Règles et glossaire", "", func(): add_child(Aide.new(donnees)))
+	ligne.call("Statistiques", Statistiques.pseudo(), func(): add_child(Statistiques.new(donnees)))
 	ligne.call("Réglages", "", func(): add_child(Reglages.new()))
 	ligne.call("Quitter", "retour au bureau", func(): get_tree().quit())
 	var esp := Control.new()
@@ -238,6 +241,12 @@ func _construire() -> void:
 			dev.add_child(b_zero)
 	add_child(_carte_reglages())
 	_maj_joueurs()
+
+
+func ouvrir_defis() -> void:
+	var f := FenetreDefis.new()
+	f.jouer.connect(func(id: String): defi.emit(id))
+	add_child(f)
 
 
 func _label_mono(t: String, taille: int) -> Label:

@@ -24,16 +24,17 @@ class Courbes extends Control:
 		var bas := 26.0
 		var w := size.x - gauche - droite
 		var h := size.y - haut - bas
-		var objectif := float(mt.objective())
-		var maxi_v := objectif
+		var objectif := float(mt.objective()) if mt.defi == "" and mt.mode != "cozy" else 0.0  # en défi : pas de ligne de victoire
+		var maxi_v := maxf(objectif, 1.0)
 		for row in mt.history:
 			for e in row:
 				maxi_v = maxf(maxi_v, float(e["rep"]))
 		var yval := func(v: float) -> float: return haut + h * (1.0 - v / maxi_v)
-		for v in [0.0, objectif / 2.0, objectif]:
+		var haut_v := objectif if objectif > 0.0 else maxi_v
+		for v in [0.0, haut_v / 2.0, haut_v]:
 			var y: float = yval.call(v)
 			draw_string(f, Vector2(0, y + 4), str(roundi(v)), HORIZONTAL_ALIGNMENT_RIGHT, gauche - 14, 11, UiTokens.TEXTE_2)
-			if v == objectif:
+			if v == objectif and objectif > 0.0:
 				draw_dashed_line(Vector2(gauche, y), Vector2(gauche + w, y), UiTokens.ENCRE, 1.5, 5.0)
 			else:
 				draw_line(Vector2(gauche, y), Vector2(gauche + w, y), UiTokens.ENCRE if v == 0.0 else UiTokens.FILET, 1.5 if v == 0.0 else 1.0)
@@ -153,6 +154,16 @@ func _entete(gagne: bool, spectateur: bool) -> Control:
 	var atteint: bool = mt.players[w].reputation() >= mt.objective()
 	t.add_child(_replie(_corps("%s %s %d de réputation%s." % [mt.names[w], "atteint" if atteint else "termine en tête avec", mt.players[w].reputation(),
 		" et remporte la concession de la vallée" if atteint else ""], 15, 600)))
+	if mt.defi != "" and not spectateur:
+		var b: Dictionary = m.bilan_fin
+		var ligne := "Défi « %s » : votre score est de %d." % [Defis.trouver(mt.defi).get("nom", mt.defi), roundi(m.game.reputation())]
+		if b.get("record", false):
+			ligne += " Nouveau record personnel%s !" % ((" (ancien : %d)" % roundi(float(b["ancien"]))) if float(b.get("ancien", 0.0)) > 0.0 else "")
+		elif not b.is_empty():
+			ligne += " Votre record : %d." % roundi(float(b["ancien"]))
+		t.add_child(_replie(_corps(ligne, 15, 700, UiTokens.SARCELLE_FONCE)))
+	if not m.bilan_fin.get("succes", []).is_empty():
+		t.add_child(_replie(_corps("Succès débloqué : %s." % ", ".join(m.bilan_fin["succes"]), 14, 600, UiTokens.SARCELLE_FONCE)))
 	h.add_child(t)
 	if not spectateur:
 		h.add_child(_tampon("APPROUVÉ" if gagne else "LIQUIDÉ", UiTokens.SARCELLE if gagne else Color("B3361F")))
@@ -256,7 +267,8 @@ func _panneau_courbes() -> Control:
 	var t := _cond("RÉPUTATION, JOUR PAR JOUR", 14)
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(t)
-	h.add_child(_corps("ligne %d = victoire" % mt.objective(), 12, 600, UiTokens.TEXTE_2))
+	if mt.defi == "" and mt.mode != "cozy":
+		h.add_child(_corps("ligne %d = victoire" % mt.objective(), 12, 600, UiTokens.TEXTE_2))
 	v.add_child(h)
 	var c := Courbes.new()
 	c.mt = mt

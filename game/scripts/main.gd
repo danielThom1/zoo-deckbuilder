@@ -230,6 +230,7 @@ var fin_motif := {}  # contrat montré : {"def", "zones" (cases de chaque emplac
 var _fin_motifs_cache := {}  # id d'espèce -> emplacements sur la carte (la carte ne change plus)
 var day_hud: Array[Control] = []  # masqués la nuit et sur l'écran de fin
 var end_dismissed := false
+var bilan_fin := {}  # fin de partie : ce que Statistiques.enregistrer a renvoyé (record de défi, succès)
 var end_views: HBoxContainer  # carte finale : un bouton par joueur pour voir son zoo
 ## Relance demandée par l'écran de fin (« jouer », « spectateur », « menu ») : survit au rechargement de la scène.
 static var relance := ""
@@ -239,6 +240,7 @@ var replay_verifie := false
 static var relance_niveau := ""  # « Rejouer » garde le niveau des IA choisi
 static var relance_mode := ""  # … et le mode de partie
 static var relance_joueurs := ""
+static var relance_defi := ""  # « Rejouer » un défi le relance tel quel
 
 
 func _ready() -> void:
@@ -261,6 +263,9 @@ func _ready() -> void:
 		args.erase("seed")
 		if relance_niveau != "" and mode != "menu":
 			args["niveau"] = relance_niveau
+		if relance_defi != "":
+			args["defi"] = relance_defi
+			relance_defi = ""
 		if relance_mode != "" and mode != "menu":
 			args["mode"] = relance_mode
 			args["joueurs"] = relance_joueurs
@@ -306,6 +311,17 @@ func _show_menu() -> void:
 	Sons.musique("menu")
 	if args.has("reglages"):
 		menu.add_child(Reglages.new())
+	if args.has("statistiques"):
+		menu.add_child(Statistiques.new())
+	if args.has("defis"):
+		menu.ouvrir_defis()
+	if Statistiques.pseudo() == "" and not args.has("shot"):
+		menu.add_child(FenetrePseudo.new())
+	menu.defi.connect(func(id: String):
+		args.erase("seed")
+		args["defi"] = id
+		layer.queue_free()
+		_start(false))
 	menu.multijoueur.connect(func(): _ouvrir_salon(layer))
 	menu.replay_etude.connect(func(chemin: String):
 		replay = Replay.lire_etude(chemin)
@@ -446,13 +462,22 @@ func _start(watch: bool) -> void:
 	if args.has("tutoriel"):
 		map_seed = Tutoriel.GRAINE
 		nb = 4
+	var defi := Defis.trouver(str(args.get("defi", ""))) if args.has("defi") and not spectator and reseau == null else {}
+	if not defi.is_empty():  # --defi=saules : seul contre les 3 IA du défi, sur sa carte et dans son mode
+		map_seed = int(defi["graine"])
+		nb = 4
+		args["mode"] = defi["mode"]
+		args.erase("niveau")
+		args.erase("difficile")
 	var strategies: Array = WATCH_STRATEGIES if spectator else []
 	# Niveau des IA (--niveau=facile|moyen|difficile, --difficile, ou choix du menu) : stratégies choisies par l'étude
 	if args.has("difficile"):
 		args["niveau"] = "difficile"
 	var niveau := str(args.get("niveau", "" if spectator else "moyen"))
 	var du_niveau := strategies_du_niveau(niveau)
-	if not du_niveau.is_empty():
+	if not defi.is_empty():
+		strategies = Defis.strategies()
+	elif not du_niveau.is_empty():
 		strategies = []
 		for i in nb:
 			var humain: bool = (i == 0 and not spectator) if reseau == null else (i == local or autres_humains.has(i))
@@ -462,7 +487,7 @@ func _start(watch: bool) -> void:
 		mt = replay.creer_partie(GameData.load_all())
 		_avertir_replay()
 	else:
-		mt = charge if charge else Match.new(GameData.load_all(), map_seed, nb, -1 if spectator else local, strategies, autres_humains, str(args.get("mode", "course")))
+		mt = charge if charge else Match.new(GameData.load_all(), map_seed, nb, -1 if spectator else local, strategies, autres_humains, str(args.get("mode", "course")), str(defi.get("id", "")))
 	mt.replay_possible = charge == null and reseau == null and not args.has("tutoriel") and not args.has("autoplay") and not args.has("autodraft")
 	if args.has("demo-fin"):
 		mt.replay_possible = true
@@ -3095,6 +3120,8 @@ func _build_ui() -> void:
 	st_c.content_margin_right = 12
 	course.add_theme_stylebox_override("panel", st_c)
 	var cl := Composants.label({"cozy": "GESTION LIBRE", "nature": "RÉSERVE · COURSE À %d" % game.objective()}.get(mt.mode, "COURSE À %d" % game.objective()), "")
+	if mt.defi != "":
+		cl.text = "DÉFI · %d JOURS" % int(mt.data["buildings"]["partie"]["jour_max"])
 	cl.add_theme_font_override("font", UiTokens.police_titre())
 	cl.add_theme_font_size_override("font_size", 14)
 	cl.add_theme_color_override("font_color", UiTokens.ENCRE)
@@ -5137,6 +5164,9 @@ func _update_hud() -> void:
 		end_built = true
 		if mt.autosave:
 			Sauvegarde.effacer()
+		# Statistiques du joueur (pas pour un replay, le tutoriel, les IA entre elles ni les captures)
+		if not spectator and replay == null and not args.has("tutoriel") and not args.has("shot"):
+			bilan_fin = Statistiques.enregistrer(mt, game.index)
 		if hubert:
 			hubert.taire()
 			hubert.grande_en_bas = true
@@ -6697,6 +6727,7 @@ func _restart(mode: String) -> void:
 	relance = mode
 	relance_niveau = str(args.get("niveau", ""))
 	relance_mode = str(args.get("mode", ""))
+	relance_defi = str(args.get("defi", "")) if mode != "menu" else ""
 	relance_joueurs = str(mt.players.size()) if mt else ""
 	get_tree().reload_current_scene()
 

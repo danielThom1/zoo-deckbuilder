@@ -5,7 +5,7 @@ extends RefCounted
 
 const CHEMIN := "user://sauvegarde.txt"
 const CHEMIN_JOURNEE := "user://sauvegarde_journee.txt"  # ordres donnés depuis le matin, au retour au menu
-const VERSION := 1
+const VERSION := 2  # 2 : files du marché (tirages séparés)
 
 
 static func existe() -> bool:
@@ -77,9 +77,10 @@ static func ecrire(m: Match) -> void:
 			"shop_rect": ai.shop_rect, "plans": ai.plans, "reserved": ai.reserved, "fence_tiles": ai.fence_tiles,
 			"agrandissements": ai.agrandissements, "agrandis": ai.agrandis, "agrandi_jour": ai.agrandi_jour, "agrandir_refus": ai.agrandir_refus,
 			"roster_kiosque": ai.roster_kiosque, "epargne": ai.epargne, "agence_voulue": ai.agence_voulue, "cabinet_voulu": ai.cabinet_voulu})
-	var d := {"version": VERSION, "seed": m.seed_value, "mode": m.mode, "joueurs": joueurs, "ias": ias, "match": {"objectifs": m.objectifs, "day": m.day, "next_card_id": m.next_card_id, "perso_bag": m.perso_bag,
+	var d := {"version": VERSION, "seed": m.seed_value, "mode": m.mode, "defi": m.defi, "joueurs": joueurs, "ias": ias, "match": {"objectifs": m.objectifs, "day": m.day, "next_card_id": m.next_card_id, "perso_bag": m.perso_bag,
 		"names": Array(m.names), "market_workers": _cartes(m.market_workers), "market_contracts": m.market_contracts, "market_actions": _cartes(m.market_actions),
-		"current_event": m.current_event, "history": m.history, "rng": m.rng.state, "pas": m.pas}}
+		"current_event": m.current_event, "history": m.history, "rng": m.rng.state, "pas": m.pas,
+		"rng_marche": m.rng_marche.state, "i_ouvriers": m.i_ouvriers, "i_actions": m.i_actions, "file_contrats": m.file_contrats}}
 	var f := FileAccess.open(CHEMIN, FileAccess.WRITE)
 	if f:
 		f.store_string(var_to_str(d))
@@ -146,7 +147,7 @@ static func charger(data: Dictionary) -> Match:
 		return null
 	var human: int = d["ias"].find(null)
 	var strategies: Array = d["ias"].map(func(a): return null if a == null else a["strat"])
-	var m := Match.new(data, d["seed"], d["joueurs"].size(), human, strategies, [], str(d.get("mode", "course")))
+	var m := Match.new(data, d["seed"], d["joueurs"].size(), human, strategies, [], str(d.get("mode", "course")), str(d.get("defi", "")))
 	var w: Dictionary = d["match"]
 	m.objectifs = w.get("objectifs", [])
 	m.day = w["day"]
@@ -159,6 +160,10 @@ static func charger(data: Dictionary) -> Match:
 	m.current_event = w["current_event"]
 	m.history = w["history"]
 	m.rng.state = w["rng"]
+	m.rng_marche.state = w["rng_marche"]
+	m.i_ouvriers = w["i_ouvriers"]
+	m.i_actions = w["i_actions"]
+	m.file_contrats = w["file_contrats"]
 	m.pas = int(w.get("pas", 0))
 	m.pas_matin = m.pas
 	m.phase = "day"

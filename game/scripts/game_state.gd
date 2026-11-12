@@ -253,7 +253,7 @@ func _pick_weighted(dist: Dictionary) -> String:
 # --- Cartes ouvriers ---------------------------------------------------------
 
 func make_card(categorie: String) -> Card:
-	return mt.make_card(categorie)
+	return mt.make_card(categorie, 0.0, rng)
 
 
 func trait_defs(card: Card) -> Array:
@@ -1944,7 +1944,7 @@ func recruit_replace(old: Card, categorie: String) -> bool:
 	money -= recruit_price(categorie)
 	journal_cartes.append({"id": "cabinet", "day": day})
 	var k := market_workers.find(old)
-	var fresh := mt.make_card(categorie)
+	var fresh := mt.make_card(categorie, 0.0, rng)
 	market_workers[k] = fresh
 	recruited_tonight = true
 	say("Cabinet de recrutement : %s remplace %s dans la rangée." % [fresh.nom, old.nom])
@@ -2332,7 +2332,7 @@ func _upgrade_pool(card: Card) -> Array:
 	var evo: Dictionary = data["workers"].get("evolutions", {}).get(card.metier["id"], {})
 	if not evo.is_empty() and card.niveau == int(evo["niveau"]):
 		var choices: Array = evo["vers"].duplicate()
-		mt.shuffle(choices)
+		mt.shuffle(choices, rng)
 		var evolutions := []
 		for id in choices.slice(0, n):
 			var m := metier_def(id)
@@ -2347,7 +2347,7 @@ func _upgrade_pool(card: Card) -> Array:
 			and (u["id"] != "double_spe" or not specs.is_empty()))
 	pool.append_array(data["workers"]["ameliorations_metier"].get(card.metier["id"], []).filter(func(u):
 		return not card.upgrade_names.has(u["nom"])))
-	mt.shuffle(pool)
+	mt.shuffle(pool, rng)
 	var out := []
 	for u in pool.slice(0, n):
 		if u["id"] == "double_spe":
