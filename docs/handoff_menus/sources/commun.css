@@ -1,0 +1,110 @@
+/* Briques communes des maquettes « menus, statistiques, défis » (direction Le Comité).
+   Base 1600 × 900. Toutes les cotes sont en px de référence.
+   Traduction Godot : chaque bloc à fond = PanelContainer + StyleBoxFlat
+   (bg, border 2 / 2.5 px encre, corner_radius 6 / 10, shadow_offset (0, 4), shadow_size 0, shadow_color encre). */
+@import url("fonts/fonts.css");
+
+:root {
+  --encre: #14202B; --papier: #FFFFFF; --papier2: #F7F8F9; --memo: #F3F1EA;
+  --sarcelle: #13867F; --sarcelle-f: #0E615C; --sarcelle-cl: #BFE6DF;
+  --jaune: #FFC93C; --jaune-cl: #FFF3C4; --orange: #F07F2A; --orange-cl: #FFE1C6;
+  --pos: #1F7A4A; --neg: #B5452A; --filet: #D5D9DE; --texte2: #3D4752; --or: #8A6400;
+  --bleu: #2F6FD0; --marine: #2E4256;
+  --j1: #13867F; --j2: #F0A020; --j3: #3A6AE0; --j4: #E04A8A;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: #0b1218; }
+.ecran { position: relative; width: 1600px; height: 900px; overflow: hidden; background: var(--encre);
+  font-family: Barlow, sans-serif; color: var(--encre); font-size: 14px; }
+.fond { position: absolute; inset: 0; width: 1600px; height: 900px; object-fit: cover; }
+.voile { position: absolute; inset: 0; background: rgba(20, 32, 43, .55); }   /* ColorRect, pas de flou */
+.abs { position: absolute; }
+
+/* ---- texte ---- */
+.surtitre { font: 600 12px 'IBM Plex Mono'; letter-spacing: .06em; color: var(--texte2); text-transform: uppercase; }
+.titre { font: 800 34px/1 'Barlow Condensed'; }
+.entete { font: 800 13px 'Barlow Condensed'; letter-spacing: .08em; text-transform: uppercase; color: var(--texte2); }
+.cond { font-family: 'Barlow Condensed'; font-weight: 800; }
+.mono { font-family: 'IBM Plex Mono'; font-weight: 600; }
+.t2 { color: var(--texte2); }
+.petit { font-size: 12px; }
+.hubert-txt { font: italic 600 14px Barlow; }
+
+/* ---- boutons (Briques 91) ---- */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; padding: 0 16px;
+  border: 2px solid var(--encre); border-radius: 6px; background: var(--papier); box-shadow: 0 4px 0 var(--encre);
+  font: 700 14px Barlow; color: var(--encre); white-space: nowrap; }
+.btn.p { background: var(--jaune); font: 800 15px 'Barlow Condensed'; letter-spacing: .04em; text-transform: uppercase; }
+.btn.grand { height: 52px; font-size: 21px; width: 100%; }
+.btn.s { background: var(--sarcelle); color: #fff; }
+.btn.o { background: var(--orange); }
+.btn.mini { height: 28px; padding: 0 10px; font-size: 13px; box-shadow: 0 3px 0 var(--encre); }
+.btn.off { border-style: dashed; box-shadow: none; color: var(--texte2); background: var(--papier2); }
+
+/* ---- segments ---- */
+.seg { display: flex; }
+.seg > div { flex: 1; height: 38px; display: flex; align-items: center; justify-content: center; border: 2px solid var(--encre);
+  margin-left: -2px; background: #fff; font: 700 14px Barlow; }
+.seg > div:first-child { margin-left: 0; border-radius: 6px 0 0 6px; }
+.seg > div:last-child { border-radius: 0 6px 6px 0; }
+.seg > div.on { background: var(--encre); color: #fff; }
+.champ { height: 38px; border: 2px solid var(--encre); border-radius: 6px; background: #fff; display: flex; align-items: center;
+  padding: 0 10px; font: 600 17px 'IBM Plex Mono'; }
+
+/* ---- panneau ---- */
+.panneau { background: var(--papier); border: 2.5px solid var(--encre); border-radius: 10px; box-shadow: 0 4px 0 var(--encre); overflow: hidden; }
+.panneau > .tete { height: 40px; background: var(--sarcelle); color: #fff; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 14px; font: 800 15px 'Barlow Condensed'; letter-spacing: .07em; text-transform: uppercase; border-bottom: 2px solid var(--encre); }
+.panneau > .tete .mono { font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--sarcelle-cl); }
+.panneau > .tete.encre { background: var(--encre); }
+.panneau > .tete.jaune { background: var(--jaune); color: var(--encre); }
+.panneau > .tete.jaune .mono { color: var(--encre); }
+.panneau > .corps { padding: 14px; }
+.memo { background: var(--memo); }
+.carte-ombre { border: 2px solid var(--encre); border-radius: 8px; box-shadow: 0 4px 0 var(--encre); background: #fff; }
+
+/* ---- fenêtre (max 1280 × 700, centrée) ---- */
+.fenetre { position: absolute; left: 160px; top: 100px; width: 1280px; height: 700px; background: var(--papier2);
+  border: 2.5px solid var(--encre); border-radius: 12px; box-shadow: 0 6px 0 var(--encre); overflow: hidden; }
+.fenetre > .haut { height: 78px; background: #fff; border-bottom: 2.5px solid var(--encre); padding: 14px 20px 0 22px; position: relative; }
+.fermer { position: absolute; right: 18px; top: 18px; width: 40px; height: 40px; border: 2px solid var(--encre); border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; font: 600 22px Barlow; background: #fff; }
+.onglets { position: absolute; left: 260px; bottom: -2.5px; display: flex; gap: 6px; }
+.onglets > div { height: 40px; padding: 0 20px; display: flex; align-items: center; gap: 8px; border: 2.5px solid var(--encre); border-bottom: none;
+  border-radius: 8px 8px 0 0; background: var(--papier2); font: 800 16px 'Barlow Condensed'; letter-spacing: .05em; text-transform: uppercase; color: var(--texte2); }
+.onglets > div.on { background: var(--papier2); color: var(--encre); height: 44px; box-shadow: inset 0 4px 0 var(--jaune); }
+.onglets > div:not(.on) { background: #E9ECEF; height: 38px; }
+.onglets .mono { font-size: 12px; }
+
+/* ---- pastilles, formes (double codage couleur + forme) ---- */
+.pastille { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px; border: 1.5px solid var(--encre); border-radius: 12px;
+  font: 700 12px Barlow; background: #fff; white-space: nowrap; }
+.forme { display: inline-block; width: 10px; height: 10px; flex: none; }
+.f-rond { border-radius: 50%; }
+.f-carre { border-radius: 1px; }
+.f-losange { transform: rotate(45deg) scale(.82); }
+.f-triangle { clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.f-etoile { clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); width: 13px; height: 13px; }
+.mode-cl { background: var(--orange-cl); }  /* classique : triangle orange = terrain aménageable */
+.mode-rn { background: #DDEFD9; }          /* réserve : rond vert = terrain tel quel */
+
+/* ---- tampon ---- */
+.tampon { display: inline-block; border: 2.5px solid var(--neg); color: var(--neg); padding: 3px 10px; border-radius: 4px;
+  font: 800 14px 'Barlow Condensed'; letter-spacing: .08em; transform: rotate(-6deg); background: rgba(255,255,255,.85); }
+.tampon.vert { border-color: var(--sarcelle); color: var(--sarcelle); }
+
+/* ---- bulle d'Hubert ---- */
+.hubert { display: flex; align-items: flex-end; gap: 10px; }
+.hubert img { width: 64px; height: 64px; object-fit: contain; }
+.bulle { background: var(--memo); border: 2px solid var(--encre); border-radius: 10px; padding: 9px 13px; font: italic 600 14px/1.35 Barlow; box-shadow: 0 3px 0 var(--encre); }
+
+/* ---- tableaux ---- */
+table.t { border-collapse: collapse; width: 100%; }
+table.t th { font: 800 12px 'Barlow Condensed'; letter-spacing: .07em; text-transform: uppercase; color: var(--texte2); text-align: left;
+  padding: 0 8px 6px; border-bottom: 2px solid var(--encre); }
+table.t td { padding: 0 8px; height: 30px; border-bottom: 1px solid var(--filet); font: 600 14px Barlow; }
+table.t td.n, table.t th.n { text-align: right; font-family: 'IBM Plex Mono'; font-weight: 600; }
+.barre { height: 10px; background: var(--filet); border-radius: 5px; overflow: hidden; }
+.barre > i { display: block; height: 100%; background: var(--sarcelle); }
+.vign { border: 2px solid var(--encre); border-radius: 6px; object-fit: cover; display: block; }
+.squelette { background: repeating-linear-gradient(90deg, #E4E7EA 0 14px, #EEF0F2 14px 28px); border-radius: 4px; }

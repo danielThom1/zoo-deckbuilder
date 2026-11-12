@@ -910,3 +910,322 @@ static func paragraphe(t: String, taille := 14, couleur := UiTokens.ENCRE) -> La
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.add_theme_constant_override("line_spacing", -3)
 	return l
+
+
+# ---------------------------------------------------------------- menus, statistiques, défis (docs/handoff_menus)
+
+## Texte d'une seule graisse : police (corps, titre condensé, mono, italique), taille, couleur.
+static func texte(t: String, taille := 14, graisse := 600, couleur := UiTokens.ENCRE, famille := "corps") -> Label:
+	var l := label(t)
+	match famille:
+		"titre":
+			l.add_theme_font_override("font", UiTokens.police_titre())
+		"mono":
+			l.add_theme_font_override("font", UiTokens.police_mono(graisse))
+		"italique":
+			l.add_theme_font_override("font", UiTokens.police_italique())
+		_:
+			l.add_theme_font_override("font", UiTokens.police_corps(graisse))
+	l.add_theme_font_size_override("font_size", taille)
+	l.add_theme_color_override("font_color", couleur)
+	return l
+
+
+## Petite forme pleine (double codage couleur + forme) : rond, carre, losange, triangle, etoile.
+class Forme extends Control:
+	var forme := "rond"
+	var couleur := UiTokens.ENCRE
+	var contour := Color.TRANSPARENT
+	var creux := false
+
+	func _init(f := "rond", c := UiTokens.ENCRE, taille := 10.0) -> void:
+		forme = f
+		couleur = c
+		custom_minimum_size = Vector2(taille, taille)
+		size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var c := size / 2.0
+		var r := minf(size.x, size.y) / 2.0
+		var pts := PackedVector2Array()
+		match forme:
+			"rond":
+				if creux:
+					draw_circle(c, r - 1.0, UiTokens.PAPIER, true, -1.0, true)
+					draw_arc(c, r - 1.0, 0.0, TAU, 24, couleur, 2.0, true)
+				else:
+					draw_circle(c, r, couleur, true, -1.0, true)
+					if contour.a > 0.0:
+						draw_arc(c, r - 0.75, 0.0, TAU, 24, contour, 1.5, true)
+				return
+			"carre":
+				pts = PackedVector2Array([Vector2(0, 0), Vector2(size.x, 0), size, Vector2(0, size.y)])
+			"losange":
+				pts = PackedVector2Array([Vector2(c.x, 0), Vector2(size.x, c.y), Vector2(c.x, size.y), Vector2(0, c.y)])
+			"triangle":
+				pts = PackedVector2Array([Vector2(c.x, 0), size, Vector2(0, size.y)])
+			"etoile":
+				for k in 10:
+					var a := -PI / 2.0 + k * PI / 5.0
+					pts.append(c + Vector2(cos(a), sin(a)) * (r if k % 2 == 0 else r * 0.42))
+		draw_colored_polygon(pts, couleur)
+		if contour.a > 0.0:
+			var ferme := pts.duplicate()
+			ferme.append(pts[0])
+			draw_polyline(ferme, contour, 1.5, true)
+
+
+## Pastille en pilule : texte, forme facultative à gauche, fond (blanc par défaut). h 24, contour encre.
+static func etiquette(t: String, forme := "", couleur_forme := UiTokens.ENCRE, fond := UiTokens.PAPIER, taille := 12) -> PanelContainer:
+	var p := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = fond
+	sb.border_color = UiTokens.ENCRE
+	sb.set_border_width_all(2)
+	sb.set_corner_radius_all(12)
+	sb.content_margin_left = 9
+	sb.content_margin_right = 9
+	sb.content_margin_top = 2
+	sb.content_margin_bottom = 2
+	sb.anti_aliasing = true
+	p.add_theme_stylebox_override("panel", sb)
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	p.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 6)
+	p.add_child(h)
+	if forme != "":
+		h.add_child(Forme.new(forme, couleur_forme, 10.0))
+	h.add_child(texte(t, taille, 700))
+	return p
+
+
+## Pastille du mode d'une partie : triangle orange « Terrain aménageable » (classique), rond vert « Réserve naturelle ».
+static func pastille_mode(mode: String, court := false) -> PanelContainer:
+	if mode == "nature":
+		return etiquette("Réserve naturelle" if court else "Terrain tel quel", "rond", UiTokens.POSITIF, UiTokens.VERT_CLAIR)
+	return etiquette("Aménagements" if court else "Terrain aménageable", "triangle", UiTokens.ORANGE, UiTokens.ORANGE_CLAIR)
+
+
+## Chapitre de sommaire : numéro romain en mono, titre condensé, filet jusqu'au bord. h 26.
+static func chapitre(num: String, titre: String) -> HBoxContainer:
+	var h := HBoxContainer.new()
+	h.custom_minimum_size.y = 26
+	h.add_theme_constant_override("separation", 8)
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_child(texte(num, 11, 600, UiTokens.TEXTE_2, "mono"))
+	h.add_child(texte(titre.to_upper(), 12, 800, UiTokens.TEXTE_2, "titre"))
+	var filet := Control.new()
+	filet.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	filet.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	filet.draw.connect(func(): filet.draw_line(Vector2(0, filet.size.y / 2.0), Vector2(filet.size.x, filet.size.y / 2.0), UiTokens.FILET, 1.0))
+	h.add_child(filet)
+	return h
+
+
+## Tampon de BD (CONFIDENTIEL, PÉRIODE D'ESSAI…) : contour, légèrement tourné.
+static func tampon(t: String, couleur := UiTokens.NEGATIF, taille := 13, angle := -6.0) -> Control:
+	var p := PanelContainer.new()
+	var st := StyleBoxFlat.new()
+	st.bg_color = Color(1, 1, 1, 0.85)
+	st.border_color = couleur
+	st.set_border_width_all(2)
+	st.set_corner_radius_all(4)
+	st.content_margin_left = 8
+	st.content_margin_right = 8
+	st.content_margin_top = 1
+	st.content_margin_bottom = 1
+	p.add_theme_stylebox_override("panel", st)
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.add_child(texte(t, taille, 800, couleur, "titre"))
+	# Un conteneur remet la rotation de ses enfants à zéro : le tampon tourne dans une enveloppe à sa taille.
+	var env := Control.new()
+	env.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	env.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	env.add_child(p)
+	var caler := func():
+		p.size = p.get_combined_minimum_size()
+		env.custom_minimum_size = p.size
+		p.pivot_offset = p.size / 2.0
+	p.minimum_size_changed.connect(caler)
+	p.ready.connect(caler)
+	p.rotation = deg_to_rad(angle)
+	return env
+
+
+## Ligne « indisponible » : cadre en tirets sur fond clair, texte secondaire (ex. « Sans objet en gestion libre »).
+static func ligne_tirets(t: String, h := 38.0) -> PanelContainer:
+	var p := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = UiTokens.FOND_FENETRE
+	sb.set_corner_radius_all(6)
+	sb.content_margin_left = 16
+	sb.content_margin_right = 12
+	p.add_theme_stylebox_override("panel", sb)
+	p.custom_minimum_size.y = h
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var l := texte(t, 14, 600, UiTokens.TEXTE_2)
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	p.add_child(l)
+	var c := CadreTirets.new()
+	c.rayon = 6
+	p.add_child(c)
+	return p
+
+
+## Segments (adversaires, difficulté) : h 38, l'actif en encre. rappel(k) à chaque choix.
+static func segments(options: Array, actif: int, rappel: Callable, h := 38.0) -> HBoxContainer:
+	var seg := HBoxContainer.new()
+	seg.add_theme_constant_override("separation", -2)
+	var groupe := ButtonGroup.new()
+	for k in options.size():
+		var b := bouton(str(options[k]), "Onglet")
+		b.toggle_mode = true
+		b.button_group = groupe
+		b.button_pressed = k == actif
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.custom_minimum_size.y = h
+		b.add_theme_font_override("font", UiTokens.police_corps(700))
+		var idx: int = k
+		b.pressed.connect(func(): rappel.call(idx))
+		seg.add_child(b)
+	return seg
+
+
+## Vignette d'une carte de jeu (graine), peinte case par case et gardée en cache (mémoire et user://cartes/).
+## Générer une carte coûte ~0,5 s : seule la première vignette d'une graine prend ce temps.
+static var _vignettes := {}
+const DOSSIER_VIGNETTES := "user://cartes/"
+const VIGNETTE_VERSION := 1
+
+static func texture_carte(donnees: Dictionary, graine: int, mode := "course") -> Texture2D:
+	var cle := "%d_%s_v%d" % [graine, "nature" if mode == "nature" else "course", VIGNETTE_VERSION]
+	if _vignettes.has(cle):
+		return _vignettes[cle]
+	var chemin := DOSSIER_VIGNETTES + cle + ".png"
+	var img: Image = null
+	if FileAccess.file_exists(chemin):
+		img = Image.load_from_file(chemin)
+	if img == null:
+		var d := ModesPartie.appliquer(donnees, "nature") if mode == "nature" else donnees
+		img = peindre_carte(MapGenerator.generate(d["buildings"], graine))
+		DirAccess.make_dir_recursive_absolute(DOSSIER_VIGNETTES)
+		img.save_png(chemin)
+	_vignettes[cle] = ImageTexture.create_from_image(img)
+	return _vignettes[cle]
+
+
+## Vignette cadrée : contour 2 encre, rayon 6, image carrée.
+static func vignette_carte(tex: Texture2D, taille: float) -> PanelContainer:
+	var cadre := PanelContainer.new()
+	var sc := StyleBoxFlat.new()
+	sc.border_color = UiTokens.ENCRE
+	sc.bg_color = UiTokens.ENCRE
+	sc.set_border_width_all(2)
+	sc.set_corner_radius_all(6)
+	sc.set_content_margin_all(2)
+	sc.anti_aliasing = true
+	cadre.add_theme_stylebox_override("panel", sc)
+	cadre.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cadre.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	cadre.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	var r := TextureRect.new()
+	r.name = "Image"
+	r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	r.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	r.custom_minimum_size = Vector2(taille - 4, taille - 4)
+	r.texture = tex
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cadre.add_child(r)
+	return cadre
+
+
+const PX_CARTE := 8
+const TERRAIN_CARTE := {
+	GameMap.PRAIRIE: Color("62AE34"), GameMap.FORET: Color("2E7A2C"), GameMap.EAU: Color("2B86D2"),
+	GameMap.ROCHE: Color("A8A296"), GameMap.SABLE: Color("F2D684"), GameMap.MONTAGNE: Color("8E7E6C"),
+	GameMap.MINE_OR: Color("C9A13A"),
+}
+
+## Image d'une carte, 8 px par case (aperçu du menu et vignettes des défis).
+static func peindre_carte(m: GameMap) -> Image:
+	var PX := PX_CARTE
+	var img := Image.create_empty(m.w * PX, m.h * PX, false, Image.FORMAT_RGBA8)
+	for y in m.h:
+		for x in m.w:
+			var o := Vector2i(x * PX, y * PX)
+			var t := m.get_t(x, y)
+			var base: Color = TERRAIN_CARTE.get(t, TERRAIN_CARTE[GameMap.PRAIRIE])
+			if t == GameMap.PRAIRIE and (x * 7 + y * 13) % 5 == 0:
+				base = Color("74BE40")
+			img.fill_rect(Rect2i(o, Vector2i(PX, PX)), base)
+			match t:
+				GameMap.FORET:
+					img.fill_rect(Rect2i(o + Vector2i(0, 1), Vector2i(4, 4)), Color("1F5E22"))
+					img.fill_rect(Rect2i(o + Vector2i(4, 3), Vector2i(4, 4)), Color("1F5E22"))
+					img.fill_rect(Rect2i(o + Vector2i(1, 1), Vector2i(2, 2)), Color("6ABA48"))
+					img.fill_rect(Rect2i(o + Vector2i(5, 3), Vector2i(2, 2)), Color("6ABA48"))
+				GameMap.ROCHE:
+					img.fill_rect(Rect2i(o + Vector2i(1, 2), Vector2i(3, 2)), Color("8E8A80"))
+					img.fill_rect(Rect2i(o + Vector2i(3, 1), Vector2i(2, 1)), Color("D6D0C2"))
+				GameMap.MONTAGNE:
+					for r in 6:
+						img.fill_rect(Rect2i(o + Vector2i(3 - r / 2, 1 + r), Vector2i(2 + r, 1)), Color("6E604F"))
+					img.fill_rect(Rect2i(o + Vector2i(3, 1), Vector2i(2, 1)), Color("F4F4F0"))
+				GameMap.EAU:
+					var bord := false
+					for d in [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]:
+						var q: Vector2i = Vector2i(x, y) + d
+						if m.in_bounds(q.x, q.y) and m.get_t(q.x, q.y) != GameMap.EAU:
+							bord = true
+					if bord:
+						img.fill_rect(Rect2i(o, Vector2i(PX, PX)), Color("3AB8D8"))
+						img.fill_rect(Rect2i(o + Vector2i(1, 1), Vector2i(PX - 2, PX - 2)), Color("2B9AD2"))
+					elif (x + 2 * y) % 5 == 0:
+						img.fill_rect(Rect2i(o + Vector2i(1, 3), Vector2i(3, 1)), Color("6CC0F0"))
+				GameMap.SABLE:
+					if (x + y) % 2 == 0:
+						img.fill_rect(Rect2i(o + Vector2i(2, 2), Vector2i(1, 1)), Color("D8B860"))
+				GameMap.MINE_OR:
+					img.fill_rect(Rect2i(o + Vector2i(1, 1), Vector2i(4, 4)), Color("6A5A48"))
+					img.fill_rect(Rect2i(o + Vector2i(2, 2), Vector2i(2, 2)), Color("FFE04A"))
+			if m.road.size() > 0 and m.road[m.idx(x, y)] != 0:
+				img.fill_rect(Rect2i(o + Vector2i(1, 1), Vector2i(PX - 2, PX - 2)), Color("D6A866"))
+	var c := m.camp
+	if c.size != Vector2i.ZERO:
+		img.fill_rect(Rect2i(c.position * PX, c.size * PX), Color("D2A868"))
+		img.fill_rect(Rect2i(c.position * PX + Vector2i(2, 2), c.size * PX - Vector2i(4, 4)), Color("E2BC7E"))
+	return img
+
+
+## Compte à rebours du défi de la semaine : {"secondes", "texte" (« 3 j 03 h 14 »), "court" (« 3 j 3 h »),
+## "fin" (« dimanche 23 h 59 »)}. La semaine finit lundi 0 h en temps universel (Defis.numero_semaine) ; la fin est
+## écrite en heure locale.
+static func rebours_semaine(n := -1) -> Dictionary:
+	if n < 0:
+		n = Defis.numero_semaine()
+	var fin := ((n + 1) * 7 - 3) * 86400
+	var reste := maxi(0, fin - int(Time.get_unix_time_from_system()))
+	var j := reste / 86400
+	var h := (reste % 86400) / 3600
+	var mn := (reste % 3600) / 60
+	var locale := Time.get_datetime_dict_from_unix_time(fin + int(Time.get_time_zone_from_system().get("bias", 0)) * 60)
+	return {"secondes": reste, "texte": "%d j %02d h %02d" % [j, h, mn], "court": ("%d j %d h" % [j, h]) if j > 0 else ("%d h %02d" % [h, mn]),
+		"fin": "%s %d h %02d" % [Defis.JOURS_SEMAINE[(int(locale["weekday"]) + 6) % 7], int(locale["hour"]), int(locale["minute"])]}
+
+
+## Date du lundi d'un défi de la semaine, « 9/11 ».
+static func date_semaine(n := -1) -> String:
+	if n < 0:
+		n = Defis.numero_semaine()
+	var lundi := Time.get_datetime_dict_from_unix_time((n * 7 - 3) * 86400)
+	return "%d/%d" % [lundi["day"], lundi["month"]]
+
+
+## Rang écrit « 14e », « 1er ».
+static func rang_texte(r: int) -> String:
+	return "%d%s" % [r, "er" if r == 1 else "e"]

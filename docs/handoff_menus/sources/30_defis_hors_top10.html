@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Défis — hors du top 10</title>
+<link rel="stylesheet" href="commun.css"><style>
+.heros { position: absolute; left: 20px; top: 20px; width: 740px; height: 252px; background: #fff; border: 2.5px solid var(--encre); border-radius: 10px; box-shadow: 0 4px 0 var(--encre); overflow: hidden; }
+.choisi { box-shadow: 0 4px 0 var(--encre), 0 0 0 4px var(--jaune); }     /* sélection : anneau jaune 4 px */
+.heros .bandeau { height: 40px; background: var(--jaune); border-bottom: 2px solid var(--encre); display: flex; align-items: center; justify-content: space-between; padding: 0 14px; }
+.heros .passe { position: absolute; left: 0; right: 0; bottom: 0; height: 44px; background: var(--memo); border-top: 2px solid var(--encre); display: flex; align-items: center; gap: 10px; padding: 0 14px; font: 600 13px Barlow; }
+.compte { font: 600 30px/1 'IBM Plex Mono'; }
+.grille { position: absolute; left: 20px; top: 314px; width: 740px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.dcarte { min-width: 0; height: 284px; background: #fff; border: 2px solid var(--encre); border-radius: 10px; box-shadow: 0 4px 0 var(--encre); padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+.dcarte img.vign { width: 100%; height: 76px; }
+.dcarte h4 { margin: 2px 0 0; font: 800 19px/1 'Barlow Condensed'; text-transform: uppercase; min-height: 38px; }
+.dcarte .l { display: flex; justify-content: space-between; font: 600 13px Barlow; }
+.dcarte .l b { font-family: 'IBM Plex Mono'; }
+.cote { position: absolute; left: 778px; top: 20px; width: 462px; height: 579px; }
+.cote .pos { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-bottom: 2px solid var(--encre); background: var(--papier2); }
+.cote .pos .grand { font: 600 40px/1 'IBM Plex Mono'; }
+.lg { display: grid; grid-template-columns: 40px 1fr 54px 92px; align-items: center; height: 33px; padding: 0 14px; border-bottom: 1px solid var(--filet); font: 600 14px Barlow; }
+.lg.vous { background: var(--jaune); border: 2px solid var(--encre); margin: 0 6px; padding: 0 8px; border-radius: 6px; height: 35px; }
+.lg .rg { font: 600 14px 'IBM Plex Mono'; }
+.podium { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--encre); display: flex; align-items: center; justify-content: center; font: 700 13px 'IBM Plex Mono'; }
+.masque { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 11px; border: 1.5px dashed #8C96A2; color: var(--texte2);
+  font: italic 600 12px Barlow; background: repeating-linear-gradient(135deg, #F1F3F5 0 6px, #E6E9EC 6px 12px); }
+.sc { text-align: right; font: 600 15px 'IBM Plex Mono'; }
+.bar { height: 8px; background: var(--filet); border-radius: 4px; margin-left: 12px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--sarcelle); }
+.points { text-align: center; font: 700 16px 'IBM Plex Mono'; color: var(--texte2); height: 22px; letter-spacing: .3em; }
+.hors-ligne { font: 600 12px 'IBM Plex Mono'; color: var(--neg); display: flex; align-items: center; gap: 6px; }
+</style></head>
+<body><div class="ecran">
+<img class="fond" src="assets/fond_menu.png" alt=""><div class="voile"></div>
+<div class="fenetre"><div class="haut"><div class="surtitre">LA MÊME PARTIE POUR TOUS · 10 JOURS · SEUL CONTRE LES 3 MEILLEURES IA</div><div class="titre" style="margin-top:4px">Défis</div>
+<div style="position:absolute;left:150px;top:46px;font:600 13px Barlow" class="t2">Même carte, même draft, mêmes collaborateurs et même marché pour tous. Score : votre réputation au soir du jour 10.</div>
+<div class="fermer">×</div></div>
+<div style="position:relative;height:619px">
+<div class="heros choisi">
+<div class="bandeau"><span class="cond" style="font-size:22px;text-transform:uppercase">Défi de la semaine du 9/11</span><span class="mono" style="font-size:12px">nouveau défi lundi 16/11</span></div>
+<div style="display:flex;gap:16px;padding:14px">
+ <img class="vign" src="assets/cartes/carte_600024843.png" style="width:142px;height:142px" alt="">
+ <div style="flex:1">
+  <span class="pastille mode-rn"><i class="forme f-rond" style="background:var(--pos)"></i>Réserve naturelle</span>
+  <div class="petit t2" style="font-weight:600;margin-top:6px">Carte n° 600024843 · 10 jours · 3 IA en Difficile</div>
+  <div class="surtitre" style="margin-top:12px">SE TERMINE DANS</div>
+  <div class="compte" style="margin-top:3px">3 j 03 h 14 min</div>
+  <div class="petit t2" style="font-weight:600;margin-top:3px">dimanche 15/11 à 23 h 59</div>
+ </div>
+ <div style="width:196px;display:flex;flex-direction:column;gap:6px">
+  <div class="l" style="display:flex;justify-content:space-between;font:600 13px Barlow"><span class="t2">Votre record</span><b class="mono" style="font-size:18px">112</b></div>
+  <div style="display:flex;justify-content:space-between;font:600 13px Barlow"><span class="t2">Parties</span><b class="mono">3</b></div>
+  <div style="display:flex;justify-content:space-between;font:600 13px Barlow"><span class="t2">Rang</span><span><b class="mono">14<sup>e</sup></b> sur <b class="mono">52</b></span></div>
+  <div class="btn p" style="height:44px;margin-top:6px;font-size:19px">Jouer le défi ›</div>
+ </div></div>
+<div class="passe"><i class="forme f-etoile" style="background:var(--jaune);border:1px solid var(--encre)"></i>
+ <span><span class="t2">Semaine du 2/11 · vainqueur :</span> <b>Margaux_R</b> · <b class="mono">163</b> · Partie classique</span>
+ <span style="margin-left:auto" class="btn mini">▶ Revoir sa partie</span></div>
+</div>
+<div style="position:absolute;left:20px;top:288px;width:740px;display:flex;align-items:baseline;gap:12px"><span class="entete" style="color:var(--encre);font-size:14px">Défis permanents</span><span class="petit t2" style="font-weight:600">toujours ouverts · un classement chacun</span></div>
+<div class="grille"><div class="dcarte"><img class="vign" src="assets/cartes/carte_202611.png" alt="">
+<h4>La vallée des Saules</h4><div><span class="pastille mode-cl"><i class="forme f-triangle" style="background:var(--orange)"></i>Aménagements</span></div><div style="display:flex;flex-direction:column;gap:3px;margin-top:2px"><div class="l"><span class="t2">Pas encore joué</span></div><div class="l"><span class="t2">Participants</span><b>38</b></div></div>
+<div style="display:flex;gap:6px;margin-top:auto"><span class="btn mini" style="flex:1">Classement</span><span class="btn mini p" style="font-size:14px">Jouer</span></div></div><div class="dcarte"><img class="vign" src="assets/cartes/carte_424242.png" alt="">
+<h4>Le plateau des Roches</h4><div><span class="pastille mode-cl"><i class="forme f-triangle" style="background:var(--orange)"></i>Aménagements</span></div><div style="display:flex;flex-direction:column;gap:3px;margin-top:2px"><div class="l"><span class="t2">Record</span><b>127</b></div><div class="l"><span class="t2">Parties</span><b>2</b></div><div class="l"><span class="t2">Rang</span><b>21<sup>e</sup> / 44</b></div></div>
+<div style="display:flex;gap:6px;margin-top:auto"><span class="btn mini" style="flex:1">Classement</span><span class="btn mini p" style="font-size:14px">Jouer</span></div></div><div class="dcarte"><img class="vign" src="assets/cartes/carte_318807.png" alt="">
+<h4>Le delta sauvage</h4><div><span class="pastille mode-rn"><i class="forme f-rond" style="background:var(--pos)"></i>Réserve naturelle</span></div><div style="display:flex;flex-direction:column;gap:3px;margin-top:2px"><div class="l"><span class="t2">Record</span><b>151</b></div><div class="l"><span class="t2">Parties</span><b>1</b></div><div class="l"><span class="t2">Rang</span><b>3<sup>e</sup> / 41</b></div></div>
+<div style="display:flex;gap:6px;margin-top:auto"><span class="btn mini" style="flex:1">Classement</span><span class="btn mini p" style="font-size:14px">Jouer</span></div></div><div class="dcarte"><img class="vign" src="assets/cartes/carte_777013.png" alt="">
+<h4>Monts et marais</h4><div><span class="pastille mode-rn"><i class="forme f-rond" style="background:var(--pos)"></i>Réserve naturelle</span></div><div style="display:flex;flex-direction:column;gap:3px;margin-top:2px"><div class="l"><span class="t2">Record</span><b>96</b></div><div class="l"><span class="t2">Parties</span><b>4</b></div><div class="l"><span class="t2">Rang</span><b>17<sup>e</sup> / 29</b></div></div>
+<div style="display:flex;gap:6px;margin-top:auto"><span class="btn mini" style="flex:1">Classement</span><span class="btn mini p" style="font-size:14px">Jouer</span></div></div></div>
+<div class="cote panneau"><div class="tete encre"><span>Cote · Défi de la semaine du 9/11</span><span class="mono" style="color:var(--jaune)">52 participants</span></div><div class="pos"><div><div class="surtitre">VOTRE RANG</div><div style="display:flex;align-items:baseline;gap:8px;margin-top:4px"><span class="grand">14<sup style="font-size:20px">e</sup></span><span style="font:600 14px Barlow">sur 52</span></div></div>
+<div style="margin-left:auto;text-align:right"><div class="surtitre">VOTRE RECORD</div><div class="mono" style="font-size:22px;margin-top:4px">112</div><div class="petit t2" style="font-weight:700">6 points du top 10</div></div></div>
+<div style="padding-top:6px"><div class="lg"><div class="podium" style="background:#FFC93C">1</div><div><span class="masque">joueur masqué</span></div><div class="sc">158</div><div class="bar"><i style="width:100%"></i></div></div><div class="lg"><div class="podium" style="background:#D5D9DE">2</div><div><span class="masque">joueur masqué</span></div><div class="sc">149</div><div class="bar"><i style="width:94%"></i></div></div><div class="lg"><div class="podium" style="background:#E2A06A">3</div><div><span class="masque">joueur masqué</span></div><div class="sc">147</div><div class="bar"><i style="width:93%"></i></div></div><div class="lg"><div class="rg" style="padding-left:6px">4</div><div><span class="masque">joueur masqué</span></div><div class="sc">140</div><div class="bar"><i style="width:89%"></i></div></div><div class="lg"><div class="rg" style="padding-left:6px">5</div><div><span class="masque">joueur masqué</span></div><div class="sc">136</div><div class="bar"><i style="width:86%"></i></div></div><div class="lg"><div class="rg" style="padding-left:6px">6</div><div><span class="masque">joueur masqué</span></div><div class="sc">131</div><div class="bar"><i style="width:83%"></i></div></div><div class="lg"><div class="rg" style="padding-left:6px">7</div><div><span class="masque">joueur masqué</span></div><div class="sc">129</div><div class="bar"><i style="width:82%"></i></div></div><div class="lg"><div class="rg" style="padding-left:6px">8</div><div><span class="masque">joueur masqué</span></div><div class="sc">127</div><div class="bar"><i style="width:80%"></i></div></div><div class="lg"><div class="rg" style="padding-left:6px">9</div><div><span class="masque">joueur masqué</span></div><div class="sc">122</div><div class="bar"><i style="width:77%"></i></div></div><div class="lg"><div class="rg" style="padding-left:6px">10</div><div><span class="masque">joueur masqué</span></div><div class="sc">118</div><div class="bar"><i style="width:75%"></i></div></div></div><div class="points">⋯</div><div class="lg vous"><div class="rg" style="padding-left:6px">14</div><div><span><b>Vous</b> <span class="t2" style="color:var(--encre)">· Daniel</span></span></div><div class="sc">112</div><div class="bar"><i style="width:71%"></i></div></div><div style="position:absolute;left:14px;right:14px;bottom:12px;font:600 12px/1.35 Barlow" class="t2">
+Les pseudos du top 10 deviennent visibles quand vous y entrez. Les parties sont privées ; seule celle du vainqueur de la semaine passée peut être revue.</div></div>
+</div></div>
+</div></body></html>

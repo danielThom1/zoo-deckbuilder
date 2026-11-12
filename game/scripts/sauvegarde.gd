@@ -15,7 +15,16 @@ static func existe() -> bool:
 ## Résumé pour le menu : {"jour", "joueurs"}, ou {} si le fichier est illisible ou d'une ancienne version.
 static func resume() -> Dictionary:
 	var d := _lire()
-	return {} if d.is_empty() else {"jour": d["match"]["day"], "joueurs": d["joueurs"].size()}
+	if d.is_empty():
+		return {}
+	# Pour la fiche « Dossier en cours » du menu : carte, mode, réputation de chacun, espèces du joueur, date de sauvegarde
+	var j: Array = d["joueurs"]
+	var ias: Array = d.get("ias", [])
+	return {"jour": d["match"]["day"], "joueurs": j.size(), "graine": int(d.get("seed", 0)), "mode": str(d.get("mode", "course")),
+		"defi": str(d.get("defi", "")), "noms": d["match"].get("names", []), "reps": j.map(func(x): return float(x.get("rep", 0.0))),
+		"humains": range(j.size()).filter(func(k): return k >= ias.size() or ias[k] == null).size(),
+		"especes": j[0]["animals"].filter(func(a): return a.get("arrived", false)).size() if not j.is_empty() else 0,
+		"modifie": FileAccess.get_modified_time(CHEMIN)}
 
 
 static func effacer() -> void:

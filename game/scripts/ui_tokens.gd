@@ -104,6 +104,13 @@ const MARINE_2 := Color("2E4256")       # ligne active du bandeau, ordre du jour
 const JAUNE_CLAIR := Color("FFF3C4")    # étape en cours, carte suivie
 const ORANGE_CLAIR := Color("FFE1C6")   # alerte douce, ressource insuffisante
 const SARCELLE_FONCE := Color("0E615C") # gain ▲ en texte
+# Menus, statistiques, défis (docs/handoff_menus, 12/11)
+const VERT_CLAIR := Color("DDEFD9")     # pastille « Réserve naturelle » (rond vert)
+const POINTILLES := Color("9AA2AC")     # points de conduite du sommaire
+const GRIS_ONGLET := Color("E9ECEF")    # onglet inactif
+const OR_FONCE := Color("8A6400")       # médailles, rare
+const BLEU := Color("2F6FD0")           # peu commun
+const SQUELETTE := Color("E4E7EA")      # chargement
 const OR_TEXTE := Color("8A6400")       # chiffre de l'or (jamais l'argent)
 const BLEU_QUALITE := Color("2F6FD0")   # cercle = qualité
 const GAIN_BANDEAU := Color("7FD6A8")   # ▲ sur fond encre
@@ -371,6 +378,18 @@ static func build_theme() -> Theme:
 	t.set_color("font_color", "BoutonSecondaire", TEXTE)
 	t.set_color("font_hover_color", "BoutonSecondaire", TEXTE)
 	t.set_color("font_disabled_color", "BoutonSecondaire", Color(TEXTE_SECONDAIRE, 0.6))
+	# Bouton mini (menus, défis) : blanc cerné, rayon 6, ombre pleine 3
+	t.set_type_variation("BoutonMini", "Button")
+	t.set_stylebox("normal", "BoutonMini", _button(PAPIER, ENCRE, 6, true))
+	t.set_stylebox("hover", "BoutonMini", _button(Color("FFF4D6"), ENCRE, 6, true))
+	t.set_stylebox("pressed", "BoutonMini", _button(SELECTION, ENCRE, 6))
+	t.set_stylebox("disabled", "BoutonMini", _button(PAPIER_2, Color(ENCRE, 0.25), 6))
+	t.set_font("font", "BoutonMini", gras)
+	t.set_font_size("font_size", "BoutonMini", 13)
+	t.set_color("font_color", "BoutonMini", TEXTE)
+	t.set_color("font_hover_color", "BoutonMini", TEXTE)
+	t.set_color("font_pressed_color", "BoutonMini", TEXTE)
+	t.set_color("font_disabled_color", "BoutonMini", Color(TEXTE_SECONDAIRE, 0.6))
 	# Bouton fort orange (Terminer la journée)
 	t.set_type_variation("BoutonFort", "Button")
 	t.set_stylebox("normal", "BoutonFort", _button(ORANGE, ENCRE, 12, true))

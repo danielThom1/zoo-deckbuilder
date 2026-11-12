@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Statistiques — premier lancement</title>
+<link rel="stylesheet" href="commun.css"><style>
+.kpi { background: #fff; border: 2px solid var(--encre); border-radius: 10px; box-shadow: 0 4px 0 var(--encre); padding: 12px 14px; height: 108px; }
+.kpi .v { font: 600 38px/1 'IBM Plex Mono'; }
+.kpi .l { font: 800 13px 'Barlow Condensed'; letter-spacing: .07em; text-transform: uppercase; margin-top: 6px; }
+.kpi .d { font: 600 12px Barlow; color: var(--texte2); margin-top: 3px; }
+.champs { display: grid; grid-template-columns: 116px 1fr; row-gap: 9px; margin-top: 14px; font: 600 14px Barlow; }
+.champs .k { font: 600 11px 'IBM Plex Mono'; color: var(--texte2); letter-spacing: .04em; padding-top: 2px; }
+.photo { width: 96px; height: 118px; border: 2px solid var(--encre); border-radius: 6px; background: var(--sarcelle-cl); display: flex; align-items: flex-end; justify-content: center; overflow: hidden; }
+.leg { display: flex; align-items: center; gap: 6px; font: 600 12px Barlow; }
+.leg b { font-family: 'IBM Plex Mono'; margin-left: auto; }
+.tuile { position: relative; width: 50px; height: 50px; border: 2px solid var(--encre); border-radius: 8px; background: #fff; display: flex; align-items: center; justify-content: center; }
+.tuile img { width: 42px; height: 42px; object-fit: contain; }
+.tuile.non { background: #E9ECEF; border-style: dashed; border-color: #8C96A2; }
+.tuile.non img { filter: brightness(0); opacity: .22; }    /* Godot : modulate (0,0,0,0.22) */
+.tuile .r { position: absolute; right: -5px; top: -5px; width: 15px; height: 15px; border: 1.5px solid var(--encre); }
+.portrait { width: 52px; height: 66px; border: 2px solid var(--encre); border-radius: 6px; overflow: hidden; background: var(--memo); }
+.portrait img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.portrait.non { background: #E9ECEF; border-style: dashed; border-color: #8C96A2; }
+.portrait.non img { filter: brightness(0); opacity: .2; }
+.medaille { position: relative; width: 70px; height: 84px; flex: none; }
+.medaille .rub { position: absolute; top: 46px; width: 18px; height: 34px; background: var(--sarcelle); border: 2px solid var(--encre); }
+.medaille .rond { position: absolute; left: 3px; top: 0; width: 64px; height: 64px; border-radius: 50%; border: 3px solid var(--encre); background: var(--jaune);
+  display: flex; align-items: center; justify-content: center; font: 700 20px 'IBM Plex Mono'; box-shadow: inset 0 0 0 5px #FFE08A; }
+.medaille.non .rond { background: var(--papier2); border-style: dashed; border-color: #8C96A2; color: #8C96A2; box-shadow: none; }
+.medaille.non .rub { background: #D5D9DE; border-color: #8C96A2; }
+.succes { display: flex; gap: 12px; align-items: flex-start; background: #fff; border: 2px solid var(--encre); border-radius: 10px; box-shadow: 0 4px 0 var(--encre); padding: 14px 12px; height: 146px; }
+.succes.non { box-shadow: none; border-style: dashed; border-color: #8C96A2; background: var(--papier2); }
+.succes h4 { margin: 0; font: 800 19px/1.05 'Barlow Condensed'; text-transform: uppercase; }
+.succes p { margin: 4px 0 0; font: 600 13px/1.3 Barlow; color: var(--texte2); }
+.succes .st { margin-top: 8px; font: 700 12px Barlow; display: flex; align-items: center; gap: 6px; }
+.mission { background: #fff; border: 2px solid var(--encre); border-radius: 10px; box-shadow: 0 4px 0 var(--encre); padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.mission .num { font: 600 12px 'IBM Plex Mono'; color: var(--texte2); }
+.mission h4 { margin: 0; font: 800 22px/1 'Barlow Condensed'; text-transform: uppercase; }
+</style></head>
+<body><div class="ecran">
+<img class="fond" src="assets/fond_menu.png" alt=""><div class="voile"></div>
+<div class="fenetre"><div class="haut"><div class="surtitre">DOSSIER PERSONNEL · CONFIDENTIEL RH</div><div class="titre" style="margin-top:4px">Statistiques</div>
+<div class="onglets"><div class="on">Résumé</div><div class="">Parties <span class=mono>0</span></div><div class="">Collection <span class=mono>0/40</span></div><div class="">Succès <span class=mono>0/12</span></div></div><div class="fermer">×</div></div>
+<div style="position:relative;padding:20px;height:619px"><div class="panneau" style="position:absolute;left:20px;top:20px;width:330px;height:372px"><div class="tete encre"><span>Fiche signalétique</span><span class="mono" style="color:var(--jaune)">RÉF. 0042</span></div>
+<div class="corps" style="position:relative"><div style="display:flex;gap:14px;align-items:flex-end"><div class="photo"><img src="assets/logos/zoolife_embleme.png" style="width:88px" alt=""></div>
+<div><div class="cond" style="font-size:30px;line-height:1">DANIEL</div><div class="petit t2" style="font-weight:600;margin-top:4px">Cadre ZooLife™<br>filiale de la vallée</div></div></div>
+<span class="tampon vert" style="position:absolute;right:14px;top:22px;font-size:12px;padding:2px 7px">PÉRIODE D'ESSAI</span><div class="champs"><div class="k">PSEUDO</div><div>Daniel <span class="btn mini" style="margin-left:8px;height:24px">Modifier</span></div><div class="k">MATRICULE</div><div><span class="mono">ZL-2026-0042</span></div><div class="k">EN POSTE DEPUIS</div><div><span class="mono">12/11/2026</span></div><div class="k">PARTIES</div><div><span class="mono">0</span></div><div class="k">GRADE</div><div>Stagiaire</div></div></div></div><div class="hubert" style="position:absolute;left:20px;top:410px;width:330px;flex-direction:column;align-items:flex-start;gap:6px">
+<div class="bulle">« Un dossier vide est un dossier sans faute. Profitez-en, ça ne durera pas. »</div><div style="display:flex;align-items:center;gap:8px"><img src="assets/hubert/content.png" style="width:60px;height:60px" alt="">
+<span class="petit t2" style="font-weight:700">Hubert de la Marge<br><span style="font-weight:600">votre supérieur</span></span></div></div>
+<div style="position:absolute;left:370px;top:20px;width:870px">
+<div class="surtitre">ÉVALUATION ANNUELLE · AUCUNE DONNÉE</div>
+<div class="cond" style="font-size:36px;line-height:1.05;margin-top:4px">Votre dossier est encore vierge.</div>
+<div style="font:600 15px Barlow;margin-top:6px" class="t2">Chaque partie le remplit : records, courbes, espèces découvertes, succès. Trois façons de commencer :</div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px;height:200px"><div class="mission"><div class="num">MISSION 01</div><h4>Suivre le tutoriel</h4><div style="font:600 14px/1.35 Barlow;flex:1" class="t2">Hubert vous montre comment recruter, construire et ouvrir votre zoo. 15 minutes.</div><div class="btn p" style="align-self:flex-start">Commencer ›</div></div><div class="mission"><div class="num">MISSION 02</div><h4>Signer une première partie</h4><div style="font:600 14px/1.35 Barlow;flex:1" class="t2">Une partie classique contre une IA en Facile. Premier à 120 de réputation.</div><div class="btn " style="align-self:flex-start">Jouer ›</div></div><div class="mission"><div class="num">MISSION 03</div><h4>Tenter le défi de la semaine</h4><div style="font:600 14px/1.35 Barlow;flex:1" class="t2">La même partie pour tous. Votre score entre au classement.</div><div class="btn " style="align-self:flex-start">Voir le défi ›</div></div></div></div>
+<div class="panneau" style="position:absolute;left:370px;top:330px;width:500px;height:269px"><div class="tete"><span>Collection à découvrir</span><span class="mono">0 / 40</span></div>
+<div class="corps"><div style="display:grid;grid-template-columns:repeat(5,54px);gap:10px 12px;justify-content:center"><div class="tuile non"><img src="assets/especes/corps/aigle_royal.png" alt=""></div><div class="tuile non"><img src="assets/especes/corps/loup.png" alt=""></div><div class="tuile non"><img src="assets/especes/corps/cerf.png" alt=""></div><div class="tuile non"><img src="assets/especes/corps/puma.png" alt=""></div><div class="tuile non"><img src="assets/especes/corps/ocelot.png" alt=""></div><div class="tuile non"><img src="assets/especes/corps/tigre.png" alt=""></div><div class="tuile non"><img src="assets/especes/corps/paon.png" alt=""></div><div class="tuile non"><img src="assets/especes/corps/grue_japon.png" alt=""></div><div class="tuile non"><img src="assets/especes/corps/guepard.png" alt=""></div><div class="tuile non"><img src="assets/especes/corps/hyene.png" alt=""></div></div>
+<div style="font:600 13px Barlow;margin-top:12px;text-align:center" class="t2">40 espèces sur 4 continents. Chaque espèce installée apparaît ici.</div></div></div>
+<div class="panneau" style="position:absolute;left:882px;top:330px;width:358px;height:269px"><div class="tete"><span>Succès à obtenir</span><span class="mono">0 / 12</span></div>
+<div class="corps" style="display:flex;flex-wrap:wrap;gap:10px 4px;justify-content:center"><div style="display:flex;flex-direction:column;align-items:center;gap:4px;width:98px"><div class="medaille non"><i class="rub" style="left:14px;transform:rotate(14deg)"></i><i class="rub" style="left:36px;transform:rotate(-14deg)"></i><div class="rond">1er</div></div><span class="petit t2" style="font-weight:700;text-align:center;line-height:1.15">Première concession</span></div><div style="display:flex;flex-direction:column;align-items:center;gap:4px;width:98px"><div class="medaille non"><i class="rub" style="left:14px;transform:rotate(14deg)"></i><i class="rub" style="left:36px;transform:rotate(-14deg)"></i><div class="rond">RN</div></div><span class="petit t2" style="font-weight:700;text-align:center;line-height:1.15">Garde forestier</span></div><div style="display:flex;flex-direction:column;align-items:center;gap:4px;width:98px"><div class="medaille non"><i class="rub" style="left:14px;transform:rotate(14deg)"></i><i class="rub" style="left:36px;transform:rotate(-14deg)"></i><div class="rond">J9</div></div><span class="petit t2" style="font-weight:700;text-align:center;line-height:1.15">Promotion éclair</span></div><div class="petit t2" style="font-weight:600;text-align:center;margin-top:6px;line-height:1.35">+ 9 autres, jusqu'à <b style="color:var(--encre)">Arche de ZooLife</b> :<br>installer les 40 espèces.</div></div></div></div></div>
+</div></body></html>

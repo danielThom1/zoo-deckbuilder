@@ -4,7 +4,8 @@
 --
 -- Principe : les joueurs ne lisent jamais les tables directement (aucune règle de lecture). Tout passe par des fonctions :
 --   soumettre_score : garde le meilleur score de chaque joueur par défi, avec le replay de cette partie ;
---   classement      : rang du joueur, nombre de participants, top 10 (pseudos montrés seulement si le joueur y est) ;
+--   classement      : rang du joueur, nombre de participants, top 10 avec pseudos (visible par tous ; les joueurs hors
+--                     du top 10 ne sont jamais montrés aux autres, chacun ne voit que sa propre ligne) ;
 --   replay_semaine_precedente : le replay du vainqueur du défi de la semaine passée, une fois la semaine finie.
 -- Les autres replays ne se lisent que depuis le tableau de bord Supabase (Table Editor), pour vérifier les scores.
 
@@ -77,7 +78,7 @@ begin
            'rang', rang,
            'score', score,
            'moi', joueur = auth.uid(),
-           'pseudo', case when mon_rang is not null and mon_rang <= 10 then pseudo else null end)
+           'pseudo', pseudo)
          order by rang), '[]'::jsonb)
     into top
     from (select joueur, pseudo, score, rank() over (order by score desc) as rang
@@ -97,9 +98,22 @@ language sql security definer set search_path = public as $$
    limit 1
 $$;
 
+-- Le vainqueur de la semaine passée, sans son replay (note de service du menu).
+create or replace function public.vainqueur_semaine_precedente()
+returns jsonb
+language sql security definer set search_path = public as $$
+  select jsonb_build_object('defi', defi, 'pseudo', pseudo, 'score', score)
+    from scores
+   where defi = 'semaine_' || (semaine_courante() - 1) and not exclu
+   order by score desc, cree_le asc
+   limit 1
+$$;
+
 revoke all on function public.soumettre_score(text, text, numeric, text, jsonb) from public, anon;
 revoke all on function public.classement(text) from public, anon;
 revoke all on function public.replay_semaine_precedente() from public, anon;
+revoke all on function public.vainqueur_semaine_precedente() from public, anon;
 grant execute on function public.soumettre_score(text, text, numeric, text, jsonb) to authenticated;
 grant execute on function public.classement(text) to authenticated;
 grant execute on function public.replay_semaine_precedente() to authenticated;
+grant execute on function public.vainqueur_semaine_precedente() to authenticated;

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Menu A — sans sauvegarde</title>
+<link rel="stylesheet" href="commun.css">
+<style>
+/* couverture du rapport : x 60, l 520, h 900 */
+.couv { position: absolute; left: 60px; top: 0; width: 520px; height: 900px; background: #fff; border-left: 2.5px solid var(--encre);
+  border-right: 2.5px solid var(--encre); box-shadow: 10px 0 0 rgba(20,32,43,.35); padding: 26px 36px 18px; display: flex; flex-direction: column; }
+.couv .logo { width: 236px; margin: 6px auto 0; display: block; }
+.slogan { font: italic 600 14px/1.3 Barlow; text-align: center; color: var(--texte2); margin-top: 2px; }
+.sommaire { border-top: 3px solid var(--encre); margin-top: 14px; padding-top: 6px; }
+.chap { display: flex; align-items: center; gap: 8px; height: 26px; margin-top: 4px; font: 800 12px 'Barlow Condensed'; letter-spacing: .1em; color: var(--texte2); }
+.chap::after { content: ""; flex: 1; border-top: 1px solid var(--filet); }
+.chap b { font: 600 11px 'IBM Plex Mono'; color: var(--texte2); }
+/* ligne du sommaire : h 38, rayon 8 ; sélection = jaune + contour 2 encre */
+.toc { position: relative; display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 12px; border-radius: 8px; border: 2px solid transparent; }
+.toc i { font: 600 13px 'IBM Plex Mono'; font-style: normal; color: var(--texte2); width: 22px; }
+.toc b { font: 800 21px 'Barlow Condensed'; text-transform: uppercase; letter-spacing: .01em; }
+.toc span.pts { flex: 1; border-bottom: 2px dotted #9AA2AC; transform: translateY(5px); }
+.toc em { font: 600 13px Barlow; font-style: normal; color: var(--texte2); }
+.toc.on { background: var(--jaune); border-color: var(--encre); }
+.toc.on em, .toc.on i { color: var(--encre); }
+.toc .flag { font: 700 11px 'IBM Plex Mono'; background: var(--encre); color: var(--jaune); padding: 2px 6px; border-radius: 4px; }
+/* languette qui relie la ligne choisie à la fiche de mode : jaune, contour haut/bas 2 encre */
+/* ligne choisie : le jaune file jusqu'au bord de la couverture (x 582), puis la languette rejoint la fiche (x 582 → 612, recouvre son contour) */
+.toc.on, .reprise.on { margin-right: -38.5px; border-right: none; border-radius: 8px 0 0 8px; padding-right: 50.5px; }
+.toc.on::after, .reprise.on::after { content: ""; position: absolute; left: 100%; top: -2px; bottom: -2px; width: 30px; background: var(--jaune);
+  border-top: 2px solid var(--encre); border-bottom: 2px solid var(--encre); z-index: 5; }
+.languette { position: absolute; background: var(--jaune); z-index: 5; }
+.pied { margin-top: auto; }
+.fiche-j { display: flex; align-items: center; gap: 10px; border-top: 2px solid var(--encre); padding-top: 10px; }
+.fiche-j img { width: 34px; height: 34px; }
+.fiche-j .q { flex: 1; line-height: 1.15; }
+.citation { font: italic 600 13px Barlow; color: var(--texte2); text-align: center; margin-top: 10px; }
+.bas { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font: 500 11px 'IBM Plex Mono'; color: var(--texte2); }
+/* dossier en cours (sauvegarde) */
+.reprise { position: relative; margin-top: 12px; border: 2px solid var(--encre); border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; gap: 12px; background: var(--memo); }
+.reprise.on { background: var(--jaune); }
+/* fiche de mode : x 604, l 452 */
+.fiche { position: absolute; left: 604px; width: 452px; }
+.fiche .lab { font: 800 12px 'Barlow Condensed'; letter-spacing: .08em; color: var(--texte2); margin: 14px 0 6px; text-transform: uppercase; }
+.regles { padding: 12px 14px; border-bottom: 2px solid var(--encre); }
+.regles p { margin: 0 0 8px; font: 600 14px/1.35 Barlow; }
+.regles .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.rivaux { display: flex; align-items: center; gap: 6px; margin-top: 8px; font: 600 13px Barlow; }
+.rivaux img { width: 32px; height: 32px; border: 1.5px solid var(--encre); border-radius: 6px; background: #fff; }
+.cartebloc { display: flex; gap: 12px; }
+.cartebloc img { width: 104px; height: 104px; }
+.note-rem { margin-top: 10px; font: 600 12px Barlow; color: var(--neg); display: flex; gap: 6px; align-items: center; }
+/* note de service du défi de la semaine, épinglée sur la carte */
+.note-service { position: absolute; left: 1120px; top: 548px; width: 420px; background: var(--memo); border: 2.5px solid var(--encre); border-radius: 8px;
+  box-shadow: 0 5px 0 var(--encre); transform: rotate(-1.5deg); padding: 16px 18px 14px; }
+.punaise { position: absolute; left: 196px; top: -10px; width: 20px; height: 20px; border-radius: 50%; background: var(--neg); border: 2px solid var(--encre); }
+.dev { position: absolute; right: 14px; top: 12px; height: 26px; padding: 0 9px; border: 1.5px dashed rgba(255,255,255,.8); border-radius: 6px;
+  background: rgba(20,32,43,.55); color: #fff; font: 600 11px 'IBM Plex Mono'; display: flex; align-items: center; }
+</style></head>
+<body><div class="ecran">
+<img class="fond" src="assets/menu_fond.jpg" alt="Carte vivante du menu">
+<div class="dev">DÉV. ▾</div>
+<div class="couv">
+<div style="display:flex;justify-content:space-between" class="surtitre"><span>RAPPORT ANNUEL</span><span>EXERCICE 2026</span></div>
+<img class="logo" src="assets/logos/zoolife.png" alt="ZooLife">
+<div class="slogan">Bâtissez le zoo le plus rentable de la vallée,<br>avec le personnel que vous méritez.</div>
+
+<div class="sommaire"><div class="entete" style="color:var(--encre);letter-spacing:.1em">SOMMAIRE</div>
+<div class="chap"><b>I</b>JOUER</div><div class="toc on"><i>01</i><b>Partie classique</b><span class="pts"></span><em>vous + 1 à 3 IA</em></div><div class="toc"><i>02</i><b>Réserve naturelle</b><span class="pts"></span><em>terrain tel quel</em></div><div class="toc"><i>03</i><b>Gestion libre</b><span class="pts"></span><em>seul, sans fin</em></div><div class="toc"><i>04</i><b>Multijoueur</b><span class="pts"></span><em>2 à 4 joueurs</em></div><div class="chap"><b>II</b>DÉFIS · LA MÊME PARTIE POUR TOUS</div><div class="toc"><i>05</i><b>Défi de la semaine</b><span class="flag">9/11</span><span class="pts"></span><em>fin dans 3 j 3 h</em></div><div class="toc"><i>06</i><b>Défis permanents</b><span class="pts"></span><em>4 cartes · classements</em></div><div class="chap"><b>III</b>APPRENDRE</div><div class="toc"><i>07</i><b>Tutoriel</b><span class="pts"></span><em>avec Hubert</em></div><div class="toc"><i>08</i><b>Règles et glossaire</b><span class="pts"></span><em></em></div>
+</div>
+<div class="pied">
+  <div class="fiche-j"><img src="assets/logos/zoolife_embleme.png" alt="">
+    <div class="q"><div class="cond" style="font-size:17px">DANIEL</div><div class="petit t2" style="font-weight:600">52 parties · 26 victoires · record 151</div></div>
+    <div class="btn mini">Statistiques ›</div></div>
+  <div style="display:flex;gap:8px;margin-top:10px"><div class="btn mini" style="flex:1">Réglages</div><div class="btn mini" style="flex:1">Quitter</div></div>
+  <div class="citation">« Un collaborateur fatigué est un collaborateur qui a travaillé. » H. de la Marge</div>
+  <div class="bas"><span>Document réservé aux collaborateurs</span><span class="tampon" style="font-size:13px;padding:2px 8px">CONFIDENTIEL</span></div>
+</div>
+</div>
+<div class="fiche panneau" style="top:238px">
+<div class="tete"><span>01 · Partie classique</span><span class="mono">~14 jours</span></div>
+<div class="regles memo"><p>Premier à <b class="mono">120</b> de réputation. Le terrain s'aménage : creuser des bassins, planter, dérocher.</p>
+<div class="chips"><span class="pastille mode-cl"><i class="forme f-triangle" style="background:var(--orange)"></i>Terrain aménageable</span><span class="pastille">Objectif 120</span><span class="pastille">Vous + IA</span></div></div>
+<div class="corps" style="padding-top:2px">
+<div class="lab">Adversaires</div><div class="seg"><div>1</div><div>2</div><div class="on">3</div></div><div class="rivaux"><img src="assets/logos/panzoo_embleme.png" alt=""><img src="assets/logos/safari_embleme.png" alt=""><img src="assets/logos/bioland_embleme.png" alt=""><span>PanZoo, Safari Capital, BioLand</span></div>
+<div class="lab">Difficulté</div><div class="seg"><div>Facile</div><div class="on">Moyen</div><div>Difficile</div></div>
+<div class="lab">Carte</div><div class="cartebloc"><img class="vign" src="assets/cartes/carte_54953.png" alt="">
+<div style="flex:1;display:flex;flex-direction:column;gap:8px"><div class="champ">54953</div><div class="btn" style="height:34px">↻ Autre carte</div>
+<div class="petit t2" style="font-weight:600">Forêt 21 % · eau 13 % · roche 11 %</div></div></div>
+<div style="margin-top:16px" class="btn p grand">Signer la prise de poste ›</div>
+</div></div>
+<div class="note-service"><div class="punaise"></div>
+<div class="surtitre" style="color:var(--encre)">NOTE DE SERVICE · DÉFI DE LA SEMAINE</div>
+<div style="display:flex;gap:14px;margin-top:8px">
+ <img class="vign" src="assets/cartes/carte_600024843.png" style="width:96px;height:96px" alt="">
+ <div style="flex:1">
+  <div class="cond" style="font-size:25px;line-height:1">Semaine du 9/11</div>
+  <div style="margin-top:5px"><span class="pastille mode-rn"><i class="forme f-rond" style="background:var(--pos)"></i>Réserve naturelle</span></div>
+  <div class="mono" style="font-size:22px;margin-top:8px">3 j 03 h 14</div>
+  <div class="petit t2" style="font-weight:600">avant dimanche 23 h 59</div>
+ </div></div>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;border-top:1.5px solid var(--filet);padding-top:9px">
+ <div style="font:600 13px Barlow">Votre rang : <b class="mono">14<sup>e</sup></b> sur 52 · record <b class="mono">112</b></div>
+ <div class="btn mini">Voir le défi ›</div></div>
+<div class="petit t2" style="font-weight:600;margin-top:7px">Vainqueur de la semaine passée : <b style="color:var(--encre)">Margaux_R</b> (163) · <u>Revoir sa partie</u></div>
+</div>
+</div></body></html>

@@ -107,6 +107,18 @@ func soumettre(mt: Match, i: int) -> Dictionary:
 	return r if r is Dictionary else {}
 
 
+## Vainqueur du défi de la semaine passée, sans son replay : {"pseudo", "score"}, ou {} (personne, ou hors ligne).
+func vainqueur_semaine() -> Dictionary:
+	var r = await _rpc("vainqueur_semaine_precedente", {})
+	return r if r is Dictionary else {}
+
+
+## Replay du vainqueur de la semaine passée : {"pseudo", "score", "replay"}, ou {}.
+func replay_semaine() -> Dictionary:
+	var r = await _rpc("replay_semaine_precedente", {})
+	return r if r is Dictionary and r.get("replay") is Dictionary else {}
+
+
 ## Texte d'une ligne de rang : « 14e sur 52 ».
 static func texte_rang(c: Dictionary) -> String:
 	if c.is_empty():

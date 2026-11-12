@@ -1,84 +1,98 @@
 class_name MenuPrincipal
 extends Control
-## Menu principal « Le Comité » : une couverture de rapport annuel sur le paysage illustré, un sommaire pour les entrées,
-## et le panneau « Nouvelle filiale » (adversaires, difficulté, carte) à droite.
-## Ne dépend que de GameData, MapGenerator, GameMap et des polices de UiTokens.
+## Menu principal « Le Comité », variante A (docs/handoff_menus, maquettes 10A*) : couverture de rapport annuel à gauche,
+## sommaire en trois chapitres (Jouer, Défis, Apprendre), bloc « Dossier en cours » quand une sauvegarde existe, et une
+## fiche de mode agrafée à droite de la couverture, reliée à la ligne choisie par une languette jaune. Les réglages de la
+## fiche dépendent du mode. Le défi de la semaine a sa note de service épinglée sur la carte. Statistiques, Réglages et
+## Quitter sont dans le pied de la couverture.
+## Option de capture : --menu=course|nature|cozy|multi|semaine|permanents|tutoriel|dossier (ligne choisie au départ).
 
 signal lancer(spectateur: bool, graine: int, adversaires: int, niveau: String)
-signal defi(id: String)  # un défi choisi dans FenetreDefis
+signal defi(id: String)  # un défi à jouer
 signal revoir_defi(replay: Dictionary)  # replay du vainqueur de la semaine passée
 signal continuer
 signal tutoriel
 signal multijoueur
 signal replay_etude(chemin: String)
 
-# Couleurs (thème Émeraude, cf. docs/handoff_emeraude/tokens.json)
-# Style « BD néo ligne claire » (docs/handoff_bd) : papier blanc, encre marine, accent jaune, bandeau sarcelle
-const PANNEAU := Color("FFFFFF")
-const PANNEAU_BAS := Color("EEF4F1")
-const ENTETE := Color("13867F")
-const OR := Color("14202B")
-const OR_SOMBRE := Color("14202B")
-const OR_CLAIR := Color("1E2C45")
-const BOUTON_HAUT := Color("FFD86A")
-const BOUTON_BAS := Color("FFC93C")
-const BOUTON_TEXTE := Color("14202B")
-const TEXTE := Color("14202B")
-const TEXTE_2 := Color("4A5664")
-const SELECTION := Color("FFC93C")
-const JOUEURS := [Color("13867F"), Color("F0A020"), Color("3A6AE0"), Color("E04A8A")]
 const FOND_ILLUSTRE := "res://assets/bd/menu_fond.jpg"
-const TERRAIN := {
-	GameMap.PRAIRIE: Color("62AE34"), GameMap.FORET: Color("2E7A2C"), GameMap.EAU: Color("2B86D2"),
-	GameMap.ROCHE: Color("A8A296"), GameMap.SABLE: Color("F2D684"), GameMap.MONTAGNE: Color("8E7E6C"),
-	GameMap.MINE_OR: Color("C9A13A"),
-}
+const JOUEURS := [Color("13867F"), Color("F0A020"), Color("3A6AE0"), Color("E04A8A")]
+const FORMES := ["rond", "carre", "triangle", "losange"]
+const NIVEAUX := ["facile", "moyen", "difficile"]
+const RIVAUX := ["PanZoo", "Safari Capital", "BioLand"]
+const LANGUETTE_X := 612.0  # bord droit de la languette (la fiche commence à 604)
+const FICHE_X := 604.0
+const FICHE_L := 452.0
+const TERRAIN_MOTIF := {"Prairie": Color("62AE34"), "Foret": Color("2E7A2C"), "Eau": Color("2B86D2"), "Roche": Color("A8A296"),
+	"Sable": Color("F2D684"), "Montagne": Color("8E7E6C")}
 
-const PX := 8  # pixels par case dans l'image de fond
+## Les lignes du sommaire : [choix, numéro, titre, chapitre].
+const LIGNES := [
+	["course", "01", "Partie classique", "I"], ["nature", "02", "Réserve naturelle", "I"], ["cozy", "03", "Gestion libre", "I"],
+	["multi", "04", "Multijoueur", "I"], ["semaine", "05", "Défi de la semaine", "II"], ["permanents", "06", "Défis permanents", "II"],
+	["tutoriel", "07", "Tutoriel", "III"], ["regles", "08", "Règles et glossaire", "III"],
+]
+const CHAPITRES := {"I": "Jouer", "II": "Défis · la même partie pour tous", "III": "Apprendre"}
 
 static var mode_partie := "course"  # course, nature ou cozy (ModesPartie), lu par main au lancement
 static var iso_demande := false  # essai de la vue isométrique, lancé depuis le menu
 static var vue3d_demandee := false  # essai de la vue 3D, lancé depuis le menu
+
 var graine := 0
 var adversaires := 3
 var niveau := "moyen"  # niveau des IA : facile, moyen, difficile (stratégies choisies par l'étude)
-const NIVEAUX := ["facile", "moyen", "difficile"]
-var police_titre: Font
-var police_texte: Font
-var police_gras: Font
+var choix := "course"
+var donnees: Dictionary
+var sauvee := {}
+var classement: Classement
+var rang_semaine := {}  # classement du défi de la semaine, lu sur le serveur
+var vainqueur := {}
 
 var fond: TextureRect
-var apercu: TextureRect
+var couverture: PanelContainer
+var lignes := {}  # choix -> Button
+var bloc_dossier: Button
+var fiche: PanelContainer
+var fiche_corps: VBoxContainer
+var bouton_principal: Button
+var note: Control
 var champ_graine: LineEdit
-var lbl_carte: Label
-var lbl_joueurs: Label
-var sous_titre_jouer: Label
-var note_jouer: Label
-var rivaux_box: HBoxContainer
-var boutons_adv: Array = []
-var boutons_dif: Array = []
-var bouton_jouer: Button
 var attente_graine := -1.0
-var donnees: Dictionary
+var _cartes := {}  # "graine_mode" -> {"tex", "texte"}
+var _rebours_lbl: Array = []  # libellés du compte à rebours, rafraîchis chaque minute
+var _rebours_t := 0.0
 
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_charger_polices()
+	theme = UiTokens.build_theme()
 	donnees = GameData.load_all()
 	graine = randi() % 1000000
+	sauvee = Sauvegarde.resume()
+	if not sauvee.is_empty():
+		choix = "dossier"
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--menu="):
+			choix = a.trim_prefix("--menu=")
+	if choix == "dossier" and sauvee.is_empty():
+		choix = "course"
+	classement = Classement.new()
+	add_child(classement)
 	_construire()
-	_changer_carte(graine)
-	_apparition()
+	# Les fenêtres ouvertes par-dessus le menu (défis, statistiques, réglages, pseudo…) passent devant la ligne choisie,
+	# qui est dessinée en z 2 pour recouvrir le bord de la fiche.
+	child_entered_tree.connect(func(n: Node):
+		if n is Control and n != classement:
+			(n as Control).z_index = 10)
+	_choisir(choix)
+	_lire_classement.call_deferred()
+	modulate.a = 0.0
+	create_tween().tween_property(self, "modulate:a", 1.0, 0.4)
 
 
 # ---------------------------------------------------------------- construction
 
 func _construire() -> void:
-	theme = _theme()
-	var uit := UiTokens.build_theme()
-	theme = uit
-	# Fond : le paysage illustré, plein écran
 	fond = TextureRect.new()
 	fond.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	fond.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
@@ -88,8 +102,30 @@ func _construire() -> void:
 	if ResourceLoader.exists(FOND_ILLUSTRE):
 		fond.texture = load(FOND_ILLUSTRE)
 	add_child(fond)
-	# Couverture : bande blanche de 520 px, pleine hauteur
-	var couverture := PanelContainer.new()
+	# Ombre pleine de la couverture (10 px, encre à 35 %)
+	var ombre := ColorRect.new()
+	ombre.color = Color(UiTokens.ENCRE, 0.35)
+	ombre.anchor_bottom = 1.0
+	ombre.offset_left = 580
+	ombre.offset_right = 590
+	ombre.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(ombre)
+	add_child(_couverture())
+	fiche = PanelContainer.new()
+	fiche.name = "Fiche"
+	fiche.add_theme_stylebox_override("panel", UiTokens.panneau(UiTokens.PAPIER, 10, 2, 2, true))
+	fiche.position = Vector2(FICHE_X, 238)
+	fiche.custom_minimum_size.x = FICHE_L
+	fiche.size.x = FICHE_L
+	add_child(fiche)
+	note = _note_de_service()
+	add_child(note)
+	if OS.has_feature("editor"):
+		add_child(_bouton_dev())
+
+
+func _couverture() -> PanelContainer:
+	couverture = PanelContainer.new()
 	couverture.name = "Colonne"
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = UiTokens.PAPIER
@@ -98,362 +134,1011 @@ func _construire() -> void:
 	sb.border_width_right = 2
 	sb.content_margin_left = 36
 	sb.content_margin_right = 36
-	sb.content_margin_top = 30
-	sb.content_margin_bottom = 26
+	sb.content_margin_top = 26
+	sb.content_margin_bottom = 16
 	couverture.add_theme_stylebox_override("panel", sb)
 	couverture.anchor_bottom = 1.0
 	couverture.offset_left = 60
-	couverture.offset_right = 578
-	add_child(couverture)
+	couverture.offset_right = 580
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 0)
 	couverture.add_child(col)
 	var haut := HBoxContainer.new()
-	var ra := _label_mono("RAPPORT ANNUEL", 12)
+	var ra := Composants.texte("RAPPORT ANNUEL", 12, 600, UiTokens.TEXTE_2, "mono")
 	ra.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	haut.add_child(ra)
-	haut.add_child(_label_mono("EXERCICE %d" % Time.get_date_dict_from_system()["year"], 12))
+	haut.add_child(Composants.texte("EXERCICE %d" % Time.get_date_dict_from_system()["year"], 12, 600, UiTokens.TEXTE_2, "mono"))
 	col.add_child(haut)
-	var logo := Composants.image_logo(load("res://assets/bd/logos/zoolife.png"), Vector2(360, 240))
+	var logo := Composants.image_logo(load("res://assets/bd/logos/zoolife.png"), Vector2(236, 158))
 	logo.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	col.add_child(logo)
-	var accroche := Composants.label("Bâtissez le zoo le plus rentable de la vallée,\navec le personnel que vous méritez.")
-	accroche.add_theme_font_override("font", UiTokens.police_italique())
-	accroche.add_theme_font_size_override("font_size", 15)
-	accroche.add_theme_constant_override("line_spacing", -3)
+	var accroche := Composants.texte("Bâtissez le zoo le plus rentable de la vallée,\navec le personnel que vous méritez.", 14, 600, UiTokens.TEXTE_2, "italique")
+	accroche.add_theme_constant_override("line_spacing", -2)
 	accroche.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(accroche)
-	col.add_child(_espace(16))
+	if not sauvee.is_empty():
+		col.add_child(_espace(12))
+		bloc_dossier = _bloc_dossier()
+		col.add_child(bloc_dossier)
+	col.add_child(_espace(14))
 	var filet := ColorRect.new()
 	filet.color = UiTokens.ENCRE
 	filet.custom_minimum_size.y = 3
+	filet.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(filet)
 	col.add_child(_espace(6))
-	var sm := Composants.label("SOMMAIRE")
-	sm.add_theme_font_override("font", UiTokens.police_titre())
-	sm.add_theme_font_size_override("font_size", 12)
-	sm.add_theme_color_override("font_color", UiTokens.TEXTE_2)
-	col.add_child(sm)
-	col.add_child(_espace(4))
-	var compteur := [0]  # une lambda capture les entiers par valeur
-	var ligne := func(titre: String, note: String, action: Callable, actif := false) -> Button:
-		compteur[0] += 1
-		var b := _ligne_sommaire(compteur[0], titre, note, actif)
-		b.pressed.connect(action)
+	col.add_child(Composants.texte("SOMMAIRE", 13, 800, UiTokens.ENCRE, "titre"))
+	var chap := ""
+	for l in LIGNES:
+		if l[3] != chap:
+			chap = l[3]
+			col.add_child(_espace(4))
+			col.add_child(Composants.chapitre(chap, CHAPITRES[chap]))
+		var b := _ligne_sommaire(l[0], l[1], l[2], _note_ligne(l[0]))
+		lignes[l[0]] = b
 		col.add_child(b)
-		return b
-	sous_titre_jouer = null
-	bouton_jouer = ligne.call("Jouer contre l'IA", "vous + %d IA" % adversaires, func(): lancer.emit(false, graine, adversaires, niveau), true)
-	note_jouer = bouton_jouer.get_meta("note")
-	var sauvee := Sauvegarde.resume()
-	if not sauvee.is_empty():
-		ligne.call("Continuer", "Jour %d · %d joueurs" % [sauvee["jour"], sauvee["joueurs"]], func(): continuer.emit())
-	ligne.call("Réserve naturelle", "sans aménagement · vous + %d IA" % adversaires, func():
-		mode_partie = "nature"
-		lancer.emit(false, graine, adversaires, niveau))
-	ligne.call("Gestion libre", "seul, sans fin · livre d'or, naissances", func():
-		mode_partie = "cozy"
-		lancer.emit(false, graine, 0, niveau))
-	ligne.call("Défis", "même partie pour tous · %d jours" % int(Defis.donnees()["jours"]), ouvrir_defis)
-	ligne.call("Multijoueur", "2 à 4 joueurs", func(): multijoueur.emit())
-	ligne.call("Tutoriel", "avec Hubert", func(): tutoriel.emit())
-	ligne.call("Règles et glossaire", "", func(): add_child(Aide.new(donnees)))
-	ligne.call("Statistiques", Statistiques.pseudo(), func(): add_child(Statistiques.new(donnees)))
-	ligne.call("Réglages", "", func(): add_child(Reglages.new()))
-	ligne.call("Quitter", "retour au bureau", func(): get_tree().quit())
 	var esp := Control.new()
 	esp.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	esp.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(esp)
-	# Slogan du jour
-	var slogans: Array = donnees["hubert"]["slogans"]
-	var slogan := Composants.label(str(slogans[randi() % slogans.size()]))
-	slogan.add_theme_font_override("font", UiTokens.police_italique())
-	slogan.add_theme_font_size_override("font_size", 13)
-	slogan.add_theme_color_override("font_color", UiTokens.TEXTE_2)
-	slogan.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	slogan.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	col.add_child(slogan)
-	col.add_child(_espace(8))
-	var bas := HBoxContainer.new()
-	var doc := _label_mono("Document réservé aux collaborateurs", 11)
-	doc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	doc.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	bas.add_child(doc)
-	var tampon := PanelContainer.new()
-	var st := StyleBoxFlat.new()
-	st.bg_color = Color(0, 0, 0, 0)
-	st.border_color = Color("B3361F")
-	st.set_border_width_all(2)
-	st.content_margin_left = 8
-	st.content_margin_right = 8
-	tampon.add_theme_stylebox_override("panel", st)
-	var lt := Composants.label("CONFIDENTIEL")
-	lt.add_theme_font_override("font", UiTokens.police_titre())
-	lt.add_theme_font_size_override("font_size", 14)
-	lt.add_theme_color_override("font_color", Color("B3361F"))
-	tampon.add_child(lt)
-	tampon.rotation = deg_to_rad(-6)
-	bas.add_child(tampon)
-	col.add_child(bas)
-	# Réservé au développement : ces entrées n'existent pas dans le jeu exporté.
-	if OS.has_feature("editor"):
-		var dev := HBoxContainer.new()
-		dev.add_theme_constant_override("separation", 6)
-		dev.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-		dev.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-		dev.position.y = 12
-		dev.offset_right = -16
-		add_child(dev)
-		var b_iso := Button.new()
-		b_iso.text = "Essai : vue isométrique"
-		b_iso.tooltip_text = "Une partie normale, vue en isométrique. F2 change de vue à tout moment."
-		b_iso.pressed.connect(func():
-			iso_demande = true
-			lancer.emit(false, graine, adversaires, niveau))
-		dev.add_child(b_iso)
-		var b_3d := Button.new()
-		b_3d.text = "Essai : vue 3D"
-		b_3d.tooltip_text = "Une partie normale, avec une caméra en perspective. F3 et F2 changent de vue à tout moment."
-		b_3d.pressed.connect(func():
-			vue3d_demandee = true
-			lancer.emit(false, graine, adversaires, niveau))
-		dev.add_child(b_3d)
-		var b_regarder := Button.new()
-		b_regarder.text = "Dév. : regarder des IA jouer"
-		b_regarder.tooltip_text = "Quatre IA du niveau choisi (Facile, Moyen, Difficile), avec le code actuel"
-		b_regarder.pressed.connect(func(): lancer.emit(true, graine, 4, niveau))
-		dev.add_child(b_regarder)
-		var b_etude := Button.new()
-		b_etude.text = "Dév. : IA de la dernière étude"
-		b_etude.tooltip_text = "Les 4 meilleures stratégies de la dernière étude (data/ia_evolution.json), avec le code actuel, sur la carte choisie"
-		b_etude.pressed.connect(func(): lancer.emit(true, graine, 4, "etude"))
-		dev.add_child(b_etude)
-		if FileAccess.file_exists(Replay.chemin_etude()):
-			var b_record := Button.new()
-			b_record.text = "Dév. : partie la plus courte"
-			b_record.pressed.connect(func(): replay_etude.emit(Replay.chemin_etude()))
-			dev.add_child(b_record)
-		var n_zero := 0
-		for chemin in Replay.chemins_zero():
-			n_zero += 1
-			var b_zero := Button.new()
-			b_zero.text = "Dév. : IA à 0 n° %d" % n_zero
-			b_zero.pressed.connect(func(): replay_etude.emit(chemin))
-			dev.add_child(b_zero)
-	add_child(_carte_reglages())
-	_maj_joueurs()
+	col.add_child(_pied())
+	return couverture
 
 
-func ouvrir_defis() -> void:
-	var f := FenetreDefis.new()
-	f.jouer.connect(func(id: String): defi.emit(id))
-	f.revoir.connect(func(r: Dictionary): revoir_defi.emit(r))
-	add_child(f)
+func _note_ligne(c: String) -> String:
+	match c:
+		"course":
+			return "vous + 1 à 3 IA"
+		"nature":
+			return "terrain tel quel"
+		"cozy":
+			return "seul, sans fin"
+		"multi":
+			return "2 à 4 joueurs"
+		"semaine":
+			return "fin dans " + Composants.rebours_semaine()["court"]
+		"permanents":
+			return "%d cartes · classements" % Defis.donnees()["defis"].size()
+		"tutoriel":
+			return "avec Hubert"
+	return ""
 
 
-func _label_mono(t: String, taille: int) -> Label:
-	var l := Composants.label(t)
-	l.add_theme_font_override("font", UiTokens.police_mono(500))
-	l.add_theme_font_size_override("font_size", taille)
-	l.add_theme_color_override("font_color", UiTokens.TEXTE_2)
-	return l
-
-
-## Ligne de sommaire : numéro, titre, points de conduite, note à droite. L'entrée active est jaune.
-func _ligne_sommaire(n: int, titre: String, note: String, actif: bool) -> Button:
+## Ligne du sommaire : numéro, titre en capitales, points de conduite, note. Choisie : jaune, ouverte à droite, et
+## prolongée jusqu'à la fiche (languette) : son fond déborde de LANGUETTE_X − bord, au-dessus du contour de la fiche.
+func _ligne_sommaire(c: String, num: String, titre: String, note_txt: String) -> Button:
 	var b := Button.new()
 	b.focus_mode = Control.FOCUS_NONE
-	b.custom_minimum_size.y = 48
-	var normal := StyleBoxFlat.new()
-	normal.bg_color = UiTokens.SELECTION if actif else Color(0, 0, 0, 0)
-	normal.set_corner_radius_all(8)
-	normal.anti_aliasing = true
-	if actif:
-		normal.border_color = UiTokens.ENCRE
-		normal.set_border_width_all(2)
-	var survol: StyleBoxFlat = normal.duplicate()
-	survol.bg_color = UiTokens.BOUTON_HAUT if actif else UiTokens.JAUNE_CLAIR
-	b.add_theme_stylebox_override("normal", normal)
-	b.add_theme_stylebox_override("hover", survol)
-	b.add_theme_stylebox_override("pressed", survol)
+	b.custom_minimum_size.y = 38
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	b.pressed.connect(func(): _choisir(c))
 	var h := HBoxContainer.new()
 	h.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	h.offset_left = 14
-	h.offset_right = -14
-	h.add_theme_constant_override("separation", 12)
+	h.offset_left = 12
+	h.offset_right = -12
+	h.add_theme_constant_override("separation", 10)
 	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	b.add_child(h)
-	var num := _label_mono("%02d" % n, 14)
-	num.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	h.add_child(num)
-	var t := Composants.label(titre.to_upper())
-	t.add_theme_font_override("font", UiTokens.police_titre())
-	t.add_theme_font_size_override("font_size", 22)
+	var n := Composants.texte(num, 13, 600, UiTokens.TEXTE_2, "mono")
+	n.custom_minimum_size.x = 22
+	n.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	h.add_child(n)
+	var t := Composants.texte(titre.to_upper(), 21, 800, UiTokens.ENCRE, "titre")
 	t.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(t)
+	if c == "semaine":
+		var badge := PanelContainer.new()
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = UiTokens.ENCRE
+		sb.set_corner_radius_all(4)
+		sb.content_margin_left = 6
+		sb.content_margin_right = 6
+		badge.add_theme_stylebox_override("panel", sb)
+		badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		badge.add_child(Composants.texte(Composants.date_semaine(), 11, 600, UiTokens.SELECTION, "mono"))
+		h.add_child(badge)
 	var points := Control.new()
 	points.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	points.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	points.draw.connect(func():
-		var y := points.size.y * 0.58
-		var x := 0.0
-		while x < points.size.x:
-			points.draw_circle(Vector2(x, y), 0.8, UiTokens.ENCRE_DOUX)
+		var y := points.size.y * 0.5 + 6.0
+		var x := 2.0
+		while x < points.size.x - 2.0:
+			points.draw_circle(Vector2(x, y), 1.0, UiTokens.POINTILLES)
 			x += 4.0)
 	h.add_child(points)
-	var nl := Composants.label(note)
-	nl.add_theme_font_override("font", UiTokens.police_corps(600))
-	nl.add_theme_font_size_override("font_size", 13)
-	nl.add_theme_color_override("font_color", UiTokens.TEXTE_2)
+	var nl := Composants.texte(note_txt, 13, 600, UiTokens.TEXTE_2)
 	nl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(nl)
-	b.set_meta("note", nl)
+	b.set_meta("textes", [n, nl])
+	if c == "semaine":
+		_rebours_lbl.append([nl, "court", "fin dans "])
 	return b
 
 
-## Panneau « Nouvelle filiale » : adversaires, difficulté, carte, signature.
-func _carte_reglages() -> Control:
-	var p := PanelContainer.new()
-	p.name = "Reglages"
-	var sb := UiTokens.panneau(UiTokens.PAPIER, 12, 2, 2, true)
-	p.add_theme_stylebox_override("panel", sb)
-	p.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
-	p.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	p.grow_vertical = Control.GROW_DIRECTION_BOTH
-	p.offset_right = -70
-	p.offset_left = -510
+## Style d'une ligne (ou du bloc « Dossier en cours ») selon qu'elle est choisie.
+func _styler_ligne(b: Button, on: bool, fond_repos := Color(0, 0, 0, 0)) -> void:
+	var normal := StyleBoxFlat.new()
+	normal.anti_aliasing = true
+	normal.set_corner_radius_all(8)
+	normal.bg_color = fond_repos
+	if fond_repos.a > 0.0:
+		normal.border_color = UiTokens.ENCRE
+		normal.set_border_width_all(2)
+	var survol: StyleBoxFlat = normal.duplicate()
+	survol.bg_color = UiTokens.JAUNE_CLAIR
+	if on:
+		normal.bg_color = UiTokens.SELECTION
+		normal.border_color = UiTokens.ENCRE
+		normal.border_width_left = 2
+		normal.border_width_top = 2
+		normal.border_width_bottom = 2
+		normal.border_width_right = 0
+		normal.corner_radius_top_right = 0
+		normal.corner_radius_bottom_right = 0
+		# Languette : le fond déborde jusqu'à la fiche (la colonne s'arrête à 544 dans le repère de l'écran)
+		normal.expand_margin_right = LANGUETTE_X - 544.0
+		survol = normal
+	b.z_index = 2 if on else 0
+	for s in ["normal", "hover", "pressed", "hover_pressed"]:
+		b.add_theme_stylebox_override(s, survol if s != "normal" else normal)
+	for l in b.get_meta("textes", []):
+		(l as Label).add_theme_color_override("font_color", UiTokens.ENCRE if on else UiTokens.TEXTE_2)
+
+
+## Bloc « Dossier en cours » (sauvegarde) au-dessus du sommaire : h 66, fond mémo, jaune s'il est choisi.
+func _bloc_dossier() -> Button:
+	var b := Button.new()
+	b.focus_mode = Control.FOCUS_NONE
+	b.custom_minimum_size.y = 56
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	b.pressed.connect(func(): _choisir("dossier"))
+	var h := HBoxContainer.new()
+	h.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	h.offset_left = 12
+	h.offset_right = -12
+	h.add_theme_constant_override("separation", 12)
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(h)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 0)
-	p.add_child(v)
-	var tete := PanelContainer.new()
-	tete.add_theme_stylebox_override("panel", UiTokens.entete(UiTokens.SARCELLE, 10))
-	var th := HBoxContainer.new()
-	tete.add_child(th)
-	var tt := Composants.label("NOUVELLE FILIALE", "EnteteComite")
-	tt.add_theme_font_size_override("font_size", 20)
-	tt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	th.add_child(tt)
-	var duree := Composants.label("~14 jours")
-	duree.add_theme_font_override("font", UiTokens.police_mono(500))
-	duree.add_theme_font_size_override("font_size", 12)
-	duree.add_theme_color_override("font_color", UiTokens.PAPIER)
-	duree.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	th.add_child(duree)
-	v.add_child(tete)
-	var marge := MarginContainer.new()
-	for c in [["left", 18], ["right", 18], ["top", 14], ["bottom", 18]]:
-		marge.add_theme_constant_override("margin_" + c[0], c[1])
-	v.add_child(marge)
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_child(v)
+	v.add_child(Composants.texte("DOSSIER EN COURS · CONTINUER", 13, 800, UiTokens.ENCRE, "titre"))
+	var detail := Composants.texte("%s · Jour %d · %d joueurs · %s" % [_nom_mode(sauvee), int(sauvee["jour"]), int(sauvee["joueurs"]),
+		_il_y_a(int(sauvee.get("modifie", 0)))], 13, 600, UiTokens.ENCRE)
+	v.add_child(detail)
+	var r := Composants.bouton("REPRENDRE ›", "BoutonMini")
+	r.add_theme_font_override("font", UiTokens.police_titre())
+	r.custom_minimum_size.y = 30
+	r.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	r.pressed.connect(func(): continuer.emit())
+	h.add_child(r)
+	b.set_meta("textes", [])
+	return b
+
+
+func _pied() -> VBoxContainer:
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 0)
+	var filet := ColorRect.new()
+	filet.color = UiTokens.ENCRE
+	filet.custom_minimum_size.y = 2
+	filet.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_child(filet)
+	v.add_child(_espace(10))
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 10)
+	v.add_child(h)
+	h.add_child(Composants.image_logo(load("res://assets/bd/logos/zoolife_embleme.png"), Vector2(34, 34)))
+	var q := VBoxContainer.new()
+	q.add_theme_constant_override("separation", -2)
+	q.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(q)
+	var pseudo := Statistiques.pseudo()
+	q.add_child(Composants.texte((pseudo if pseudo != "" else "Nouveau collaborateur").to_upper(), 17, 800, UiTokens.ENCRE, "titre"))
+	q.add_child(Composants.texte(_resume_joueur(), 12, 600, UiTokens.TEXTE_2))
+	var st := Composants.bouton("Statistiques ›", "BoutonMini")
+	st.custom_minimum_size.y = 28
+	st.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	st.pressed.connect(ouvrir_statistiques)
+	h.add_child(st)
+	v.add_child(_espace(10))
+	var hb := HBoxContainer.new()
+	hb.add_theme_constant_override("separation", 8)
+	v.add_child(hb)
+	for spec in [["Réglages", func(): add_child(Reglages.new())], ["Quitter", func(): get_tree().quit()]]:
+		var b := Composants.bouton(spec[0], "BoutonMini")
+		b.custom_minimum_size.y = 28
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.pressed.connect(spec[1])
+		hb.add_child(b)
+	v.add_child(_espace(8))
+	var slogans: Array = donnees["hubert"]["slogans"]
+	var cit := Composants.texte("« %s » H. de la Marge" % str(slogans[randi() % slogans.size()]), 13, 600, UiTokens.TEXTE_2, "italique")
+	cit.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	cit.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(cit)
+	v.add_child(_espace(4))
+	var bas := HBoxContainer.new()
+	var doc := Composants.texte("Document réservé aux collaborateurs", 11, 500, UiTokens.TEXTE_2, "mono")
+	doc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	doc.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	bas.add_child(doc)
+	bas.add_child(Composants.tampon("CONFIDENTIEL"))
+	v.add_child(bas)
+	return v
+
+
+## « 52 parties · 26 victoires · record 151 » (toutes parties, défis compris).
+func _resume_joueur() -> String:
+	Statistiques.charger()
+	var n := 0
+	var vic := 0
+	var rec := 0.0
+	for t in Statistiques.donnees["totaux"].values():
+		n += int(t.get("parties", 0))
+		vic += int(t.get("victoires", 0))
+		rec = maxf(rec, float(t.get("record", 0.0)))
+	if n == 0:
+		return "Pas encore de partie · période d'essai"
+	return "%d partie%s · %d victoire%s · record %d" % [n, "s" if n > 1 else "", vic, "s" if vic > 1 else "", roundi(rec)]
+
+
+# ---------------------------------------------------------------- choix d'une ligne et fiche de mode
+
+func _choisir(c: String) -> void:
+	if c == "regles":
+		add_child(Aide.new(donnees))
+		return
+	choix = c
+	for k in lignes:
+		_styler_ligne(lignes[k], k == c)
+	if bloc_dossier:
+		_styler_ligne(bloc_dossier, c == "dossier", UiTokens.MEMO)
+	_remplir_fiche()
+	_placer_fiche.call_deferred()
+
+
+## La fiche commence à y 238 (300 sous le bloc « Dossier en cours », 214 quand c'est lui qui est choisi) et descend au
+## moins jusqu'à la ligne choisie, pour que la languette la touche.
+func _placer_fiche() -> void:
+	var haut := 238.0
+	if not sauvee.is_empty():
+		haut = 214.0 if choix == "dossier" else 300.0
+	var ligne: Control = bloc_dossier if choix == "dossier" else lignes.get(choix)
+	fiche.custom_minimum_size.y = 0
+	fiche.reset_size()
+	fiche.size.x = FICHE_L
+	if ligne:
+		var r := ligne.get_global_rect()
+		var gx := get_global_transform().affine_inverse()
+		var y0 := (gx * r.position).y
+		var y1 := (gx * r.end).y
+		if y0 < haut + 44.0:
+			haut = maxf(10.0, y0 - 44.0)
+		fiche.custom_minimum_size.y = maxf(0.0, y1 + 24.0 - haut)
+	fiche.position = Vector2(FICHE_X, haut)
+	fiche.reset_size()
+	# Pas plus bas que l'écran
+	var bas := size.y - 16.0
+	if fiche.position.y + fiche.size.y > bas:
+		fiche.position.y = maxf(10.0, bas - fiche.size.y)
+
+
+func _remplir_fiche() -> void:
+	for e in fiche.get_children():
+		fiche.remove_child(e)
+		e.queue_free()
+	_rebours_lbl = _rebours_lbl.filter(func(x): return is_instance_valid(x[0]) and (x[0] as Node).is_inside_tree())
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 0)
+	fiche.add_child(v)
+	var num := ""
+	for l in LIGNES:
+		if l[0] == choix:
+			num = l[1] + " · " + l[2]
+	match choix:
+		"course":
+			_entete(v, num, "~14 jours", UiTokens.SARCELLE)
+			_regles(v, "Premier à 120 de réputation. Le terrain s'aménage : creuser des bassins, planter, dérocher.",
+				[Composants.pastille_mode("course"), Composants.etiquette("Objectif 120"), Composants.etiquette("Vous + IA")])
+			var c := _corps(v)
+			_reglages_rivaux(c)
+			_reglage_carte(c, "course", "")
+			_avertir_sauvegarde(c)
+			_bouton(c, "SIGNER LA PRISE DE POSTE ›", func(): _lancer_mode("course"))
+		"nature":
+			_entete(v, num, "~14 jours", UiTokens.POSITIF)
+			_regles(v, "Pas d'aménagement : trouvez sur la carte les endroits où le motif de chaque animal existe déjà.",
+				[Composants.pastille_mode("nature"), Composants.etiquette("Objectif 120")], _motif_exemple())
+			var c := _corps(v)
+			_reglages_rivaux(c)
+			_reglage_carte(c, "nature", "le relief compte : choisissez une carte variée")
+			_avertir_sauvegarde(c)
+			_bouton(c, "SIGNER LA PRISE DE POSTE ›", func(): _lancer_mode("nature"))
+		"cozy":
+			_entete(v, num, "sans fin", UiTokens.MARINE_2)
+			_regles(v, "Seul, sans objectif ni fin de partie. Les animaux font des petits, les visiteurs signent le livre d'or.",
+				[Composants.etiquette("Seul"), Composants.etiquette("90 d'argent au départ"), Composants.etiquette("Pas de maladie"), Composants.etiquette("Naissances")])
+			var c := _corps(v)
+			c.add_child(_lab("Adversaires · difficulté"))
+			c.add_child(Composants.ligne_tirets("Sans objet en gestion libre : aucun rival, aucune pression"))
+			_reglage_carte(c, "cozy", "")
+			_avertir_sauvegarde(c)
+			_bouton(c, "OUVRIR LE PARC ›", func(): _lancer_mode("cozy"))
+		"multi":
+			_entete(v, num, "2 à 4 joueurs", UiTokens.SARCELLE)
+			_regles(v, "Un joueur héberge la partie, les autres le rejoignent avec son adresse IP (réseau local ou VPN). Des IA complètent les places libres.",
+				[Composants.etiquette("2 à 4 humains"), Composants.etiquette("IA en complément"), Composants.etiquette("Sans sauvegarde")])
+			var c := _corps(v)
+			for spec in [["Héberger", "Choisissez la carte et le nombre de places ; la partie démarre quand vous la lancez."],
+					["Rejoindre", "Entrez l'adresse de l'hôte (port UDP 7777) et attendez son coup d'envoi."]]:
+				c.add_child(_lab(spec[0]))
+				c.add_child(Composants.paragraphe(spec[1], 14, UiTokens.ENCRE))
+			_bouton(c, "OUVRIR LE SALON ›", func(): multijoueur.emit())
+		"semaine":
+			_fiche_semaine(v, num)
+		"permanents":
+			_fiche_permanents(v, num)
+		"tutoriel":
+			_entete(v, num, "~15 min", UiTokens.SARCELLE)
+			_regles(v, "Une partie guidée pas à pas par Hubert de la Marge : récolter, bâtir l'enceinte, ouvrir le zoo, passer la nuit au conseil.",
+				[Composants.etiquette("Seul"), Composants.etiquette("Carte imposée"), Composants.etiquette("~15 min")])
+			var c := _corps(v)
+			var h := HBoxContainer.new()
+			h.add_theme_constant_override("separation", 10)
+			c.add_child(h)
+			h.add_child(Composants.image_logo(load("res://assets/bd/hubert/content.png"), Vector2(64, 64)))
+			h.add_child(_bulle("Je vous montre tout une fois. Ensuite, on attendra des résultats."))
+			_avertir_sauvegarde(c)
+			_bouton(c, "COMMENCER ›", func(): tutoriel.emit())
+		"dossier":
+			_fiche_dossier(v)
+
+
+func _entete(v: VBoxContainer, titre: String, droite: String, couleur: Color) -> void:
+	var e := Composants.entete_comite(titre, droite, couleur)
+	var pc: PanelContainer = e["racine"]
+	var sb: StyleBoxFlat = pc.get_theme_stylebox("panel").duplicate()
+	sb.border_color = UiTokens.ENCRE
+	sb.border_width_bottom = 2
+	sb.content_margin_top = 8
+	sb.content_margin_bottom = 8
+	sb.content_margin_left = 14
+	sb.content_margin_right = 14
+	pc.add_theme_stylebox_override("panel", sb)
+	pc.custom_minimum_size.y = 40
+	(e["titre"] as Label).add_theme_font_size_override("font_size", 15)
+	if couleur == UiTokens.SELECTION:
+		(e["titre"] as Label).add_theme_color_override("font_color", UiTokens.ENCRE)
+		(e["droite"] as Label).add_theme_color_override("font_color", UiTokens.ENCRE)
+	else:
+		(e["droite"] as Label).add_theme_color_override("font_color", UiTokens.ENTETE)
+	v.add_child(pc)
+
+
+## Bloc des règles du mode : phrase, pastilles, illustration facultative à droite ; fond mémo, filet encre dessous.
+func _regles(v: VBoxContainer, phrase: String, pastilles: Array, illustration: Control = null) -> void:
+	var p := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = UiTokens.MEMO
+	sb.border_color = UiTokens.ENCRE
+	sb.border_width_bottom = 2
+	sb.content_margin_left = 14
+	sb.content_margin_right = 14
+	sb.content_margin_top = 12
+	sb.content_margin_bottom = 12
+	p.add_theme_stylebox_override("panel", sb)
+	v.add_child(p)
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 12)
+	p.add_child(h)
+	var g := VBoxContainer.new()
+	g.add_theme_constant_override("separation", 8)
+	g.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(g)
+	g.add_child(Composants.paragraphe(phrase, 14, UiTokens.ENCRE))
+	var chips := HFlowContainer.new()
+	chips.add_theme_constant_override("h_separation", 6)
+	chips.add_theme_constant_override("v_separation", 6)
+	for c in pastilles:
+		chips.add_child(c)
+	g.add_child(chips)
+	if illustration:
+		h.add_child(illustration)
+
+
+func _corps(v: VBoxContainer) -> VBoxContainer:
+	var m := MarginContainer.new()
+	for c in [["left", 14], ["right", 14], ["top", 2], ["bottom", 14]]:
+		m.add_theme_constant_override("margin_" + c[0], c[1])
+	v.add_child(m)
 	var c := VBoxContainer.new()
-	c.add_theme_constant_override("separation", 8)
-	marge.add_child(c)
-	# Adversaires
-	c.add_child(_titre_section("ADVERSAIRES"))
-	boutons_adv = []
-	var seg := HBoxContainer.new()
-	seg.add_theme_constant_override("separation", -2)
-	for k in [1, 2, 3]:
-		var b := _segment(str(k))
-		b.pressed.connect(func():
-			adversaires = k
-			_maj_joueurs())
-		seg.add_child(b)
-		boutons_adv.append(b)
-	c.add_child(seg)
-	rivaux_box = HBoxContainer.new()
-	rivaux_box.add_theme_constant_override("separation", 6)
-	c.add_child(rivaux_box)
-	# Difficulté
-	c.add_child(_espace(4))
-	c.add_child(_titre_section("DIFFICULTÉ"))
-	var sd := HBoxContainer.new()
-	sd.add_theme_constant_override("separation", -2)
-	boutons_dif = []
-	for k in 3:
-		var b := _segment(["Facile", "Moyen", "Difficile"][k])
-		b.tooltip_text = ["Des rivaux qui tâtonnent : les stratégies les plus faibles de l'étude",
-			"Des rivaux sérieux : les stratégies du milieu du classement de l'étude",
-			"Des rivaux redoutables : les meilleures stratégies apprises par l'étude"][k]
-		b.pressed.connect(func():
-			niveau = NIVEAUX[k]
-			_maj_joueurs())
-		sd.add_child(b)
-		boutons_dif.append(b)
-	c.add_child(sd)
-	# Carte
-	c.add_child(_espace(4))
-	c.add_child(_titre_section("CARTE"))
-	var hc := HBoxContainer.new()
-	hc.add_theme_constant_override("separation", 12)
-	var cadre := PanelContainer.new()
-	var sc := StyleBoxFlat.new()
-	sc.border_color = UiTokens.ENCRE
-	sc.set_border_width_all(2)
-	sc.set_corner_radius_all(8)
-	sc.set_content_margin_all(2)
-	cadre.add_theme_stylebox_override("panel", sc)
-	apercu = TextureRect.new()
-	apercu.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	apercu.stretch_mode = TextureRect.STRETCH_SCALE
-	apercu.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	apercu.custom_minimum_size = Vector2(120, 90)
-	cadre.add_child(apercu)
-	hc.add_child(cadre)
-	var cv := VBoxContainer.new()
-	cv.add_theme_constant_override("separation", 6)
-	cv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	champ_graine = LineEdit.new()
-	champ_graine.custom_minimum_size.y = 40
-	champ_graine.add_theme_font_override("font", UiTokens.police_mono(600))
-	champ_graine.add_theme_font_size_override("font_size", 16)
-	champ_graine.virtual_keyboard_type = LineEdit.KEYBOARD_TYPE_NUMBER
-	champ_graine.tooltip_text = "Même graine = même carte pour tous les joueurs."
-	champ_graine.text_changed.connect(func(_t): attente_graine = 0.45)
-	champ_graine.text_submitted.connect(func(_t): _valider_graine())
-	cv.add_child(champ_graine)
-	var autre := Composants.bouton("↻ Autre carte", "BoutonSecondaire")
-	autre.custom_minimum_size.y = 34
-	autre.pressed.connect(func(): _changer_carte(randi() % 1000000))
-	cv.add_child(autre)
-	hc.add_child(cv)
-	c.add_child(hc)
-	lbl_carte = Composants.label("")
-	lbl_carte.add_theme_font_override("font", UiTokens.police_corps(600))
-	lbl_carte.add_theme_font_size_override("font_size", 12)
-	lbl_carte.add_theme_color_override("font_color", UiTokens.TEXTE_2)
-	c.add_child(lbl_carte)
-	c.add_child(_espace(6))
-	var signer := Composants.bouton("SIGNER LA PRISE DE POSTE ›", "BoutonPrincipal")
-	signer.add_theme_font_override("font", UiTokens.police_titre())
-	signer.add_theme_font_size_override("font_size", 20)
-	signer.custom_minimum_size.y = 54
-	signer.pressed.connect(func(): lancer.emit(false, graine, adversaires, niveau))
-	c.add_child(signer)
-	return p
+	c.add_theme_constant_override("separation", 6)
+	m.add_child(c)
+	return c
 
 
-func _titre_section(t: String) -> Label:
-	var l := Composants.label(t)
-	l.add_theme_font_override("font", UiTokens.police_titre())
-	l.add_theme_font_size_override("font_size", 13)
-	l.add_theme_color_override("font_color", UiTokens.TEXTE_2)
+func _lab(t: String) -> Label:
+	var l := Composants.texte(t.to_upper(), 12, 800, UiTokens.TEXTE_2, "titre")
+	l.custom_minimum_size.y = 30
+	l.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	return l
 
 
-func _segment(t: String) -> Button:
-	var b := Composants.bouton(t, "Onglet")
-	b.toggle_mode = true
-	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	b.custom_minimum_size.y = 40
+func _reglages_rivaux(c: VBoxContainer) -> void:
+	c.add_child(_lab("Adversaires"))
+	var rivaux := HBoxContainer.new()
+	rivaux.add_theme_constant_override("separation", 6)
+	c.add_child(Composants.segments(["1", "2", "3"], adversaires - 1, func(k: int):
+		adversaires = k + 1
+		_maj_rivaux(rivaux)))
+	c.add_child(rivaux)
+	_maj_rivaux(rivaux)
+	c.add_child(_lab("Difficulté"))
+	var seg := Composants.segments(["Facile", "Moyen", "Difficile"], NIVEAUX.find(niveau), func(k: int): niveau = NIVEAUX[k])
+	var aides := ["Des rivaux qui tâtonnent : les stratégies les plus faibles de l'étude",
+		"Des rivaux sérieux : les stratégies du milieu du classement de l'étude",
+		"Des rivaux redoutables : les meilleures stratégies apprises par l'étude"]
+	for k in seg.get_child_count():
+		(seg.get_child(k) as Button).tooltip_text = aides[k]
+	c.add_child(seg)
+
+
+func _maj_rivaux(box: HBoxContainer) -> void:
+	for e in box.get_children():
+		box.remove_child(e)
+		e.queue_free()
+	for k in adversaires:
+		var cadre := PanelContainer.new()
+		var sb := UiTokens.panneau(UiTokens.PAPIER, 6, 2, 0, false)
+		cadre.add_theme_stylebox_override("panel", sb)
+		cadre.add_child(Composants.image_logo(Composants.logo_groupe(RIVAUX[k], true), Vector2(28, 28)))
+		box.add_child(cadre)
+	var l := Composants.texte(", ".join(RIVAUX.slice(0, adversaires)), 13, 600)
+	l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	box.add_child(l)
+
+
+## Carte : vignette 104, graine, « Autre carte », proportions de terrain (et un conseil facultatif).
+func _reglage_carte(c: VBoxContainer, mode: String, conseil: String) -> void:
+	c.add_child(_lab("Carte"))
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 12)
+	c.add_child(h)
+	var infos := _infos_carte(graine, mode)
+	var vign := Composants.vignette_carte(infos["tex"], 104)
+	h.add_child(vign)
+	var cv := VBoxContainer.new()
+	cv.add_theme_constant_override("separation", 8)
+	cv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(cv)
+	champ_graine = LineEdit.new()
+	champ_graine.text = str(graine)
+	champ_graine.custom_minimum_size.y = 38
+	champ_graine.add_theme_font_override("font", UiTokens.police_mono(600))
+	champ_graine.add_theme_font_size_override("font_size", 17)
+	champ_graine.virtual_keyboard_type = LineEdit.KEYBOARD_TYPE_NUMBER
+	champ_graine.tooltip_text = "Même numéro = même carte pour tous les joueurs."
+	champ_graine.text_changed.connect(func(_t): attente_graine = 0.45)
+	champ_graine.text_submitted.connect(func(_t): _valider_graine())
+	cv.add_child(champ_graine)
+	var autre := Composants.bouton("↻ Autre carte", "BoutonMini")
+	autre.custom_minimum_size.y = 34
+	autre.add_theme_font_size_override("font_size", 14)
+	autre.pressed.connect(func(): _changer_carte(randi() % 1000000))
+	cv.add_child(autre)
+	var t := Composants.texte(infos["texte"] + ((" · " + conseil) if conseil != "" else ""), 12, 600, UiTokens.TEXTE_2)
+	t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	cv.add_child(t)
+
+
+func _infos_carte(g: int, mode: String) -> Dictionary:
+	var m := "nature" if mode == "nature" else "course"
+	var cle := "%d_%s" % [g, m]
+	if not _cartes.has(cle):
+		var d := ModesPartie.appliquer(donnees, "nature") if m == "nature" else donnees
+		var carte := MapGenerator.generate(d["buildings"], g)
+		var compte := {}
+		for y in carte.h:
+			for x in carte.w:
+				compte[carte.get_t(x, y)] = compte.get(carte.get_t(x, y), 0) + 1
+		var n := float(carte.w * carte.h)
+		_cartes[cle] = {"tex": ImageTexture.create_from_image(Composants.peindre_carte(carte)),
+			"texte": "Forêt %d %% · eau %d %% · roche %d %%" % [roundi(100.0 * compte.get(GameMap.FORET, 0) / n),
+				roundi(100.0 * compte.get(GameMap.EAU, 0) / n), roundi(100.0 * compte.get(GameMap.ROCHE, 0) / n)]}
+	return _cartes[cle]
+
+
+func _avertir_sauvegarde(c: VBoxContainer) -> void:
+	if sauvee.is_empty():
+		return
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 6)
+	h.add_child(Composants.Forme.new("triangle", UiTokens.NEGATIF, 11.0))
+	h.add_child(Composants.texte("Une nouvelle partie remplacera le dossier en cours (jour %d)." % int(sauvee["jour"]), 12, 600, UiTokens.NEGATIF))
+	c.add_child(_espace(4))
+	c.add_child(h)
+
+
+func _bouton(c: VBoxContainer, t: String, action: Callable) -> Button:
+	c.add_child(_espace(10))
+	var b := Composants.bouton(t, "BoutonPrincipal")
+	b.add_theme_font_override("font", UiTokens.police_titre())
+	b.add_theme_font_size_override("font_size", 21)
+	b.custom_minimum_size.y = 52
+	b.pressed.connect(action)
+	c.add_child(b)
+	bouton_principal = b
 	return b
 
 
+func _bulle(t: String) -> PanelContainer:
+	var p := PanelContainer.new()
+	var sb := UiTokens.panneau(UiTokens.MEMO, 10, 2, 0, false)
+	sb.content_margin_left = 13
+	sb.content_margin_right = 13
+	sb.content_margin_top = 9
+	sb.content_margin_bottom = 9
+	sb.shadow_color = UiTokens.ENCRE
+	sb.shadow_size = 1
+	sb.shadow_offset = Vector2(0, 3)
+	p.add_theme_stylebox_override("panel", sb)
+	p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	p.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var l := Composants.texte(t, 14, 600, UiTokens.ENCRE, "italique")
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	p.add_child(l)
+	return p
+
+
+## Motif de l'aigle royal en petite grille (Réserve naturelle), d'après animals.json.
+func _motif_exemple() -> Control:
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 2)
+	v.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	var def: Dictionary = {}
+	var liste: Array = donnees["animals"].get("animaux", [])
+	for a in liste:
+		if a is Dictionary and a.get("id", "") == "aigle_royal":
+			def = a
+	if def.is_empty():
+		return v
+	var cases := {}
+	for c in def["motif"]:
+		cases[Vector2i(int(c[0]), int(c[1]))] = str(c[2])
+	var grille := Control.new()
+	grille.custom_minimum_size = Vector2(54, 54)
+	grille.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	grille.draw.connect(func():
+		for k in cases:
+			var r := Rect2(Vector2(k) * 13.0 + Vector2(1, 1), Vector2(11, 11))
+			grille.draw_rect(r, TERRAIN_MOTIF.get(cases[k], Color.GRAY))
+			grille.draw_rect(r, UiTokens.ENCRE, false, 1.0))
+	v.add_child(grille)
+	var l := Composants.texte("motif de\nl'aigle royal", 11, 600, UiTokens.TEXTE_2)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.add_theme_constant_override("line_spacing", -3)
+	v.add_child(l)
+	return v
+
+
+func _fiche_semaine(v: VBoxContainer, num: String) -> void:
+	var d := Defis.semaine()
+	var nb_jours := int(Defis.donnees()["jours"])
+	_entete(v, num, "%d jours" % nb_jours, UiTokens.SELECTION)
+	_regles(v, "La même partie pour tous : même carte, même draft, mêmes marchés. Seul contre les 3 meilleures IA ; score = réputation au soir du jour %d." % nb_jours,
+		[Composants.pastille_mode(str(d["mode"]), true), Composants.etiquette("%d jours" % nb_jours), Composants.etiquette("Classement en ligne")])
+	var c := _corps(v)
+	c.add_child(_espace(10))
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 14)
+	c.add_child(h)
+	h.add_child(Composants.vignette_carte(Composants.texture_carte(donnees, int(d["graine"]), str(d["mode"])), 104))
+	var g := VBoxContainer.new()
+	g.add_theme_constant_override("separation", 2)
+	h.add_child(g)
+	g.add_child(Composants.texte("Semaine du " + Composants.date_semaine(), 24, 800, UiTokens.ENCRE, "titre"))
+	g.add_child(Composants.texte("carte n° %d" % int(d["graine"]), 12, 600, UiTokens.TEXTE_2))
+	var r := Composants.rebours_semaine()
+	var rb := Composants.texte(r["texte"], 24, 600, UiTokens.ENCRE, "mono")
+	g.add_child(rb)
+	_rebours_lbl.append([rb, "texte", ""])
+	g.add_child(Composants.texte("avant " + str(r["fin"]), 12, 600, UiTokens.TEXTE_2))
+	c.add_child(_espace(6))
+	c.add_child(_ligne_rang(str(d["id"])))
+	_avertir_sauvegarde(c)
+	_bouton(c, "JOUER LE DÉFI ›", func(): defi.emit(str(d["id"])))
+	var tous := Composants.bouton("Tous les défis et classements ›", "BoutonMini")
+	tous.custom_minimum_size.y = 30
+	tous.pressed.connect(func(): ouvrir_defis(str(d["id"])))
+	c.add_child(_espace(6))
+	c.add_child(tous)
+
+
+## « Votre record : 112 (3 parties) · 14e sur 52 » : record local tout de suite, rang quand le serveur répond.
+func _ligne_rang(id: String) -> Label:
+	var s: Dictionary = Statistiques.donnees["defis"].get(id, {})
+	var t := ("Votre record : %d (%d partie%s)" % [roundi(float(s["meilleur"])), int(s["parties"]), "s" if int(s["parties"]) > 1 else ""]) if not s.is_empty() else "Pas encore joué"
+	if id == Defis.semaine()["id"] and not rang_semaine.is_empty():
+		t += " · " + (("rang " + Classement.texte_rang(rang_semaine)) if rang_semaine.get("rang") != null else Classement.texte_rang(rang_semaine))
+	return Composants.texte(t, 13, 600)
+
+
+func _fiche_permanents(v: VBoxContainer, num: String) -> void:
+	_entete(v, num, "%d jours" % int(Defis.donnees()["jours"]), UiTokens.SARCELLE)
+	_regles(v, "Quatre cartes fixes, toujours les mêmes : améliorez votre record et grimpez au classement de chacune.",
+		[Composants.etiquette("Seul contre 3 IA"), Composants.etiquette("Classement par carte")])
+	var c := _corps(v)
+	c.add_theme_constant_override("separation", 8)
+	c.add_child(_espace(6))
+	for d in Defis.donnees()["defis"]:
+		var h := HBoxContainer.new()
+		h.add_theme_constant_override("separation", 10)
+		c.add_child(h)
+		h.add_child(Composants.vignette_carte(Composants.texture_carte(donnees, int(d["graine"]), str(d["mode"])), 48))
+		var g := VBoxContainer.new()
+		g.add_theme_constant_override("separation", 0)
+		g.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		h.add_child(g)
+		g.add_child(Composants.texte(str(d["nom"]), 18, 800, UiTokens.ENCRE, "titre"))
+		var s: Dictionary = Statistiques.donnees["defis"].get(d["id"], {})
+		var ligne := HBoxContainer.new()
+		ligne.add_theme_constant_override("separation", 8)
+		ligne.add_child(Composants.pastille_mode(str(d["mode"]), true))
+		ligne.add_child(Composants.texte(("record %d" % roundi(float(s["meilleur"]))) if not s.is_empty() else "pas encore joué", 12, 600, UiTokens.TEXTE_2))
+		g.add_child(ligne)
+		var b := Composants.bouton("Jouer", "BoutonMini")
+		b.custom_minimum_size = Vector2(70, 30)
+		b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		var id := str(d["id"])
+		b.pressed.connect(func(): defi.emit(id))
+		h.add_child(b)
+	_avertir_sauvegarde(c)
+	_bouton(c, "OUVRIR LES DÉFIS ›", func(): ouvrir_defis(str(Defis.donnees()["defis"][0]["id"])))
+
+
+func _fiche_dossier(v: VBoxContainer) -> void:
+	var nb := int(Defis.donnees()["jours"]) if str(sauvee.get("defi", "")) != "" else 14
+	_entete(v, "Dossier en cours · " + _nom_mode(sauvee), "jour %d / %s%d" % [int(sauvee["jour"]), "" if nb == 10 else "~", nb], UiTokens.ENCRE)
+	var c := _corps(v)
+	c.add_child(_espace(12))
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 14)
+	c.add_child(h)
+	var g := int(sauvee.get("graine", 0))
+	if g != 0:
+		h.add_child(Composants.vignette_carte(Composants.texture_carte(donnees, g, str(sauvee.get("mode", "course"))), 120))
+	var info := VBoxContainer.new()
+	info.add_theme_constant_override("separation", 2)
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(info)
+	info.add_child(Composants.texte(("SAUVEGARDÉ " + _il_y_a(int(sauvee.get("modifie", 0)))).to_upper(), 12, 600, UiTokens.TEXTE_2, "mono"))
+	info.add_child(Composants.texte("Jour %d" % int(sauvee["jour"]), 26, 800, UiTokens.ENCRE, "titre"))
+	var rivaux := int(sauvee["joueurs"]) - 1
+	var det := Composants.texte("Carte n° %d · %s · %d espèce%s installée%s" % [g, ("%d adversaire%s" % [rivaux, "s" if rivaux > 1 else ""]) if rivaux > 0 else "seul",
+		int(sauvee.get("especes", 0)), "s" if int(sauvee.get("especes", 0)) > 1 else "", "s" if int(sauvee.get("especes", 0)) > 1 else ""], 13, 600, UiTokens.ENCRE)
+	det.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info.add_child(det)
+	var reps: Array = sauvee.get("reps", [])
+	var noms: Array = sauvee.get("noms", [])
+	if reps.size() > 1 or str(sauvee.get("mode", "")) != "cozy":
+		c.add_child(_lab("Réputation (objectif %s)" % ("—" if str(sauvee.get("defi", "")) != "" else "120")))
+		var maxi := 120.0
+		for r in reps:
+			maxi = maxf(maxi, float(r))
+		for k in reps.size():
+			var l := HBoxContainer.new()
+			l.add_theme_constant_override("separation", 10)
+			l.custom_minimum_size.y = 30
+			c.add_child(l)
+			var nom := "Vous" if k == 0 else (str(noms[k]) if k < noms.size() else "Rival %d" % k)
+			var tex: Texture2D = load("res://assets/bd/logos/zoolife_embleme.png") if k == 0 else Composants.logo_groupe(nom, true)
+			l.add_child(Composants.image_logo(tex, Vector2(26, 26)))
+			var n := Composants.texte(nom, 14, 600 if k else 700)
+			n.custom_minimum_size.x = 112
+			n.clip_text = true
+			n.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			l.add_child(n)
+			l.add_child(Composants.Forme.new(FORMES[k % 4], JOUEURS[k % 4], 10.0))
+			var barre := ProgressBar.new()
+			barre.show_percentage = false
+			barre.max_value = maxi
+			barre.value = float(reps[k])
+			barre.custom_minimum_size = Vector2(0, 10)
+			barre.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			barre.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			var fill := StyleBoxFlat.new()
+			fill.bg_color = JOUEURS[k % 4]
+			fill.set_corner_radius_all(5)
+			barre.add_theme_stylebox_override("fill", fill)
+			l.add_child(barre)
+			var val := Composants.texte(str(roundi(float(reps[k]))), 14, 600, UiTokens.ENCRE, "mono")
+			val.custom_minimum_size.x = 34
+			val.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			val.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			l.add_child(val)
+	_bouton(c, "REPRENDRE LE DOSSIER ›", func(): continuer.emit())
+	var n2 := Composants.texte("Les autres modes restent accessibles dans le sommaire.", 12, 600, UiTokens.TEXTE_2)
+	n2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	c.add_child(_espace(4))
+	c.add_child(n2)
+
+
+func _nom_mode(s: Dictionary) -> String:
+	if str(s.get("defi", "")) != "":
+		var d := Defis.trouver(str(s["defi"]))
+		return "Défi " + str(d.get("nom", ""))
+	if int(s.get("humains", 1)) > 1:
+		return "Multijoueur"
+	match str(s.get("mode", "course")):
+		"nature":
+			return "Réserve naturelle"
+		"cozy":
+			return "Gestion libre"
+	return "Partie classique"
+
+
+func _il_y_a(unix: int) -> String:
+	if unix <= 0:
+		return ""
+	var s := int(Time.get_unix_time_from_system()) - unix
+	if s < 3600:
+		return "il y a %d min" % maxi(1, s / 60)
+	if s < 86400:
+		return "il y a %d h" % (s / 3600)
+	return "il y a %d j" % (s / 86400)
+
+
+func _lancer_mode(m: String) -> void:
+	mode_partie = m
+	lancer.emit(false, graine, 0 if m == "cozy" else adversaires, niveau)
+
+
+# ---------------------------------------------------------------- note de service du défi de la semaine
+
+func _note_de_service() -> Control:
+	var racine := Control.new()
+	racine.name = "NoteDeService"
+	racine.anchor_left = 1.0
+	racine.anchor_right = 1.0
+	racine.anchor_top = 1.0
+	racine.anchor_bottom = 1.0
+	racine.offset_left = -480
+	racine.offset_right = -60
+	racine.offset_top = -352
+	racine.offset_bottom = -352
+	racine.rotation = deg_to_rad(-1.5)
+	racine.pivot_offset = Vector2(210, 100)
+	racine.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var p := PanelContainer.new()
+	p.custom_minimum_size.x = 420
+	racine.add_child(p)
+	var sb := UiTokens.panneau(UiTokens.MEMO, 8, 2, 0, true)
+	sb.shadow_offset = Vector2(0, 5)
+	sb.content_margin_left = 18
+	sb.content_margin_right = 18
+	sb.content_margin_top = 16
+	sb.content_margin_bottom = 14
+	p.add_theme_stylebox_override("panel", sb)
+	var d := Defis.semaine()
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 0)
+	p.add_child(v)
+	v.add_child(Composants.texte("NOTE DE SERVICE · DÉFI DE LA SEMAINE", 12, 600, UiTokens.ENCRE, "mono"))
+	v.add_child(_espace(8))
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 14)
+	v.add_child(h)
+	h.add_child(Composants.vignette_carte(Composants.texture_carte(donnees, int(d["graine"]), str(d["mode"])), 96))
+	var g := VBoxContainer.new()
+	g.add_theme_constant_override("separation", 2)
+	h.add_child(g)
+	g.add_child(Composants.texte("Semaine du " + Composants.date_semaine(), 25, 800, UiTokens.ENCRE, "titre"))
+	g.add_child(Composants.pastille_mode(str(d["mode"]), true))
+	var r := Composants.rebours_semaine()
+	var rb := Composants.texte(r["texte"], 22, 600, UiTokens.ENCRE, "mono")
+	g.add_child(rb)
+	_rebours_lbl.append([rb, "texte", ""])
+	g.add_child(Composants.texte("avant " + str(r["fin"]), 12, 600, UiTokens.TEXTE_2))
+	v.add_child(_espace(10))
+	var filet := ColorRect.new()
+	filet.color = UiTokens.FILET
+	filet.custom_minimum_size.y = 2
+	v.add_child(filet)
+	v.add_child(_espace(8))
+	var bas := HBoxContainer.new()
+	v.add_child(bas)
+	var rang := Composants.texte("", 13, 600)
+	rang.name = "Rang"
+	rang.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rang.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	bas.add_child(rang)
+	var voir := Composants.bouton("Voir le défi ›", "BoutonMini")
+	voir.custom_minimum_size.y = 28
+	voir.pressed.connect(func(): ouvrir_defis(str(d["id"])))
+	bas.add_child(voir)
+	v.add_child(_espace(6))
+	var vq := HBoxContainer.new()
+	vq.name = "Vainqueur"
+	vq.add_theme_constant_override("separation", 4)
+	v.add_child(vq)
+	_maj_note()
+	# La punaise, par-dessus le bord haut
+	var punaise := Control.new()
+	punaise.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	punaise.position = Vector2(196, -10)
+	punaise.custom_minimum_size = Vector2(20, 20)
+	punaise.draw.connect(func():
+		punaise.draw_circle(Vector2(10, 10), 10, UiTokens.ENCRE, true, -1.0, true)
+		punaise.draw_circle(Vector2(10, 10), 8, UiTokens.NEGATIF, true, -1.0, true))
+	racine.add_child(punaise)
+	return racine
+
+
+## Rang et vainqueur de la note de service, une fois lus sur le serveur.
+func _maj_note() -> void:
+	var rang: Label = note.find_child("Rang", true, false) if note else null
+	if rang == null:
+		return
+	var id := str(Defis.semaine()["id"])
+	var s: Dictionary = Statistiques.donnees["defis"].get(id, {})
+	var t := ""
+	if not classement.actif():
+		t = "Classement en ligne indisponible"
+	elif rang_semaine.is_empty():
+		t = "Classement…" if classement.erreur == "" else "Hors ligne : classement indisponible"
+	elif rang_semaine.get("rang") != null:
+		t = "Votre rang : %s sur %d" % [Composants.rang_texte(int(rang_semaine["rang"])), int(rang_semaine["total"])]
+	else:
+		t = "%s · pas encore classé" % Classement.texte_rang(rang_semaine)
+	if not s.is_empty():
+		t += " · record %d" % roundi(float(s["meilleur"]))
+	rang.text = t
+	var vq: HBoxContainer = note.find_child("Vainqueur", true, false)
+	for e in vq.get_children():
+		vq.remove_child(e)
+		e.queue_free()
+	if vainqueur.is_empty():
+		vq.add_child(Composants.texte("Vainqueur de la semaine passée : —", 12, 600, UiTokens.TEXTE_2))
+		return
+	vq.add_child(Composants.texte("Vainqueur de la semaine passée :", 12, 600, UiTokens.TEXTE_2))
+	vq.add_child(Composants.texte(str(vainqueur["pseudo"]), 12, 800, UiTokens.ENCRE))
+	vq.add_child(Composants.texte("(%d) ·" % roundi(float(vainqueur["score"])), 12, 600, UiTokens.TEXTE_2))
+	var lien := LinkButton.new()
+	lien.text = "Revoir sa partie"
+	lien.underline = LinkButton.UNDERLINE_MODE_ALWAYS
+	lien.add_theme_font_override("font", UiTokens.police_corps(600))
+	lien.add_theme_font_size_override("font_size", 12)
+	lien.add_theme_color_override("font_color", UiTokens.SARCELLE_FONCE)
+	lien.focus_mode = Control.FOCUS_NONE
+	lien.pressed.connect(_revoir_vainqueur)
+	vq.add_child(lien)
+
+
+func _lire_classement() -> void:
+	if not classement.actif() or Array(OS.get_cmdline_user_args()).any(func(a): return a.begins_with("--shot")):
+		_maj_note()
+		return
+	rang_semaine = await classement.classement(str(Defis.semaine()["id"]))
+	if not is_instance_valid(self):
+		return
+	vainqueur = await classement.vainqueur_semaine()
+	if not is_instance_valid(self):
+		return
+	_maj_note()
+	if choix == "semaine":
+		_remplir_fiche()
+		_placer_fiche.call_deferred()
+
+
+func _revoir_vainqueur() -> void:
+	var r: Dictionary = await classement.replay_semaine()
+	if is_instance_valid(self) and not r.is_empty():
+		revoir_defi.emit(r["replay"])
+
+
+# ---------------------------------------------------------------- développement
+
+## Bouton « DÉV. ▾ » en pointillé, en haut à droite, éditeur seulement : il replie les entrées de développement.
+func _bouton_dev() -> MenuButton:
+	var m := MenuButton.new()
+	m.text = "DÉV. ▾"
+	m.flat = false
+	m.focus_mode = Control.FOCUS_NONE
+	m.add_theme_font_override("font", UiTokens.police_mono(600))
+	m.add_theme_font_size_override("font_size", 11)
+	m.add_theme_color_override("font_color", UiTokens.PAPIER)
+	m.add_theme_color_override("font_hover_color", UiTokens.SELECTION)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(UiTokens.ENCRE, 0.55)
+	sb.set_corner_radius_all(6)
+	sb.content_margin_left = 9
+	sb.content_margin_right = 9
+	for s in ["normal", "hover", "pressed"]:
+		m.add_theme_stylebox_override(s, sb)
+	var cadre := Composants.CadreTirets.new()
+	cadre.couleur = Color(1, 1, 1, 0.8)
+	cadre.rayon = 6
+	m.add_child(cadre)
+	m.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	m.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	m.offset_right = -14
+	m.offset_top = 12
+	m.custom_minimum_size.y = 26
+	var actions: Array = []
+	var ajouter := func(t: String, f: Callable):
+		m.get_popup().add_item(t, actions.size())
+		actions.append(f)
+	ajouter.call("Essai : vue isométrique", func():
+		iso_demande = true
+		lancer.emit(false, graine, adversaires, niveau))
+	ajouter.call("Essai : vue 3D", func():
+		vue3d_demandee = true
+		lancer.emit(false, graine, adversaires, niveau))
+	ajouter.call("Regarder des IA jouer (niveau choisi)", func(): lancer.emit(true, graine, 4, niveau))
+	ajouter.call("IA de la dernière étude", func(): lancer.emit(true, graine, 4, "etude"))
+	if FileAccess.file_exists(Replay.chemin_etude()):
+		ajouter.call("Partie la plus courte de l'étude", func(): replay_etude.emit(Replay.chemin_etude()))
+	var n_zero := 0
+	for chemin in Replay.chemins_zero():
+		n_zero += 1
+		ajouter.call("IA à 0 n° %d" % n_zero, func(): replay_etude.emit(chemin))
+	m.get_popup().id_pressed.connect(func(id: int): actions[id].call())
+	return m
+
+
+# ---------------------------------------------------------------- divers
+
+## Statistiques ; les missions du premier lancement ramènent au menu (tutoriel, partie classique en Facile, défi).
+func ouvrir_statistiques() -> void:
+	var s := Statistiques.new(donnees)
+	s.mission.connect(_mission)
+	add_child(s)
+
+
+func _mission(m: String) -> void:
+	if m == "tutoriel":
+		tutoriel.emit()
+	elif m == "jouer":
+		niveau = "facile"
+		_choisir("course")
+	elif m == "defi":
+		ouvrir_defis(str(Defis.semaine()["id"]))
+
+
+func ouvrir_defis(id := "") -> void:
+	var f := FenetreDefis.new()
+	if id != "" and "choisi" in f:
+		f.set("choisi", id)
+	f.jouer.connect(func(i: String): defi.emit(i))
+	f.revoir.connect(func(r: Dictionary): revoir_defi.emit(r))
+	add_child(f)
+
+
+func _espace(h: float) -> Control:
+	var c := Control.new()
+	c.custom_minimum_size = Vector2(0, h)
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return c
+
+
 func _unhandled_input(e: InputEvent) -> void:
-	if e.is_action_pressed("ui_cancel") and champ_graine.has_focus():
+	var champ := is_instance_valid(champ_graine) and champ_graine.has_focus()
+	if e.is_action_pressed("ui_cancel") and champ:
 		champ_graine.release_focus()
-	elif e.is_action_pressed("ui_accept") and not champ_graine.has_focus() and get_viewport().gui_get_focus_owner() == null:
-		bouton_jouer.pressed.emit()
+	elif e.is_action_pressed("ui_accept") and not champ and get_viewport().gui_get_focus_owner() == null \
+			and is_instance_valid(bouton_principal) and not _fenetre_ouverte():
+		bouton_principal.pressed.emit()
 		accept_event()
+
+
+func _fenetre_ouverte() -> bool:
+	return get_children().any(func(c): return c is FenetreDefis or c is Statistiques or c is Aide or c is Reglages or c is FenetrePseudo)
 
 
 func _process(delta: float) -> void:
@@ -461,10 +1146,19 @@ func _process(delta: float) -> void:
 		attente_graine -= delta
 		if attente_graine <= 0.0:
 			_valider_graine()
+	_rebours_t -= delta
+	if _rebours_t <= 0.0:
+		_rebours_t = 20.0
+		var r := Composants.rebours_semaine()
+		for x in _rebours_lbl:
+			if is_instance_valid(x[0]):
+				(x[0] as Label).text = str(x[2]) + str(r[x[1]])
 
 
 func _valider_graine() -> void:
 	attente_graine = -1.0
+	if not is_instance_valid(champ_graine):
+		return
 	var t := champ_graine.text.strip_edges()
 	if t.is_valid_int() and int(t) != graine:
 		_changer_carte(int(t))
@@ -473,214 +1167,10 @@ func _valider_graine() -> void:
 
 
 func _changer_carte(g: int) -> void:
+	var tapait := is_instance_valid(champ_graine) and champ_graine.has_focus()
 	graine = g
-	if champ_graine.text != str(g):
-		champ_graine.text = str(g)
-	var carte := MapGenerator.generate(donnees["buildings"], g)
-	var img := _peindre(carte)
-	var tex := ImageTexture.create_from_image(img)
-	apercu.texture = tex
-	# Résumé de la carte
-	var compte := {}
-	for y in carte.h:
-		for x in carte.w:
-			var tt := carte.get_t(x, y)
-			compte[tt] = compte.get(tt, 0) + 1
-	var n := float(carte.w * carte.h)
-	lbl_carte.text = "Forêt %d\u00a0%% · eau %d\u00a0%% · roche %d\u00a0%%" % [
-		roundi(100.0 * compte.get(GameMap.FORET, 0) / n), roundi(100.0 * compte.get(GameMap.EAU, 0) / n), roundi(100.0 * compte.get(GameMap.ROCHE, 0) / n)]
-
-
-func _maj_joueurs() -> void:
-	for k in boutons_adv.size():
-		boutons_adv[k].button_pressed = k + 1 == adversaires
-	for k in boutons_dif.size():
-		boutons_dif[k].button_pressed = NIVEAUX[k] == niveau
-	if note_jouer:
-		note_jouer.text = "vous + %d IA" % adversaires
-	if rivaux_box == null:
-		return
-	for c in rivaux_box.get_children():
-		rivaux_box.remove_child(c)
-		c.queue_free()
-	var noms := ["PanZoo", "Safari Capital", "BioLand"]
-	var pris: Array[String] = []
-	for k in adversaires:
-		rivaux_box.add_child(Composants.image_logo(Composants.logo_groupe(noms[k], true), Vector2(34, 34)))
-		pris.append(noms[k])
-	var l := Composants.label(", ".join(pris))
-	l.add_theme_font_override("font", UiTokens.police_corps(600))
-	l.add_theme_font_size_override("font_size", 13)
-	l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	rivaux_box.add_child(l)
-
-
-func _apparition() -> void:
-	modulate.a = 0.0
-	create_tween().tween_property(self, "modulate:a", 1.0, 0.4)
-
-
-# ---------------------------------------------------------------- peinture de la carte
-
-func _peindre(m: GameMap) -> Image:
-	var img := Image.create_empty(m.w * PX, m.h * PX, false, Image.FORMAT_RGBA8)
-	for y in m.h:
-		for x in m.w:
-			var o := Vector2i(x * PX, y * PX)
-			var t := m.get_t(x, y)
-			var base: Color = TERRAIN.get(t, TERRAIN[GameMap.PRAIRIE])
-			if t == GameMap.PRAIRIE and (x * 7 + y * 13) % 5 == 0:
-				base = Color("74BE40")
-			img.fill_rect(Rect2i(o, Vector2i(PX, PX)), base)
-			match t:
-				GameMap.FORET:
-					img.fill_rect(Rect2i(o + Vector2i(0, 1), Vector2i(4, 4)), Color("1F5E22"))
-					img.fill_rect(Rect2i(o + Vector2i(4, 3), Vector2i(4, 4)), Color("1F5E22"))
-					img.fill_rect(Rect2i(o + Vector2i(1, 1), Vector2i(2, 2)), Color("6ABA48"))
-					img.fill_rect(Rect2i(o + Vector2i(5, 3), Vector2i(2, 2)), Color("6ABA48"))
-				GameMap.ROCHE:
-					img.fill_rect(Rect2i(o + Vector2i(1, 2), Vector2i(3, 2)), Color("8E8A80"))
-					img.fill_rect(Rect2i(o + Vector2i(3, 1), Vector2i(2, 1)), Color("D6D0C2"))
-				GameMap.MONTAGNE:
-					for r in 6:
-						img.fill_rect(Rect2i(o + Vector2i(3 - r / 2, 1 + r), Vector2i(2 + r, 1)), Color("6E604F"))
-					img.fill_rect(Rect2i(o + Vector2i(3, 1), Vector2i(2, 1)), Color("F4F4F0"))
-				GameMap.EAU:
-					var bord := false
-					for d in [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]:
-						var q: Vector2i = Vector2i(x, y) + d
-						if m.in_bounds(q.x, q.y) and m.get_t(q.x, q.y) != GameMap.EAU:
-							bord = true
-					if bord:
-						img.fill_rect(Rect2i(o, Vector2i(PX, PX)), Color("3AB8D8"))
-						img.fill_rect(Rect2i(o + Vector2i(1, 1), Vector2i(PX - 2, PX - 2)), Color("2B9AD2"))
-					elif (x + 2 * y) % 5 == 0:
-						img.fill_rect(Rect2i(o + Vector2i(1, 3), Vector2i(3, 1)), Color("6CC0F0"))
-				GameMap.SABLE:
-					if (x + y) % 2 == 0:
-						img.fill_rect(Rect2i(o + Vector2i(2, 2), Vector2i(1, 1)), Color("D8B860"))
-				GameMap.MINE_OR:
-					img.fill_rect(Rect2i(o + Vector2i(1, 1), Vector2i(4, 4)), Color("6A5A48"))
-					img.fill_rect(Rect2i(o + Vector2i(2, 2), Vector2i(2, 2)), Color("FFE04A"))
-			if m.road.size() > 0 and m.road[m.idx(x, y)] != 0:
-				img.fill_rect(Rect2i(o + Vector2i(1, 1), Vector2i(PX - 2, PX - 2)), Color("D6A866"))
-	# Camp de départ
-	var c := m.camp
-	if c.size != Vector2i.ZERO:
-		img.fill_rect(Rect2i(c.position * PX, c.size * PX), Color("D2A868"))
-		img.fill_rect(Rect2i(c.position * PX + Vector2i(2, 2), c.size * PX - Vector2i(4, 4)), Color("E2BC7E"))
-	return img
-
-
-# ---------------------------------------------------------------- dessins
-
-func _label(t: String, f: Font, taille: int, coul: Color, ombre := false) -> Label:
-	var l := Label.new()
-	l.text = t
-	if f:
-		l.add_theme_font_override("font", f)
-	l.add_theme_font_size_override("font_size", taille)
-	l.add_theme_color_override("font_color", coul)
-	if ombre:
-		l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.45))
-		l.add_theme_constant_override("shadow_offset_x", 0)
-		l.add_theme_constant_override("shadow_offset_y", 3)
-	return l
-
-
-func _espace(h: float) -> Control:
-	var c := Control.new()
-	c.custom_minimum_size = Vector2(0, h)
-	return c
-
-
-func _degrade(de: Vector2, a: Vector2, points: Array) -> TextureRect:
-	var g := Gradient.new()
-	var offs := PackedFloat32Array()
-	var cols := PackedColorArray()
-	for p in points:
-		offs.append(p[0])
-		cols.append(p[1])
-	g.offsets = offs
-	g.colors = cols
-	var gt := GradientTexture2D.new()
-	gt.gradient = g
-	gt.fill_from = de
-	gt.fill_to = a
-	gt.width = 256
-	gt.height = 256
-	var tr := TextureRect.new()
-	tr.texture = gt
-	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	tr.stretch_mode = TextureRect.STRETCH_SCALE
-	tr.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	return tr
-
-
-func _boite(bg: Color, bord: Color, ep: int, rayon: int, marge: int, ombre: bool) -> StyleBoxFlat:
-	var s := StyleBoxFlat.new()
-	s.bg_color = bg
-	s.border_color = bord
-	s.set_border_width_all(ep)
-	s.set_corner_radius_all(rayon)
-	s.set_content_margin_all(marge)
-	s.anti_aliasing = true
-	if ombre:
-		s.shadow_color = Color(0, 0, 0, 0.4)
-		s.shadow_size = 14
-		s.shadow_offset = Vector2(0, 6)
-	return s
-
-
-func _anneau(rayon: int) -> StyleBoxFlat:
-	var s := StyleBoxFlat.new()
-	s.draw_center = false
-	s.border_color = SELECTION
-	s.set_border_width_all(2)
-	s.set_corner_radius_all(rayon + 4)
-	s.set_expand_margin_all(4)
-	s.anti_aliasing = true
-	return s
-
-
-func _theme() -> Theme:
-	var t := Theme.new()
-	if police_texte:
-		t.default_font = police_texte
-	t.default_font_size = 15
-	t.set_color("font_color", "Label", TEXTE)
-	t.set_color("font_color", "Button", TEXTE)
-	t.set_color("font_hover_color", "Button", OR_CLAIR)
-	t.set_color("font_focus_color", "Button", TEXTE)
-	t.set_color("font_pressed_color", "Button", BOUTON_TEXTE)
-	t.set_color("font_hover_pressed_color", "Button", BOUTON_TEXTE)
-	t.set_stylebox("normal", "Button", _boite(Color(1, 1, 1, 0.07), Color(OR, 0.45), 1, 20, 8, false))
-	t.set_stylebox("hover", "Button", _boite(Color(1, 1, 1, 0.13), OR, 1, 20, 8, false))
-	t.set_stylebox("pressed", "Button", _boite(BOUTON_BAS, OR_SOMBRE, 1, 20, 8, false))
-	t.set_stylebox("hover_pressed", "Button", _boite(BOUTON_HAUT, OR_SOMBRE, 1, 20, 8, false))
-	t.set_stylebox("focus", "Button", _anneau(20))
-	t.set_color("font_color", "LineEdit", TEXTE)
-	t.set_color("caret_color", "LineEdit", SELECTION)
-	t.set_color("selection_color", "LineEdit", Color(SELECTION, 0.35))
-	t.set_stylebox("normal", "LineEdit", _boite(Color.WHITE, OR, 2, 8, 8, false))
-	t.set_stylebox("focus", "LineEdit", _boite(Color.WHITE, SELECTION, 2, 8, 8, false))
-	t.set_stylebox("panel", "TooltipPanel", _boite(PANNEAU_BAS, OR, 1, 6, 8, false))
-	t.set_color("font_color", "TooltipLabel", TEXTE)
-	return t
-
-
-func _police_espacee(f: Font, esp: int) -> Font:
-	if f == null:
-		return null
-	var v := FontVariation.new()
-	v.base_font = f
-	v.spacing_glyph = esp
-	return v
-
-
-## Polices du jeu (Marcellus SC pour les titres, Source Sans 3 variable pour le texte).
-func _charger_polices() -> void:
-	police_titre = UiTokens.police_titre()
-	police_texte = UiTokens.police_corps(400)
-	police_gras = UiTokens.police_corps(700)
+	_remplir_fiche()
+	_placer_fiche.call_deferred()
+	if tapait:
+		champ_graine.grab_focus.call_deferred()
+		champ_graine.caret_column = champ_graine.text.length()
