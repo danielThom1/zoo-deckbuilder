@@ -1,5 +1,5 @@
 {
-  "_note": "Classement des défis (Supabase) : adresse du projet et clé publique « anon » (Project Settings > API). Jamais la clé service_role. Vide : classement indisponible.",
-  "url": "",
-  "cle": ""
+  "_note": "Classement des défis (Supabase) : adresse du projet et clé publiable (« publishable key », Project Settings > API Keys), faite pour être livrée avec le jeu. Jamais la clé secrète. Vide : classement indisponible.",
+  "url": "https://tmjwufilltjxghpqkzgu.supabase.co",
+  "cle": "sb_publishable_rmbpDy9xRWKYzDNz1zPp_g_mBJpSIOs"
 }

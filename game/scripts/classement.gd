@@ -34,7 +34,10 @@ func _requete(chemin: String, corps: Variant, jeton := "") -> Dictionary:
 	var h := HTTPRequest.new()
 	h.timeout = DELAI
 	add_child(h)
-	var entetes := PackedStringArray(["apikey: " + _cle, "Content-Type: application/json", "Authorization: Bearer " + (jeton if jeton != "" else _cle)])
+	# La clé publiable (sb_publishable_…) va dans « apikey » seulement : « Authorization » n'accepte qu'un jeton de session.
+	var entetes := PackedStringArray(["apikey: " + _cle, "Content-Type: application/json"])
+	if jeton != "":
+		entetes.append("Authorization: Bearer " + jeton)
 	if h.request(_url + chemin, entetes, HTTPClient.METHOD_POST, JSON.stringify(corps)) != OK:
 		h.queue_free()
 		return {"code": 0, "corps": null}
@@ -59,7 +62,7 @@ func _jeton() -> String:
 	if r.get("code", 0) != 200:
 		r = await _requete("/auth/v1/signup", {"data": {}})
 	if r["code"] != 200 or not r["corps"] is Dictionary or not r["corps"].has("access_token"):
-		erreur = "Connexion au classement impossible."
+		erreur = "Connexion au classement impossible%s." % ((" (" + str(r["corps"].get("msg", r["corps"].get("message", ""))) + ")") if r.get("corps") is Dictionary else "")
 		return ""
 	var c: Dictionary = r["corps"]
 	cfg.set_value("session", "acces", c["access_token"])
