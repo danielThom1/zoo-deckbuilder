@@ -223,6 +223,11 @@ var peek_panel: PanelContainer  # la nuit, « Voir mon zoo » : motifs des contr
 var peek_list: VBoxContainer
 var peek_version := -1
 var peek_hint := {}  # contrat montré sur la carte : {"def", "tiles", "missing"}
+var fin_motifs: PanelContainer  # fin de partie, Réserve naturelle : où chaque contrat du marché pouvait s'installer
+var fin_motifs_liste: VBoxContainer
+var fin_motifs_pour := -1  # joueur regardé quand la liste a été faite
+var fin_motif := {}  # contrat montré : {"def", "zones" (cases de chaque emplacement), "dedans" (dans l'enceinte ?)}
+var _fin_motifs_cache := {}  # id d'espèce -> emplacements sur la carte (la carte ne change plus)
 var day_hud: Array[Control] = []  # masqués la nuit et sur l'écran de fin
 var end_dismissed := false
 var end_views: HBoxContainer  # carte finale : un bouton par joueur pour voir son zoo
@@ -517,6 +522,9 @@ func _start(watch: bool) -> void:
 	# --demo-fin : capture de l'écran de fin. Le joueur laisse passer ses tours, les IA finissent la partie ; --demo-replay : puis son replay.
 	if args.has("demo-fin") and replay == null:
 		_demo_fin()
+		if args.has("fin-motifs"):  # --fin-motifs=K : zoo du joueur 2 et emplacements du K-ième contrat (Réserve naturelle)
+			_watch_board(1 % mt.players.size())
+			_capture_fin_motifs.call_deferred(int(args["fin-motifs"]))
 		if args.has("demo-replay"):
 			_voir_replay(1)
 			return
@@ -980,6 +988,7 @@ func _dessiner_monde() -> void:
 	if build_choice.get("kind") == "animal":
 		_draw_animal_hints()
 	_draw_peek_hint()
+	_draw_fin_motif()
 	# Case survolée, ou aperçu du bâtiment à placer
 	var hover := _hover_tile()
 	if build_choice.get("kind") == "animal":
@@ -5117,6 +5126,13 @@ func _update_hud() -> void:
 		_rebuild_peek()
 	if not night_return.visible:
 		peek_hint = {}
+	fin_motifs.visible = mt.game_over and end_dismissed and mt.mode == "nature" and not game.market_contracts.is_empty()
+	if fin_motifs.visible and fin_motifs_pour != game.index:
+		fin_motifs_pour = game.index
+		fin_motif = {}
+		_rebuild_fin_motifs()
+	if not fin_motifs.visible:
+		fin_motif = {}
 	if mt.game_over and not end_built:
 		end_built = true
 		if mt.autosave:
@@ -5140,6 +5156,8 @@ func _update_hud() -> void:
 	var day_view := game.phase == "day" or (mt.game_over and end_dismissed)
 	for c in day_hud:
 		c.visible = day_view and vue_reportage.is_empty()  # chez un rival, pas de main ni de ressources : ce sont les siennes
+	if fin_motifs.visible:
+		ordre_panel.visible = false  # partie finie : les emplacements possibles prennent sa place
 	_appliquer_outils(day_view)
 	end_day_btn.visible = day_view and not spectator and not mt.game_over
 	status_label.visible = status_label.visible and day_view
@@ -5424,6 +5442,25 @@ func _build_night_ui() -> void:
 	peek_list = VBoxContainer.new()
 	peek_list.add_theme_constant_override("separation", 6)
 	pv.add_child(peek_list)
+	# Fin de partie en Réserve naturelle : les motifs des contrats restés au marché, et où ils se trouvaient
+	fin_motifs = PanelContainer.new()
+	fin_motifs.add_theme_stylebox_override("panel", UiTokens.panel(UiTokens.PANNEAU_MILIEU, UiTokens.OR, 10, 2, 10))
+	fin_motifs.offset_left = 16
+	fin_motifs.offset_top = 64
+	fin_motifs.visible = false
+	ui.add_child(fin_motifs)
+	var fv := VBoxContainer.new()
+	fv.add_theme_constant_override("separation", 8)
+	fin_motifs.add_child(fv)
+	fv.add_child(Composants.label("EMPLACEMENTS POSSIBLES", "TitrePanneau"))
+	var fnote := Composants.label("Cliquez un contrat du marché : ses motifs s'allument sur la carte, en vert dans l'enceinte, en jaune au-dehors.", "TexteSecondaire")
+	fnote.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	fnote.custom_minimum_size.x = 270
+	fnote.add_theme_font_size_override("font_size", 12)
+	fv.add_child(fnote)
+	fin_motifs_liste = VBoxContainer.new()
+	fin_motifs_liste.add_theme_constant_override("separation", 6)
+	fv.add_child(fin_motifs_liste)
 
 
 func _nom_suivi(o: Variant) -> String:
@@ -5882,6 +5919,126 @@ func _draw_peek_hint() -> void:
 		var t0: Vector2i = peek_hint["tiles"][0]
 		_label("%s : %s" % [peek_hint["def"]["nom"], "motif présent" if ok else "%d case(s) à aménager" % peek_hint["missing"]],
 			(Vector2(t0) + Vector2(0.5, -0.6)) * TILE, 10)
+
+
+## Tous les endroits de la carte où le motif d'une espèce existe (tourné ou retourné), d'après le terrain seul : en
+## Réserve naturelle, le terrain ne change pas pendant la partie. Plafonné pour garder la carte lisible.
+func _emplacements_motif(def: Dictionary) -> Array:
+	var id := str(def["id"])
+	if _fin_motifs_cache.has(id):
+		return _fin_motifs_cache[id]
+	var m: GameMap = game.map
+	var vus := {}
+	var zones: Array = []
+	for v in MapGenerator._variantes(def["motif"]):
+		for ay in m.h:
+			for ax in m.w:
+				var cases: Array[Vector2i] = []
+				for cell in v:
+					var x: int = ax + cell[0]
+					var y: int = ay + cell[1]
+					if not m.in_bounds(x, y) or m.tiles[m.idx(x, y)] != cell[2]:
+						cases.clear()
+						break
+					cases.append(Vector2i(x, y))
+				if cases.is_empty():
+					continue
+				cases.sort()
+				var cle := str(cases)
+				if not vus.has(cle) and zones.size() < 60:
+					vus[cle] = true
+					zones.append(cases)
+	_fin_motifs_cache[id] = zones
+	return zones
+
+
+## Fin de partie, Réserve naturelle : une ligne par contrat du marché, avec le nombre d'emplacements sur la carte et
+## dans l'enceinte du joueur regardé.
+func _rebuild_fin_motifs() -> void:
+	_clear(fin_motifs_liste)
+	var interieur: Dictionary = game.zoo_status()["interior"]
+	for def in game.market_contracts:
+		var zones := _emplacements_motif(def)
+		var dedans := zones.filter(func(z): return z.all(func(t): return interieur.has(t))).size()
+		var b := Button.new()
+		b.custom_minimum_size = Vector2(296, 0)
+		b.focus_mode = Control.FOCUS_NONE
+		b.toggle_mode = true
+		b.button_pressed = fin_motif.get("def") == def
+		b.add_theme_stylebox_override("normal", UiTokens.chip(Color(biome_colors[def["biome"]], 0.22), 8, 6))
+		b.add_theme_stylebox_override("hover", UiTokens.chip(Color(biome_colors[def["biome"]], 0.36), 8, 6))
+		b.add_theme_stylebox_override("pressed", UiTokens.chip(Color(UiTokens.OR, 0.3), 8, 6))
+		var h := HBoxContainer.new()
+		h.add_theme_constant_override("separation", 10)
+		h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		h.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		h.offset_left = 8
+		b.add_child(h)
+		var pat := _pattern_view(def, 11.0)
+		pat.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		pat.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		h.add_child(pat)
+		var compte := "aucun emplacement sur la carte" if zones.is_empty() else "%d emplacement%s%s, %d dans l'enceinte" % [
+			zones.size(), "s" if zones.size() > 1 else "", "+" if zones.size() >= 60 else "", dedans]
+		var txt := Composants.label("%s\n%s" % [def["nom"], compte])
+		txt.add_theme_font_size_override("font_size", 13)
+		txt.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		txt.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		h.add_child(txt)
+		b.tooltip_text = _pattern_words(def)
+		b.pressed.connect(_choisir_fin_motif.bind(def))
+		fin_motifs_liste.add_child(b)
+		b.custom_minimum_size.y = maxf(50.0, pat.custom_minimum_size.y + 12.0)
+
+
+func _choisir_fin_motif(def: Dictionary) -> void:
+	if fin_motif.get("def") == def:
+		fin_motif = {}
+	else:
+		var interieur: Dictionary = game.zoo_status()["interior"]
+		var zones := _emplacements_motif(def)
+		var dedans: Array = zones.map(func(z): return z.all(func(t): return interieur.has(t)))
+		fin_motif = {"def": def, "zones": zones, "dedans": dedans}
+		# La caméra va à l'emplacement le plus proche du zoo (du camp sans enceinte)
+		var centre := Vector2(game.map.camp.get_center())
+		if not interieur.is_empty():
+			centre = Vector2.ZERO
+			for t in interieur:
+				centre += Vector2(t)
+			centre /= interieur.size()
+		var meilleur := INF
+		for z in zones:
+			var mz := Vector2.ZERO
+			for t in z:
+				mz += Vector2(t) + Vector2(0.5, 0.5)
+			mz /= z.size()
+			if mz.distance_to(centre) < meilleur:
+				meilleur = mz.distance_to(centre)
+				camera.position = mz * TILE
+	for b in fin_motifs_liste.get_children():
+		b.set_pressed_no_signal(false)
+	if not fin_motif.is_empty():
+		fin_motifs_liste.get_child(game.market_contracts.find(def)).set_pressed_no_signal(true)
+
+
+func _capture_fin_motifs(k: int) -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if k < game.market_contracts.size():
+		_choisir_fin_motif(game.market_contracts[k])
+		camera.zoom = Vector2(0.9, 0.9)
+
+
+func _draw_fin_motif() -> void:
+	if fin_motif.is_empty():
+		return
+	var pulse := 0.6 + 0.4 * sin(Time.get_ticks_msec() / 260.0)
+	for k in fin_motif["zones"].size():
+		var col := Color("7CF29A") if fin_motif["dedans"][k] else UiTokens.SELECTION
+		var zone: Array = fin_motif["zones"][k]
+		for t in zone:
+			draw_rect(Rect2(Vector2(t) * TILE, Vector2(TILE, TILE)), Color(col, 0.28 * pulse))
+			draw_rect(Rect2(Vector2(t) * TILE + Vector2(1.5, 1.5), Vector2(TILE - 3, TILE - 3)), col, false, 1.5)
 
 
 func _draw_animal_hints() -> void:
