@@ -386,6 +386,29 @@ static func strategies_du_niveau(niveau: String) -> Array:
 		var ev = JSON.parse_string(FileAccess.get_file_as_string("res://data/ia_evolution.json"))
 		if ev is Dictionary and not ev.get("strategies", []).is_empty():
 			return ev["strategies"]
+	# Niveaux décalés (13/11, demande de l'utilisateur : les IA difficiles n'étaient pas assez fortes) :
+	# Facile = l'ancien Moyen, Moyen = l'ancien Difficile, Difficile = l'ancien Difficile avec plus d'argent au départ.
+	if niveau in ["facile", "moyen", "difficile"]:
+		var source: String = {"facile": "moyen", "moyen": "difficile", "difficile": "difficile"}[niveau]
+		var lues := _strategies_etude(source)
+		if niveau == "difficile":
+			lues = lues.map(func(s): return _avec_argent(s, ARGENT_DEPART_DIFFICILE))
+		return lues
+	return _strategies_etude(niveau)
+
+
+## Argent de départ des IA difficiles (le joueur et les autres niveaux partent avec partie.argent_depart, soit 30).
+const ARGENT_DEPART_DIFFICILE := 50
+
+
+static func _avec_argent(s, argent: int) -> Dictionary:
+	var d: Dictionary = (s as Dictionary).duplicate(true) if s is Dictionary else {}
+	d["argent_depart"] = argent
+	return d
+
+
+## Stratégies d'un niveau tel que l'étude l'a mesuré (data/ia_niveaux.json), sinon un repli.
+static func _strategies_etude(niveau: String) -> Array:
 	var chemin := "res://data/ia_niveaux.json"
 	if FileAccess.file_exists(chemin):
 		var lu = JSON.parse_string(FileAccess.get_file_as_string(chemin))

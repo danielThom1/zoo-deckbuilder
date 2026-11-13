@@ -92,6 +92,9 @@ func _init(game_data: Dictionary, map_seed: int, nb_players := 4, human := 0, st
 		else:
 			var strat: Dictionary = ModesPartie.strategie(strategies[i] if i < strategies.size() and strategies[i] != null else {}, mode)
 			ais.append(AIController.new(self, players[i], strat))
+			# Niveau difficile : l'IA part avec plus d'argent (Main.strategies_du_niveau, champ « argent_depart »)
+			if strat.has("argent_depart"):
+				players[i].money = float(strat["argent_depart"])
 			ia_count += 1
 			names.append("IA %d" % ia_count if str(strat.get("nom", "")) == "" else "IA %d (%s)" % [ia_count, strat["nom"]])
 	# Objectifs tirés avant le draft : on peut les lire, avec la carte, avant de choisir ses collaborateurs.

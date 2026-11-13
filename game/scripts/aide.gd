@@ -446,7 +446,7 @@ func _glossaire_modes() -> void:
 		"[b]Gestion libre[/b] : seul, avec 90 d'argent, sans objectif ni fin de partie, et sans maladie. Les animaux bien nourris dans un parc propre font des petits ; les visiteurs écrivent chaque soir dans le livre d'or (fiche du zoo). [i]Pour qui :[/i] pour découvrir le jeu sans pression, ou construire à son rythme.",
 		"[b]Défis[/b] : la même partie pour tout le monde, seul contre trois IA qui jouent toujours de la même façon, pendant %d jours. Le marché sort les mêmes collaborateurs, cartes et espèces dans le même ordre, quoi que vous fassiez. Score : votre réputation au soir du dernier jour. Quatre défis permanents, plus un défi de la semaine, chacun avec son classement en ligne (le top 10 est public ; au-delà, chacun ne voit que sa propre ligne). [i]Pour qui :[/i] pour se mesurer aux autres joueurs." % int(Defis.donnees()["jours"]),
 		"[b]Multijoueur[/b] : de 2 à 4 joueurs humains, l'un héberge la partie et les autres le rejoignent par son adresse (réseau local ou VPN) ; des IA complètent les places libres. Pas de pause ni de sauvegarde.",
-		"[b]Difficulté des IA[/b] : Facile, Moyen ou Difficile, d'après les stratégies apprises par l'étude. Elle ne s'applique pas aux Défis, dont les IA sont fixes.",
+		"[b]Difficulté des IA[/b] : Facile, Moyen ou Difficile, d'après les stratégies apprises par l'étude ; en Difficile, les IA partent en plus avec 50 d'argent au lieu de 30. Elle ne s'applique pas aux Défis, dont les IA sont fixes.",
 	]
 	_feuille("Modes de jeu").text = "
 

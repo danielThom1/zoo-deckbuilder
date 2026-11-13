@@ -601,9 +601,9 @@ func _reglages_rivaux(c: VBoxContainer) -> void:
 	_maj_rivaux(rivaux)
 	c.add_child(_lab("Difficulté"))
 	var seg := Composants.segments(["Facile", "Moyen", "Difficile"], NIVEAUX.find(niveau), func(k: int): niveau = NIVEAUX[k])
-	var aides := ["Des rivaux qui tâtonnent : les stratégies les plus faibles de l'étude",
-		"Des rivaux sérieux : les stratégies du milieu du classement de l'étude",
-		"Des rivaux redoutables : les meilleures stratégies apprises par l'étude"]
+	var aides := ["Des rivaux sérieux : les stratégies du milieu du classement de l'étude",
+		"Des rivaux redoutables : les meilleures stratégies apprises par l'étude",
+		"Les meilleures stratégies, avec 50 d'argent au départ au lieu de 30"]
 	for k in seg.get_child_count():
 		(seg.get_child(k) as Button).tooltip_text = aides[k]
 	c.add_child(seg)
@@ -974,6 +974,9 @@ func _note_de_service() -> Control:
 	v.add_child(bas)
 	var rang := Composants.texte("", 13, 600)
 	rang.name = "Rang"
+	# Un peu d'air au-dessus et au-dessous : à certaines tailles de fenêtre, le haut des lettres était rogné.
+	rang.custom_minimum_size.y = 24
+	rang.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	rang.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	rang.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	bas.add_child(rang)
