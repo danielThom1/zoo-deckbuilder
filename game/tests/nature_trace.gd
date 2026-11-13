@@ -18,16 +18,34 @@ func _init() -> void:
 		mt.pick_draft(mt.ai_choice())
 	var ai: AIController = mt.ais[j]
 	var p: GameState = mt.players[j]
+	var midi := {}
 	while mt.day <= jours and not mt.game_over:
 		if mt.phase == "day":
+			var avant := p.time
 			mt.tick(0.5)
+			if avant < mt.day_length * 0.5 and p.time >= mt.day_length * 0.5:
+				var t := {}
+				for w in p.workers:
+					var k := str(w.task.get("type", "rien"))
+					if k == "post" or k == "station":
+						k += ":" + str(w.task.get("kind", ""))
+					t[k] = int(t.get(k, 0)) + 1
+				midi = t
 			continue
 		var z := p.zoo_status()
 		print("Soir %d : parc %s, ouvert %s (%s), argent %d, animaux %d, contrats %d, métiers %s" % [mt.day, str(ai.zoo_rect), str(z["open"]), z.get("reason", ""),
 			int(p.money), p.animals.size(), p.contracts.size(), str(p.all_employees().map(func(c): return c.metier["id"]))])
-		for d in mt.market_contracts:
-			var plan: Dictionary = ai._compute_plan(d)
-			print("   %-22s %s coût %s | près du camp %s | dans le parc %s | agrandir %s" % [d["id"], d["palier"], str(d["cout"]), str(ai._natural_fit(d)),
-				"oui" if not plan.is_empty() else "non", str(ai._can_extend_for(d))])
+		var chantiers := {}
+		for st in p.sites:
+			if not st.done:
+				chantiers[st.def_id()] = int(chantiers.get(st.def_id(), 0)) + 1
+		var taches := midi
+		print("   en main %s | réservés %d | chantiers %s | stock %s | tâches à midi %s | plans %d" % [str(p.contracts.map(func(c): return c["id"])),
+			p.pending_installs.size(), str(chantiers), str(p.stock.keys().map(func(k): return "%s %d" % [k, int(p.stock[k])])), str(taches), ai.plans.size()])
+		if args.has("marche"):
+			for d in mt.market_contracts:
+				var plan: Dictionary = ai._compute_plan(d)
+				print("   %-22s %s coût %s | près du camp %s | dans le parc %s | agrandir %s" % [d["id"], d["palier"], str(d["cout"]), str(ai._natural_fit(d)),
+					"oui" if not plan.is_empty() else "non", str(ai._can_extend_for(d))])
 		mt.start_next_day()
 	quit()

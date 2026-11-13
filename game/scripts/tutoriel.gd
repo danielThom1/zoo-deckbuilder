@@ -810,8 +810,9 @@ func _scenario() -> Array:
 			game.version += 1, "cible": _jeton("argent")}),
 		_demande("Vendez donc une partie de votre surplus à la [b]Bourse des ressources[/b], à droite, jusqu'à avoir [b]%d d'argent[/b]. Choisissez la quantité, cliquez sur Vendre. Sans Marchand, le taux est mauvais. C'est le marché." % ARGENT_VISE,
 			func(): return game.money >= ARGENT_VISE, func():
-				while game.money < ARGENT_VISE and game.sell_amount("bois", 5):
-					pass,
+				for res in ["bois", "pierre"]:  # le bois seul ne suffit pas toujours (5 bois ne rapportent qu'1 d'argent)
+					while game.money < ARGENT_VISE and game.sell_amount(res, 5):
+						pass,
 			{"entree": func(): m.selected.clear(), "cible": func(): return [_bourse(), m.res_chips["argent"]["racine"]], "libre": false, "consigne": "Atteignez %d d'argent" % ARGENT_VISE, "position": "bas", "voile": true}),
 		_demande("Voilà. Vous pouvez rentrer. Terminez la journée.",
 			func(): return mt.phase == "night", func(): mt.end_day(),

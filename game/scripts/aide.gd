@@ -264,7 +264,7 @@ const POSTES := {
 	"snack": "Un seul collaborateur suffit : un second n'ajoute rien.",
 	"kiosque": "Seul le meilleur animateur présent compte : un second n'ajoute rien.",
 	"intendance": "Plusieurs collaborateurs s'additionnent : les décorations se posent plus vite (toujours une pour 10 cases au plus).",
-	"mine": "Deux places par filon d'or ; chaque mineur extrait de son côté.",
+	"mine": "Pas de limite : chaque mineur extrait de son côté (le filon s'épuise d'autant plus vite).",
 	"comptoir": "Pas de poste : le Marchand vend où qu'il soit, mieux payé si ce bâtiment existe.",
 	"agence": "Pas de poste à tenir.",
 	"cabinet": "Pas de poste à tenir.",

@@ -805,7 +805,10 @@ func _night_contracts() -> void:
 		# Le premier contrat oriente le choix de l'emplacement du zoo ; les suivants attendent que l'enceinte avance.
 		var first := zoo_rect.size == Vector2i.ZERO and g.contracts.is_empty()
 		var zoo_ok := zoo_rect.size != Vector2i.ZERO and (_walls_progress() >= 0.6 or g.contracts.is_empty())
-		if _placeable_contracts() < int(strat["contrats_en_attente_max"]) and (first or zoo_ok):
+		# Déjà deux contrats en main et un enclos qui n'avance pas : on finit d'abord ce qui est commencé (13/11 : une IA
+		# rachetait un contrat chaque soir sans bois ni pierre pour ses clôtures, et finissait avec 3 animaux en attente).
+		var en_retard := g.contracts.size() >= 2 and plans.any(func(p): return _plan_left(p) > 0)
+		if _placeable_contracts() < int(strat["contrats_en_attente_max"]) and (first or zoo_ok) and not en_retard:
 			var best: Dictionary = {}
 			var best_score := 0.0
 			var reve: Dictionary = {}  # le meilleur contrat hors de portée ce soir
@@ -3264,6 +3267,12 @@ func _release_posts(bras: int) -> void:
 				w.task = {}
 				w.path.clear()
 				return
+	# Soigneur auprès d'un animal en bonne santé déjà soigné aujourd'hui : son bonus est acquis, il rejoint les chantiers.
+	for w in g.workers:
+		if w.task.get("kind") == "care" and not w.task["obj"].sick and g.cared_today.has(w.task["obj"]):
+			w.task = {}
+			w.path.clear()
+			return
 	# Seulement un parc presque propre : sous ce seuil, on le reposterait au tour suivant (entretien posté sous 75 %),
 	# et le collaborateur faisait des centaines d'allers-retours entre le nettoyage et les chantiers.
 	if g.proprete >= 85.0:
