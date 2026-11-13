@@ -50,10 +50,12 @@
       "Enfin de l'eau gratuite. Profitez-en, la direction étudie la question."
     ],
     "ev_journaliste": [
-      "Un journaliste visite le parc. Souriez. Ceux qui ne savent pas sourire, derrière les fauves."
+      "Un journaliste visite le parc. Souriez. Ceux qui ne savent pas sourire, derrière les fauves.",
+      "Presse au parc. Cachez les factures, sortez les bébés animaux."
     ],
     "ev_penurie_bois": [
-      "La ville manque de bois. Le malheur des autres est une opportunité de marché. Vendez."
+      "La ville manque de bois. Le malheur des autres est une opportunité de marché. Vendez.",
+      "La ville a froid, nous avons du bois. On appelle ça une synergie."
     ],
     "ev_ruee_or": [
       "L'or monte de 50 %. Vos salaires, de 0 %. C'est ce qu'on appelle un écart de performance.",
@@ -64,20 +66,24 @@
       "Canicule annoncée. Hydratez les animaux, ils ont coûté cher."
     ],
     "ev_greve": [
-      "Grève des transports. Vous voilà tous à +1 de salaire. Je note les noms."
+      "Grève des transports. Vous voilà tous à +1 de salaire. Je note les noms.",
+      "Grève des transports : +1 de salaire. Je suis solidaire. De loin, et en voiture de fonction."
     ],
     "ev_subvention": [
-      "Subvention reçue : 15. L'argent public, c'est comme le bois : ça se récolte."
+      "Subvention reçue : 15. L'argent public, c'est comme le bois : ça se récolte.",
+      "Subvention municipale. Nos concurrents l'ont aussi, ce qui m'enlève tout le plaisir."
     ],
     "ev_tempete": [
-      "Tempête cette nuit. Quelqu'un aurait dû mieux fixer ces planches. Je ne cite personne : je le ferai dans votre évaluation."
+      "Tempête cette nuit. Quelqu'un aurait dû mieux fixer ces planches. Je ne cite personne : je le ferai dans votre évaluation.",
+      "Le vent a soufflé fort cette nuit. Moins fort que moi tout à l'heure, quand j'ai vu les chantiers."
     ],
     "ev_beau_temps": [
       "Superbe journée pour travailler dehors. Pour moi, ce sera le bureau climatisé.",
       "Grand beau temps. Productivité +15 %. Je vais en faire le nouvel objectif permanent."
     ],
     "ev_epidemie": [
-      "Un de nos actifs est souffrant. Trouvez un Soigneur avant que les actionnaires ne l'apprennent."
+      "Un de nos actifs est souffrant. Trouvez un Soigneur avant que les actionnaires ne l'apprennent.",
+      "Un animal est malade dans chaque zoo. Bonne nouvelle : chez les concurrents aussi."
     ],
     "licenciement": [
       "{nom}, ça dégage. Et laisse la pelle : elle, elle a encore de la valeur.",
@@ -85,10 +91,12 @@
       "{nom}, on ne va pas se mentir : tu nous coûtes plus que l'hippopotame, et lui, il attire du monde. Dehors."
     ],
     "licenciement_cout": [
-      "Indemnités de {nom} versées. Ça me fait plus mal qu'à {nom}, croyez-moi."
+      "Indemnités de {nom} versées. Ça me fait plus mal qu'à {nom}, croyez-moi.",
+      "{nom} part avec un chèque. Le plus gros chèque qu'on lui ait jamais signé. Ironique, non ?"
     ],
     "embauche": [
-      "{nom} a signé sans lire. C'est exactement le profil que nous recherchons."
+      "{nom} a signé sans lire. C'est exactement le profil que nous recherchons.",
+      "Bienvenue à {nom}. Le badge est offert ; la cantine, elle, est retenue sur salaire."
     ],
     "matin": [
       "Une nouvelle journée d'opportunités. Pour moi. Mobilisez.",
@@ -115,14 +123,16 @@
       "Un autre a décidé pour vous. Bienvenue dans la vie de vos collaborateurs."
     ],
     "soir_bon": [
-      "Résultats en hausse. Attendez-vous à ce que l'objectif de demain le soit aussi."
+      "Résultats en hausse. Attendez-vous à ce que l'objectif de demain le soit aussi.",
+      "Bonne soirée pour l'entreprise. Pour vous, je ne sais pas, je n'ai pas regardé."
     ],
     "soir_mauvais": [
       "Nous avons perdu de l'argent. Quelqu'un va devoir assumer. Ce ne sera pas moi.",
       "Journée déficitaire. J'ai déjà une liste de noms."
     ],
     "contrat_achete": [
-      "Nouvel actif acquis : {animal}. Construisez-lui un enclos. L'article 47 ne s'applique pas aux animaux."
+      "Nouvel actif acquis : {animal}. Construisez-lui un enclos. L'article 47 ne s'applique pas aux animaux.",
+      "{animal} rejoint le portefeuille. Construisez vite : un animal sans enclos, c'est un risque juridique en liberté."
     ],
     "ouverture": [
       "Nous sommes ouverts ! Enfin, des gens qui paient pour être ici. Le contraire de vous.",
@@ -133,10 +143,12 @@
       "Il y a une file d'attente et un guichet vide. Trouvez l'erreur et le responsable."
     ],
     "affame": [
-      "On ne fait pas payer l'entrée pour voir un animal affamé. Enfin si, mais moins."
+      "On ne fait pas payer l'entrée pour voir un animal affamé. Enfin si, mais moins.",
+      "Un animal qui a faim, c'est un animal qui regarde les visiteurs. Avec intérêt."
     ],
     "malade": [
-      "Un Soigneur, vite. Je tiens à {animal}, c'est écrit dans le bilan."
+      "Un Soigneur, vite. Je tiens à {animal}, c'est écrit dans le bilan.",
+      "{animal} ne va pas bien. Moi non plus, mais j'ai une mutuelle."
     ],
     "sale": [
       "Un visiteur a marché dans quelque chose. Il a demandé un remboursement. Je veux un coupable.",
@@ -147,17 +159,22 @@
       "Nous voilà certifiés. Le certificateur a très bien déjeuné."
     ],
     "niveau": [
-      "{nom} passe au niveau {niveau}. Son salaire, lui, va bien, merci."
+      "{nom} passe au niveau {niveau}. Son salaire, lui, va bien, merci.",
+      "{nom} atteint le niveau {niveau}. Je lui ai offert un mug. Il est à rendre en cas de départ.",
+      "Niveau {niveau} pour {nom}. L'expérience, c'est ce qu'on gagne quand on n'a pas d'augmentation."
     ],
     "legendaire": [
-      "On parlera de {nom} dans les générations futures. Surtout au tribunal."
+      "On parlera de {nom} dans les générations futures. Surtout au tribunal.",
+      "{nom} devient légendaire. Je vais faire encadrer sa photo. Petit cadre, il ne faut pas que ça lui monte à la tête.",
+      "{nom} entre dans l'histoire de ZooLife. Le service juridique vérifie si nous pouvons en déposer le nom."
     ],
     "col_blanc": [
       "{nom} refuse de se salir les mains. Je comprends, moi non plus.",
       "{nom} est un col blanc. Une perte de temps, mais une perte de temps en cravate."
     ],
     "paresseux": [
-      "{nom} fait une pause. J'ai déclenché le chronomètre."
+      "{nom} fait une pause. J'ai déclenché le chronomètre.",
+      "{nom} appelle ça une pause. Moi, j'appelle ça une ligne dans l'entretien annuel."
     ],
     "lobbying": [
       "Lobbying en cours. La démocratie, c'est un bâtiment comme un autre.",
@@ -168,13 +185,17 @@
       "Nous tenons la mairie. Le reste, ce ne sont plus que des formalités."
     ],
     "rival_devant": [
-      "{rival} passe devant. Je veux savoir qui, chez nous, en est responsable. J'ai déjà une idée. C'est vous."
+      "{rival} passe devant. Je veux savoir qui, chez nous, en est responsable. J'ai déjà une idée. C'est vous.",
+      "{rival} nous double. Leur directeur m'a envoyé un mot. Avec un smiley. Je ne m'en remettrai pas.",
+      "{rival} est en tête. Je vous rappelle que la deuxième place est la première des perdantes."
     ],
     "victoire": [
-      "Victoire. Les actionnaires sont ravis, et je vous fais part de leur gratitude : elle est purement verbale."
+      "Victoire. Les actionnaires sont ravis, et je vous fais part de leur gratitude : elle est purement verbale.",
+      "Victoire ! Le siège m'appelle pour me féliciter. Je leur parlerai de vous si la conversation dure."
     ],
     "defaite": [
-      "Nous avons perdu. Le plan social commence maintenant : c'est vous, le plan social."
+      "Nous avons perdu. Le plan social commence maintenant : c'est vous, le plan social.",
+      "Défaite. J'ai déjà rédigé le communiqué : il y est écrit que vous étiez en charge."
     ],
     "relance": [
       "Le siège débloque un plan de relance : {remise} de remise sur vos achats ce soir. Ne le dites pas aux autres filiales, elles sont devant.",

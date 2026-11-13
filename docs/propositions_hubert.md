@@ -128,14 +128,60 @@ Au passage, deux de ces moments n'étaient jamais dits en jeu : **paresseux** et
 
 ---
 
-## Moments où Hubert ne dit rien du tout (idées pour plus tard)
+## Choix de l'utilisateur (13/11) : appliqués
 
-Le jeu n'a pas encore de moment Hubert pour ces situations ; on pourrait en créer si vous voulez :
-- naissance d'un petit (Gestion libre) ;
-- arrivée d'un animal au matin ;
-- enceinte fermée pour la première fois ;
-- campagne de publicité terminée ;
-- décoration posée par l'Intendance ;
-- achat au Bureau des acquisitions ;
-- échange à l'Agence d'intérim ;
-- carte d'action jouée (Prime, Livraison, Braderie…).
+Ajoutés à `hubert.json` : affame 1, malade 3, paresseux 2, embauche 1, contrat_achete 3, rival_devant 1 et 2, niveau 1 et 2, legendaire 1 et 3, licenciement_cout 1, soir_bon 3, ev_epidemie 2, ev_greve 2, ev_journaliste 2, ev_penurie_bois 3, ev_subvention 2, ev_tempete 3, victoire 3, defaite 2.
+
+---
+
+## Nouveaux moments : propositions (13/11)
+
+Ces situations n'ont encore aucune réplique. Pour chacune : quand Hubert parlerait, puis trois propositions. Comme pour la première série, dites-moi lesquelles garder (une ou plusieurs par moment) : je crée le moment dans le jeu et j'y mets vos choix.
+
+### `naissance` : un animal a un petit (Gestion libre)
+Quand : le soir où le petit naît. Mot remplacé : `{animal}`.
+1. Un petit chez {animal}. Une naissance, c'est un actif gratuit. Mes préférés.
+2. {animal} a eu un petit. Je lui ai envoyé des fleurs. Imputées sur le budget nourriture.
+3. Heureux événement chez {animal}. Les visiteurs vont adorer ; le service comptable aussi.
+
+### `arrivee_animal` : un animal arrive au zoo
+Quand : le matin où l'animal prend place dans son enclos. Mot remplacé : `{animal}`.
+1. {animal} est arrivé. Faites-lui visiter l'enclos ; pas le reste, il demanderait une augmentation.
+2. Bienvenue à {animal}. Il est déjà plus rentable que la moitié de l'équipe.
+3. {animal} s'installe. Souriez pour la photo du rapport annuel, lui le fait gratuitement.
+
+### `enceinte_fermee` : l'enceinte est fermée pour la première fois
+Quand : à la fin du dernier mur ou de l'entrée qui ferme le parc.
+1. L'enceinte est fermée. Les animaux ne sortiront plus. Vous non plus, d'ailleurs.
+2. Le parc a ses murs. À partir de maintenant, tout ce qui est dedans nous appartient. Vérifiez vos poches.
+3. Enceinte terminée. Il ne manque plus que des animaux, des visiteurs et de l'argent. Le plus dur est fait.
+
+### `campagne_finie` : une campagne de publicité se termine
+Quand : à la fin de la campagne, quand son effet commence.
+1. Campagne terminée. Notre slogan est sur tous les abribus. Le vôtre, sur aucun.
+2. La publicité est lancée. Les visiteurs vont affluer, persuadés que nous sommes formidables. Ne les détrompez pas.
+3. Campagne bouclée. Le budget aussi : il est bouclé dans le sens « épuisé ».
+
+### `decoration` : l'Intendance pose une décoration
+Quand : quand une décoration est posée dans le parc.
+1. Une décoration de plus. Le parc est plus beau, les visiteurs restent plus longtemps, je dépense plus. Tout le monde y gagne.
+2. Nouvel ornement posé. Je l'aurais choisi plus grand, mais personne ne m'a demandé. Pour une fois.
+3. Le parc embellit. Évitez de vous tenir à côté, ça gâcherait l'effet.
+
+### `achat_jour` : achat au Bureau des acquisitions
+Quand : quand un contrat est acheté en journée au Bureau. Mot remplacé : `{animal}`.
+1. {animal} acheté à moitié prix. Je négocie toujours mieux quand ce n'est pas mon argent.
+2. Acquisition en journée : {animal}. Les soldes, c'est toute l'année quand on a un Bureau.
+3. Bonne affaire sur {animal}. Le vendeur pleure encore, ce qui me confirme que c'en est une.
+
+### `agence` : échange à l'Agence d'intérim
+Quand : quand un collaborateur est échangé. Mots remplacés : `{nom}` (celui qui part), `{remplacant}` (celui qui arrive).
+1. {nom} est remplacé par {remplacant}. Personne ne verra la différence ; moi si, sur la facture.
+2. Échange à l'agence : {remplacant} arrive, {nom} file. L'intérim, c'est la flexibilité. Pour moi.
+3. {remplacant} prend la place de {nom}. Ne vous attachez pas, c'est contractuel.
+
+### `carte_action` : une carte d'action est jouée
+Quand : quand le joueur joue une carte d'action. Mot remplacé : `{carte}` (son nom).
+1. « {carte} » : excellente décision. Si elle échoue, ce sera la vôtre.
+2. Vous jouez « {carte} ». J'ai toujours dit qu'il fallait savoir dépenser. L'argent des autres, surtout.
+3. « {carte} », c'est noté. Je l'inscris au procès-verbal, colonne « initiatives risquées ».
