@@ -150,6 +150,7 @@ var bought_worker := false
 var contracts_tonight := 0  # contrats achetés cette nuit
 var drh_available := 0
 var free_used_today := false
+var pauses_annoncees := {}  # cartes paresseuses dont Hubert a déjà relevé la pause aujourd'hui
 var cared_today := {}  # Animal -> true (un Soigneur s'en est occupé aujourd'hui)
 var staffed_time := {}  # Site (entrée, boutique) -> secondes de présence d'un ouvrier aujourd'hui
 var vendeur_time := {}  # Site (boutique) -> secondes de présence d'un Vendeur aujourd'hui
@@ -1308,7 +1309,12 @@ func _work_traits(w: Worker, dt: float) -> void:
 	w.minute_clock -= 60.0
 	if w.card.traits.has("paresseux"):
 		w.pause_left = 15.0
-		say("%s fait une pause (%s)." % [w.card.nom, agree(w.card, "paresseux", "paresseuse")])
+		# Hubert le relève à la première pause de la journée ; ensuite, un simple message.
+		if pauses_annoncees.has(w.card.id):
+			say("%s fait une pause (%s)." % [w.card.nom, agree(w.card, "paresseux", "paresseuse")])
+		else:
+			pauses_annoncees[w.card.id] = true
+			annonce("paresseux", {"nom": w.card.nom}, "%s fait une pause (%s)." % [w.card.nom, agree(w.card, "paresseux", "paresseuse")])
 	if w.card.traits.has("distrait") and rng.randf() < 0.4:
 		w.task = {}
 		say("%s a oublié ce qu'%s faisait (%s)." % [w.card.nom, agree(w.card, "il", "elle"), agree(w.card, "distrait", "distraite")])
@@ -1807,7 +1813,7 @@ func _end_day_player() -> void:
 				rep_points += lr
 				add_rep_source("legendaires", lr)
 				legends.append(card.nom)
-				say("%s devient %s : +%d de réputation pour le parc !" % [card.nom, agree(card, "légendaire", "légendaire"), int(lr)])
+				annonce("legendaire", {"nom": card.nom}, "%s devient légendaire : +%d de réputation pour le parc !" % [card.nom, int(lr)])
 	night_report = {"day": day, "stats": day_stats.duplicate(), "level_ups": level_ups, "deployed": workers.size(),
 		"arrivals": arrivals, "income": income, "malades": fallen_ill, "legendes": legends}
 	workers.clear()
@@ -1822,6 +1828,7 @@ func _start_day_player() -> void:
 	_reset_day_stats()
 	free_used_today = false
 	cared_today.clear()
+	pauses_annoncees.clear()
 	staffed_time.clear()
 	vendeur_time.clear()
 	day_bonus = night_bonus

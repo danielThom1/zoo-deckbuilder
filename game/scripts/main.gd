@@ -3029,7 +3029,11 @@ func _sons_du_monde(delta: float) -> void:
 					visibles.append([a, p])
 		if not visibles.is_empty():
 			var v: Array = visibles[_hasard_sons.randi() % visibles.size()]
-			Sons.effet("cri_" + str(v[0].def.get("type", "")), volume.call(v[1]) + 2.0)
+			# Cri de l'espèce (cri_<id>, docs/prompt_cris_animaux.md) s'il existe, sinon celui de son type
+			var cri := "cri_" + str(v[0].def["id"])
+			if not Sons.existe(cri):
+				cri = "cri_" + str(v[0].def.get("type", ""))
+			Sons.effet(cri, volume.call(v[1]) + 2.0)
 
 
 ## Musique et bruitages selon ce qui vient de se passer. Ne fait qu'observer la partie.
