@@ -5,7 +5,10 @@ extends Control
 ## fiche de mode agrafée à droite de la couverture, reliée à la ligne choisie par une languette jaune. Les réglages de la
 ## fiche dépendent du mode. Le défi de la semaine a sa note de service épinglée sur la carte. Statistiques, Réglages et
 ## Quitter sont dans le pied de la couverture.
-## Option de capture : --menu=course|nature|cozy|multi|semaine|permanents|tutoriel|dossier (ligne choisie au départ).
+## Fond : l'image du zoo en pleine journée (FOND_ILLUSTRE, rendue par le jeu), puis, dès qu'elle est prête, une vraie
+## partie d'IA enregistrée qui tourne derrière (main.gd, vitrine_fond) dans un SubViewport, en fondu par-dessus l'image.
+## Option de capture : --menu=course|nature|cozy|multi|semaine|permanents|tutoriel|dossier (ligne choisie au départ) ;
+## --fond-fixe : sans le fond vivant.
 
 signal lancer(spectateur: bool, graine: int, adversaires: int, niveau: String)
 signal defi(id: String)  # un défi à jouer
@@ -49,6 +52,10 @@ var rang_semaine := {}  # classement du défi de la semaine, lu sur le serveur
 var vainqueur := {}
 
 var fond: TextureRect
+var fond_vivant: TextureRect  # image du SubViewport où tourne la partie du fond
+var fond_vue: SubViewport
+var fond_jeu: Node  # instance de main.tscn en mode vitrine_fond
+var fond_attente := 0.6  # le fond vivant démarre après l'apparition du menu
 var couverture: PanelContainer
 var lignes := {}  # choix -> Button
 var bloc_dossier: Button
@@ -102,6 +109,15 @@ func _construire() -> void:
 	if ResourceLoader.exists(FOND_ILLUSTRE):
 		fond.texture = load(FOND_ILLUSTRE)
 	add_child(fond)
+	fond_vivant = TextureRect.new()
+	fond_vivant.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	fond_vivant.stretch_mode = TextureRect.STRETCH_SCALE
+	fond_vivant.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	fond_vivant.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fond_vivant.modulate.a = 0.0
+	add_child(fond_vivant)
+	if "--fond-fixe" in OS.get_cmdline_user_args():
+		fond_attente = -1.0
 	# Ombre pleine de la couverture (10 px, encre à 35 %)
 	var ombre := ColorRect.new()
 	ombre.color = Color(UiTokens.ENCRE, 0.35)
@@ -1141,7 +1157,49 @@ func _fenetre_ouverte() -> bool:
 	return get_children().any(func(c): return c is FenetreDefis or c is Statistiques or c is Aide or c is Reglages or c is FenetrePseudo)
 
 
+## Fond vivant : la partie se charge dans un SubViewport (sans entrée clavier ni souris), s'avance seule jusqu'à la
+## mi-journée puis apparaît en fondu. Quand sa journée touche à sa fin, l'image fixe revient et la partie est rechargée.
+func _demarrer_fond() -> void:
+	if not ResourceLoader.exists("res://assets/vitrine/partie_menu.txt") and not FileAccess.file_exists("res://assets/vitrine/partie_menu.txt"):
+		return
+	fond_vue = SubViewport.new()
+	fond_vue.size = Vector2i(get_viewport_rect().size)
+	fond_vue.render_target_update_mode = SubViewport.UPDATE_DISABLED  # la partie demande chaque image (main.FOND_IMAGES)
+	fond_vue.gui_disable_input = true
+	fond_vue.audio_listener_enable_2d = false
+	add_child(fond_vue)
+	fond_jeu = load("res://scenes/main.tscn").instantiate()
+	fond_jeu.set("vitrine_fond", true)
+	fond_vue.add_child(fond_jeu)
+	fond_vivant.texture = fond_vue.get_texture()
+	resized.connect(func():
+		if is_instance_valid(fond_vue):
+			fond_vue.size = Vector2i(size))
+
+
+func _suivre_fond(delta: float) -> void:
+	if fond_attente > 0.0:
+		fond_attente -= delta
+		if fond_attente <= 0.0:
+			_demarrer_fond()
+		return
+	if not is_instance_valid(fond_jeu):
+		return
+	match str(fond_jeu.get("fond_etat")):
+		"pret":
+			fond_vivant.modulate.a = minf(1.0, fond_vivant.modulate.a + delta / 1.5)
+		"fini", "echec":
+			fond_vivant.modulate.a = maxf(0.0, fond_vivant.modulate.a - delta / 1.0)
+			if fond_vivant.modulate.a <= 0.0:
+				var reprendre: bool = str(fond_jeu.get("fond_etat")) == "fini"
+				fond_vue.queue_free()
+				fond_jeu = null
+				fond_vivant.texture = null
+				fond_attente = 0.2 if reprendre else -1.0
+
+
 func _process(delta: float) -> void:
+	_suivre_fond(delta)
 	if attente_graine > 0.0:
 		attente_graine -= delta
 		if attente_graine <= 0.0:

@@ -33,10 +33,10 @@ static func effacer() -> void:
 	effacer_journee()
 
 
-static func _lire() -> Dictionary:
-	if not existe():
+static func _lire(chemin := CHEMIN) -> Dictionary:
+	if not FileAccess.file_exists(chemin):
 		return {}
-	var v = str_to_var(FileAccess.get_file_as_string(CHEMIN))
+	var v = str_to_var(FileAccess.get_file_as_string(chemin))
 	return v if v is Dictionary and v.get("version", 0) == VERSION else {}
 
 
@@ -67,6 +67,12 @@ static func _cartes(a: Array) -> Array:
 
 
 static func ecrire(m: Match) -> void:
+	ecrire_dans(m, CHEMIN)
+	effacer_journee()  # un nouveau matin : la journée précédente n'a plus à être rejouée
+
+
+## Photo de la partie dans un fichier donné (aussi la partie enregistrée qui sert de fond au menu, tests/vitrine_fond.gd).
+static func ecrire_dans(m: Match, chemin: String) -> void:
 	var joueurs := []
 	for p in m.players:
 		joueurs.append({"money": p.money, "influence": p.influence, "publicite": p.publicite, "campaign": p.campaign, "stock": p.stock,
@@ -90,11 +96,10 @@ static func ecrire(m: Match) -> void:
 		"names": Array(m.names), "market_workers": _cartes(m.market_workers), "market_contracts": m.market_contracts, "market_actions": _cartes(m.market_actions),
 		"current_event": m.current_event, "history": m.history, "rng": m.rng.state, "pas": m.pas,
 		"rng_marche": m.rng_marche.state, "i_ouvriers": m.i_ouvriers, "i_actions": m.i_actions, "file_contrats": m.file_contrats}}
-	var f := FileAccess.open(CHEMIN, FileAccess.WRITE)
+	var f := FileAccess.open(chemin, FileAccess.WRITE)
 	if f:
 		f.store_string(var_to_str(d))
 		f.close()
-	effacer_journee()  # un nouveau matin : la journée précédente n'a plus à être rejouée
 
 
 ## Retour au menu en cours de journée : les ordres donnés depuis le matin. « Continuer » repart de la photo du matin
@@ -150,8 +155,8 @@ static func rattraper_journee(m: Match) -> bool:
 
 
 ## Recrée la partie au matin sauvegardé. Les IA n'ont pas encore joué ce matin : l'appelant lance reprendre().
-static func charger(data: Dictionary) -> Match:
-	var d := _lire()
+static func charger(data: Dictionary, chemin := CHEMIN) -> Match:
+	var d := _lire(chemin)
 	if d.is_empty():
 		return null
 	var human: int = d["ias"].find(null)

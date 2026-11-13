@@ -379,6 +379,9 @@ func _eau_profonde(x: int, y: int) -> bool:
 func _eclat(c: Vector2, r: float) -> void:
 	if r <= 0.05:
 		return
+	if r < 0.8:  # trop petit pour une étoile : la triangulation échoue
+		draw_circle(c, r * 0.6, Color(1, 1, 0.92, 0.95))
+		return
 	var pts := PackedVector2Array()
 	for i in 8:
 		var a := PI / 4.0 * i

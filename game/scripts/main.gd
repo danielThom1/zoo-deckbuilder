@@ -50,6 +50,21 @@ var game: GameState  # le joueur affiché (vous, ou la première IA en mode spec
 var spectator := false
 ## Fond du menu : la carte sans étiquettes, repères, anneaux des collaborateurs ni case survolée.
 var vitrine := false
+## Instance qui sert de fond vivant au menu (MenuPrincipal) : une partie d'IA enregistrée (FOND_PARTIE, écrite par
+## tests/vitrine_fond.gd), rendue dans un SubViewport, sans interface ni son, en pleine journée, caméra en lent travelling.
+const FOND_PARTIE := "res://assets/vitrine/partie_menu.txt"
+const FOND_DEBUT := 110.0  # secondes de jeu jouées en accéléré avant d'apparaître (visiteurs arrivés, chantiers en cours)
+const FOND_FIN := 0.88  # au-delà de cette part de la journée, le menu recharge la partie (on reste en pleine journée)
+const FOND_VITESSE := 0.6
+const FOND_HEURE := 0.45  # lumière de la mi-journée
+const FOND_IMAGES := 30.0  # images par seconde du fond (le menu, lui, reste à la fréquence de l'écran)
+var vitrine_fond := false
+var fond_etat := ""  # "chauffe", "pret", "fini" ou "echec" (lu par le menu)
+var fond_t := 0.0
+var fond_rendu := 0.0
+var fond_pair := false
+var fond_centre := Vector2.ZERO
+var fond_ampleur := Vector2.ZERO
 var view_buttons: Array = []
 var night_clock := 0.0
 var last_phase := ""
@@ -258,6 +273,9 @@ func _ready() -> void:
 		font.base_font.generate_mipmaps = true  # réduit sans scintiller (voir _ecrire)
 	font_noms = load("res://assets/bd/polices/Bangers-Regular.ttf")
 	font_noms.generate_mipmaps = true
+	if vitrine_fond:
+		_demarrer_fond()
+		return
 	if relance != "":
 		var mode := relance
 		relance = ""
@@ -2510,7 +2528,7 @@ func _position_affichee(w: GameState.Worker) -> Array:
 		e[2] = now
 	# Un replay d'étude avance par pas d'une seconde de jeu (replay.dt) : le glissement dure tout le pas, sinon le
 	# personnage bondit puis reste figé jusqu'au pas suivant.
-	var duree: float = (replay.dt if replay else GameState.TICK) / maxf(speed, 1.0)
+	var duree: float = (replay.dt if replay else GameState.TICK) / (FOND_VITESSE if vitrine_fond else maxf(speed, 1.0))
 	var avant: Vector2 = e[3]
 	e[3] = Vector2(e[0]).lerp(e[1], clampf((now - float(e[2])) / duree, 0.0, 1.0))
 	return [e[3], avant.distance_to(e[3]), now - float(e[2]) < duree * 1.8]
@@ -2681,6 +2699,9 @@ func _set_speed(s: float) -> void:
 # --- Boucle principale -------------------------------------------------------
 
 func _process(delta: float) -> void:
+	if vitrine_fond:
+		_avancer_fond(delta)
+		return
 	if mt == null:
 		_screenshot_check()
 		return
@@ -2767,6 +2788,83 @@ func _process(delta: float) -> void:
 		_hubert_alertes()
 	_hubert_annonces()
 	_screenshot_check()
+
+
+## Fond du menu : charge la partie enregistrée et montre le zoo le plus fourni. Échec (fichier absent ou d'une autre
+## version de sauvegarde) : le menu garde son image fixe.
+func _demarrer_fond() -> void:
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	mt = Sauvegarde.charger(GameData.load_all(), FOND_PARTIE)
+	if mt == null:
+		fond_etat = "echec"
+		return
+	spectator = true
+	vitrine = true
+	mt.autosave = false
+	# Le zoo le plus fourni : animaux et bâtiments terminés
+	var note := func(p: GameState) -> int: return p.animals.size() * 4 + p.sites.filter(func(x): return x.done).size()
+	game = mt.players[0]
+	for p in mt.players:
+		if note.call(p) > note.call(game):
+			game = p
+	_build_terrain()
+	camera = Camera2D.new()
+	add_child(camera)
+	camera.make_current()
+	camera.zoom = Vector2(1.7, 1.7)
+	_build_ui()
+	for c in get_children():
+		if c is CanvasLayer:
+			c.visible = false
+	Sauvegarde.reprendre(mt)
+	var ai: AIController = mt.ais[game.index]
+	var zone := Rect2(Vector2(ai.zoo_rect.position), Vector2(ai.zoo_rect.size)) if ai and ai.zoo_rect.size != Vector2i.ZERO 		else Rect2(Vector2(game.map.camp.position) - Vector2(8, 10), Vector2(16, 12))
+	fond_centre = zone.get_center() * TILE
+	fond_ampleur = Vector2(maxf(2.0, zone.size.x * 0.32), maxf(1.5, zone.size.y * 0.22)) * TILE
+	if carte:
+		carte.heure_forcee = FOND_HEURE
+	fond_etat = "chauffe"
+
+
+## Chaque image : d'abord quelques pas de jeu par image jusqu'à FOND_DEBUT (le menu reste fluide), puis la journée au
+## ralenti. Le travelling suit une courbe de Lissajous lente autour du zoo, décalée pour laisser place à la couverture.
+func _avancer_fond(delta: float) -> void:
+	if mt == null or fond_etat in ["echec", "fini"]:
+		return
+	if fond_etat == "chauffe":
+		var debut := Time.get_ticks_usec()
+		while game.time < FOND_DEBUT and Time.get_ticks_usec() - debut < 6000:
+			mt.tick(0.5)
+		if game.time >= FOND_DEBUT:
+			fond_etat = "pret"
+	else:
+		acc += minf(delta, 0.1) * FOND_VITESSE
+		while acc >= GameState.TICK and mt.phase == "day":
+			mt.tick(GameState.TICK)
+			acc -= GameState.TICK
+		if mt.phase != "day" or game.time > FOND_FIN * mt.day_length:
+			fond_etat = "fini"
+	fond_t += delta
+	# Rendu limité à FOND_IMAGES par seconde : le SubViewport du menu n'est redessiné que sur demande (UPDATE_ONCE).
+	fond_rendu += delta
+	if fond_rendu < 1.0 / FOND_IMAGES:
+		return
+	fond_rendu = fmod(fond_rendu, 1.0 / FOND_IMAGES)
+	var sv := get_viewport()
+	if sv is SubViewport:
+		(sv as SubViewport).render_target_update_mode = SubViewport.UPDATE_ONCE
+	var vue := get_viewport_rect().size
+	var cible := fond_centre + Vector2(sin(fond_t * 0.045) * fond_ampleur.x, sin(fond_t * 0.029 + 1.0) * fond_ampleur.y) 		- Vector2(vue.x * 0.3, 0.0) / camera.zoom
+	# Jamais au-delà du bord de la carte
+	var demi := vue / 2.0 / camera.zoom
+	var bord := Vector2(game.map.w, game.map.h) * TILE
+	camera.position = Vector2(clampf(cible.x, demi.x, maxf(demi.x, bord.x - demi.x)), clampf(cible.y, demi.y, maxf(demi.y, bord.y - demi.y)))
+	# Dessiner toute la carte coûte ~13 ms : le monde n'est redessiné qu'une image sur deux (15 par seconde) ; entre
+	# deux, seule la caméra bouge, ce qui ne demande pas de le redessiner.
+	fond_pair = not fond_pair
+	if fond_pair:
+		_refresh_terrain()
+		queue_redraw()
 
 
 ## Rejoue la partie à la vitesse choisie : les ordres de chaque pas en journée, un coup à la fois au draft et la nuit.
