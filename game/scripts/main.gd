@@ -158,6 +158,7 @@ var partie_reseau := {}
 var bandeau_multi: Label
 var a_selectionner: GameState.Card  # carte mobilisée, en attente de la trame qui fera apparaître l'ouvrier
 var hubert: BulleHubert  # Hubert à l'écran (joueur humain, hors tutoriel)
+var conseils: Conseils  # conseils d'Hubert à la première occasion (une fois par joueur)
 var hubert_dit := {}  # alertes déjà annoncées aujourd'hui
 var hubert_ouverture := false
 var marche_phase := {}  # ouvrier -> avancement de son cycle de marche
@@ -554,6 +555,12 @@ func _start(watch: bool) -> void:
 		add_child(h_layer)
 		hubert = BulleHubert.new(mt.data["hubert"], hand_box)
 		h_layer.add_child(hubert)
+		# Conseils à la première occasion (scripts/conseils.gd) ; pas dans les captures, sauf --conseil=id
+		if not args.has("shot") or args.has("conseil"):
+			conseils = Conseils.new()
+			h_layer.add_child(conseils)
+			if args.has("conseil"):
+				conseils.afficher.call_deferred(str(args["conseil"]))
 	if args.has("tutoriel"):
 		var tuto_layer := CanvasLayer.new()
 		tuto_layer.layer = 20
@@ -638,12 +645,16 @@ func _start(watch: bool) -> void:
 	if args.has("cadre"):
 		game.hand.append(game.make_card("cadre"))
 		game.version += 1
-	# --aide : ouvre le tutoriel ; --aide=animaux : le glossaire des animaux (captures)
+	# --aide : ouvre le tutoriel ; --aide=animaux|modes|savoir : une page du glossaire (captures)
 	if args.has("aide"):
 		var aide := Aide.new(game.data)
 		ui.add_child(aide)
 		if args["aide"] == "animaux":
 			aide.call_deferred("_glossaire_animaux")
+		elif args["aide"] == "modes":
+			aide.call_deferred("_glossaire_modes")
+		elif args["aide"] == "savoir":
+			aide.call_deferred("_glossaire_bon_a_savoir")
 	if args.has("pioche"):
 		_open_pile()
 	if args.has("reglages"):
@@ -2787,6 +2798,8 @@ func _process(delta: float) -> void:
 		event_label.text = flash
 		_hubert_alertes()
 	_hubert_annonces()
+	if info_clock == 0.0:
+		_conseils_du_moment()
 	_screenshot_check()
 
 
@@ -3101,6 +3114,39 @@ func _hubert_humeur() -> int:
 	if moi > best:
 		return 1
 	return -1 if best - moi >= 15 else 0
+
+
+## Ce que le tutoriel ne montre pas : un conseil la première fois que la situation se présente (Conseils.TEXTES).
+func _conseils_du_moment() -> void:
+	if conseils == null or mt.game_over or replay:
+		return
+	if mt.defi != "":
+		conseils.proposer("defi")
+	elif mt.mode == "nature":
+		conseils.proposer("nature")
+	elif mt.mode == "cozy":
+		conseils.proposer("cozy")
+	if mt.phase == "night":
+		if mt.market_stage():
+			conseils.proposer("nuit")
+		elif mt.night_stage == "bonus":
+			conseils.proposer("bonus")
+		elif mt.night_stage == "equipe":
+			conseils.proposer("equipe")
+		return
+	if mt.phase != "day":
+		return
+	if not mt.current_event.is_empty():
+		conseils.proposer("evenement")
+	var a_mobiliser: Array = game.hand.filter(func(c): return not c.is_action() and not c.deployed)
+	if not a_mobiliser.is_empty() and game.money < a_mobiliser.map(func(c): return game.salary(c)).min():
+		conseils.proposer("caisse_vide")
+	if game.zoo_status()["open"] and game.visitor_queue > 0 and game.in_zoo.size() >= game.visitor_capacity():
+		conseils.proposer("parc_plein")
+	if game.hand.any(func(c): return c.is_action()):
+		conseils.proposer("carte_action")
+	if game.hand.any(func(c): return not c.is_action() and not c.deployed and not game.cadre_action(c).is_empty()):
+		conseils.proposer("cadre")
 
 
 ## Les situations qui durent : Hubert les signale une fois par jour.

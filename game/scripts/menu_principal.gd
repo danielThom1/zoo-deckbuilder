@@ -464,8 +464,8 @@ func _remplir_fiche() -> void:
 	match choix:
 		"course":
 			_entete(v, num, "~14 jours", UiTokens.SARCELLE)
-			_regles(v, "Premier à 120 de réputation. Le terrain s'aménage : creuser des bassins, planter, dérocher.",
-				[Composants.pastille_mode("course"), Composants.etiquette("Objectif 120"), Composants.etiquette("Vous + IA")])
+			_regles(v, "Premier à 120 de réputation contre 1 à 3 IA. Le terrain s'aménage : creuser des bassins, planter, dérocher. Le mode pour débuter, en Facile.",
+				[Composants.etiquette("Pour débuter", "etoile", UiTokens.SELECTION, UiTokens.JAUNE_CLAIR), Composants.pastille_mode("course"), Composants.etiquette("Objectif 120")])
 			var c := _corps(v)
 			_reglages_rivaux(c)
 			_reglage_carte(c, "course", "")
@@ -473,8 +473,8 @@ func _remplir_fiche() -> void:
 			_bouton(c, "SIGNER LA PRISE DE POSTE ›", func(): _lancer_mode("course"))
 		"nature":
 			_entete(v, num, "~14 jours", UiTokens.POSITIF)
-			_regles(v, "Pas d'aménagement : trouvez sur la carte les endroits où le motif de chaque animal existe déjà.",
-				[Composants.pastille_mode("nature"), Composants.etiquette("Objectif 120")], _motif_exemple())
+			_regles(v, "Pas d'aménagement : un animal ne s'installe que là où son motif existe déjà. Placez votre enceinte autour de ces endroits. Plus exigeant : après quelques parties.",
+				[Composants.pastille_mode("nature"), Composants.etiquette("Objectif 120"), Composants.etiquette("Avancé")], _motif_exemple())
 			var c := _corps(v)
 			_reglages_rivaux(c)
 			_reglage_carte(c, "nature", "le relief compte : choisissez une carte variée")
@@ -482,7 +482,7 @@ func _remplir_fiche() -> void:
 			_bouton(c, "SIGNER LA PRISE DE POSTE ›", func(): _lancer_mode("nature"))
 		"cozy":
 			_entete(v, num, "sans fin", UiTokens.MARINE_2)
-			_regles(v, "Seul, sans objectif ni fin de partie. Les animaux font des petits, les visiteurs signent le livre d'or.",
+			_regles(v, "Seul, sans objectif ni fin de partie : pour découvrir le jeu sans pression. Les animaux font des petits, les visiteurs signent le livre d'or.",
 				[Composants.etiquette("Seul"), Composants.etiquette("90 d'argent au départ"), Composants.etiquette("Pas de maladie"), Composants.etiquette("Naissances")])
 			var c := _corps(v)
 			c.add_child(_lab("Adversaires · difficulté"))
@@ -791,7 +791,7 @@ func _ligne_rang(id: String) -> Label:
 
 func _fiche_permanents(v: VBoxContainer, num: String) -> void:
 	_entete(v, num, "%d jours" % int(Defis.donnees()["jours"]), UiTokens.SARCELLE)
-	_regles(v, "Quatre cartes fixes, toujours les mêmes : améliorez votre record et grimpez au classement de chacune.",
+	_regles(v, "Quatre cartes fixes, toujours les mêmes : pour vous mesurer aux autres joueurs, améliorez votre record et grimpez au classement de chacune.",
 		[Composants.etiquette("Seul contre 3 IA"), Composants.etiquette("Classement par carte")])
 	var c := _corps(v)
 	c.add_theme_constant_override("separation", 8)

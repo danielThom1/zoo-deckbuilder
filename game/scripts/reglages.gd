@@ -105,6 +105,15 @@ func _ready() -> void:
 	v.add_child(plein)
 
 	f["pied_boite"].visible = true
+	# Les conseils d'Hubert ne s'affichent qu'une fois : ce bouton les fait tous revenir.
+	var conseils := Composants.bouton("Réinitialiser les conseils", "BoutonSecondaire")
+	conseils.custom_minimum_size.y = 40
+	conseils.tooltip_text = "Les conseils d'Hubert réapparaîtront, chacun à la première occasion."
+	conseils.pressed.connect(func():
+		Conseils.reinitialiser()
+		conseils.text = "Conseils réinitialisés ✓"
+		conseils.disabled = true)
+	f["pied"].add_child(conseils)
 	var esp := Control.new()
 	esp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	f["pied"].add_child(esp)

@@ -139,7 +139,7 @@ func _ready() -> void:
 	for k in PAGES.size():
 		_onglet(PAGES[k][0], _montrer_page.bind(k))
 	_titre_onglet("GLOSSAIRE")
-	for g in [["Ressources", _glossaire_ressources], ["Métiers", _glossaire_metiers], ["Traits", _glossaire_traits],
+	for g in [["Modes de jeu", _glossaire_modes], ["Bon à savoir", _glossaire_bon_a_savoir], ["Ressources", _glossaire_ressources], ["Métiers", _glossaire_metiers], ["Traits", _glossaire_traits],
 			["Bâtiments", _glossaire_batiments], ["Terrain", _glossaire_terrain], ["Animaux", _glossaire_animaux],
 			["Cartes d'action", _glossaire_actions], ["Labels", _glossaire_labels], ["Événements", _glossaire_evenements], ["Bonus de nuit", _glossaire_bonus]]:
 		_onglet(g[0], g[1])
@@ -434,6 +434,43 @@ func _glossaire_evenements() -> void:
 	for a in data["events"]["evenements"]:
 		L.append("[b]%s[/b] : %s" % [a["nom"], a["texte"]])
 	_feuille("Événements").text = "\n\n".join(L)
+
+
+## Les modes de jeu : pour qui, ce qui change, un conseil (13/11, pour les nouveaux joueurs).
+func _glossaire_modes() -> void:
+	var B: Dictionary = data["buildings"]
+	var obj := int(B["partie"]["objectif_reputation"])
+	var L: Array[String] = [
+		"[b]Partie classique[/b] : vous contre 1 à 3 IA, le premier à %d de réputation remporte la concession (environ 14 jours). Le terrain s'aménage : le Terrassier creuse des bassins, le Paysagiste plante et déroche, pour créer le motif d'un animal là où il manque. [i]Pour qui :[/i] tout le monde ; c'est le mode pour débuter, en Facile, juste après le tutoriel." % obj,
+		"[b]Réserve naturelle[/b] : mêmes règles, mais [b]personne ne modifie le terrain[/b] (ni Terrassier ni Paysagiste). Un animal ne s'installe que là où son motif existe déjà ; chaque espèce a au moins un endroit sur la carte où il existe. Les enclos peuvent être plus grands. [i]Conseil :[/i] avant de fermer votre enceinte, repérez où se trouvent les motifs des contrats du marché (la nuit, « Voir mon zoo ») et englobez-en plusieurs. [i]Pour qui :[/i] après quelques parties classiques.",
+		"[b]Gestion libre[/b] : seul, avec 90 d'argent, sans objectif ni fin de partie, et sans maladie. Les animaux bien nourris dans un parc propre font des petits ; les visiteurs écrivent chaque soir dans le livre d'or (fiche du zoo). [i]Pour qui :[/i] pour découvrir le jeu sans pression, ou construire à son rythme.",
+		"[b]Défis[/b] : la même partie pour tout le monde, seul contre trois IA qui jouent toujours de la même façon, pendant %d jours. Le marché sort les mêmes collaborateurs, cartes et espèces dans le même ordre, quoi que vous fassiez. Score : votre réputation au soir du dernier jour. Quatre défis permanents, plus un défi de la semaine, chacun avec son classement en ligne (le top 10 est public ; au-delà, chacun ne voit que sa propre ligne). [i]Pour qui :[/i] pour se mesurer aux autres joueurs." % int(Defis.donnees()["jours"]),
+		"[b]Multijoueur[/b] : de 2 à 4 joueurs humains, l'un héberge la partie et les autres le rejoignent par son adresse (réseau local ou VPN) ; des IA complètent les places libres. Pas de pause ni de sauvegarde.",
+		"[b]Difficulté des IA[/b] : Facile, Moyen ou Difficile, d'après les stratégies apprises par l'étude. Elle ne s'applique pas aux Défis, dont les IA sont fixes.",
+	]
+	_feuille("Modes de jeu").text = "
+
+".join(L)
+
+
+## Les règles qui changent la stratégie sans que le tutoriel les montre.
+func _glossaire_bon_a_savoir() -> void:
+	var B: Dictionary = data["buildings"]
+	var W: Dictionary = data["workers"]["regles"]
+	var L: Array[String] = [
+		"[b]Ordre d'achat le soir[/b] : contrats, collaborateurs et cartes d'action s'achètent à tour de rôle, dans l'ordre d'influence. Le premier en influence choisit aussi le bonus de nuit, qui vaut pour tous le lendemain.",
+		"[b]Prix des contrats[/b] : +%d %% par jour. Le marché ne se renouvelle que lorsqu'un contrat est acheté, et une espèce détenue par un joueur n'y revient pas." % roundi(float(B["marche"]["hausse_prix_par_jour"]) * 100.0),
+		"[b]Taille du parc[/b] : au plus un visiteur pour %d cases de l'enceinte. Au-delà, les visiteurs attendent puis repartent : agrandissez l'enceinte." % int(B["zoo"]["cases_par_visiteur"]),
+		"[b]Plan de relance[/b] : un joueur en retard sur le premier paie moins cher ses achats du soir, %d %% par point d'écart, %d %% au plus." % [roundi(float(B["marche"]["remise_relance"]["par_point"]) * 100.0), roundi(float(B["marche"]["remise_relance"]["max"]) * 100.0)],
+		"[b]Caisse vide[/b] : le bouton +%d d'une carte cède sa journée (elle ne travaille pas, part à la défausse) et rapporte %d d'argent pour payer les autres." % [int(W["carte_cedee"]), int(W["carte_cedee"])],
+		"[b]Expérience[/b] : un collaborateur gagne de l'expérience chaque jour où il travaille. À chaque niveau, vous choisissez une amélioration ; au niveau %d, il devient légendaire et rapporte %d de réputation au parc." % [int(W["niveau_max"]), int(B["reputation_autres"]["legendaire"])],
+		"[b]Le soir, l'équipe[/b] : dernière étape du conseil, améliorer une carte ou licencier. Un paquet sans poids morts pioche plus souvent ses bonnes cartes.",
+		"[b]Événements[/b] : chaque matin, un événement peut toucher tous les zoos (grève, tempête, subvention…). Il reste écrit dans le bandeau du haut pour la journée.",
+		"[b]Conseils d'Hubert[/b] : la première fois qu'une de ces situations se présente, Hubert l'explique dans un panneau. Ils ne réapparaissent pas ; « Réinitialiser les conseils », dans les Réglages, les fait revenir.",
+	]
+	_feuille("Bon à savoir").text = "
+
+".join(L)
 
 
 func _glossaire_bonus() -> void:
