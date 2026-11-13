@@ -1,5 +1,5 @@
 {
-  "_note": "Répliques d'Hubert de la Marge, choisies dans le Dossier Hubert. Quand un moment en a plusieurs, elles tournent (scripts/bulle_hubert.gd). {nom}, {animal}, {label}, {rival}, {niveau} sont remplacés par le jeu ; aucune réplique n'a besoin d'accord.",
+  "_note": "Répliques d'Hubert de la Marge, choisies dans le Dossier Hubert. Quand un moment en a plusieurs, elles tournent (scripts/bulle_hubert.gd). {nom}, {animal}, {label}, {rival}, {niveau}, {remplacant}, {carte} sont remplacés par le jeu ; aucune réplique n'a besoin d'accord.",
   "cadre": {
     "nom": "Hubert de la Marge",
     "titre": "Directeur des Ressources, Humaines et Autres"
@@ -217,6 +217,30 @@
     "reportage": [
       "Notre journaliste part fouiller chez {groupe}. Si on vous pose la question, c'est du tourisme.",
       "Reportage chez {groupe}. Note de frais illimitée, résultats exigés."
+    ],
+    "naissance": [
+      "Heureux événement chez {animal}. Les visiteurs vont adorer ; le service comptable aussi."
+    ],
+    "arrivee_animal": [
+      "Bienvenue à {animal}. Il est déjà plus rentable que la moitié de l'équipe."
+    ],
+    "enceinte_fermee": [
+      "L'enceinte est fermée. Les animaux ne sortiront plus. Vous non plus, d'ailleurs."
+    ],
+    "campagne_finie": [
+      "La publicité est lancée. Les visiteurs vont affluer, persuadés que nous sommes formidables. Ne les détrompez pas."
+    ],
+    "decoration": [
+      "Le parc embellit. Évitez de vous tenir à côté, ça gâcherait l'effet."
+    ],
+    "achat_jour": [
+      "Bonne affaire sur {animal}. Le vendeur pleure encore, ce qui me confirme que c'en est une."
+    ],
+    "agence": [
+      "Échange à l'agence : {remplacant} arrive, {nom} file. L'intérim, c'est la flexibilité. Pour moi."
+    ],
+    "carte_action": [
+      "« {carte} » : excellente décision. Si elle échoue, ce sera la vôtre."
     ]
   },
   "slogans": [

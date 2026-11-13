@@ -136,6 +136,8 @@ Ajoutés à `hubert.json` : affame 1, malade 3, paresseux 2, embauche 1, contrat
 
 ## Nouveaux moments : propositions (13/11)
 
+**Choix appliqués** : naissance 3, arrivee_animal 2, enceinte_fermee 1, campagne_finie 2, decoration 3, achat_jour 3, agence 2, carte_action 1.
+
 Ces situations n'ont encore aucune réplique. Pour chacune : quand Hubert parlerait, puis trois propositions. Comme pour la première série, dites-moi lesquelles garder (une ou plusieurs par moment) : je crée le moment dans le jeu et j'y mets vos choix.
 
 ### `naissance` : un animal a un petit (Gestion libre)

@@ -150,6 +150,7 @@ var bought_worker := false
 var contracts_tonight := 0  # contrats achetés cette nuit
 var drh_available := 0
 var free_used_today := false
+var deco_annoncee := false  # Hubert a déjà remarqué une décoration aujourd'hui
 var pauses_annoncees := {}  # cartes paresseuses dont Hubert a déjà relevé la pause aujourd'hui
 var cared_today := {}  # Animal -> true (un Soigneur s'en est occupé aujourd'hui)
 var staffed_time := {}  # Site (entrée, boutique) -> secondes de présence d'un ouvrier aujourd'hui
@@ -514,6 +515,8 @@ func play_action(card: Card, target: Card = null, option := {}) -> bool:
 		pending_upgrade = {}
 	say("Carte jouée : %s. %s" % [card.action["nom"], card.action["texte"]] if not card.action.get("cible", false) \
 		else "Carte jouée : %s." % card.action["nom"])
+	if not fx.has("licencier"):  # Rupture de contrat : Hubert parle déjà du licenciement
+		annonce("carte_action", {"carte": card.action["nom"]})
 	version += 1
 	return true
 
@@ -1166,7 +1169,7 @@ func _update_worker(w: Worker, dt: float) -> void:
 			campaign["progress"] += campaign_rate(w.card) * unpaid_mult(w) * dt
 			if campaign["progress"] >= float(campaign["def"]["travail"]):
 				publicite += float(campaign["def"]["points"])
-				say("Campagne terminée : %s. Visiteurs ×%.2f." % [campaign["def"]["nom"], publicity_mult()])
+				annonce("campagne_finie", {}, "Campagne terminée : %s. Visiteurs ×%.2f." % [campaign["def"]["nom"], publicity_mult()])
 				campaign = {}
 				version += 1
 		return
@@ -1626,11 +1629,15 @@ func _next_to_terrain(t: Vector2i, terrain: String) -> bool:
 
 
 func _complete(s: Site) -> void:
+	var mur: bool = s.def_id() in ["cloture", "entree"]
+	var fermee_avant: bool = mur and not zoo_status()["interior"].is_empty()
 	s.done = true
 	# Un enclos, un aménagement, ou l'enceinte qui se ferme (mur, entrée) : les animaux réservés peuvent arriver
 	if s.def_id() in ["enclos", "cloture", "entree"] or s.def.get("effet", {}).has("decor"):
 		version += 1  # l'enceinte est recalculée avant de vérifier les réservations
 		_check_pending_installs()
+	if mur and not fermee_avant and not zoo_status()["interior"].is_empty():
+		annonce("enceinte_fermee")
 	var p := s.rect.position
 	# Architecte / Débrouillard : une partie des ressources payées est remboursée.
 	if s.savings < 1.0:
@@ -1786,6 +1793,8 @@ func _end_day_player() -> void:
 			a.arrived = true
 			a.food = food_capacity(a.def)  # il arrive avec une journée de rations
 			arrivals.append(a.def["nom"])
+			if arrivals.size() == 1:  # Hubert accueille le premier arrivé de la nuit
+				annonce("arrivee_animal", {"animal": a.def["nom"]})
 	var income := _close_zoo_day()  # les recettes ont été encaissées pendant la journée
 	_naissances()  # avant les maladies : elles remettent à zéro la faim de la journée
 	_ecrire_carnet(income)
@@ -1829,6 +1838,7 @@ func _start_day_player() -> void:
 	free_used_today = false
 	cared_today.clear()
 	pauses_annoncees.clear()
+	deco_annoncee = false
 	staffed_time.clear()
 	vendeur_time.clear()
 	day_bonus = night_bonus
@@ -2084,7 +2094,7 @@ func achat_jour(def: Dictionary) -> bool:
 	achat_jour_fait = true
 	journal_contrats.append({"id": def["id"], "day": day})
 	mt._refresh_market(day, false)  # les rivaux retrouvent cinq contrats ce soir
-	annonce("contrat_achete", {"animal": def["nom"]}, "Contrat acheté au Bureau des acquisitions : %s. Construisez-lui un enclos." % def["nom"])
+	annonce("achat_jour", {"animal": def["nom"]}, "Contrat acheté au Bureau des acquisitions : %s. Construisez-lui un enclos." % def["nom"])
 	verifier_objectifs()
 	mt.bump()
 	return true
@@ -2186,6 +2196,7 @@ func swap_worker(w: Worker, take: Card) -> bool:
 	if target.x >= 0:
 		order([w], target)
 	say("Agence d'intérim : %s remplace %s (%d)." % [take.nom, old.nom, swap_cost(take)])
+	annonce("agence", {"nom": old.nom, "remplacant": take.nom})
 	version += 1
 	return true
 
@@ -3083,7 +3094,7 @@ func _naissances() -> void:
 		if rng.randf() < float(N["proba"]):
 			a.petits += 1
 			carnet_naissances.append(a.def["nom"])
-			say("Naissance ! %s a eu un petit. Les visiteurs vont adorer." % a.def["nom"])
+			annonce("naissance", {"animal": a.def["nom"]}, "Naissance ! %s a eu un petit. Les visiteurs vont adorer." % a.def["nom"])
 
 
 ## Gestion libre : le carnet des visiteurs. Chaque soir, quelques visiteurs écrivent un mot selon ce qu'ils ont vu.
@@ -3282,6 +3293,9 @@ func _embellir(w: Worker, dt: float) -> void:
 	_pay(E["cout"])
 	embellissement = 0.0
 	decorations.append({"t": t, "id": _prochaine_decoration(E["types"])})
+	if not deco_annoncee:  # Hubert la remarque une fois par jour, pas à chaque décoration
+		deco_annoncee = true
+		annonce("decoration")
 	version += 1
 
 
