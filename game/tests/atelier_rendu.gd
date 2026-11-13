@@ -33,6 +33,9 @@ func _init() -> void:
 	var etat := {"cible": Vector2(main.game.map.camp.get_center()) + Vector2(float(args.get("cx", "0")), float(args.get("cy", "0")))}
 	var h_de := float(args.get("heure-de", args.get("heure", "-1")))
 	var h_a := float(args.get("heure-a", args.get("heure", "-1")))
+	if args.has("vitrine"):
+		main.vitrine = true
+		main.selected.clear()
 	var cacher := func():
 		for c in main.get_children():
 			if c is CanvasLayer:

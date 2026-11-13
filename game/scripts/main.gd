@@ -48,6 +48,8 @@ var building_short := {
 var mt: Match
 var game: GameState  # le joueur affiché (vous, ou la première IA en mode spectateur)
 var spectator := false
+## Fond du menu : la carte sans étiquettes, repères, anneaux des collaborateurs ni case survolée.
+var vitrine := false
 var view_buttons: Array = []
 var night_clock := 0.0
 var last_phase := ""
@@ -834,7 +836,7 @@ func _dessiner_monde() -> void:
 	SpritesBD.collecte_objet = null
 	_dessiner_poteaux()
 	# Plan de l'IA regardée : enceinte prévue et enclos en projet
-	if spectator and mt.ais[game.index]:
+	if spectator and mt.ais[game.index] and not vitrine:
 		var ai: AIController = mt.ais[game.index]
 		if ai.zoo_rect.size != Vector2i.ZERO:
 			draw_rect(Rect2(Vector2(ai.zoo_rect.position) * TILE, Vector2(ai.zoo_rect.size) * TILE), Color(1, 0.85, 0.3, 0.5), false, 1.0)
@@ -933,7 +935,8 @@ func _dessiner_monde() -> void:
 			_etiquette_monde(p + Vector2(0, -TILE * 1.5), "Cliquez : choisir un remplaçant", UiTokens.SELECTION, UiTokens.ENCRE)
 		var ring := Color(player_col, 0.9) if not selected.has(w) else UiTokens.SELECTION
 		var pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 190.0) if selected.has(w) else 0.0
-		draw_arc(p + Vector2(0, 6.4), 5.2 + pulse * 1.5, 0, TAU, 24, ring, 1.6 if selected.has(w) else 1.0, true)
+		if not vitrine:
+			draw_arc(p + Vector2(0, 6.4), 5.2 + pulse * 1.5, 0, TAU, 24, ring, 1.6 if selected.has(w) else 1.0, true)
 		var work := {} if moving or w.pause_left > 0.0 else _work_anim(w)
 		var tw := now * 1.0 + w.card.id * 0.37
 		var body := p
@@ -984,14 +987,16 @@ func _dessiner_monde() -> void:
 				draw_texture_rect(ic, Rect2(bp - Vector2(2.1, 2.1), Vector2(4.2, 4.2)), false)
 		if w.unpaid:
 			_label("25 %", p + Vector2(0, -r - 2), 7)
-		if w.carry > 0.0:
+		if w.carry > 0.0 and not vitrine:
 			var cap := game.carry_capacity(w.card)
 			draw_rect(Rect2(p.x - r, p.y + r * 1.3, r * 2, 2.5), Color(0, 0, 0, 0.6))
 			draw_rect(Rect2(p.x - r, p.y + r * 1.3, r * 2 * w.carry / cap, 2.5), UiTokens.RESSOURCES.get(w.carry_type, {"couleur": Color.WHITE})["couleur"])
 			# quantité portée, lisible à côté de l'écusson
 			var qty := "%d/%d" % [floori(w.carry), cap]
 			_ecrire(p + Vector2(r + 1.5, r * 1.3 + 3), qty, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 7, Color.WHITE, 2, Color(0, 0, 0, 0.85))
-		if w.pause_left > 0.0:
+		if vitrine:
+			pass
+		elif w.pause_left > 0.0:
 			draw_circle(p + Vector2(r, -r), 3.2, Color.WHITE)
 			draw_circle(p + Vector2(r, -r), 2.5, UiTokens.PAUSE)
 		elif w.task.is_empty() and w.path.is_empty() and iso == null:
@@ -1019,7 +1024,7 @@ func _dessiner_monde() -> void:
 	_draw_peek_hint()
 	_draw_fin_motif()
 	# Case survolée, ou aperçu du bâtiment à placer
-	var hover := _hover_tile()
+	var hover := _hover_tile() if not vitrine else Vector2i(-99, -99)
 	if build_choice.get("kind") == "animal":
 		var ev := _enc_eval(hover)
 		var col := Color(0.4, 1, 0.4) if ev["err"] == "" else Color(1, 0.35, 0.35)
@@ -1478,6 +1483,8 @@ func _draw_gate(r: Rect2, vertical := false) -> void:
 
 ## Marqueur rond au-dessus d'un objet : pastille de couleur, icône blanche, pointe vers l'objet.
 func _draw_pin(tip: Vector2, icon: String, color: Color, s := 1.0) -> void:
+	if vitrine:
+		return
 	var c := tip - Vector2(0, 9) * s
 	draw_colored_polygon(PackedVector2Array([c + Vector2(-3.5, 3) * s, c + Vector2(3.5, 3) * s, tip]), Color.WHITE)
 	draw_circle(c, 6.2 * s, Color.WHITE)
@@ -1805,6 +1812,8 @@ func _draw_visiteur_bd(pos: Vector2, k: int) -> void:
 
 
 func _progress(r: Rect2, ratio: float) -> void:
+	if vitrine:
+		return
 	draw_rect(Rect2(r.position.x + 2, r.end.y - 4, r.size.x - 4, 2.5), Color(0, 0, 0, 0.6))
 	draw_rect(Rect2(r.position.x + 2, r.end.y - 4, (r.size.x - 4) * ratio, 2.5), UiTokens.SELECTION)
 
@@ -2082,6 +2091,8 @@ func _build_origin(hover: Vector2i) -> Vector2i:
 
 
 func _label(text: String, pos: Vector2, size: int) -> void:
+	if vitrine:
+		return
 	if iso and SpritesBD.collecte != null:
 		SpritesBD.collecte.append({"texte": text, "pos": pos, "taille": size + 6, "encre": Color.WHITE, "fond": UiTokens.ENCRE})
 		return
@@ -6183,6 +6194,8 @@ func _terrains_du_motif(def: Dictionary, tuiles: Array) -> Array:
 
 ## Étiquette posée sur la carte, de taille constante à l'écran quel que soit le zoom.
 func _etiquette_monde(centre: Vector2, texte: String, fond: Color, encre: Color) -> void:
+	if vitrine:
+		return
 	if iso and SpritesBD.collecte != null:
 		SpritesBD.collecte.append({"texte": texte, "pos": centre, "taille": 13, "encre": encre, "fond": fond})
 		return
