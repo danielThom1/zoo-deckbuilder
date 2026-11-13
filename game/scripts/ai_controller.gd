@@ -1668,6 +1668,14 @@ func _pattern_fit_maps() -> Array:
 	# Dès le jour 1 : le terrain qui convient aux animaux communs visibles au marché.
 	if especes.is_empty() and _opt("zoo_j1"):
 		especes = g.market_contracts.filter(func(d): return d["palier"] == "T1").slice(0, 3)
+	# Réserve naturelle : le terrain ne s'aménage pas et le marché ne change qu'aux achats. Le parc doit contenir tels
+	# quels les motifs d'espèces du marché, sinon l'IA ne peut rien installer (13/11 : une IA finissait à 0 avec 784
+	# d'argent, aucun des 5 contrats ne tenait dans son parc).
+	if mt.mode == "nature":
+		especes = especes.duplicate()
+		for d in g.market_contracts:
+			if not especes.any(func(e): return e["id"] == d["id"]):
+				especes.append(d)
 	# Carte identique pour toutes les IA en début de partie : le calcul, le plus long de la partie, est partagé.
 	var empreinte_carte: int = hash(m.tiles)
 	for def in especes:
@@ -1745,12 +1753,17 @@ func _zoo_score(r: Rect2i, camp_c: Vector2, fit: Array) -> float:
 	# Bonus si le terrain se prête déjà aux motifs des contrats détenus.
 	var bonus := 0.0
 	var zone := r.grow(-2)
+	var nature: bool = mt.mode == "nature"
 	for f in fit:
 		var b := 99
 		for y in range(zone.position.y, zone.end.y - 2):
 			for x in range(zone.position.x, zone.end.x - 2):
 				b = mini(b, f["best"][y * m.w + x])
-		bonus += maxf(0.0, float(f["def"]["motif"].size() - b)) * 4.0
+		if nature:
+			# Sans aménagement, seul un motif présent tel quel compte ; une espèce commune pèse un peu plus (moins chère).
+			bonus += (60.0 if f["def"]["palier"] == "T1" else 45.0) if b == 0 else 0.0
+		else:
+			bonus += maxf(0.0, float(f["def"]["motif"].size() - b)) * 4.0
 	return camp_c.distance_to(Vector2(r.get_center())) + water * 3.0 + bad * 2.0 - bonus
 
 

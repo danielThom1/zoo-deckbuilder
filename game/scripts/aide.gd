@@ -254,13 +254,33 @@ func _cout(c: Dictionary) -> String:
 	return ", ".join(p)
 
 
+## Postes : peut-on y mettre plusieurs collaborateurs, et que rapporte le second ? (d'après game_state.gd :
+## guichet_rate, _update_feed, _sweep, _embellir additionnent ; _shop_mult, snack_mult, kiosque_bonus non).
+const POSTES := {
+	"entree": "Guichet : plusieurs collaborateurs s'additionnent, chacun fait entrer ses visiteurs (le Guichetier va plus vite).",
+	"boutique": "Un seul collaborateur compte par boutique : un second n'ajoute rien. Pour vendre plus, construisez une autre boutique.",
+	"cuisine": "Plusieurs collaborateurs s'additionnent : chacun prépare et livre ses rations, donc plus d'animaux sont nourris, plus vite.",
+	"entretien": "Plusieurs collaborateurs s'additionnent : le parc se nettoie plus vite.",
+	"snack": "Un seul collaborateur suffit : un second n'ajoute rien.",
+	"kiosque": "Seul le meilleur animateur présent compte : un second n'ajoute rien.",
+	"intendance": "Plusieurs collaborateurs s'additionnent : les décorations se posent plus vite (toujours une pour 10 cases au plus).",
+	"mine": "Deux places par filon d'or ; chaque mineur extrait de son côté.",
+	"comptoir": "Pas de poste : le Marchand vend où qu'il soit, mieux payé si ce bâtiment existe.",
+	"agence": "Pas de poste à tenir.",
+	"cabinet": "Pas de poste à tenir.",
+	"acquisitions": "Pas de poste à tenir.",
+}
+
+
 func _glossaire_batiments() -> void:
 	var L: Array[String] = []
 	for b in data["buildings"]["batiments"]:
 		if b["id"] == "camp":
 			continue
 		var d: String = DESCRIPTIONS.get(b["id"], str(b.get("_note_effet", "")))
-		L.append("[b]%s[/b] (%s, %d s de travail) : %s" % [b["nom"], _cout(b.get("cout", {})), int(b["travail"]), d])
+		var poste: String = ("
+[i]Poste :[/i] " + POSTES[b["id"]]) if POSTES.has(b["id"]) else ""
+		L.append("[b]%s[/b] (%s, %d s de travail) : %s%s" % [b["nom"], _cout(b.get("cout", {})), int(b["travail"]), d, poste])
 	_feuille("Bâtiments").text = "\n\n".join(L)
 
 

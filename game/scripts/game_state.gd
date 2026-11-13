@@ -3756,6 +3756,18 @@ func _sell_souvenirs() -> void:
 	visit["souvenirs_rep"] = float(visit.get("souvenirs_rep", 0.0)) + pour_reputation
 
 
+## Cases où un visiteur peut se tenir : dans l'enceinte, praticables (ni eau ni montagne, un pont oui), hors des
+## enclos et des bâtiments. Sans aucune (enceinte noyée), toutes les cases intérieures, comme avant.
+func _cases_visiteurs() -> Array:
+	var interieur: Array = zoo_status()["interior"].keys()
+	var enclos := {}
+	for a in animals:
+		for t in a.tiles:
+			enclos[t] = true
+	var out := interieur.filter(func(t: Vector2i): return map.passable(t.x, t.y) and not enclos.has(t) and not occupancy.has(t))
+	return out if not out.is_empty() else interieur
+
+
 ## Visiteurs simultanés maximum : cases intérieures de l'enceinte / cases_par_visiteur.
 func visitor_capacity() -> int:
 	return int(zoo_status()["interior"].size() / float(data["buildings"]["zoo"]["cases_par_visiteur"]))
@@ -3858,7 +3870,7 @@ func _update_visitors(dt: float) -> void:
 	var interior: Array = []
 	while _admit_acc >= 1.0 and visitor_queue > 0 and room > 0:
 		if interior.is_empty():
-			interior = zoo_status()["interior"].keys()
+			interior = _cases_visiteurs()
 		room -= 1
 		_admit_acc -= 1.0
 		visitor_queue -= 1

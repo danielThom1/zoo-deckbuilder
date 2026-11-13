@@ -8,7 +8,7 @@ extends Control
 ## Fond : l'image du zoo en pleine journée (FOND_ILLUSTRE, rendue par le jeu), puis, dès qu'elle est prête, une vraie
 ## partie d'IA enregistrée qui tourne derrière (main.gd, vitrine_fond) dans un SubViewport, en fondu par-dessus l'image.
 ## Option de capture : --menu=course|nature|cozy|multi|semaine|permanents|tutoriel|dossier (ligne choisie au départ) ;
-## --fond-fixe : sans le fond vivant.
+## --fond-fixe : sans le fond vivant ; --souris=x,y : souris posée là (survol).
 
 signal lancer(spectateur: bool, graine: int, adversaires: int, niveau: String)
 signal defi(id: String)  # un défi à jouer
@@ -93,6 +93,10 @@ func _ready() -> void:
 			(n as Control).z_index = 10)
 	_choisir(choix)
 	_lire_classement.call_deferred()
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--souris="):  # captures : souris posée à x,y (survol)
+			var xy := a.trim_prefix("--souris=").split(",")
+			get_tree().create_timer(0.3).timeout.connect(func(): get_viewport().warp_mouse(Vector2(float(xy[0]), float(xy[1]))))
 	modulate.a = 0.0
 	create_tween().tween_property(self, "modulate:a", 1.0, 0.4)
 
@@ -928,8 +932,7 @@ func _note_de_service() -> Control:
 	racine.offset_right = -60
 	racine.offset_top = -352
 	racine.offset_bottom = -352
-	racine.rotation = deg_to_rad(-1.5)
-	racine.pivot_offset = Vector2(210, 100)
+	# Pas de rotation : un texte tourné se dessine flou et en escalier (retour de l'utilisateur).
 	racine.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var p := PanelContainer.new()
 	p.custom_minimum_size.x = 420
@@ -1163,7 +1166,7 @@ func _demarrer_fond() -> void:
 	if not ResourceLoader.exists("res://assets/vitrine/partie_menu.txt") and not FileAccess.file_exists("res://assets/vitrine/partie_menu.txt"):
 		return
 	fond_vue = SubViewport.new()
-	fond_vue.size = Vector2i(get_viewport_rect().size)
+	_taille_fond()
 	fond_vue.render_target_update_mode = SubViewport.UPDATE_DISABLED  # la partie demande chaque image (main.FOND_IMAGES)
 	fond_vue.gui_disable_input = true
 	fond_vue.audio_listener_enable_2d = false
@@ -1172,9 +1175,20 @@ func _demarrer_fond() -> void:
 	fond_jeu.set("vitrine_fond", true)
 	fond_vue.add_child(fond_jeu)
 	fond_vivant.texture = fond_vue.get_texture()
-	resized.connect(func():
-		if is_instance_valid(fond_vue):
-			fond_vue.size = Vector2i(size))
+	resized.connect(_taille_fond)
+
+
+## Le fond est rendu à la taille réelle de la fenêtre (sinon l'image de 1600 × 900 est agrandie, donc floue) ; la partie,
+## elle, voit toujours l'écran de référence (size_2d_override), comme en jeu.
+func _taille_fond() -> void:
+	if not is_instance_valid(fond_vue):
+		return
+	var vue := get_viewport_rect().size
+	var fenetre := Vector2(get_window().size)
+	var echelle := maxf(1.0, minf(fenetre.x / vue.x, fenetre.y / vue.y))
+	fond_vue.size = Vector2i((vue * echelle).round())
+	fond_vue.size_2d_override = Vector2i(vue.round())
+	fond_vue.size_2d_override_stretch = true
 
 
 func _suivre_fond(delta: float) -> void:

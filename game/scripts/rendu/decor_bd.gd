@@ -8,7 +8,7 @@ const HAUTEUR_FALAISE := 0.55   # doit correspondre à hauteur_falaise du shader
 
 ## Mélanges par terrain : nom de famille → poids. Une famille = tous les fichiers « famille_N ».
 const FORET := {"feuillu_chene": 3.0, "feuillu_hetre": 3.0, "feuillu_sombre": 2.5, "pin": 2.5, "sapin": 1.5, "bouleau": 1.0, "feuillu_automne": 0.5, "feuillu_or": 0.4}
-const PRAIRIE_RARE := {"buisson": 3.0, "feuillu_chene": 0.6, "bouleau": 0.4, "fougere": 1.0}
+const PRAIRIE_RARE := {"buisson": 3.0, "acacia": 0.6, "bouleau": 0.4, "fougere": 1.0}
 const SABLE := {"herbes_hautes": 2.0, "buisson_sec": 1.0, "rocher": 0.6}
 const ROCHE := {"rocher": 4.0, "buisson_sec": 0.5}
 
@@ -16,7 +16,9 @@ const ROCHE := {"rocher": 4.0, "buisson_sec": 0.5}
 const FORET_VERTE := {"feuillu_chene": 3.0, "feuillu_hetre": 3.0, "feuillu_sombre": 2.5, "pin": 2.5, "sapin": 1.5, "bouleau": 1.0}
 const BOSQUET_AUTOMNE := {"feuillu_automne": 3.0, "feuillu_or": 2.5, "feuillu_chene": 1.5, "bouleau": 1.0}
 const LISIERE := {"buisson": 3.0, "fougere": 2.0, "bouleau": 0.8, "souche": 0.3}
-const ARBRES_PRAIRIE := {"feuillu_chene": 2.0, "feuillu_hetre": 1.5, "bouleau": 1.0}
+## Arbres seuls de prairie : silhouettes différentes de la forêt (acacia en parasol, bouleau clair), pour qu'une case
+## de prairie ne se prenne pas pour une case de forêt (retour de l'utilisateur, 13/11).
+const ARBRES_PRAIRIE := {"acacia": 2.0, "bouleau": 1.5}
 const FAMILLES_AU_VENT := ["feuillu", "pin", "sapin", "bouleau", "saule", "buisson", "fougere", "herbes", "roseaux", "acacia", "baobab"]
 const VENT := preload("res://scripts/rendu/vent_bd.gdshader")
 
