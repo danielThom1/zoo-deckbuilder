@@ -13,6 +13,8 @@ extends SceneTree
 ##   remplacent pas, ils sont écrits à côté du rapport, dans ia_niveaux_candidat.json, pour les adopter à la main.
 ## Reprise : etude_reprise.json (racine) garde la population et les statistiques à chaque génération.
 ##   -- --reprendre --total=2000 : 2000 parties de plus ; -- --reprendre --jusqua=12000 : jusqu'à 12000 au total.
+## --argent=50 : chaque IA commence chaque partie avec 50 d'argent (au lieu de partie.argent_depart), comme les IA
+##   difficiles du jeu (Main.ARGENT_DEPART_DIFFICILE). Les stratégies enregistrées n'en gardent pas trace.
 
 const POPULATION := 16
 const PARTIES_PAR_GENOME := 6
@@ -92,6 +94,7 @@ var genomes_finale := {}  # nom -> génome des candidats de la finale
 var niveaux := {}  # niveau -> {"strategies", "victoires", "rep"}
 var mode_ia := "auto"  # --ia=auto|oui|non : remplacer les niveaux d'IA du jeu à la fin de l'étude
 var decision_ia := ""  # ce qui a été fait, pour le rapport
+var argent_ia := 0  # --argent=N : argent de départ de chaque IA (0 : celui des règles)
 const CANDIDAT := "ia_niveaux_candidat.json"  # à la racine, à côté du rapport
 
 
@@ -101,6 +104,7 @@ func _init() -> void:
 		var kv := a.trim_prefix("--").split("=", true, 1)
 		args[kv[0]] = kv[1] if kv.size() > 1 else ""
 	data = GameData.load_all()
+	argent_ia = int(args.get("argent", "0"))
 	# Un dossier par étude : deux études lancées en même temps ne lisent pas les résultats l'une de l'autre.
 	dir = ProjectSettings.globalize_path("user://evolution")
 	if args.has("dir"):
@@ -419,7 +423,7 @@ func _garnir_processus(voulus: int) -> void:
 	processus = processus.filter(func(p): return OS.is_process_running(p))
 	while processus.size() < voulus:
 		processus.append(OS.create_process(OS.get_executable_path(), ["--headless", "--path", ProjectSettings.globalize_path("res://"),
-			"--script", "res://tests/evolution.gd", "--", "--dir=" + dir]))
+			"--script", "res://tests/evolution.gd", "--", "--dir=" + dir, "--argent=%d" % argent_ia]))
 
 
 func _arreter_processus() -> void:
@@ -563,6 +567,11 @@ func _finale(pop: Array, order: Array, n: int, jobs: int) -> Array:
 
 
 func _play(seed: int, genomes: Array) -> Dictionary:
+	if argent_ia > 0:
+		genomes = genomes.map(func(gn):
+			var d: Dictionary = (gn as Dictionary).duplicate(true) if gn is Dictionary else {}
+			d["argent_depart"] = argent_ia
+			return d)
 	var m := Match.new(data, seed, 4, -1, genomes)
 	m.advance_ai_draft()
 	while not m.game_over:
@@ -774,6 +783,12 @@ func _cumuler(r: Dictionary, genomes: Array) -> void:
 	rattrapage["ecart"] += float(r.get("ecart", 0.0))
 	rattrapage["n"] += 1
 	var objectif := float(data["buildings"]["partie"]["objectif_reputation"])
+	# Replays d'étude : l'argent de départ fait partie de la partie (sans lui, elle ne se rejouerait pas à l'identique)
+	if argent_ia > 0:
+		genomes = genomes.map(func(gn):
+			var d: Dictionary = (gn as Dictionary).duplicate(true) if gn is Dictionary else {}
+			d["argent_depart"] = argent_ia
+			return d)
 	for i in 4:
 		var j: Dictionary = r["joueurs"][i]
 		var gagne: bool = int(r["winner"]) == i and float(j["rep"]) >= objectif
@@ -915,6 +930,8 @@ func _table(L: Array[String], titre: String, cat: String, texte := "") -> void:
 
 func _write_report(pop: Array, order: Array, scores: Array, history: Array, classement: Array) -> void:
 	var L: Array[String] = ["# Étude du jeu par l'IA qui apprend", ""]
+	if argent_ia > 0:
+		L.append_array(["Chaque IA commence avec **%d d'argent** (option --argent), comme les IA difficiles du jeu." % argent_ia, ""])
 	var fin: bool = not classement.is_empty()
 	L.append("%d parties sur %d jouées%s, %d min de calcul. Fin de partie en moyenne au jour %.1f." % [parties_jouees, total_parties, "" if fin else " (étude en cours)",
 		int((Time.get_ticks_msec() - t0) / 60000), _mean(jours_fin)])

@@ -47,10 +47,15 @@ set /p "IA=Remplacer les IA du jeu ? (A/O/N) [A] : "
 set "MODE_IA=auto"
 if /i "%IA%"=="O" set "MODE_IA=oui"
 if /i "%IA%"=="N" set "MODE_IA=non"
+echo.
+echo Argent de depart des IA pendant l'etude. Les IA difficiles du jeu partent avec 50 (le joueur avec 30) :
+echo pour les entrainer dans ces conditions, gardez 50. Repondez 0 pour l'argent normal des regles.
+set "ARGENT=50"
+set /p "ARGENT=Argent de depart des IA ? [50] : "
 set /a JOBS=%NUMBER_OF_PROCESSORS%-2
 if %JOBS% LSS 1 set JOBS=1
 
-"%GODOT%" --headless --path game --script res://tests/evolution.gd -- %OPTS% --total=%PARTIES% --jobs=%JOBS% --fin=%FIN% --ia=%MODE_IA%
+"%GODOT%" --headless --path game --script res://tests/evolution.gd -- %OPTS% --total=%PARTIES% --jobs=%JOBS% --fin=%FIN% --ia=%MODE_IA% --argent=%ARGENT%
 
 echo.
 echo Termine. Le rapport est dans rapport_etude.md. Les niveaux d'IA sont dans game\data\ia_niveaux.json s'ils ont
