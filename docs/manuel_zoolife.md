@@ -300,6 +300,74 @@ Une étude fait évoluer des « génomes » (stratégies et préférences) en le
 - **Test local** : `godot --headless --path game -- --mp-hote --mp-jours=3`, et dans une autre fenêtre `-- --mp-rejoindre=127.0.0.1 --mp-jours=3`.
 - **Pour Steam** : passer par le réseau de Steam (invitation d'un ami, relais), ce qui supprime IP et VPN. Seule la couche de transport change, le reste est déjà déterministe.
 
+### Organiser une partie depuis votre ordinateur, pas à pas
+
+**Ce qu'il faut savoir avant**
+- Vous **hébergez** : votre ordinateur sert de point de rencontre, et vos amis s'y connectent.
+- Tout le monde doit avoir **exactement le même jeu** : envoyez-leur le même `.exe` (et son `.pck` s'il est à part). Le salon refuse un joueur dont les fichiers de règles (`animals.json`, `workers.json`, `buildings.json`, `events.json`, `personnages.json`) diffèrent. Il ne compare pas le code : un `.exe` d'une autre version, avec les mêmes règles, serait accepté puis se désynchroniserait en cours de partie.
+- Le multijoueur se joue toujours en **partie classique**, sans sauvegarde : si l'hôte quitte, la partie s'arrête.
+- **Port utilisé** : 7777 en UDP.
+
+**Étape 1 : choisir comment vos amis vous joignent**
+
+| Situation | Adresse à donner | Préparation |
+|---|---|---|
+| **Même maison** (même box, Wi-Fi ou câble) | L'adresse locale de votre PC, affichée par le salon (ex. `192.168.1.23`) | Aucune, à part le pare-feu (étape 2). |
+| **Par Internet, avec Tailscale** (conseillé) | Votre adresse Tailscale (`100.x.y.z`) | Tout le monde installe Tailscale. |
+| **Par Internet, avec ouverture du port** | Votre adresse IP publique | Ouvrir le port 7777 UDP sur votre box. |
+
+*Tailscale* (gratuit, tailscale.com) crée un réseau privé entre vos ordinateurs, sans toucher à la box :
+1. Vous créez un compte Tailscale (avec un compte Google ou Microsoft) et l'installez sur votre PC.
+2. Dans la console d'administration Tailscale, menu *Users*, *Invite users*, vous invitez vos amis. Ils installent Tailscale et se connectent avec le lien reçu.
+3. L'icône Tailscale, près de l'horloge, affiche votre adresse en `100.…` : c'est celle à donner.
+
+*Ouverture du port* (si vous ne voulez pas de Tailscale) :
+1. Notez l'adresse locale de votre PC (affichée par le salon à l'étape 3, ou `ipconfig` dans un terminal, ligne « Adresse IPv4 »).
+2. Ouvrez l'interface de votre box (Freebox : mafreebox.freebox.fr ; Livebox : 192.168.1.1 ; Bbox : mabbox.bytel.fr ; SFR : 192.168.1.1), rubrique « Redirection de ports » ou « NAT/PAT ».
+3. Créez une règle : protocole **UDP**, port externe **7777**, port interne **7777**, vers l'adresse locale de votre PC.
+4. Votre adresse IP publique s'affiche dans l'interface de la box (ou sur un site comme « quel est mon IP »).
+5. Pour que l'adresse locale ne change pas, réservez-la à votre PC dans la box (« bail DHCP statique »).
+
+**Étape 2 : le pare-feu de Windows**
+
+La première fois que vous cliquez sur « Héberger une partie », Windows demande s'il faut autoriser le jeu. Cochez **Réseaux privés** (et **Réseaux publics** si vous jouez par Internet), puis « Autoriser ». Si la fenêtre n'est pas apparue ou si vous avez refusé : *Paramètres Windows › Confidentialité et sécurité › Sécurité Windows › Pare-feu et protection du réseau › Autoriser une application via le pare-feu*, puis cochez ZooLife (ou Godot) dans les deux colonnes.
+
+**Étape 3 : ouvrir le salon (vous, l'hôte)**
+1. Lancez le jeu, puis au menu choisissez **Multijoueur**, et **Ouvrir le salon**.
+2. Tapez votre nom (16 caractères au plus).
+3. Cliquez sur **Héberger une partie**. Le salon affiche « En attente de joueurs » et vos adresses locales.
+4. Donnez à vos amis l'adresse choisie à l'étape 1.
+
+**Étape 4 : rejoindre (vos amis)**
+1. Ils lancent le jeu, puis **Multijoueur** et **Ouvrir le salon**.
+2. Ils tapent leur nom, puis l'adresse de l'hôte dans « Ou rejoindre », et cliquent sur **Rejoindre**.
+3. Leur nom apparaît dans la liste des joueurs, chez tout le monde, et chez eux le salon affiche « Connecté. L'hôte lancera la partie ».
+
+**Étape 5 : lancer (vous)**
+1. Choisissez de compléter jusqu'à 4 joueurs avec des IA, ou de jouer entre humains seulement.
+2. Cochez « IA difficiles » si vous voulez le niveau Difficile.
+3. Cliquez sur **Lancer la partie** (il faut au moins 2 humains). La carte est tirée au hasard et la même pour tous.
+
+**Pendant la partie**
+- Chaque matin, 20 s de préparation. Pas de pause, et la vitesse suit le joueur le plus lent.
+- La journée se termine quand tout le monde a cliqué « Terminer la journée ».
+- Les choix de la nuit ont un temps limite : 30 s au draft et au bonus, 45 s par tour de marché, 60 s pour l'équipe.
+- Un joueur qui quitte est remplacé par une IA.
+- Une alerte « désynchronisation » signale que les parties ne sont plus identiques : il faut relancer.
+
+**Si ça ne marche pas**
+
+| Message | Cause probable |
+|---|---|
+| « Connexion impossible » | Mauvaise adresse, port non redirigé, ou pare-feu de l'hôte. Essayez d'abord à deux dans la même maison, puis avec Tailscale. |
+| « Impossible d'ouvrir le port 7777 » | Une autre partie est déjà ouverte sur ce PC : fermez-la. |
+| « Versions du jeu différentes » | Les fichiers de règles diffèrent : renvoyez le même `.exe` à tout le monde. |
+| « La partie a déjà commencé » ou « La partie est complète » | Le salon est fermé aux nouveaux joueurs (4 au plus). |
+
+Certaines box et certains opérateurs (connexion 4G/5G, fibre en « IP partagée ») empêchent toute redirection de port : Tailscale est alors la seule solution.
+
+**Essayer seul sur un PC** : lancez le jeu deux fois. Dans la première fenêtre, hébergez. Dans la seconde, rejoignez l'adresse `127.0.0.1`.
+
 ---
 
 ## 10. Classement en ligne (Supabase)
