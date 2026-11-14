@@ -763,8 +763,8 @@ func order(targets: Array, target: Vector2i, enqueue := false) -> void:
 			var eff_l := efficiency(w.card, "lobbying")
 			if eff_l <= 0.0 and w.reportage.is_empty():
 				say("%s ne fait pas de lobbying (%s) : son influence restera à 0. Le Lobbyiste est fait pour ça." % [w.card.nom, job_name(w.card)])
-			elif eff_l < 0.5:
-				say("%s part en lobbying, sans en être spécialiste : environ %.1f d'influence par journée entière. Un Lobbyiste en rapporte 4 fois plus." % [w.card.nom, eff_l * LOBBYING_PAR_MINUTE * mt.day_length / 60.0])
+			elif eff_l < 0.9:
+				say("%s part en lobbying, sans en être spécialiste : environ %.1f d'influence par journée entière (un Lobbyiste en rapporte %.1f)." % [w.card.nom, eff_l * LOBBYING_PAR_MINUTE * mt.day_length / 60.0, LOBBYING_PAR_MINUTE * mt.day_length / 60.0])
 			annonce("lobbying", {"nom": w.card.nom})
 			w.task = {"type": "lobby", "phase": "to_exit"}
 			_set_path(w, target)

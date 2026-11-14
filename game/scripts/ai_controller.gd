@@ -412,8 +412,9 @@ func _action_value(c: GameState.Card) -> float:
 
 
 ## Une carte d'action piochée prend la place d'un collaborateur dans la main (14/11 : en fin de partie, les IA riches
-## achetaient une carte chaque soir et ne mobilisaient plus que 2 ou 3 collaborateurs sur 5). Sauf si elle fait piocher
-## à son tour, ou si le paquet n'a pas assez de collaborateurs pour remplir la main.
+## achetaient une carte chaque soir et ne mobilisaient plus que 2 ou 3 collaborateurs sur 5). Elle coûte donc, en plus de
+## son prix, la journée d'un collaborateur : ce qu'il rapporte en moyenne (revenu_par_collaborateur), moins le salaire
+## qu'on ne lui paie pas. Sauf si elle fait piocher à son tour, ou si le paquet n'a pas assez de collaborateurs.
 func _cout_place_en_main(c: GameState.Card) -> float:
 	if int(c.action["effet"].get("pioche", 0)) >= 1:
 		return 0.0
@@ -421,7 +422,22 @@ func _cout_place_en_main(c: GameState.Card) -> float:
 	if equipe.size() <= g.hand_size():
 		return 0.0
 	var salaire_moyen: float = equipe.map(func(x): return float(g.salary(x))).reduce(func(a, b): return a + b, 0.0) / maxf(1.0, equipe.size())
-	return maxf(0.0, JOURNEE_COLLABORATEUR - salaire_moyen)
+	return maxf(0.0, revenu_par_collaborateur() - salaire_moyen)
+
+
+## Ce que rapporte en moyenne un collaborateur mobilisé, d'après la veille : billets, souvenirs et ressources récoltées
+## (au prix de vente), divisés par le nombre de collaborateurs mobilisés. Au moins JOURNEE_COLLABORATEUR : en début de
+## partie, le zoo fermé ne rapporte rien, mais le travail fait avancer les chantiers.
+func revenu_par_collaborateur() -> float:
+	var r: Dictionary = g.night_report
+	if r.is_empty():
+		return JOURNEE_COLLABORATEUR
+	var inc: Dictionary = r.get("income", {})
+	var st: Dictionary = r.get("stats", {})
+	var total := float(inc.get("tickets", 0)) + float(inc.get("souvenirs", 0))
+	for res in ["bois", "pierre", "or"]:
+		total += float(st.get(res, 0.0)) * g.sell_price(res)
+	return maxf(JOURNEE_COLLABORATEUR, total / maxf(1.0, float(r.get("deployed", 1))))
 
 
 ## Gain estimé d'une carte d'action, en argent (comparé à son prix par _night_buy_action). Une journée de collaborateur
@@ -754,6 +770,30 @@ func _ouvrier_voulu() -> String:
 	return ""
 
 
+## Faire venir l'aménageur par l'Agence vaut-il son coût ? Gain : la réputation des animaux qui attendent ses
+## aménagements, avancée des jours où il n'aurait pas été pioché. Coût : le bâtiment s'il manque, les frais et le salaire
+## de l'échange, et la journée du collaborateur renvoyé à la défausse ; le tout ramené en réputation au taux du meilleur
+## contrat du marché (_ratio_reference). La finalité reste la réputation.
+func _agence_rentable() -> bool:
+	var attente: Array = plans.filter(func(p): return not p["conv"].is_empty()).map(func(p): return p["def"])
+	if attente.is_empty():
+		return false
+	var equipe := maxf(1.0, g.all_employees().size())
+	var pioche := minf(1.0, float(g.hand_size()) / equipe)  # chance que l'aménageur soit dans la main un jour donné
+	var jours := minf(_days_left(), 4.0)
+	var gain := 0.0
+	for d in attente:
+		gain += _contract_value(d) * jours * (1.0 - pioche)
+	var salaire_moyen: float = g.all_employees().map(func(x): return float(g.salary(x))).reduce(func(a, b): return a + b, 0.0) / equipe
+	var cout := (float(g.data["buildings"]["agence"]["frais"]) + salaire_moyen + revenu_par_collaborateur() * 0.5) * jours * (1.0 - pioche)
+	if not g.agency_built():
+		var b := g.building_def("agence")
+		for k in b["cout"]:
+			cout += float(b["cout"][k]) * (g.buy_price(k) if k in ["bois", "pierre", "or"] else 1.0)
+	var taux := _ratio_reference()
+	return taux > 0.0 and gain >= cout * taux
+
+
 ## Agence d'intérim : va chercher dans le deck l'ouvrier précis qui manque aujourd'hui, à la place du moins utile.
 func _gerer_agence() -> void:
 	if g.time > g.day_length * 0.7:
@@ -767,6 +807,8 @@ func _gerer_agence() -> void:
 		if ok and (cand == null or card_value(c) > card_value(cand)):
 			cand = c
 	if cand == null:
+		return
+	if voulu == "amenageur" and not _agence_rentable():
 		return
 	agence_voulue = true
 	if not g.agency_built() or g.money - g.swap_cost(cand) < _cash_floor():
