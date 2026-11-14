@@ -65,6 +65,9 @@ const ATTENTE_CHANTIER_MAX := 40.0
 const AGRANDIR_MAX := 4  # agrandissements au plus dans une partie
 const PARC_MAX := Vector2i(46, 38)
 const PROFONDEURS := [6, 9, 12]  # cases gagnées d'un côté à chaque agrandissement
+## Sans Paysagiste ni Terrassier, un motif ne s'obtient qu'en englobant le terrain tel qu'il est : l'IA va le chercher
+## plus loin (14/11 : passé le jour 5 ou 6, ces IA n'installaient presque plus d'animaux).
+const PROFONDEURS_SANS_AMENAGEUR := [6, 9, 12, 15, 18]
 
 var mt: Match
 var g: GameState
@@ -405,7 +408,20 @@ func _floor_achats() -> float:
 ## Intérêt d'une carte d'action pour cette IA (0 : inutile pour l'instant).
 func _action_value(c: GameState.Card) -> float:
 	# poids appris par l'étude (de -2 à 2) : en argent, ±10 au plus
-	return _base_action_value(c) + 5.0 * float(strat.get("poids_cartes", {}).get(c.action["id"], 0.0))
+	return _base_action_value(c) + 5.0 * float(strat.get("poids_cartes", {}).get(c.action["id"], 0.0)) - _cout_place_en_main(c)
+
+
+## Une carte d'action piochée prend la place d'un collaborateur dans la main (14/11 : en fin de partie, les IA riches
+## achetaient une carte chaque soir et ne mobilisaient plus que 2 ou 3 collaborateurs sur 5). Sauf si elle fait piocher
+## à son tour, ou si le paquet n'a pas assez de collaborateurs pour remplir la main.
+func _cout_place_en_main(c: GameState.Card) -> float:
+	if int(c.action["effet"].get("pioche", 0)) >= 1:
+		return 0.0
+	var equipe := g.all_employees()
+	if equipe.size() <= g.hand_size():
+		return 0.0
+	var salaire_moyen: float = equipe.map(func(x): return float(g.salary(x))).reduce(func(a, b): return a + b, 0.0) / maxf(1.0, equipe.size())
+	return maxf(0.0, JOURNEE_COLLABORATEUR - salaire_moyen)
 
 
 ## Gain estimé d'une carte d'action, en argent (comparé à son prix par _night_buy_action). Une journée de collaborateur
@@ -2069,12 +2085,12 @@ func _extension_rects() -> Array:
 	if _ext_jour != g.day:
 		_ext_jour = g.day
 		_ext_cache.clear()
-	var key := "cotes|%s|%d" % [str(zoo_rect), fence_tiles.size()]
+	var key := "cotes|%s|%d|%s" % [str(zoo_rect), fence_tiles.size(), str(_has_landscaper())]
 	if _ext_cache.has(key):
 		return _ext_cache[key]
 	var out := []
 	var r := zoo_rect
-	for k: int in PROFONDEURS:
+	for k: int in (PROFONDEURS if _has_landscaper() else PROFONDEURS_SANS_AMENAGEUR):
 		if entrance.y != r.position.y:
 			_ajoute_extension(out, Rect2i(r.position - Vector2i(0, k), r.size + Vector2i(0, k)), Rect2i(r.position - Vector2i(0, k), Vector2i(r.size.x, k)), Vector2i(0, -1))
 		if entrance.y != r.end.y - 1:

@@ -1,7 +1,7 @@
 extends SceneTree
 ## Réserve naturelle : suit une IA soir après soir et dit, pour chaque contrat du marché, si son motif existe près du camp
 ## (_natural_fit), dans son parc (_compute_plan) ou après un agrandissement (_can_extend_for).
-## godot --headless --path game --script res://tests/nature_trace.gd -- --graine=3 --joueur=0 [--jours=8]
+## godot --headless --path game --script res://tests/nature_trace.gd -- --graine=3 --joueur=0 [--jours=8] [--mode=course] [--marche]
 
 func _init() -> void:
 	var args := {}
@@ -12,8 +12,9 @@ func _init() -> void:
 	var j := int(args.get("joueur", "0"))
 	var jours := int(args.get("jours", "8"))
 	var strategies: Array = JSON.parse_string(FileAccess.get_file_as_string("res://data/ia_niveaux.json"))["niveaux"]["difficile"]["strategies"]
-	var data := ModesPartie.appliquer(GameData.load_all(), "nature")
-	var mt := Match.new(data, graine, 4, -1, strategies.slice(0, 4).map(func(s): return ModesPartie.strategie(s, "nature")), [], "nature")
+	var mode := str(args.get("mode", "nature"))
+	var data := ModesPartie.appliquer(GameData.load_all(), mode)
+	var mt := Match.new(data, graine, 4, -1, strategies.slice(0, 4).map(func(s): return ModesPartie.strategie(s, mode)), [], mode)
 	while mt.phase == "draft":
 		mt.pick_draft(mt.ai_choice())
 	var ai: AIController = mt.ais[j]
@@ -33,7 +34,7 @@ func _init() -> void:
 				midi = t
 			continue
 		var z := p.zoo_status()
-		print("Soir %d : parc %s, ouvert %s (%s), argent %d, animaux %d, contrats %d, métiers %s" % [mt.day, str(ai.zoo_rect), str(z["open"]), z.get("reason", ""),
+		print("Soir %d (paysagiste ou terrassier : %s) : parc %s, ouvert %s (%s), argent %d, animaux %d, contrats %d, métiers %s" % [mt.day, str(ai._has_landscaper()), str(ai.zoo_rect), str(z["open"]), z.get("reason", ""),
 			int(p.money), p.animals.size(), p.contracts.size(), str(p.all_employees().map(func(c): return c.metier["id"]))])
 		var chantiers := {}
 		for st in p.sites:

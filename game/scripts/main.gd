@@ -1029,14 +1029,7 @@ func _dessiner_monde() -> void:
 			SpritesBD.dessiner(self, SpritesBD.pour_metier(str(w.card.metier["id"]), game.is_female(w.card)), body + Vector2(0, 6.2 - pas), TILE * SpritesBD.HAUTEUR_PERSONNE, f[1])
 		if not work.is_empty() and (geste < 0 or feuille == null):
 			_draw_work(work, body, tw, f[1])
-		# pastille du métier (couleur de catégorie) au-dessus de l'épaule
-		var bp := p + Vector2(-r - 1.5, -r * 1.9)
-		if iso == null:
-			draw_circle(bp, 3.4, Color.WHITE)
-			draw_circle(bp, 2.8, _worker_color(w.card))
-			var ic := UiTokens.icone(Composants.icone_metier(str(w.card.metier["id"])))
-			if ic:
-				draw_texture_rect(ic, Rect2(bp - Vector2(2.1, 2.1), Vector2(4.2, 4.2)), false)
+		# (La pastille du métier au-dessus de l'épaule a été retirée le 14/11 : peu lisible, le personnage dessiné suffit.)
 		if w.unpaid:
 			_label("25 %", p + Vector2(0, -r - 2), 7)
 		if w.carry > 0.0 and not vitrine:
