@@ -3,6 +3,7 @@ extends SceneTree
 ## (objectif de réputation) ou au dernier jour. Une ligne RES|… par partie, puis un résumé.
 ## godot --headless --path game --script res://tests/mesure_niveaux.gd -- --niveau=difficile [--argent=50] [--graines=1-10]
 ##   --argent : argent de départ imposé à chaque IA (sinon celui du niveau : 50 en Difficile, 30 ailleurs)
+##   --adverses=fichier.json ({"strategies": [...]}) : duel, les joueurs 1 et 3 prennent ces stratégies (même argent)
 
 func _init() -> void:
 	var args := {}
@@ -19,6 +20,14 @@ func _init() -> void:
 			var d: Dictionary = s.duplicate(true)
 			d["argent_depart"] = int(args["argent"])
 			return d)
+	if args.has("adverses"):
+		var autres: Array = JSON.parse_string(FileAccess.get_file_as_string(str(args["adverses"])))["strategies"]
+		autres = autres.map(func(s):
+			var d: Dictionary = s.duplicate(true)
+			if args.has("argent"):
+				d["argent_depart"] = int(args["argent"])
+			return d)
+		strats = [strats[0], autres[0], strats[1 % strats.size()], autres[1 % autres.size()]]
 	var data := GameData.load_all()
 	var jour_max := int(data["buildings"]["partie"]["jour_max"])
 	for g in range(de, a_ + 1):
