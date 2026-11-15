@@ -37,7 +37,7 @@ func _ready() -> void:
 		m.reseau = r
 		m.partie_reseau = params
 		m._start(false)
-		print("MP|debut|joueur %d sur %d, graine %d" % [params["index"], params["nb"], params["graine"]]))
+		print("MP|debut|joueur %d sur %d, graine %d, mode %s" % [params["index"], params["nb"], params["graine"], str(params.get("mode", "course"))]))
 	r.coupure.connect(func(t): print("MP|coupure|", t))
 	var err: String = r.heberger() if m.args.has("mp-hote") else r.rejoindre(m.args["mp-rejoindre"])
 	if err != "":
@@ -51,7 +51,7 @@ func _process(delta: float) -> void:
 	horloge = 0.0
 	if m.mt == null:
 		if r.est_hote and r.joueurs.size() >= int(m.args.get("mp-attendre", "2")):
-			r.lancer(true, false)
+			r.lancer(true, false, str(m.args.get("mp-mode", "course")))  # --mp-mode=nature
 		return
 	var mt: Match = m.mt
 	var g: GameState = m.game
@@ -65,7 +65,7 @@ func _process(delta: float) -> void:
 			get_viewport().get_texture().get_image().save_png(m.args["mp-capture"])
 			print("MP|capture")
 	if mt.game_over or mt.day > jours:
-		print("MP|fin|jour %d, divergence %s, controles %d, empreinte %d, reputation %s, IA %s" % [mt.day, r.desynchro, r.controles_ok, Commandes.empreinte(mt), mt.players.map(func(p): return roundi(p.rep_points)), mt.ais.map(func(a): return a != null)])
+		print("MP|fin|mode " + mt.mode + ", jour %d, divergence %s, controles %d, empreinte %d, reputation %s, IA %s" % [mt.day, r.desynchro, r.controles_ok, Commandes.empreinte(mt), mt.players.map(func(p): return roundi(p.rep_points)), mt.ais.map(func(a): return a != null)])
 		get_tree().quit(0)
 		return
 	if depart >= 0 and mt.day >= depart:

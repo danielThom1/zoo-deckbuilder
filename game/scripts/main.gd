@@ -452,16 +452,13 @@ func _maj_multijoueur() -> void:
 		bandeau_multi.grow_horizontal = Control.GROW_DIRECTION_BOTH
 		bandeau_multi.add_theme_stylebox_override("normal", UiTokens.panel(UiTokens.BOUTON_HAUT, UiTokens.ENCRE, 8, 2, 4))
 		bandeau_multi.add_theme_font_override("font", UiTokens.police_corps(700))
-		bandeau_multi.add_theme_font_size_override("font_size", 15)
+		bandeau_multi.add_theme_font_size_override("font_size", 14)
 		bandeau_multi.add_theme_color_override("font_color", UiTokens.ENCRE)
 		bandeau_multi.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var calque := CanvasLayer.new()
 		calque.layer = 14
 		add_child(calque)
 		calque.add_child(bandeau_multi)
-		event_label.offset_top = 96
-		if hubert:
-			hubert.haut = 104.0
 		reseau.coupure.connect(func(t):
 			game.say(t)
 			_restart("menu"))
@@ -480,6 +477,16 @@ func _maj_multijoueur() -> void:
 		morceaux.append("Vitesse ×%d" % int(e.get("vitesse", 1.0)))
 	bandeau_multi.text = "  " + " · ".join(morceaux) + "  "
 	bandeau_multi.visible = not morceaux.is_empty() and not mt.game_over
+	# Placé là où il ne cache rien : au milieu du bandeau du haut (jour, draft : la rangée des joueurs du draft est
+	# juste dessous), en bas au centre la nuit (le conseil couvre le bandeau).
+	var en_bas := mt.phase == "night"
+	if bandeau_multi.get_meta("en_bas", null) != en_bas:
+		bandeau_multi.set_meta("en_bas", en_bas)
+		bandeau_multi.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM if en_bas else Control.PRESET_CENTER_TOP)
+		bandeau_multi.grow_horizontal = Control.GROW_DIRECTION_BOTH
+		bandeau_multi.grow_vertical = Control.GROW_DIRECTION_BEGIN if en_bas else Control.GROW_DIRECTION_END
+		bandeau_multi.offset_top = -34.0 if en_bas else 3.0
+		bandeau_multi.offset_bottom = -8.0 if en_bas else 31.0
 	var prets := "%d/%d" % [int(e.get("prets", 0)), int(e.get("humains", 1))]
 	if mt.phase == "day":
 		end_day_btn.text = ("EN ATTENTE (%s)" if reseau.est_pret else "JE SUIS PRÊT (%s)") % prets
@@ -510,6 +517,7 @@ func _start(watch: bool) -> void:
 				autres_humains.append(i)
 		if partie_reseau["difficile"]:
 			args["difficile"] = ""
+		args["mode"] = str(partie_reseau.get("mode", "course"))  # partie classique ou Réserve naturelle, choisi par l'hôte
 	if args.has("tutoriel"):
 		map_seed = Tutoriel.GRAINE
 		nb = 4

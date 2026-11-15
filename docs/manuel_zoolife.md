@@ -305,7 +305,7 @@ Une étude fait évoluer des « génomes » (stratégies et préférences) en le
 **Ce qu'il faut savoir avant**
 - Vous **hébergez** : votre ordinateur sert de point de rencontre, et vos amis s'y connectent.
 - Tout le monde doit avoir **exactement le même jeu** : envoyez-leur le même `.exe` (et son `.pck` s'il est à part). Le salon refuse un joueur dont les fichiers de règles (`animals.json`, `workers.json`, `buildings.json`, `events.json`, `personnages.json`) diffèrent. Il ne compare pas le code : un `.exe` d'une autre version, avec les mêmes règles, serait accepté puis se désynchroniserait en cours de partie.
-- Le multijoueur se joue toujours en **partie classique**, sans sauvegarde : si l'hôte quitte, la partie s'arrête.
+- L'hôte choisit le mode dans le salon : **partie classique** ou **Réserve naturelle**. Pas de sauvegarde : si l'hôte quitte, la partie s'arrête.
 - **Port utilisé** : 7777 en UDP par défaut. L'hôte peut le changer dans le salon (champ « Port UDP »), et les autres joueurs tapent alors `adresse:port` (ex. `82.65.10.21:27777`, ou `[2a01:…]:7777` en IPv6).
 
 **Étape 1 : choisir comment vos amis vous joignent**
@@ -355,7 +355,7 @@ La première fois que vous cliquez sur « Héberger une partie », Windows deman
 
 **Étape 5 : lancer (vous)**
 1. Choisissez de compléter jusqu'à 4 joueurs avec des IA, ou de jouer entre humains seulement.
-2. Cochez « IA difficiles » si vous voulez le niveau Difficile.
+2. Cochez « IA difficiles » si vous voulez le niveau Difficile, et « Réserve naturelle » pour ce mode.
 3. Cliquez sur **Lancer la partie** (il faut au moins 2 humains). La carte est tirée au hasard et la même pour tous.
 
 **Pendant la partie**

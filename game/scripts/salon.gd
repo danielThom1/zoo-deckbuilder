@@ -16,6 +16,7 @@ var attente: Control
 var bouton_lancer: Button
 var case_ia: CheckBox
 var case_difficile: CheckBox
+var case_nature: CheckBox
 
 
 func _init(r: Reseau) -> void:
@@ -89,9 +90,14 @@ func _ready() -> void:
 	case_difficile = CheckBox.new()
 	case_difficile.text = "IA difficiles"
 	attente.add_child(case_difficile)
+	case_nature = CheckBox.new()
+	case_nature.text = "Réserve naturelle (terrain non modifiable, ni Terrassier ni Paysagiste)"
+	case_nature.tooltip_text = "Un animal ne s'installe que là où son motif existe déjà sur la carte. Décoché : partie classique."
+	attente.add_child(case_nature)
 	bouton_lancer = Composants.bouton("Lancer la partie", "BoutonPrincipal")
 	bouton_lancer.custom_minimum_size.y = 42
-	bouton_lancer.pressed.connect(func(): reseau.lancer(case_ia.button_pressed, case_difficile.button_pressed))
+	bouton_lancer.pressed.connect(func(): reseau.lancer(case_ia.button_pressed, case_difficile.button_pressed,
+		"nature" if case_nature.button_pressed else "course"))
 	attente.add_child(bouton_lancer)
 
 	statut = _texte("", true)
@@ -176,6 +182,7 @@ func _rejoindre() -> void:
 		attente.visible = true
 		case_ia.visible = false
 		case_difficile.visible = false
+		case_nature.visible = false
 		bouton_lancer.visible = false
 
 

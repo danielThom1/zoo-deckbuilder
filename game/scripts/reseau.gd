@@ -113,10 +113,25 @@ func rejoindre(texte_adresse: String) -> String:
 	if err != OK:
 		return "Adresse invalide : %s" % adresse
 	multiplayer.multiplayer_peer = peer
-	multiplayer.connected_to_server.connect(func(): _annonce.rpc_id(1, pseudo, version_jeu()))
-	multiplayer.connection_failed.connect(func(): coupure.emit("Connexion impossible. Vérifiez l'adresse, le port %d et le pare-feu de l'hôte." % port))
-	multiplayer.server_disconnected.connect(func(): coupure.emit("L'hôte a quitté la partie."))
+	# Méthodes nommées, branchées une seule fois : avec des fonctions anonymes, un second essai dans le même salon
+	# rebranchait les signaux et le joueur s'annonçait deux fois (l'hôte voyait un joueur fantôme qu'il attendait).
+	if not multiplayer.connected_to_server.is_connected(_connecte):
+		multiplayer.connected_to_server.connect(_connecte)
+		multiplayer.connection_failed.connect(_echec_connexion)
+		multiplayer.server_disconnected.connect(_hote_parti)
 	return ""
+
+
+func _connecte() -> void:
+	_annonce.rpc_id(1, pseudo, version_jeu())
+
+
+func _echec_connexion() -> void:
+	coupure.emit("Connexion impossible. Vérifiez l'adresse, le port %d et le pare-feu de l'hôte." % port)
+
+
+func _hote_parti() -> void:
+	coupure.emit("L'hôte a quitté la partie.")
 
 
 func _exit_tree() -> void:
@@ -149,7 +164,19 @@ func _annonce(nom: String, version: String) -> void:
 	if joueurs.size() >= MAX_JOUEURS:
 		_refus.rpc_id(id, "La partie est complète.")
 		return
-	joueurs.append({"id": id, "pseudo": nom.strip_edges().left(16)})
+	if _index_de(id) >= 0:
+		return  # déjà dans la liste : une seconde annonce ne crée pas un second joueur
+	# Deux joueurs du même nom (« Directeur » par défaut) : le second devient « Directeur 2 »
+	var base := nom.strip_edges().left(16)
+	if base == "":
+		base = "Joueur"
+	var pris: Array = joueurs.map(func(j): return str(j["pseudo"]))
+	var nom_final := base
+	var k := 2
+	while nom_final in pris:
+		nom_final = "%s %d" % [base.left(13), k]
+		k += 1
+	joueurs.append({"id": id, "pseudo": nom_final})
 	_liste.rpc(joueurs)
 
 
@@ -165,11 +192,12 @@ func _liste(liste: Array) -> void:
 
 
 ## Hôte : lance la partie pour tout le monde. Avec des IA, on joue toujours à 4.
-func lancer(completer_ia: bool, difficile: bool) -> void:
+func lancer(completer_ia: bool, difficile: bool, mode := "course") -> void:
 	if not est_hote or joueurs.size() < 2:
 		return
 	multiplayer.multiplayer_peer.refuse_new_connections = true
-	var params := {"graine": randi() % 1000000000, "nb": MAX_JOUEURS if completer_ia else joueurs.size(), "difficile": difficile}
+	var params := {"graine": randi() % 1000000000, "nb": MAX_JOUEURS if completer_ia else joueurs.size(), "difficile": difficile,
+		"mode": mode}
 	_demarrer.rpc(params)
 
 
