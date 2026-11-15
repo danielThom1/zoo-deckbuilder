@@ -796,10 +796,22 @@ func _scenario() -> Array:
 		_demande(func(): return "Parfait. Vous êtes presque rentable. Maintenant %s : clic droit sur un [b]rocher[/b]. Le dernier arrivé paie sa pause." % terrassier.call(),
 			_a_recolter.bind("pierre"), func(): game.order([_ouvrier("terrassier")], _proche("pierre")),
 			{"position": "haut", "consigne": "Clic droit sur les rochers en surbrillance", "monde": func(): return _cases_de(GameMap.ROCHE)}),
-		_dit("cadre", "Les deux autres suivront. Maintenant, accélérons : à ZooLife, une journée de travail se résume très bien en quelques secondes de rapport d'activité.", {"entree": func():
+		_dit("cadre", "Les deux autres suivront. Pendant qu'ils suent, un tour du propriétaire. À droite, la [b]colonne d'outils[/b] : cinq boutons, un volet chacun. Un second clic referme le volet.", {"entree": func():
 			game.order([_ouvrier("manoeuvre")], _proche("pierre"))
-			game.order([_ouvrier("paysagiste")], _proche("bois"))}),
-		{"legende": "▸▸ Fin de journée", "attendre": func(): return mt.time >= mt.day_length - 5.0, "entree": func(): _vitesse(40.0)},
+			game.order([_ouvrier("paysagiste")], _proche("bois"))
+			m.ouvrir_outil(""), "cible": func(): return [m.outils_col], "position": "bas"}),
+		_dit("cadre", "[b]Bâtir[/b] : bâtiments, enceinte et enclos du zoo, aménagement du terrain. Tout ce qui se construit part d'ici. Raccourci : B.", {"cible": func(): return [m.outil_boutons["construire"]], "position": "bas"}),
+		_dit("cadre", "[b]Votre zoo[/b] : son état (ouvert ou pourquoi il est fermé), les visiteurs, la propreté, la nourriture, et les objectifs des actionnaires. Le petit cadre à côté en donne le résumé ; un clic l'ouvre en grand.", {"cible": func(): return [m.outil_boutons["zoo"], m.zoo_widget], "position": "bas"}),
+		_dit("cadre", "La [b]Bourse des ressources[/b] : vendre ou acheter du bois, de la pierre, de l'or, et acheter des labels. Nous y passerons ce soir, croyez-moi.", {"cible": func(): return [m.outil_boutons["bourse"]], "position": "bas"}),
+		_dit("cadre", "La [b]Publicité[/b] : des campagnes payantes, menées hors de la carte par un collaborateur, qui attirent plus de visiteurs. À ne pas confondre avec l'[b]influence[/b], qui se gagne à la Mairie : nous y viendrons.", {"cible": func(): return [m.outil_boutons["pub"]], "position": "bas"}),
+		_dit("cadre", "Le [b]Marché du soir[/b] : ce qui sera proposé cette nuit, contrats d'animaux, collaborateurs et cartes d'action. On prépare ses achats en journée, comme tout bon acheteur.", {"cible": func(): return [m.outil_boutons["marche"]], "position": "bas"}),
+		_dit("cadre", "Le temps, maintenant. En haut, les [b]boutons de vitesse[/b] : pause (touche Espace), vitesse normale, puis ×2 à ×16 (touches 1 à 5). Chaque matin commence en pause : prenez le temps de donner vos ordres.", {"cible": func(): return m.speed_buttons.values(), "position": "bas"}),
+		_demande("À ZooLife, une journée de travail se résume très bien en quelques secondes de rapport d'activité. [b]Accélérez à ×8 ou plus[/b].",
+			func(): return m.speed >= 8.0, func(): _vitesse(8.0),
+			{"entree": func(): temps_verrouille = false, "cible": func(): return m.speed_buttons.values(), "libre": false, "position": "bas", "consigne": "Cliquez sur ×8 ou ×16"}),
+		{"legende": "▸▸ Fin de journée", "attendre": func(): return mt.time >= mt.day_length - 5.0, "entree": func():
+			temps_verrouille = true
+			_vitesse(40.0)},
 		# --- Vente ---
 		_dit("cadre", "Fin de journée. Regardez votre trésorerie : [b]8[/b]. Demain matin, il faudra payer la mobilisation des collaborateurs. Si vous n'avez pas de quoi, ils restent au lit, et moi je n'aime pas ça.", {"entree": func():
 			_vitesse(0.0)

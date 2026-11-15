@@ -51,11 +51,32 @@ static func version_jeu() -> String:
 	return morceaux.md5_text()
 
 
-func heberger() -> String:
+## Sépare « adresse:port » (IPv4), « [adresse]:port » (IPv6) ; sans port : PORT. Renvoie [adresse, port].
+static func lire_adresse(texte: String) -> Array:
+	var t := texte.strip_edges()
+	if t.begins_with("["):
+		var fin := t.find("]")
+		if fin > 0:
+			var reste := t.substr(fin + 1)
+			return [t.substr(1, fin - 1), int(reste.substr(1)) if reste.begins_with(":") and reste.substr(1).is_valid_int() else PORT]
+	if t.count(":") == 1:
+		var morceaux := t.split(":")
+		if morceaux[1].is_valid_int():
+			return [morceaux[0], int(morceaux[1])]
+	return [t, PORT]
+
+
+var port := PORT
+var _upnp: UPNP
+var _fil_upnp: Thread
+
+
+func heberger(port_choisi := PORT) -> String:
+	port = port_choisi
 	var peer := ENetMultiplayerPeer.new()
-	var err := peer.create_server(PORT, MAX_JOUEURS - 1)
+	var err := peer.create_server(port, MAX_JOUEURS - 1)
 	if err != OK:
-		return "Impossible d'ouvrir le port %d : une autre partie est peut-être déjà ouverte." % PORT
+		return "Impossible d'ouvrir le port %d : une autre partie est peut-être déjà ouverte." % port
 	multiplayer.multiplayer_peer = peer
 	est_hote = true
 	joueurs = [{"id": 1, "pseudo": pseudo}]
@@ -64,20 +85,48 @@ func heberger() -> String:
 	return ""
 
 
-func rejoindre(adresse: String) -> String:
+## Ouvre le port sur la box par UPnP, dans un fil à part (la recherche de la box prend quelques secondes).
+## fini(adresse_publique, erreur) est appelé dans le fil principal.
+func ouvrir_box(fini: Callable) -> void:
+	_fil_upnp = Thread.new()
+	_fil_upnp.start(func():
+		var u := UPNP.new()
+		var e := u.discover(2000, 2)
+		var texte := ""
+		var publique := ""
+		if e != UPNP.UPNP_RESULT_SUCCESS or u.get_gateway() == null or not u.get_gateway().is_valid_gateway():
+			texte = "box introuvable ou UPnP désactivé"
+		elif u.add_port_mapping(port, port, "ZooLife", "UDP") != UPNP.UPNP_RESULT_SUCCESS:
+			texte = "la box a refusé d'ouvrir le port"
+		else:
+			publique = u.query_external_address()
+			_upnp = u
+		fini.call_deferred(publique, texte))
+
+
+func rejoindre(texte_adresse: String) -> String:
+	var lu := lire_adresse(texte_adresse)
+	var adresse: String = lu[0]
+	port = int(lu[1])
 	var peer := ENetMultiplayerPeer.new()
-	var err := peer.create_client(adresse, PORT)
+	var err := peer.create_client(adresse, port)
 	if err != OK:
 		return "Adresse invalide : %s" % adresse
 	multiplayer.multiplayer_peer = peer
 	multiplayer.connected_to_server.connect(func(): _annonce.rpc_id(1, pseudo, version_jeu()))
-	multiplayer.connection_failed.connect(func(): coupure.emit("Connexion impossible. Vérifiez l'adresse, le port %d et le pare-feu de l'hôte." % PORT))
+	multiplayer.connection_failed.connect(func(): coupure.emit("Connexion impossible. Vérifiez l'adresse, le port %d et le pare-feu de l'hôte." % port))
 	multiplayer.server_disconnected.connect(func(): coupure.emit("L'hôte a quitté la partie."))
 	return ""
 
 
 func _exit_tree() -> void:
 	quitter()
+	if _fil_upnp != null:
+		_fil_upnp.wait_to_finish()
+		_fil_upnp = null
+	if _upnp != null:
+		_upnp.delete_port_mapping(port, "UDP")
+		_upnp = null
 
 
 func quitter() -> void:

@@ -70,6 +70,24 @@ var _rebours_lbl: Array = []  # libellés du compte à rebours, rafraîchis chaq
 var _rebours_t := 0.0
 
 
+## Ni partie terminée ni tutoriel commencé : on présélectionne le tutoriel.
+static func _premiere_fois() -> bool:
+	var cfg := ConfigFile.new()
+	cfg.load(Reglages.FICHIER)
+	if cfg.get_value("menu", "tutoriel_lance", false):
+		return false
+	Statistiques.charger()
+	return Statistiques.donnees["parties"].is_empty()
+
+
+func _lancer_tutoriel() -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(Reglages.FICHIER)
+	cfg.set_value("menu", "tutoriel_lance", true)
+	cfg.save(Reglages.FICHIER)
+	tutoriel.emit()
+
+
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	theme = UiTokens.build_theme()
@@ -78,6 +96,8 @@ func _ready() -> void:
 	sauvee = Sauvegarde.resume()
 	if not sauvee.is_empty():
 		choix = "dossier"
+	elif _premiere_fois():
+		choix = "tutoriel"  # première partie : le tutoriel est proposé d'office
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--menu="):
 			choix = a.trim_prefix("--menu=")
@@ -515,7 +535,7 @@ func _remplir_fiche() -> void:
 			h.add_child(Composants.image_logo(load("res://assets/bd/hubert/content.png"), Vector2(64, 64)))
 			h.add_child(_bulle("Je vous montre tout une fois. Ensuite, on attendra des résultats."))
 			_avertir_sauvegarde(c)
-			_bouton(c, "COMMENCER ›", func(): tutoriel.emit())
+			_bouton(c, "COMMENCER ›", func(): _lancer_tutoriel())
 		"dossier":
 			_fiche_dossier(v)
 
@@ -1125,7 +1145,7 @@ func ouvrir_statistiques() -> void:
 
 func _mission(m: String) -> void:
 	if m == "tutoriel":
-		tutoriel.emit()
+		_lancer_tutoriel()
 	elif m == "jouer":
 		niveau = "facile"
 		_choisir("course")

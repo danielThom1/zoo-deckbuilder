@@ -1013,7 +1013,7 @@ func _mini_badge(card: GameState.Card) -> Control:
 	var boite := VBoxContainer.new()
 	boite.add_theme_constant_override("separation", 0)
 	if _a_choisir(card):
-		var etq := _pilule("▲ NIVEAU %d À CHOISIR" % card.niveau, UiTokens.SARCELLE, UiTokens.PAPIER, 10)
+		var etq := _pilule("▲ NIVEAU %d À CHOISIR" % card.niveau, UiTokens.SELECTION, UiTokens.ENCRE, 10)
 		etq.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		boite.add_child(etq)
 	var b := Button.new()
@@ -1131,9 +1131,9 @@ func _panneau_fiche() -> Control:
 	# Montée de niveau : gratuite
 	for lc in game.level_choices:
 		if lc["card"] == fiche:
-			c.add_child(_cond("CHOISIR UNE AMÉLIORATION · OFFERTE", 13))
+			c.add_child(_cond("▲ NIVEAU %d : CLIQUEZ SUR UNE AMÉLIORATION (OFFERTE)" % fiche.niveau, 13))
 			for opt in lc["options"]:
-				c.add_child(_bouton_option(opt, "", m._cmd.bind("choose_level_upgrade", [fiche, opt])))
+				c.add_child(_bouton_option(opt, "", m._cmd.bind("choose_level_upgrade", [fiche, opt]), true))
 			break
 	var filet := ColorRect.new()
 	filet.color = UiTokens.FILET
@@ -1209,7 +1209,8 @@ func _panneau_fiche() -> Control:
 	return p
 
 
-func _bouton_option(opt: Dictionary, prix: String, action: Callable) -> Button:
+## a_choisir : amélioration de niveau en attente, mise en avant (fond jaune qui pulse) pour inviter au clic.
+func _bouton_option(opt: Dictionary, prix: String, action: Callable, a_choisir := false) -> Button:
 	var texte := "%s · %s" % [opt["nom"], opt.get("texte", m._effect_text(opt["effet"]))]
 	if prix != "":
 		texte = "%s (%s)" % [texte, prix]
@@ -1219,6 +1220,20 @@ func _bouton_option(opt: Dictionary, prix: String, action: Callable) -> Button:
 	b.add_theme_font_size_override("font_size", 13)
 	b.custom_minimum_size.x = 280
 	b.pressed.connect(action)
+	if a_choisir:
+		var sn := UiTokens.panneau(UiTokens.SELECTION, 8, 2, 8, true)
+		var sh: StyleBoxFlat = sn.duplicate()
+		sh.bg_color = UiTokens.SELECTION.lightened(0.25)
+		sh.set_border_width_all(3)
+		for k in [["normal", sn], ["hover", sh], ["pressed", sh]]:
+			b.add_theme_stylebox_override(k[0], k[1])
+		b.add_theme_color_override("font_color", UiTokens.ENCRE)
+		b.add_theme_color_override("font_hover_color", UiTokens.ENCRE)
+		b.add_theme_font_override("font", UiTokens.police_corps(700))
+		b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		var t := b.create_tween().set_loops()
+		t.tween_property(b, "modulate", Color(1.12, 1.12, 1.12), 0.6).set_trans(Tween.TRANS_SINE)
+		t.tween_property(b, "modulate", Color.WHITE, 0.6).set_trans(Tween.TRANS_SINE)
 	return b
 
 

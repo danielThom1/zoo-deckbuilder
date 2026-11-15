@@ -136,6 +136,8 @@ var btn_swap: Button
 var btn_recall: Button
 var btn_cancel_site: Button
 var btn_demolish: Button
+var mode_demolir := false  # panneau Construire, bouton Démolir : un clic (ou un rectangle) démolit ou annule
+var btn_mode_demolir: Button
 var hand_box: HBoxContainer
 var deploy_all_btn: Button
 var rotate_btn: Button  # « Tourner (R) » pendant la pose d'un bâtiment non carré
@@ -429,6 +431,7 @@ func _ouvrir_salon(layer: CanvasLayer) -> void:
 	r.name = "Reseau"  # même chemin sur toutes les machines : les messages réseau en dépendent
 	add_child(r)
 	var salon := Salon.new(r)
+	salon.z_index = 10  # devant la ligne choisie du menu (z 2)
 	layer.add_child(salon)
 	salon.retour.connect(func():
 		salon.queue_free()
@@ -685,6 +688,9 @@ func _start(watch: bool) -> void:
 	# --outil=construire|zoo|bourse|pub : ouvre un volet de la colonne d'outils (captures de l'interface Comité)
 	if args.has("outil"):
 		ouvrir_outil(str(args["outil"]))
+		if args.has("onglet") and build_tabs.has(str(args["onglet"])):  # --onglet=Zoo|Bâtiments|Terrain
+			build_tabs[str(args["onglet"])].button_pressed = true
+			build_tabs[str(args["onglet"])].pressed.emit()
 	if args.has("marche"):
 		market_root.ouvrir.call_deferred()
 		if str(args["marche"]) in MarcheSoir.ONGLETS:
@@ -1082,6 +1088,14 @@ func _dessiner_monde() -> void:
 				draw_rect(Rect2(Vector2(t) * TILE + Vector2(2, 2), Vector2(TILE - 4, TILE - 4)), pcol, false, 2.0)
 		elif m.in_bounds(hover.x, hover.y):
 			draw_rect(Rect2(Vector2(hover) * TILE, Vector2(TILE, TILE)), col, false, 1.5)
+	elif mode_demolir:
+		var cible := game.site_at(hover)
+		if cible:
+			var rd := Rect2(Vector2(cible.rect.position) * TILE, Vector2(cible.rect.size) * TILE)
+			draw_rect(rd, Color(UiTokens.DEFAUT, 0.30))
+			draw_rect(rd, UiTokens.DEFAUT, false, 2.0)
+		elif m.in_bounds(hover.x, hover.y):
+			draw_rect(Rect2(Vector2(hover) * TILE, Vector2(TILE, TILE)), Color(UiTokens.DEFAUT, 0.6), false, 1.5)
 	elif not build_choice.is_empty():
 		var origin := _build_origin(hover)
 		var rect := game.footprint(build_choice["kind"], build_choice["def"], origin)
@@ -2240,7 +2254,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventKey and event.pressed and not event.echo:
 		match event.physical_keycode:
 			KEY_ESCAPE:
-				if not build_choice.is_empty():
+				if mode_demolir:
+					_demolir(false)
+				elif not build_choice.is_empty():
 					_set_build({})
 				else:
 					selected.clear()
@@ -2353,6 +2369,8 @@ func _vers_mairie(t: Vector2i) -> Vector2i:
 
 func _set_build(choice: Dictionary) -> void:
 	build_choice = choice
+	if not choice.is_empty():
+		_demolir(false)
 	painting = false
 	if rotate_btn:
 		rotate_btn.visible = _rotatable()
@@ -2368,6 +2386,19 @@ func _set_build(choice: Dictionary) -> void:
 	hand_version = -1  # rafraîchit l'état des boutons de contrats
 	for entry in build_buttons:
 		entry[0].button_pressed = not choice.is_empty() and entry[2] == choice["def"]
+
+
+## Panneau Construire : raison pour laquelle un bâtiment n'est pas encore proposé ("" s'il l'est). Grisé seulement :
+## l'interface ne change rien aux règles.
+func _bouton_indisponible(def: Dictionary, enceinte_fermee: bool) -> String:
+	var id: String = def.get("id", "")
+	if def.get("unique", false) and game.has_building(id):
+		return "Déjà construit."
+	if def.has("requiert") and not game.sites.any(func(st): return st.done and st.def_id() == def["requiert"]):
+		return "Construisez d'abord : %s." % game.building_def(def["requiert"])["nom"]
+	if def.get("dans_enceinte", false) and not enceinte_fermee:
+		return "Se construit dans le zoo : fermez d'abord l'enceinte (murs et entrée)."
+	return ""
 
 
 ## R : tourne d'un quart de tour le bâtiment à poser (entrée du zoo, bâtiments non carrés).
@@ -2502,43 +2533,28 @@ func _proposer_achat(kind: String, def: Dictionary, origin: Vector2i, achat: Dic
 
 ## La Bourse des ressources dans une fenêtre, utilisable aussi la nuit (depuis le conseil).
 func ouvrir_bourse() -> void:
-	var f := Composants.fenetre(Vector2(640, 0), "Bourse des ressources", "Vendre ou acheter")
+	# La nuit, la Bourse de la journée (la même carte) est prêtée à une fenêtre, puis rendue au volet à la fermeture.
+	if trade_card == null:
+		return
+	var f := Composants.fenetre(Vector2(420, 0), "Conseil du soir", "Bourse des ressources")
 	var racine: Control = f["racine"]
 	var x := Composants.bouton("Fermer", "BoutonSecondaire")
 	x.pressed.connect(racine.queue_free)
 	f["droite"].add_child(x)
 	var corps: VBoxContainer = f["corps"]
-	var remplir := func(_self: Callable) -> void:
-		for c in corps.get_children():
-			c.queue_free()
-		var note := Composants.label("Argent : %d · vente à %d %% du cours%s" % [int(game.money), roundi(game.sell_rate() * 100), "" if game.sell_rate() >= 1.0 else " (sans Marchand mobilisé)"])
-		note.add_theme_font_size_override("font_size", 14)
-		corps.add_child(note)
-		for res in ["bois", "pierre", "or"]:
-			var h := HBoxContainer.new()
-			h.add_theme_constant_override("separation", 10)
-			var nom := Composants.label("%s · stock %d" % [res.capitalize(), floori(game.stock[res])])
-			nom.custom_minimum_size.x = 170
-			nom.add_theme_font_size_override("font_size", 15)
-			h.add_child(nom)
-			var spin := SpinBox.new()
-			spin.min_value = 1
-			spin.max_value = 99
-			spin.value = 5
-			h.add_child(spin)
-			var vend := Composants.bouton(("Vendre (%.1f l'unité)" % game.sell_price(res)).replace(".", ","), "BoutonSecondaire")
-			vend.pressed.connect(func():
-				_cmd("sell_amount", [res, int(spin.value)])
-				_self.call(_self))
-			h.add_child(vend)
-			if res != "or":
-				var ach := Composants.bouton(("Acheter (%.1f l'unité)" % game.buy_price(res)).replace(".", ","), "BoutonSecondaire")
-				ach.pressed.connect(func():
-					_cmd("buy_material", [res, int(spin.value)])
-					_self.call(_self))
-				h.add_child(ach)
-			corps.add_child(h)
-	remplir.call(remplir)
+	var parent := trade_card.get_parent()
+	var place := trade_card.get_index()
+	var etait_visible := trade_card.visible
+	parent.remove_child(trade_card)
+	corps.add_child(trade_card)
+	trade_card.visible = true
+	racine.tree_exiting.connect(func():
+		if is_instance_valid(trade_card) and is_instance_valid(parent):
+			trade_card.get_parent().remove_child(trade_card)
+			parent.add_child(trade_card)
+			parent.move_child(trade_card, place)
+			trade_card.visible = etait_visible)
+	_update_trade()
 	ui.add_child(racine)
 
 
@@ -2581,11 +2597,37 @@ func _ouvrier_clique(wp: Vector2, avant: Array) -> GameState.Worker:
 	return best
 
 
+## Mode Démolir du panneau Construire (Échap ou un second clic sur le bouton pour en sortir).
+func _demolir(on: bool) -> void:
+	mode_demolir = on
+	if btn_mode_demolir:
+		btn_mode_demolir.set_pressed_no_signal(on)
+	if on:
+		build_choice = {}
+		selected.clear()
+		selected_animal = null
+
+
 func _finish_selection() -> void:
 	var start: Vector2 = drag_start
 	drag_start = null
 	var click := start.distance_to(drag_end) < 5
 	var ct := Vector2i((_screen_to_world(drag_end) / TILE).floor())
+	if mode_demolir:
+		selected.clear()
+		selected_animal = null
+		selected_site = null
+		selected_sites.clear()
+		if click:
+			selected_site = game.site_at(ct)
+		else:
+			var zone := Rect2(_screen_to_world(start) / TILE, Vector2.ZERO).expand(_screen_to_world(drag_end) / TILE)
+			for site in game.sites:
+				if zone.intersects(Rect2(Vector2(site.rect.position), Vector2(site.rect.size))):
+					selected_sites.append(site)
+		if selected_site != null or not selected_sites.is_empty():
+			_delete_selection()
+		return
 	# Maj + clic sur un bâtiment ou un chantier : l'ajoute à la sélection multiple (ou l'en retire)
 	if click and drag_add and game.site_at(ct) != null and selected.is_empty():
 		var st := game.site_at(ct)
@@ -2748,6 +2790,8 @@ func _process(delta: float) -> void:
 		if mt.phase == "day" and last_phase != "" and not spectator:
 			_set_speed(0.0)
 			selected.clear()
+			if not vitrine and replay == null:
+				_animer_pioche()
 		last_phase = mt.phase
 	_pan_keys(delta)
 	if reseau == null and replay == null and mt.phase == "draft" and mt.is_ai(mt.current_drafter()):
@@ -2801,8 +2845,17 @@ func _process(delta: float) -> void:
 	if info_clock > 0.25:
 		info_clock = 0.0
 		_update_info()
+		var enceinte_fermee: bool = not game.zoo_status()["interior"].is_empty()
 		for entry in build_buttons:
-			entry[0].disabled = game.phase != "day" or not game.can_afford(game.cout_chantier(entry[2]))
+			var b: Button = entry[0]
+			var raison := _bouton_indisponible(entry[2], enceinte_fermee)
+			b.disabled = game.phase != "day" or raison != "" or not game.can_afford(game.cout_chantier(entry[2]))
+			b.modulate.a = 0.45 if raison != "" else 1.0
+			if not b.has_meta("tip"):
+				b.set_meta("tip", b.tooltip_text)
+			b.tooltip_text = (raison + "
+
+" if raison != "" else "") + str(b.get_meta("tip"))
 		_update_trade()
 		_update_publicity()
 		var ev: Dictionary = mt.current_event
@@ -3649,13 +3702,30 @@ func _build_ui() -> void:
 	lmargin.add_child(lv)
 	contracts_box = VBoxContainer.new()
 	lv.add_child(contracts_box)
+	btn_mode_demolir = Composants.bouton("Démolir ou annuler un chantier", "BoutonSecondaire")
+	btn_mode_demolir.toggle_mode = true
+	btn_mode_demolir.focus_mode = Control.FOCUS_NONE
+	btn_mode_demolir.custom_minimum_size.y = 32
+	btn_mode_demolir.add_theme_font_size_override("font_size", 13)
+	btn_mode_demolir.add_theme_color_override("font_pressed_color", UiTokens.PAPIER)
+	var sb_dem := UiTokens._button(UiTokens.DEFAUT, UiTokens.ENCRE, 7)
+	btn_mode_demolir.add_theme_stylebox_override("pressed", sb_dem)
+	btn_mode_demolir.add_theme_stylebox_override("hover_pressed", sb_dem)
+	btn_mode_demolir.tooltip_text = "Puis cliquez sur un bâtiment, une route ou une clôture (ou glissez pour en prendre plusieurs).
+Bâtiment terminé : démoli sans remboursement. Chantier : annulé, remboursé à 100 % s'il n'a pas commencé, 50 % sinon.
+Raccourci : sélectionnez puis Suppr. Échap pour arrêter."
+	btn_mode_demolir.toggled.connect(func(on): _demolir(on))
+	lv.add_child(btn_mode_demolir)
 	var tabs := HBoxContainer.new()
 	tabs.add_theme_constant_override("separation", 5)
 	lv.add_child(tabs)
 	var group := ButtonGroup.new()
 	var pages := {
 		"Bâtiments": ["route", "pont", "maison", "entrepot", "comptoir", "agence", "cabinet", "acquisitions", "mine", "camp_n2", "camp_n3"],
-		"Zoo": ["cloture", "entree", "enclos", "grand_arbre", "rocher_obs", "bassin_profond", "abri_chaud", "boutique", "cuisine", "entretien", "intendance", "snack", "kiosque"],
+		"Zoo": ["#Enceinte et enclos", "cloture", "entree", "enclos",
+			"#Aménagements d'enclos", "grand_arbre", "rocher_obs", "bassin_profond", "abri_chaud",
+			"#Indispensables au parc : nourriture et propreté", "cuisine", "entretien",
+			"#Facultatifs : revenus et réputation", "boutique", "snack", "kiosque", "intendance"],
 		"Terrain": [],
 	}
 	for tab_name in pages:
@@ -3684,6 +3754,14 @@ func _build_ui() -> void:
 				_build_button(page, "amenagement", a)
 		else:
 			for id in pages[tab_name]:
+				if id.begins_with("#"):
+					var titre := Composants.titre_section(id.substr(1).to_upper(), 12)
+					titre.add_theme_color_override("font_color", UiTokens.TEXTE_2)
+					var mt_ := MarginContainer.new()
+					mt_.add_theme_constant_override("margin_top", 0 if page.get_child_count() == 0 else 8)
+					mt_.add_child(titre)
+					page.add_child(mt_)
+					continue
 				var def := game.building_def(id)
 				if not def.is_empty():
 					_build_button(page, "batiment", def)
@@ -3966,14 +4044,13 @@ func _build_button(parent: Control, kind: String, def: Dictionary) -> void:
 	for k in ["bois", "pierre", "argent", "or"]:
 		if cost.has(k):
 			var res: Dictionary = UiTokens.RESSOURCES[k]
-			var dot := Panel.new()
-			var ds := StyleBoxFlat.new()
-			ds.bg_color = res["couleur"]
-			ds.set_corner_radius_all(5)
-			ds.border_color = UiTokens.ENCRE
-			ds.set_border_width_all(1)
-			dot.add_theme_stylebox_override("panel", ds)
-			dot.custom_minimum_size = Vector2(10, 10)
+			var dot := TextureRect.new()  # même image que le dock
+			dot.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			dot.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			dot.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+			if SpritesBD.existe(str(res.get("sprite", ""))):
+				dot.texture = SpritesBD.texture(str(res["sprite"]))
+			dot.custom_minimum_size = Vector2(18, 18)
 			dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 			dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			costs.add_child(dot)
@@ -4202,6 +4279,29 @@ func _eventail(survolee: int, decalage: int) -> void:
 		var cible := float(decalage) if survolee >= 0 and k > survolee else 0.0
 		if not is_equal_approx(carte.position.x, cible):
 			carte.create_tween().tween_property(carte, "position:x", cible, 0.09)
+
+
+## Début de journée : les cartes de la main montent du bas de l'écran l'une après l'autre, avec le bruit de la pioche.
+func _animer_pioche() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame  # la main est reconstruite au changement de phase
+	if not is_instance_valid(hand_box):
+		return
+	Sons.effet("pioche")
+	var k := 0
+	for w in hand_box.get_children():
+		if w.get_child_count() == 0:
+			continue
+		var carte: Control = w.get_child(0)
+		carte.position.y = Composants.BADGE.y + 40.0
+		carte.rotation_degrees = -8.0
+		carte.pivot_offset = carte.size * 0.5
+		carte.modulate.a = 0.0
+		var t := carte.create_tween().set_parallel()
+		t.tween_property(carte, "position:y", 0.0, 0.32).set_delay(0.13 * k).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		t.tween_property(carte, "rotation_degrees", 0.0, 0.32).set_delay(0.13 * k).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		t.tween_property(carte, "modulate:a", 1.0, 0.12).set_delay(0.13 * k)
+		k += 1
 
 
 func ui_echelle() -> float:
@@ -4609,7 +4709,7 @@ func _update_info() -> void:
 		btn_swap.disabled = not serr.begins_with("Choisissez une carte")
 		btn_swap.tooltip_text = "Échanger %s contre une carte de votre pioche ou défausse (une fois par jour)" % selected[0].card.nom if not btn_swap.disabled else serr
 	btn_cancel_site.visible = selected_site != null and not selected_site.done
-	btn_demolish.visible = not spectator and selected_site != null and selected_site.done and selected_site.kind == "batiment"
+	btn_demolish.visible = not spectator and selected_site != null and selected_site.done and selected_site.def_id() not in ["camp", "camp_n2", "camp_n3"]
 	if selected.is_empty() and selected_site:
 		var st := selected_site
 		var builders := game.workers.filter(func(w): return w.task.get("site") == st).size()
@@ -7196,6 +7296,8 @@ func ouvrir_outil(id: String) -> void:
 			b.set_pressed_no_signal(k == outil)
 	if id != "construire" and not build_choice.is_empty():
 		build_choice = {}
+	if id != "construire" and mode_demolir:
+		_demolir(false)
 	if id in ["zoo", "bourse", "pub"]:
 		# Un outil explicite remplace la fiche de sélection
 		selected.clear()

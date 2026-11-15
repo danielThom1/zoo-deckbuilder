@@ -37,6 +37,7 @@ static func charger() -> void:
 
 static func sauver() -> void:
 	var cfg := ConfigFile.new()
+	cfg.load(FICHIER)  # garder les autres sections (conseils vus, aide des badges, tutoriel lancé)
 	for k in valeurs:
 		cfg.set_value("reglages", k, valeurs[k])
 	cfg.save(FICHIER)

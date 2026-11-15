@@ -342,6 +342,10 @@ static func build_theme() -> Theme:
 	t.set_color("font_color", "TooltipLabel", PAPIER)
 	t.set_font("font", "TooltipLabel", corps)
 	t.set_color("font_color", "LineEdit", TEXTE)
+	t.set_color("caret_color", "LineEdit", ENCRE)  # le curseur par défaut, presque blanc, ne se voyait pas sur le papier
+	t.set_constant("caret_width", "LineEdit", 2)
+	t.set_color("selection_color", "LineEdit", Color(SELECTION, 0.6))
+	t.set_color("font_placeholder_color", "LineEdit", Color(TEXTE, 0.45))
 	t.set_stylebox("normal", "LineEdit", _button(PAPIER, ENCRE, 7))
 	t.set_stylebox("focus", "LineEdit", _button(PAPIER, SELECTION, 7))
 	t.set_stylebox("background", "ProgressBar", chip(PAPIER_2, 5, 0))

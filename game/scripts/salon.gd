@@ -7,6 +7,8 @@ signal retour
 var reseau: Reseau
 var champ_pseudo: LineEdit
 var champ_adresse: LineEdit
+var champ_port: LineEdit
+var _adresses_texte := ""
 var liste: VBoxContainer
 var statut: Label
 var choix: Control
@@ -44,17 +46,29 @@ func _ready() -> void:
 	choix = VBoxContainer.new()
 	choix.add_theme_constant_override("separation", 10)
 	v.add_child(choix)
+	var ligne_h := HBoxContainer.new()
+	ligne_h.add_theme_constant_override("separation", 8)
+	choix.add_child(ligne_h)
 	var heberger := Composants.bouton("Héberger une partie", "BoutonPrincipal")
 	heberger.custom_minimum_size.y = 42
+	heberger.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	heberger.pressed.connect(_heberger)
-	choix.add_child(heberger)
-	choix.add_child(_texte("Ouvrez le port %d (UDP) sur votre box et donnez votre adresse IP publique à vos amis. Sans accès à la box : installez tous un VPN gratuit comme Tailscale et utilisez son adresse." % Reseau.PORT, true))
+	ligne_h.add_child(heberger)
+	var l_port := Composants.label("Port UDP")
+	l_port.add_theme_font_override("font", UiTokens.police_corps(700))
+	ligne_h.add_child(l_port)
+	champ_port = LineEdit.new()
+	champ_port.text = str(Reseau.PORT)
+	champ_port.max_length = 5
+	champ_port.custom_minimum_size.x = 90
+	ligne_h.add_child(champ_port)
+	choix.add_child(_texte("Le jeu essaie d'ouvrir le port tout seul sur votre box (UPnP). Sinon, redirigez ce port UDP vers ce PC dans la box ; si la box impose une plage de ports (IP partagée), redirigez un port de la plage vers ce port-ci et donnez « adresse:port » à vos amis. Autre solution : un réseau privé comme Tailscale.", true))
 	choix.add_child(_texte("Ou rejoindre : adresse de l'hôte"))
 	var ligne := HBoxContainer.new()
 	ligne.add_theme_constant_override("separation", 8)
 	choix.add_child(ligne)
 	champ_adresse = LineEdit.new()
-	champ_adresse.placeholder_text = "ex. 82.65.10.21"
+	champ_adresse.placeholder_text = "ex. 82.65.10.21 ou 82.65.10.21:27777"
 	champ_adresse.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	ligne.add_child(champ_adresse)
 	var rejoindre := Composants.bouton("Rejoindre", "BoutonPrincipal")
@@ -106,15 +120,35 @@ func _texte(t: String, long := false) -> Label:
 
 func _heberger() -> void:
 	reseau.pseudo = champ_pseudo.text.strip_edges()
-	var err := reseau.heberger()
+	var p := int(champ_port.text) if champ_port.text.strip_edges().is_valid_int() else 0
+	if p < 1024 or p > 65535:
+		statut.text = "Port invalide : choisissez un nombre entre 1024 et 65535."
+		return
+	var err := reseau.heberger(p)
 	statut.text = err
 	if err != "":
 		return
 	choix.visible = false
 	attente.visible = true
 	var adresses: Array = Array(IP.get_local_addresses()).filter(func(a): return "." in a and not a.begins_with("127.") and not a.begins_with("169.254"))
+	var ipv6: Array = Array(IP.get_local_addresses()).filter(func(a): return ":" in a and (a.begins_with("2") or a.begins_with("3")))
 	statut.add_theme_color_override("font_color", UiTokens.TEXTE_SECONDAIRE)
-	statut.text = "En attente de joueurs (port %d). Sur votre réseau local : %s" % [Reseau.PORT, ", ".join(adresses)]
+	_adresses_texte = "En attente de joueurs (port %d).
+Réseau local ou Tailscale : %s" % [p, ", ".join(adresses)]
+	if not ipv6.is_empty():
+		_adresses_texte += "
+IPv6 (si vos amis l'ont aussi) : [%s]:%d" % [ipv6[0], p]
+	statut.text = _adresses_texte + "
+Ouverture du port sur la box…"
+	reseau.ouvrir_box(func(publique: String, erreur: String):
+		if not is_instance_valid(statut):
+			return
+		if erreur == "":
+			statut.text = _adresses_texte + "
+Port ouvert sur la box. Adresse à donner par Internet : %s%s" % [publique, "" if p == Reseau.PORT else ":%d" % p]
+		else:
+			statut.text = _adresses_texte + "
+Ouverture automatique impossible (%s) : redirigez le port à la main ou utilisez Tailscale." % erreur)
 
 
 func _rejoindre() -> void:

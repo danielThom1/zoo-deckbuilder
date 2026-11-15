@@ -1219,6 +1219,11 @@ func _update_worker(w: Worker, dt: float) -> void:
 						pet.heal = 0.0
 						say("%s est guéri." % pet.def["nom"])
 						version += 1
+				if not pet.sick:
+					# Soin fait (le bonus du jour est acquis dès l'arrivée) : le collaborateur est libre, il ne reste
+					# plus planté devant un animal en bonne santé.
+					w.task = {}
+					version += 1
 		"deposit":
 			if in_depot(w.tile()):
 				_unload(w)
@@ -1735,8 +1740,8 @@ func can_landscape(card: Card) -> bool:
 
 ## Démolit un bâtiment terminé (mur, clôture, route…), sans remboursement.
 func demolish(s: Site) -> bool:
-	if s == null or not s.done or s.kind != "batiment" or not sites.has(s):
-		return false
+	if s == null or not s.done or s.kind != "batiment" or not sites.has(s) or s.def_id() in ["camp", "camp_n2", "camp_n3"]:
+		return false  # le camp ne se démolit pas
 	var p := s.rect.position
 	if s.def_id() in ["route", "pont"]:
 		map.road[map.idx(p.x, p.y)] = 0

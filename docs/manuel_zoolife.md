@@ -294,7 +294,7 @@ Une étude fait évoluer des « génomes » (stratégies et préférences) en le
   - L'hôte envoie 10 trames par seconde.
   - Chaque matin, 20 s de préparation, sans pause ; la vitesse est celle du plus lent.
   - Les empreintes d'état sont comparées toutes les 5 s. Une désynchronisation affiche une alerte, sans resynchronisation.
-- **Connexion actuelle** : ENet en UDP sur le port 7777. Il faut une adresse IP directe ou un VPN (type Radmin, ZeroTier).
+- **Connexion actuelle** : ENet en UDP, port 7777 par défaut, réglable par l'hôte (`Reseau.lire_adresse` lit `adresse:port` et `[ipv6]:port`). L'hôte tente d'ouvrir le port par UPnP (`Reseau.ouvrir_box`, dans un fil à part ; la redirection est retirée à la fermeture). Sinon : redirection à la main, IPv6, ou un réseau privé (Tailscale, ZeroTier).
 - **Ajouter un ordre** : l'ajouter à la liste blanche `Commandes.ORDRES` et le faire passer par `_cmd`.
 - **Abandon** : un joueur qui part est remplacé par une IA (`Match.remplacer_par_ia`).
 - **Test local** : `godot --headless --path game -- --mp-hote --mp-jours=3`, et dans une autre fenêtre `-- --mp-rejoindre=127.0.0.1 --mp-jours=3`.
@@ -306,7 +306,7 @@ Une étude fait évoluer des « génomes » (stratégies et préférences) en le
 - Vous **hébergez** : votre ordinateur sert de point de rencontre, et vos amis s'y connectent.
 - Tout le monde doit avoir **exactement le même jeu** : envoyez-leur le même `.exe` (et son `.pck` s'il est à part). Le salon refuse un joueur dont les fichiers de règles (`animals.json`, `workers.json`, `buildings.json`, `events.json`, `personnages.json`) diffèrent. Il ne compare pas le code : un `.exe` d'une autre version, avec les mêmes règles, serait accepté puis se désynchroniserait en cours de partie.
 - Le multijoueur se joue toujours en **partie classique**, sans sauvegarde : si l'hôte quitte, la partie s'arrête.
-- **Port utilisé** : 7777 en UDP.
+- **Port utilisé** : 7777 en UDP par défaut. L'hôte peut le changer dans le salon (champ « Port UDP »), et les autres joueurs tapent alors `adresse:port` (ex. `82.65.10.21:27777`, ou `[2a01:…]:7777` en IPv6).
 
 **Étape 1 : choisir comment vos amis vous joignent**
 
@@ -314,19 +314,29 @@ Une étude fait évoluer des « génomes » (stratégies et préférences) en le
 |---|---|---|
 | **Même maison** (même box, Wi-Fi ou câble) | L'adresse locale de votre PC, affichée par le salon (ex. `192.168.1.23`) | Aucune, à part le pare-feu (étape 2). |
 | **Par Internet, avec Tailscale** (conseillé) | Votre adresse Tailscale (`100.x.y.z`) | Tout le monde installe Tailscale. |
-| **Par Internet, avec ouverture du port** | Votre adresse IP publique | Ouvrir le port 7777 UDP sur votre box. |
+| **Par Internet, ouverture automatique** | L'adresse affichée par le salon après « Port ouvert sur la box » | Aucune, si l'UPnP est activé sur la box (c'est souvent le cas par défaut). |
+| **Par Internet, avec ouverture du port à la main** | Votre adresse IP publique (avec `:port` si ce n'est pas 7777) | Rediriger le port UDP sur votre box. |
+| **Par Internet, en IPv6** | L'adresse IPv6 affichée par le salon | Vos amis doivent avoir l'IPv6, et le pare-feu IPv6 de votre box doit laisser passer le port. |
 
 *Tailscale* (gratuit, tailscale.com) crée un réseau privé entre vos ordinateurs, sans toucher à la box :
 1. Vous créez un compte Tailscale (avec un compte Google ou Microsoft) et l'installez sur votre PC.
 2. Dans la console d'administration Tailscale, menu *Users*, *Invite users*, vous invitez vos amis. Ils installent Tailscale et se connectent avec le lien reçu.
 3. L'icône Tailscale, près de l'horloge, affiche votre adresse en `100.…` : c'est celle à donner.
 
-*Ouverture du port* (si vous ne voulez pas de Tailscale) :
+*Ouverture automatique* : quand vous hébergez, le jeu demande à la box d'ouvrir le port (UPnP) et affiche l'adresse publique à donner. S'il écrit « Ouverture automatique impossible », passez à l'ouverture à la main ou à Tailscale.
+
+*Ouverture du port à la main* :
 1. Notez l'adresse locale de votre PC (affichée par le salon à l'étape 3, ou `ipconfig` dans un terminal, ligne « Adresse IPv4 »).
 2. Ouvrez l'interface de votre box (Freebox : mafreebox.freebox.fr ; Livebox : 192.168.1.1 ; Bbox : mabbox.bytel.fr ; SFR : 192.168.1.1), rubrique « Redirection de ports » ou « NAT/PAT ».
 3. Créez une règle : protocole **UDP**, port externe **7777**, port interne **7777**, vers l'adresse locale de votre PC.
 4. Votre adresse IP publique s'affiche dans l'interface de la box (ou sur un site comme « quel est mon IP »).
 5. Pour que l'adresse locale ne change pas, réservez-la à votre PC dans la box (« bail DHCP statique »).
+
+*Box à IPv4 partagée* (Bbox et d'autres) : la box n'accepte qu'une plage de ports, par exemple « Les ports doivent être compris entre 24577 et 32767 ». Votre adresse IPv4 publique est partagée avec d'autres abonnés et vous n'avez droit qu'à ces ports. Deux façons de faire :
+- dans le salon, mettez un port de la plage (ex. 27777) dans « Port UDP », et redirigez ce même port (externe et interne) vers votre PC ;
+- ou gardez 7777 dans le salon et redirigez le port externe 27777 vers le port interne 7777.
+
+Dans les deux cas, vos amis tapent `votre_adresse:27777`. Autre possibilité : demander une IPv4 complète à l'opérateur.
 
 **Étape 2 : le pare-feu de Windows**
 
@@ -334,8 +344,8 @@ La première fois que vous cliquez sur « Héberger une partie », Windows deman
 
 **Étape 3 : ouvrir le salon (vous, l'hôte)**
 1. Lancez le jeu, puis au menu choisissez **Multijoueur**, et **Ouvrir le salon**.
-2. Tapez votre nom (16 caractères au plus).
-3. Cliquez sur **Héberger une partie**. Le salon affiche « En attente de joueurs » et vos adresses locales.
+2. Tapez votre nom (16 caractères au plus), et changez le port si besoin.
+3. Cliquez sur **Héberger une partie**. Le salon affiche « En attente de joueurs », vos adresses locales (et Tailscale), votre adresse IPv6, puis le résultat de l'ouverture automatique du port.
 4. Donnez à vos amis l'adresse choisie à l'étape 1.
 
 **Étape 4 : rejoindre (vos amis)**
@@ -360,7 +370,7 @@ La première fois que vous cliquez sur « Héberger une partie », Windows deman
 | Message | Cause probable |
 |---|---|
 | « Connexion impossible » | Mauvaise adresse, port non redirigé, ou pare-feu de l'hôte. Essayez d'abord à deux dans la même maison, puis avec Tailscale. |
-| « Impossible d'ouvrir le port 7777 » | Une autre partie est déjà ouverte sur ce PC : fermez-la. |
+| « Impossible d'ouvrir le port … » | Une autre partie est déjà ouverte sur ce PC : fermez-la, ou changez de port. |
 | « Versions du jeu différentes » | Les fichiers de règles diffèrent : renvoyez le même `.exe` à tout le monde. |
 | « La partie a déjà commencé » ou « La partie est complète » | Le salon est fermé aux nouveaux joueurs (4 au plus). |
 
