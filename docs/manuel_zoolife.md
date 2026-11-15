@@ -371,6 +371,8 @@ La première fois que vous cliquez sur « Héberger une partie », Windows deman
 |---|---|
 | « Connexion impossible » | Mauvaise adresse, port non redirigé, ou pare-feu de l'hôte. Essayez d'abord à deux dans la même maison, puis avec Tailscale. |
 | « Impossible d'ouvrir le port … » | Une autre partie est déjà ouverte sur ce PC : fermez-la, ou changez de port. |
+| « Adresse invalide » en tapant `adresse:port` | Le joueur a un jeu d'avant le 15/11, qui ne connaît pas le port : envoyez-lui le nouveau `.exe`. |
+| « Toujours aucune réponse » | Adresse ou port faux, salon de l'hôte fermé, ou versions différentes : comparez le code « Version du jeu » en bas du salon. |
 | « Versions du jeu différentes » | Les fichiers de règles diffèrent : renvoyez le même `.exe` à tout le monde. |
 | « La partie a déjà commencé » ou « La partie est complète » | Le salon est fermé aux nouveaux joueurs (4 au plus). |
 

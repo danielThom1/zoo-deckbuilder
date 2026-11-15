@@ -102,6 +102,16 @@ func _ready() -> void:
 	retour_b.custom_minimum_size.y = 40
 	retour_b.pressed.connect(quitter)
 	f["pied"].add_child(retour_b)
+	var esp := Control.new()
+	esp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	f["pied"].add_child(esp)
+	# Tous les joueurs doivent avoir la même version : ce code se compare d'un coup d'œil.
+	var ver := Composants.label("Version du jeu : %s" % Reseau.version_jeu().left(6).to_upper(), "TexteSecondaire")
+	ver.add_theme_font_override("font", UiTokens.police_mono(500))
+	ver.add_theme_font_size_override("font_size", 12)
+	ver.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	ver.tooltip_text = "Doit être identique chez tous les joueurs (même fichier .exe)."
+	f["pied"].add_child(ver)
 	reseau.liste_changee.connect(_actualiser)
 	reseau.coupure.connect(func(t):
 		statut.text = t
@@ -158,13 +168,23 @@ func _rejoindre() -> void:
 	reseau.pseudo = champ_pseudo.text.strip_edges()
 	var err := reseau.rejoindre(champ_adresse.text.strip_edges())
 	statut.add_theme_color_override("font_color", UiTokens.TEXTE_SECONDAIRE if err == "" else UiTokens.NEGATIF)
-	statut.text = err if err != "" else "Connexion…"
+	var lu := Reseau.lire_adresse(champ_adresse.text)
+	statut.text = err if err != "" else "Connexion à %s, port %d…" % [lu[0], int(lu[1])]
 	if err == "":
+		_attendre_reponse(str(lu[0]), int(lu[1]))
 		choix.visible = false
 		attente.visible = true
 		case_ia.visible = false
 		case_difficile.visible = false
 		bouton_lancer.visible = false
+
+
+## Sans réponse de l'hôte au bout de 12 s, on dit quoi vérifier (ENet n'abandonne qu'après une trentaine de secondes).
+func _attendre_reponse(adresse: String, port: int) -> void:
+	await get_tree().create_timer(12.0).timeout
+	if not is_instance_valid(statut) or not attente.visible or reseau.est_hote or not reseau.joueurs.is_empty():
+		return
+	statut.text = "Toujours aucune réponse de %s (port %d). Vérifiez l'adresse et le port donnés par l'hôte, que son salon est ouvert, et que vous avez la même version du jeu (code en bas à droite)." % [adresse, port]
 
 
 func _actualiser() -> void:
