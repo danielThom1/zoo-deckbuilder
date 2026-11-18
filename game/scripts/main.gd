@@ -267,6 +267,8 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		var kv := a.trim_prefix("--").split("=", true, 1)
 		args[kv[0]] = kv[1] if kv.size() > 1 else ""
+	if not vitrine_fond:
+		Reglages.appliquer_langue()
 	# Les captures gardent la fenêtre demandée et restent muettes.
 	if not args.has("shot") and not args.has("tuto-auto"):
 		Reglages.appliquer_fenetre()
@@ -1491,7 +1493,7 @@ func _draw_affiche() -> void:
 	if spectator or mt.phase == "draft":
 		return
 	var slogans: Array = mt.data["hubert"]["slogans"]
-	var slogan: String = slogans[(mt.day + mt.seed_value) % slogans.size()]
+	var slogan: String = Traduction.t(slogans[(mt.day + mt.seed_value) % slogans.size()])
 	var mots := slogan.split(" ")
 	var coupe := int(mots.size() / 2.0 + 0.5)
 	var l1 := " ".join(mots.slice(0, coupe))
@@ -2160,6 +2162,7 @@ func _build_origin(hover: Vector2i) -> Vector2i:
 func _label(text: String, pos: Vector2, size: int) -> void:
 	if vitrine:
 		return
+	text = Traduction.t(text)
 	if iso and SpritesBD.collecte != null:
 		SpritesBD.collecte.append({"texte": text, "pos": pos, "taille": size + 6, "encre": Color.WHITE, "fond": UiTokens.ENCRE})
 		return
@@ -2172,6 +2175,7 @@ func _label(text: String, pos: Vector2, size: int) -> void:
 ## Texte du monde, net au zoom : écrit en grand puis réduit (une police de 7 pixels agrandie par la caméra serait floue).
 func _ecrire(pos: Vector2, text: String, align: HorizontalAlignment, width: float, size: int, col: Color, contour := 0, col_contour := Color.BLACK, police: Font = null) -> void:
 	var f: Font = police if police else font
+	text = Traduction.t(text)
 	draw_set_transform(pos, 0.0, Vector2.ONE / TEXTE_NET)
 	var w := width * TEXTE_NET if width > 0.0 else -1.0
 	if contour > 0:
@@ -3970,8 +3974,8 @@ func _draw_medallion() -> void:
 	medallion.draw_arc(c, r_in, 0, TAU, 64, ink, 2.5, true)
 	var titre := UiTokens.police_titre()
 	var left := maxf(0.0, game.day_length - game.time)
-	medallion.draw_string(titre, Vector2(0, c.y - 14), "JOUR %d" % game.day, HORIZONTAL_ALIGNMENT_CENTER, s.x, 15, ink)
-	medallion.draw_string(titre, Vector2(0, c.y + 16), "%d:%02d" % [int(left) / 60, int(left) % 60] if game.phase == "day" else "NUIT",
+	medallion.draw_string(titre, Vector2(0, c.y - 14), Traduction.t("JOUR %d" % game.day), HORIZONTAL_ALIGNMENT_CENTER, s.x, 15, ink)
+	medallion.draw_string(titre, Vector2(0, c.y + 16), "%d:%02d" % [int(left) / 60, int(left) % 60] if game.phase == "day" else Traduction.t("NUIT"),
 		HORIZONTAL_ALIGNMENT_CENTER, s.x, 32, ink)
 
 
@@ -6468,6 +6472,7 @@ func _terrains_du_motif(def: Dictionary, tuiles: Array) -> Array:
 func _etiquette_monde(centre: Vector2, texte: String, fond: Color, encre: Color) -> void:
 	if vitrine:
 		return
+	texte = Traduction.t(texte)
 	if iso and SpritesBD.collecte != null:
 		SpritesBD.collecte.append({"texte": texte, "pos": centre, "taille": 13, "encre": encre, "fond": fond})
 		return
@@ -7545,8 +7550,8 @@ func _draw_horloge() -> void:
 	var minutes := 6 * 60 + int(frac * 12 * 60)
 	var corps := UiTokens.police_corps(700)
 	var mono := UiTokens.police_mono(600)
-	medallion.draw_string(corps, Vector2(0, 13), "JOUR %d" % game.day, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, ink)
-	medallion.draw_string(mono, Vector2(0, 13), "%02d:%02d → 18:00" % [minutes / 60, minutes % 60] if game.phase == "day" else "NUIT",
+	medallion.draw_string(corps, Vector2(0, 13), Traduction.t("JOUR %d" % game.day), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, ink)
+	medallion.draw_string(mono, Vector2(0, 13), "%02d:%02d → 18:00" % [minutes / 60, minutes % 60] if game.phase == "day" else Traduction.t("NUIT"),
 		HORIZONTAL_ALIGNMENT_RIGHT, s.x, 12, ink)
 	var r := Rect2(0, 20, s.x, 14)
 	var fond := StyleBoxFlat.new()
@@ -7590,3 +7595,10 @@ class IconeVitesse extends Control:
 			draw_colored_polygon(PackedVector2Array([Vector2(x, c.y - h / 2), Vector2(x + w + 1.5, c.y), Vector2(x, c.y + h / 2)]), col)
 		if vitesse == 8.0:
 			draw_rect(Rect2(Vector2(x0 + n * w + 1.0, c.y - h / 2), Vector2(2.5, h)), col)
+
+
+## Version anglaise : la traduction est retirée avant que Godot ne détruise les scripts (sinon plantage en quittant).
+## La partie suivante (Rejouer, Menu) la remet dans _ready.
+func _exit_tree() -> void:
+	if not vitrine_fond:
+		Traduction.retirer()

@@ -510,8 +510,8 @@ class Courbe extends Control:
 		var yo: float = y_de.call(objectif)
 		draw_dashed_line(Vector2(g, yo), Vector2(size.x - 8, yo), UiTokens.ENCRE, 1.5, 6.0)
 		draw_string(f, Vector2(0, yo + 4), str(roundi(objectif)), HORIZONTAL_ALIGNMENT_RIGHT, g - 8, 11, UiTokens.TEXTE_2)
-		draw_string(f, Vector2(g + 6, bas + 18), "il y a %d partie%s" % [valeurs.size(), "s" if valeurs.size() > 1 else ""], HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UiTokens.TEXTE_2)
-		draw_string(f, Vector2(size.x - 70, bas + 18), "dernière", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UiTokens.TEXTE_2)
+		draw_string(f, Vector2(g + 6, bas + 18), Traduction.t("il y a %d partie%s" % [valeurs.size(), "s" if valeurs.size() > 1 else ""]), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UiTokens.TEXTE_2)
+		draw_string(f, Vector2(size.x - 70, bas + 18), Traduction.t("dernière"), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UiTokens.TEXTE_2)
 		if valeurs.is_empty():
 			return
 		var pas := (size.x - g - 30.0) / maxf(1.0, valeurs.size() - 1)

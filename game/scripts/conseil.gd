@@ -50,8 +50,9 @@ class Anneau extends Control:
 			draw_arc(c, r, 0.0, TAU, 40, couleur, 2.0, true)
 		var f := UiTokens.police_mono(600)
 		var sz := 13
-		var w := f.get_string_size(texte, HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x
-		draw_string(f, Vector2(c.x - w / 2.0, c.y + sz * 0.36), texte, HORIZONTAL_ALIGNMENT_LEFT, -1, sz, couleur_texte)
+		var tt := Traduction.t(texte)
+		var w := f.get_string_size(tt, HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x
+		draw_string(f, Vector2(c.x - w / 2.0, c.y + sz * 0.36), tt, HORIZONTAL_ALIGNMENT_LEFT, -1, sz, couleur_texte)
 
 
 ## Traits de l'organigramme : de la Direction vers les trois colonnes.
@@ -78,10 +79,10 @@ class Barres extends Control:
 		var r1 := Rect2(0, 6, long * recettes / maxi_v, 22)
 		var r2 := Rect2(0, 40, long * depenses / maxi_v, 22)
 		draw_rect(r1, UiTokens.SARCELLE)
-		draw_string(f, Vector2(r1.size.x + 6, 22), "+%d recettes" % recettes, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, UiTokens.ENCRE)
+		draw_string(f, Vector2(r1.size.x + 6, 22), Traduction.t("+%d recettes" % recettes), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, UiTokens.ENCRE)
 		draw_rect(r2, UiTokens.ORANGE)
 		Composants.tirets_rect(self, r2, UiTokens.ENCRE)
-		draw_string(f, Vector2(r2.size.x + 6, 56), "−%d dépenses" % depenses, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, UiTokens.ENCRE)
+		draw_string(f, Vector2(r2.size.x + 6, 56), Traduction.t("−%d dépenses" % depenses), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, UiTokens.ENCRE)
 
 
 func _init(principal) -> void:

@@ -20,7 +20,7 @@ static func resolutions() -> Array[Vector2i]:
 	out.sort_custom(func(a, b): return a.x * a.y < b.x * b.y)
 	return out
 
-static var valeurs := {"musique": 0.6, "effets": 0.8, "largeur": 1600, "hauteur": 900, "plein_ecran": false}
+static var valeurs := {"musique": 0.6, "effets": 0.8, "largeur": 1600, "hauteur": 900, "plein_ecran": false, "langue": ""}
 static var _charge := false
 
 
@@ -41,6 +41,16 @@ static func sauver() -> void:
 	for k in valeurs:
 		cfg.set_value("reglages", k, valeurs[k])
 	cfg.save(FICHIER)
+
+
+## Langue du jeu : celle des réglages, sinon celle du système ; --langue=fr|en la remplace (captures).
+static func appliquer_langue() -> void:
+	charger()
+	var code := str(valeurs.get("langue", ""))
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--langue="):
+			code = a.trim_prefix("--langue=")
+	Traduction.choisir(code if code != "" else Traduction.langue_par_defaut())
 
 
 static func appliquer_volumes() -> void:
@@ -75,6 +85,19 @@ func _ready() -> void:
 	var f := Composants.fenetre(Vector2(560, 0), "Préférences", "Réglages", queue_free)
 	add_child(f["racine"])
 	var v: VBoxContainer = f["corps"]
+
+	v.add_child(_titre("Langue"))
+	var langues := OptionButton.new()
+	var codes: Array = Traduction.LANGUES.keys()
+	for i in codes.size():
+		langues.add_item(Traduction.LANGUES[codes[i]])
+		if codes[i] == Traduction.langue:
+			langues.select(i)
+	langues.item_selected.connect(func(i: int):
+		valeurs["langue"] = codes[i]
+		sauver()
+		Traduction.choisir(codes[i]))
+	v.add_child(langues)
 
 	_curseur(v, "Musique", "musique")
 	_curseur(v, "Bruitages", "effets")

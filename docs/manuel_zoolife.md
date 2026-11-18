@@ -410,6 +410,12 @@ Certaines box et certains opérateurs (connexion 4G/5G, fibre en « IP partagée
 - **Sons** (`assets/audio/`) : musiques, bruitages et 40 cris `cri_<espèce>`, avec repli sur `cri_<type>`. Ils sont générés par IA et préparés par des scripts (mono, silences coupés, volume égalisé). `Sons.effet`, `Sons.musique` et `Sons.ambiance` acceptent .ogg, .mp3 et .wav, ainsi que les variantes `nom_2`.
 - **Polices** : Barlow, Barlow Condensed, IBM Plex Mono, Bangers, toutes sous licence OFL.
 - **Textes** : tout est en français, écrit en dur dans le code et dans `hubert.json`. Le vocabulaire visible parle de « collaborateurs » et de « mobiliser » ; les identifiants du code restent `ouvriers`, `deploy`.
+- **Version anglaise** (depuis le 18/11/2026) : le jeu reste écrit en français ; la langue se choisit dans les Réglages (par défaut celle du système). `scripts/traduction.gd` reconnaît chaque texte français au moment de l'afficher et le remplace par sa version anglaise, prise dans `game/lang/en.json` (clé = texte français, valeur = anglais). Les textes qui contiennent des nombres ou des noms (« Salaire 4 », « Pris par PanZoo ») sont reconnus par gabarit ; ce qui n'est pas dans la table reste en français.
+  - **Ajouter ou modifier un texte** : après avoir écrit de nouveaux textes en français, lancez `python tools/traduction_extraire.py`. Il écrit `game/lang/a_traduire.json` (les textes sans traduction, valeurs vides) ; remplissez les valeurs, puis `python tools/traduction_extraire.py --fusion` les verse dans `en.json`. Les identifiants internes (couleurs, noms de fichiers) peuvent rester vides.
+  - **Variables** : l'anglais doit garder les mêmes `%d`, `%s`, `{nom}` dans le même ordre (les `{…}` peuvent changer de place). `%0s` saute une valeur (un pluriel français « s » ou « x » inutile en anglais).
+  - **Textes dessinés** (horloge, étiquettes de la carte, pancarte) : ils passent par `Traduction.t(texte)`, pas par la traduction automatique de Godot.
+  - **Relecture d'Hubert** : `docs/hubert_anglais.md` (français et anglais côte à côte). L'image du logo garde son slogan français.
+  - Contrôle : `godot --headless --path game --script res://tests/traduction_test.gd`, et captures avec `--langue=en`.
 
 ### Ajouter du contenu (liste de contrôle)
 - **Une espèce** :

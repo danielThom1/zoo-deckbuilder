@@ -16,3 +16,4 @@ capture_*.png
 Thumbs.db
 
 *.exe
+game/lang/a_traduire.json

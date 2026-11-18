@@ -41,8 +41,8 @@ class Courbes extends Control:
 		var jours: int = mt.history.size()
 		if jours == 0:
 			return
-		draw_string(f, Vector2(gauche - 4, size.y - 6), "J1", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UiTokens.TEXTE_2)
-		draw_string(f, Vector2(gauche + w - 24, size.y - 6), "J%d" % int(mt.history[jours - 1][0]["day"]), HORIZONTAL_ALIGNMENT_RIGHT, 24, 11, UiTokens.TEXTE_2)
+		draw_string(f, Vector2(gauche - 4, size.y - 6), Traduction.t("J1"), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UiTokens.TEXTE_2)
+		draw_string(f, Vector2(gauche + w - 24, size.y - 6), Traduction.t("J%d" % int(mt.history[jours - 1][0]["day"])), HORIZONTAL_ALIGNMENT_RIGHT, 24, 11, UiTokens.TEXTE_2)
 		var ordre := range(mt.players.size())
 		ordre.sort_custom(func(a, b): return (a == moi) == false and (b == moi))  # le joueur est dessiné en dernier
 		var etiquettes := []
@@ -63,7 +63,7 @@ class Courbes extends Control:
 		for e in etiquettes:
 			var y := maxf(e[0].y + 4.0, y_prec + 16.0)
 			y_prec = y
-			draw_string(fc, Vector2(gauche + w + 8, y), e[1], HORIZONTAL_ALIGNMENT_LEFT, droite - 8, 13, UiTokens.ENCRE)
+			draw_string(fc, Vector2(gauche + w + 8, y), Traduction.t(e[1]), HORIZONTAL_ALIGNMENT_LEFT, droite - 8, 13, UiTokens.ENCRE)
 
 	func _ligne(pts: PackedVector2Array, couleur: Color, ep: float, motif: Array) -> void:
 		if motif.is_empty():
